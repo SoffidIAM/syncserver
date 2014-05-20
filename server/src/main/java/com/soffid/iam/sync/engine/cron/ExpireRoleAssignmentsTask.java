@@ -10,6 +10,7 @@ import com.soffid.iam.service.TaskHandler;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.servei.AplicacioService;
 import es.caib.seycon.ng.servei.InternalPasswordService;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
 import es.caib.seycon.ng.sync.engine.DispatcherHandler;
@@ -20,7 +21,7 @@ import es.caib.seycon.ng.sync.servei.TaskGenerator;
  * @author bubu
  *
  */
-public class AuthoritativeImportTask implements TaskHandler
+public class ExpireRoleAssignmentsTask implements TaskHandler
 {
 	
 	
@@ -29,20 +30,10 @@ public class AuthoritativeImportTask implements TaskHandler
 	/* (non-Javadoc)
 	 * @see java.lang.Runnable#run()
 	 */
-	public void run () throws SQLException, InternalErrorException
+	public void run () throws InternalErrorException
 	{
-		TaskGenerator tg = ServiceLocator.instance().getTaskGenerator();
-		boolean found = false;
-		for (DispatcherHandler dispatcher: tg.getDispatchers())
-		{
-			if (dispatcher.getDispatcher().getId().toString().equals (task.getParams()))
-			{
-				found = true;
-				dispatcher.doAuthoritativeImport(task);
-			}
-		}
-		if (!found)
-			task.getLastLog(). append(String.format("Dispatcher with id %s not found", task.getParams()));
+		AplicacioService appSvc = ServiceLocator.instance().getAplicacioService();
+		appSvc.enableOrDisableAllOnDates();
 	}
 
 	/* (non-Javadoc)

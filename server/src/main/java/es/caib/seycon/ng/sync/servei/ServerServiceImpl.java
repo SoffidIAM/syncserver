@@ -16,6 +16,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -226,15 +227,20 @@ public class ServerServiceImpl extends ServerServiceBase {
             throws Exception {
     	List<Account> acc = new LinkedList<Account>();
     	Collection<RolGrant> rgs = getAplicacioService().findEffectiveRolGrantsByRolId(roleId);
+    	Date now = new Date();
     	for (RolGrant rg: rgs)
     	{
-    		AccountEntity account = getAccountEntityDao().
-    				findByNameAndDispatcher(rg.getOwnerAccountName(), rg.getOwnerDispatcher());
-    		if (account.getUsers().isEmpty())
-    			acc.add(getAccountEntityDao().toAccount(account));
-    		else
-    			for (UserAccountEntity uae: account.getUsers())
-    				acc.add(getUserAccountEntityDao().toUserAccount(uae));
+			if ( (rg.getStartDate() == null || now.after(rg.getStartDate())) &&
+		    				(rg.getEndDate() == null || now.before(rg.getEndDate())))
+   			{
+        		AccountEntity account = getAccountEntityDao().
+        				findByNameAndDispatcher(rg.getOwnerAccountName(), rg.getOwnerDispatcher());
+        		if (account.getUsers().isEmpty())
+        			acc.add(getAccountEntityDao().toAccount(account));
+        		else
+        			for (UserAccountEntity uae: account.getUsers())
+        				acc.add(getUserAccountEntityDao().toUserAccount(uae));
+   			}
     	}
     	return acc;
     }
@@ -372,10 +378,14 @@ public class ServerServiceImpl extends ServerServiceBase {
     		accounts = getAccountEntityDao().findByUsuariAndDispatcher(user.getCodi(), dispatcherid);
     	
     	Collection<RolGrant> grants = new LinkedList<RolGrant>();
+		Date now = new Date();
     	for (AccountEntity account: accounts)
     	{
     		Collection<RolGrant> partialGrants = getAplicacioService().findRolGrantByAccount(account.getId());
-    		grants.addAll(partialGrants);
+    		for (RolGrant rg: partialGrants)
+    		{
+   				grants.add (rg);
+    		}
     	}
         return grants;
     }

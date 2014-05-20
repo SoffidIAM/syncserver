@@ -554,11 +554,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	/**
+	 * @throws Exception 
 	 * 
 	 */
-	public String doAuthoritativeImport () 
+	public void doAuthoritativeImport (ScheduledTask task) 
 	{
-		StringBuffer result = new StringBuffer ();
+		StringBuffer result = task.getLastLog();
 		try {
     		Object agent = connect(false);
     		if (agent instanceof AuthoritativeIdentitySource)
@@ -592,8 +593,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			result.append ("**  ERROR **\n");
 			result.append ("*************\n");
 			result.append (e.toString());
+			task.setError(true);
 		}
-		return result.toString();
 		
 	}
 
@@ -1159,6 +1160,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
            	{
        			userMgr.removeUser(t.getTask().getUsuari());
            			
+           	}
+           	else if (acc.getType().equals (AccountType.IGNORED))
+           	{
+           		// Nothing to do
+           		return;
            	}
            	else
            	{
