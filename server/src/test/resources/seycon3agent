@@ -1,0 +1,35 @@
+#!/bin/sh
+
+# chkconfig: 2345 99 00
+# description: Seycon Agent
+dir=/opt/seycon3/bin
+cmd=./runSeyconAgentService
+prog=seycon3agent
+
+    case "$1" in
+	start)
+            if [ -r /var/lock/subsys/$prog ]
+            then
+              echo "$prog already running"
+              exit 1
+            fi
+            cd "$dir"
+	    eval "$cmd start"
+	    touch /var/lock/subsys/$prog
+            echo $$ >/var/run/$prog.pgid
+	    ;;
+	stop)
+            if [ ! -r /var/lock/subsys/$prog ]
+            then
+              echo "$prog not running"
+              exit 1
+            fi
+            cd "$dir"
+	    eval "$cmd stop"
+            kill -9 -$(cat /var/run/$prog.pgid)
+	    rm -f /var/lock/subsys/$prog
+	    ;;
+	*)
+	    eval "$cmd $@"
+	    ;;
+    esac

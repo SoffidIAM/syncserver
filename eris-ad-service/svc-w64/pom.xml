@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.soffid.iam.sync.w64</groupId>
+	<artifactId>eris-ad-service</artifactId>
+	<packaging>exe</packaging>
+	<name>Executable per a la configuració de la sessió (Windows 32 bits) </name>
+	<parent>
+		<artifactId>eris-ad-service</artifactId>
+		<groupId>com.soffid.iam.sync</groupId>
+		<version>1.0.3</version>
+	</parent>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>native-maven-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<compilerProvider>generic</compilerProvider>
+					<compilerExecutable>${cpp.64w}</compilerExecutable>
+					<linkerProvider>generic</linkerProvider>
+					<linkerExecutable>${cpp.64w}</linkerExecutable>
+					<linkerMiddleOptions>
+						<linkerMiddleOption>-Ltarget/lib</linkerMiddleOption>
+						<linkerMiddleOption>-leris-ad-filter</linkerMiddleOption>
+						<linkerMiddleOption>-mwindows</linkerMiddleOption>
+						<linkerMiddleOption>-Xlinker</linkerMiddleOption>
+						<linkerMiddleOption>--strip-all</linkerMiddleOption>
+						<linkerMiddleOption>-static-libgcc</linkerMiddleOption>
+						<linkerMiddleOption>-static-libstdc++</linkerMiddleOption>
+					</linkerMiddleOptions>
+					<sources>
+						<source>
+							<!-- relative to your project directory -->
+							<directory>../src/main/native</directory>
+							<includes>
+								<include>*.cpp</include>
+							</includes>
+							<excludes>
+								<exclude>**/*.h</exclude>
+							</excludes>
+							<deployable>false</deployable>
+							<dependencyAnalysisParticipation>false</dependencyAnalysisParticipation>
+						</source>
+						<!-- additional system include path -->
+						<source>
+							<directory>../src/main/include</directory>
+							<deployable>true</deployable>
+							<dependencyAnalysisParticipation>true</dependencyAnalysisParticipation>
+						</source>
+						<source>
+							<directory>../src/main/resources</directory>
+							<deployable>false</deployable>
+							<dependencyAnalysisParticipation>true</dependencyAnalysisParticipation>
+						</source>
+					</sources>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+	<dependencies>
+		<dependency>
+			<artifactId>eris-ad-filter</artifactId>
+			<groupId>${pom.groupId}</groupId>
+			<version>1.0.2</version>
+			<type>dll</type>
+		</dependency>
+		<dependency>
+			<artifactId>eris-ad-filter</artifactId>
+			<groupId>${pom.groupId}</groupId>
+			<version>1.0.2</version>
+			<type>inczip</type>
+		</dependency>
+	</dependencies>
+	<properties>
+		<architecture>w64</architecture>
+	</properties>
+</project>

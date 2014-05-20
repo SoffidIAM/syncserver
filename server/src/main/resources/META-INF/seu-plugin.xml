@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<SoffidIAMPlugin xmlns="http://www.soffid.com/schema/iam-plugin-v1"> 
+	<name>Soffid IAM Synchronization Server</name>
+	<version>${pom.version}</version>
+	<syncserver name="Soffid IAM Synchronization Server" />
+</SoffidIAMPlugin>

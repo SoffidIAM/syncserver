@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!DOCTYPE beans
+    PUBLIC "-//SPRING//DTD BEAN//EN"
+           "http://www.springframework.org/dtd/spring-beans.dtd">
+
+<beans>
+
+    <bean id="beanRefFactory"
+         class="org.springframework.context.support.ClassPathXmlApplicationContext">
+        <constructor-arg>
+           <list>
+                <value>console-applicationContext.xml</value>
+                <value>sync-applicationContext.xml</value>
+                <value>classpath*:plugin-applicationContext.xml</value>
+                <value>classpath*:addon-applicationContext.xml</value>
+                <value>applicationContext-customDataSource.xml</value>
+                <!-- beanRefFactory merge-point -->
+           </list>
+        </constructor-arg>
+    </bean>
+    
+</beans>

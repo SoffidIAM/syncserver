@@ -1,0 +1,171 @@
+package es.caib.seycon.ng.sync.web.admin;
+
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.PrintWriter;
+import java.net.URL;
+import java.util.Vector;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.mortbay.log.Log;
+import org.mortbay.log.Logger;
+
+import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.config.Config;
+import es.caib.seycon.ng.remote.RemoteInvokerFactory;
+import es.caib.seycon.ng.remote.RemoteServiceLocator;
+import es.caib.seycon.ng.remote.URLManager;
+import es.caib.seycon.ng.sync.ServerServiceLocator;
+import es.caib.seycon.ng.sync.agent.AgentManager;
+import es.caib.seycon.ng.sync.engine.DispatcherHandler;
+import es.caib.seycon.ng.sync.servei.TaskGenerator;
+
+public class ResetServlet extends HttpServlet {
+    Logger log = Log.getLogger("ResetAgent Servlet");
+    private TaskGenerator taskGenerator;
+    private static String HOME_PATH = null;
+    private static String FILE_SEPARATOR = File.separator;
+
+    static {
+        try {
+            HOME_PATH = Config.getConfig().getHomeDir().getAbsolutePath();
+        } catch (IOException ioe) {
+            Log.getLog().warn("No s'ha pogut carregar la configuració", ioe);
+        }
+    }
+
+    public ResetServlet () {
+        taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
+    }
+    protected void doPost(HttpServletRequest request,
+            HttpServletResponse response) throws ServletException, IOException {
+        try {
+            response.setContentType("text/html; charset=UTF-8");
+            String action = request.getParameter("action");
+            if (action != null) {
+                if (action.compareTo("agents") == 0) {
+                    resetAgents(request, response);
+                } else {
+                    reset(request, response, action);
+                }
+            } else {
+                PrintWriter printWriter = response.getWriter();
+                printWriter.append(ask());
+                response.flushBuffer();
+            }
+        } catch (Throwable t) {
+            PrintWriter printWriter = response.getWriter();
+            printWriter
+                    .println("<p>Error generando p&#225;gina. Revise el LOG.</p>");
+            log.warn("Error invoking " + request.getRequestURI(), t);
+        }
+    }
+
+    private void reset(HttpServletRequest request,
+            HttpServletResponse response, String action) throws IOException {
+        PrintWriter printWriter = response.getWriter();
+
+        printWriter
+                .print("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/>"
+                        + "<html>");
+        printWriter.print("Reiniciant " + action + "...<br>");
+        printWriter.flush();
+        try {
+            RemoteServiceLocator rsl = new RemoteServiceLocator(action);
+            AgentManager agentMgr = rsl.getAgentManager();
+            agentMgr.reset();
+            printWriter.append("REINICIAT!");
+        } catch (Exception e) {
+            printWriter.append("Error reiniciant " + action + ": "
+                    + e.toString());
+
+        }
+        printWriter.append("<br><a href='main'>Tornar</a></html>");
+
+
+    }
+
+    private String ask() throws FileNotFoundException, IOException,
+            InternalErrorException {
+        StringBuffer b = new StringBuffer();
+        b
+                .append("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/>"
+                        + "<html>"
+                        + "<a href='reset?action=agents'>Reiniciar tots els agents</a><br><br><br>");
+        Vector<String> hosts = new Vector<String>();
+        Config config = Config.getConfig();
+        String servidors[] = config.getSeyconServerHostList();
+        for (int i = 0; i < servidors.length; i++) {
+            String host = new URLManager(servidors[i]).getAgentURL().getHost();
+            if (!hosts.contains(host))
+                hosts.add(host);
+        }
+
+        for (DispatcherHandler td : taskGenerator.getDispatchers()) {
+            if (td != null && td.getDispatcher() != null && td.getDispatcher().getUrl() != null) {
+                String host = new URLManager(td.getDispatcher().getUrl()).getAgentURL()
+                        .getHost();
+                if (!hosts.contains(host) && !host.equals("local"))
+                    hosts.add(host);
+            }
+        }
+
+        for (int i = 0; i < hosts.size(); i++) {
+            b.append("<a href='reset?action=" + hosts.get(i) + "'>Reiniciar "
+                    + hosts.get(i) + "</a><br>");
+        }
+        b.append("<a href='main'>Cancel&#149;lar</a></html>");
+        return b.toString();
+
+    }
+
+    private void resetAgents(HttpServletRequest request,
+            HttpServletResponse response) throws IOException,
+            InternalErrorException {
+        PrintWriter printWriter = response.getWriter();
+        printWriter
+                .print("<meta http-equiv=\"Content-Type\" content=\"text/html; charset=UTF-8\"/>"
+                        + "<html>");
+
+        RemoteInvokerFactory factory = new RemoteInvokerFactory();
+        Vector v = new Vector ();
+        for (DispatcherHandler td : taskGenerator.getDispatchers()) {
+            if (td != null && td.isConnected()) {
+                URL url = new URLManager(td.getDispatcher().getUrl()).getAgentURL();
+                String host = url.getHost();
+                if ( !v.contains(host) && !host.equals("local"))
+                {
+                    v.add(host);
+                    printWriter.print("Reiniciant "+host+"...<br>");
+                    printWriter.flush();
+                    if (!host.equals("local")
+                            && !host.equals(Config.getConfig().getHostName())) {
+                        try {
+                            RemoteServiceLocator rsl  = new RemoteServiceLocator(td.getDispatcher().getUrl());
+                            AgentManager agentMgr = rsl.getAgentManager();
+                            agentMgr.reset();
+                            printWriter.append("REINICIAT!<br><br>");
+                        } catch (Exception e) {
+                            printWriter.append("Error reiniciant " + host + ": "
+                                    + e.toString()+"<br><br>");
+
+                        }
+                    }
+                }
+            }
+        }
+        printWriter.append("<br><a href='main'>Tornar</a></html>");
+
+    }
+
+    protected void doGet(HttpServletRequest req, HttpServletResponse response)
+            throws ServletException, IOException {
+        doPost(req, response);
+    }
+
+}
