@@ -565,24 +565,30 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		if (agent instanceof AuthoritativeIdentitySource)
     		{
     			AuthoritativeIdentitySource source = (AuthoritativeIdentitySource) agent;
-    	        for (AuthoritativeChange change: source.getChanges())
-    	        {
-    	        	try {
-    	        		applyChange (change);
-    	        		result.append ("Applied authoritative change for  ")
-    	        			.append (change.getUser().getCodi())
-    	        			.append ("\n");
-    	        		source.commitChange(change.getId());
-    	        	} catch ( Exception e) {
-    	        		result.append ("Error uploading change ")
-    	        			.append(change.getId().toString())
-    	        			.append(":");
-    	        		StringWriter sw = new StringWriter();
-    	        		e.printStackTrace (new PrintWriter(sw));
-    	        		result.append(sw.getBuffer())
-    	        			.append ("\n");
-    	        	}
-    	        }
+    			Collection<AuthoritativeChange> changes = source.getChanges();
+    			while ( changes != null && !changes.isEmpty())
+    			{
+	    	        for (AuthoritativeChange change: changes)
+	    	        {
+	    	        	try {
+	    	        		applyChange (change);
+	    	        		result.append ("Applied authoritative change for  ")
+	    	        			.append (change.getUser().getCodi())
+	    	        			.append ("\n");
+	    	        		source.commitChange(change.getId());
+	    	        	} catch ( Exception e) {
+	    	        		result.append ("Error uploading change ")
+	    	        			.append(change.getId().toString())
+	    	        			.append(":");
+	    	        		StringWriter sw = new StringWriter();
+	    	        		e.printStackTrace (new PrintWriter(sw));
+	    	        		result.append(sw.getBuffer())
+	    	        			.append ("\n");
+	    	        		result.append("User information: ").append(change.getUser()).append("\n");
+	    	        	}
+	    	        }
+	    			changes = source.getChanges();
+    			}
     		} else {
     			result.append ("This agent does not support account reconciliation");
     		}
@@ -593,6 +599,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			result.append ("**  ERROR **\n");
 			result.append ("*************\n");
 			result.append (e.toString());
+			result.append("\n\nStack trace:\n")
+				.append(SoffidStackTrace.getStackTrace(e));
 			task.setError(true);
 		}
 		
@@ -747,7 +755,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	{
 		for (String attribute: change.getAttributes().keySet())
 		{
-			String value = change.getAttributes().get(attribute);
+			Object value = change.getAttributes().get(attribute);
 			TipusDada tda = dadesAddicionalsService.findTipusDadaByCodi(attribute);
 			if (tda == null)
 			{
@@ -770,7 +778,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				dada = new DadaUsuari();
 				dada.setCodiDada(tda.getCodi());
 				dada.setCodiUsuari(user.getCodi());
-				dada.setValorDada(value);
+				if (value instanceof byte[])
+					dada.setBlobDataValue ( (byte[]) value);
+				else if (value instanceof Date)
+				{
+					java.util.Calendar cal = java.util.Calendar.getInstance();
+					cal.setTime ((Date)value);
+					dada.setValorDadaDate (cal);
+				}
+				else
+					dada.setValorDada (value.toString());
 				dadesAddicionalsService.create(dada);
 			} 
 			else if (value == null && dada!= null)
@@ -780,7 +797,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			else if (value != null && ! value.equals(dada.getValorDada())) 
 			{
 				auditAuthoritativeChange(user.getCodi());
-				dada.setValorDada(value);
+				if (value instanceof byte[])
+					dada.setBlobDataValue ( (byte[]) value);
+				else if (value instanceof Date)
+				{
+					java.util.Calendar cal = java.util.Calendar.getInstance();
+					cal.setTime ((Date)value);
+					dada.setValorDadaDate (cal);
+				}
+				else
+					dada.setValorDada (value.toString());
 				dadesAddicionalsService.update(dada);
 			}
 		}
@@ -2052,26 +2078,30 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		ReconcileAccount reconcileAccount = null; // Reconcile accounts handler
 		ReconcileAssignment reconcileAssign = null; // Reconcile assignments handler
 
+		try
+		{
+			reconcileManager = (ReconcileMgr) agent;
+		}
+
+		catch (ClassCastException e)
+		{
+			return;
+		}
+
+		String accountName = taskHandler.getTask().getUsuari();
 		// Check existing user on system
-		Account account = accountService.findAccount(taskHandler.getTask().getUsuari(),
+		Account account = accountService.findAccount(accountName,
 						getDispatcher().getCodi());
 
+		Collection<RolGrant> grants = new LinkedList<RolGrant>();
+		
 		if (account == null)
 		{
-			try
-			{
-				reconcileManager = (ReconcileMgr) agent;
-			}
-
-			catch (ClassCastException e)
-			{
-				return;
-			}
 
 			user = reconcileManager.getUserInfo(taskHandler.getTask().getUsuari());
 
 			// Check correct user
-			if (user.getCodi() != null)
+			if (user != null && user.getCodi() != null)
 			{
 				// Set user parameters
 				reconcileAccount = new ReconcileAccount();
@@ -2086,23 +2116,38 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				reconcileAccount.setProposedAction(AccountProposedAction.CREATE_NEW_USER);
 				reconcileAccount.setDispatcher(getDispatcher().getCodi());
 				reconcileService.addUser(reconcileAccount);
-
-				for (Rol role : reconcileManager.getAccountRoles(user.getCodi()))
+			}
+		}
+		else
+			grants = server.getAccountRoles(accountName, getDispatcher().getCodi());
+		
+		for (Rol role : reconcileManager.getAccountRoles(taskHandler.getTask().getUsuari()))
+		{
+			if (role.getNom().length() <= MAX_LENGTH)
+			{
+				boolean found = false;
+				for (RolGrant rg: grants)
 				{
-					if (role.getNom().length() <= MAX_LENGTH)
+					if (rg.getRolName().equals (role.getNom()) && rg.getDispatcher().equals (getDispatcher().getCodi()))
 					{
-						reconcileAssign = new ReconcileAssignment();
-						reconcileAssign.setAccountName(user.getCodi());
-						reconcileAssign.setAssignmentName(user.getCodi() + " - "
-										+ role.getNom());
-						reconcileAssign.setProcessId(Long.parseLong(taskHandler
-										.getTask().getMaquin()));
-						reconcileAssign.setProposedAction(ProposedAction.LOAD);
-						reconcileAssign.setRoleName(role.getNom());
-						reconcileAssign.setDispatcher(getDispatcher().getCodi());
-
-						reconcileService.addAssignment(reconcileAssign);
+						found = true;
+						break;
 					}
+				}
+				
+				if (! found)
+				{
+					reconcileAssign = new ReconcileAssignment();
+					reconcileAssign.setAccountName(accountName);
+					reconcileAssign.setAssignmentName(accountName + " - "
+									+ role.getNom());
+					reconcileAssign.setProcessId(Long.parseLong(taskHandler
+									.getTask().getMaquin()));
+					reconcileAssign.setProposedAction(ProposedAction.LOAD);
+					reconcileAssign.setRoleName(role.getNom());
+					reconcileAssign.setDispatcher(getDispatcher().getCodi());
+	
+					reconcileService.addAssignment(reconcileAssign);
 				}
 			}
 		}
@@ -2207,23 +2252,26 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 					role = reconMgr.getRoleFullInfo(taskHandler.getTask().getRole());
 
-					reconRole = new ReconcileRole();
-					reconRole.setRoleName(role.getNom());
-
-					// Check role description lenght
-					if (role.getDescripcio().length() <= MAX_LENGTH)
-						reconRole.setDescription(role.getDescripcio());
-
-					else
-						reconRole.setDescription(role.getDescripcio().substring(0,
-										MAX_LENGTH));
-
-					reconRole.setProcessId(Long.parseLong(taskHandler.getTask()
-									.getMaquin()));
-					reconRole.setProposedAction(ProposedAction.LOAD);
-					reconRole.setDispatcher(getDispatcher().getCodi());
-
-					reconcileService.addRole(reconRole);
+					if (role != null)
+					{
+						reconRole = new ReconcileRole();
+						reconRole.setRoleName(role.getNom());
+	
+						// Check role description lenght
+						if (role.getDescripcio().length() <= MAX_LENGTH)
+							reconRole.setDescription(role.getDescripcio());
+	
+						else
+							reconRole.setDescription(role.getDescripcio().substring(0,
+											MAX_LENGTH));
+	
+						reconRole.setProcessId(Long.parseLong(taskHandler.getTask()
+										.getMaquin()));
+						reconRole.setProposedAction(ProposedAction.LOAD);
+						reconRole.setDispatcher(getDispatcher().getCodi());
+	
+						reconcileService.addRole(reconRole);
+					}
 				}
 			}
 		}

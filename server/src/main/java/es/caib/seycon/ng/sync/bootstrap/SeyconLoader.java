@@ -56,87 +56,6 @@ import es.caib.seycon.ssl.ConnectionFactory;
  * @version $Revision: 1.1 $
  */
 
-// $Log: SeyconLoader.java,v $
-// Revision 1.1  2012-11-07 07:50:12  u07286
-// Refactoring hibernate
-//
-// Revision 1.14  2012-07-17 06:30:37  u07286
-// Corregit sincronització ClassLoader
-//
-// Revision 1.13 2012-06-18 10:28:10 u07286
-// Milloras per a suportar SAML IDP
-//
-// Revision 1.12 2012-06-12 12:22:05 u07286
-// Corregidos los últimos problemas de integración
-//
-// Revision 1.11 2012-06-12 12:02:35 u07286
-// Mejorada la descarga de componentes
-//
-// Revision 1.9 2012-05-16 10:57:58 u07286
-// Reestructuració de paquets seycon antics
-//
-// Revision 1.8 2012-02-13 13:58:15 u07286
-// Nou mètode d'instanciació
-//
-// Revision 1.7 2010-12-02 13:59:25 u88683
-// Correcci� de la data dels logs (posem el mes correcte) - abans es posava el
-// mes anterior
-//
-// Revision 1.6 2010-07-26 11:39:31 u07286
-// Permetre no descarregar versió des del servidor
-//
-// Revision 1.5 2010-03-15 10:23:31 u07286
-// Movido a tag HEAD
-//
-// Revision 1.1.2.4 2009-07-17 09:50:04 u88683
-// Cambios en la versi�n 3.0.16 aplicados a la 3.1
-//
-// Revision 1.4 2009-07-14 07:36:16 u07286
-// Permitir el análisis del hep dump
-//
-// Revision 1.3 2009-04-28 02:46:14 u07286
-// El servidor de backup debe actualizarse
-//
-// Revision 1.2 2009-04-16 10:24:42 u07286
-// Agregada la posibilidad de añadir java_opt al archivo de configuración
-//
-// Revision 1.1 2009-03-13 14:19:33 u07286
-// Reubicado SeyconLoader
-//
-// Revision 1.35 2009-03-12 11:36:53 u89559
-// *** empty log message ***
-//
-// Revision 1.34 2009-03-12 08:25:41 u89559
-// *** empty log message ***
-//
-// Revision 1.33 2009-03-10 07:34:13 u89559
-// *** empty log message ***
-//
-// Revision 1.32 2009-03-04 13:19:11 u07286
-// Corregidos bugs en el LOG
-//
-// Revision 1.31 2009-03-04 09:07:21 u07286
-// Rotación de logs
-//
-// Revision 1.30 2009-03-03 13:29:21 u07286
-// Rotación de logs
-//
-//
-// Revision 1.6 2008-11-28 12:22:52 u07286
-// Evitar consumo excesivo de CPU si el servidor no arranca
-//
-// Revision 1.5 2008-10-16 11:43:42 u07286
-// Migrado de RMI a HTTP
-//
-// Revision 1.6 2004-08-19 08:09:20 u07286
-// Migracion Eclipse
-//
-// Revision 1.5 2004/03/16 12:40:26 u07286
-// Cambios cosmeticos
-//
-// Revision 1.4 2004/03/16 12:37:43 u07286
-// Agregado Javadoc
-//
 public class SeyconLoader extends Object {
 	JarExtractor je = new JarExtractor();
 
@@ -759,6 +678,11 @@ public class SeyconLoader extends Object {
                 } catch (InterruptedException e) {
                 }
             }
+            try {
+				localOutputStream.close();
+			} catch (IOException e) {
+				e.printStackTrace();
+			}
         }
     }
 

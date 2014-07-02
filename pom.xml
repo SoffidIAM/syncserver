@@ -9,7 +9,6 @@
   <url>http://forge.dev.lab</url>
   <modules>
     <module>server</module>
-    <module>plugins</module>
     <module>eris-ad-filter</module>
     <module>eris-ad-service</module>
   </modules>

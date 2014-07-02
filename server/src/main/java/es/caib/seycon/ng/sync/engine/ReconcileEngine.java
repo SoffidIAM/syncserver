@@ -78,33 +78,36 @@ public class ReconcileEngine
 				acc.setName(accountName);
 				acc.setDispatcher(dispatcher.getCodi());
 				Usuari usuari = agent.getUserInfo(accountName);
-				if (usuari.getFullName() != null)
-					acc.setDescription(usuari.getFullName());
-				else if (usuari.getPrimerLlinatge() != null)
+				if (usuari != null)
 				{
-					if (usuari.getNom() == null)
-						acc.setDescription(usuari.getPrimerLlinatge());
+					if (usuari.getFullName() != null)
+						acc.setDescription(usuari.getFullName());
+					else if (usuari.getPrimerLlinatge() != null)
+					{
+						if (usuari.getNom() == null)
+							acc.setDescription(usuari.getPrimerLlinatge());
+						else
+							acc.setDescription(usuari.getNom()+" "+usuari.getPrimerLlinatge());
+					}
 					else
-						acc.setDescription(usuari.getNom()+" "+usuari.getPrimerLlinatge());
-				}
-				else
-					acc.setDescription("Autocreated account "+accountName);
-				
-				acc.setDisabled(false);
-				acc.setLastUpdated(Calendar.getInstance());
-				acc.setType(AccountType.IGNORED);
-				acc.setPasswordPolicy(passwordPolicy);
-				acc.setGrantedGroups(new LinkedList<Grup>());
-				acc.setGrantedRoles(new LinkedList<Rol>());
-				acc.setGrantedUsers(new LinkedList<Usuari>());
-				try {
-					accountService.createAccount(acc);
-				} catch (AccountAlreadyExistsException e) {
-					throw new InternalErrorException ("Unexpected exception", e);
+						acc.setDescription("Autocreated account "+accountName);
+					
+					acc.setDisabled(false);
+					acc.setLastUpdated(Calendar.getInstance());
+					acc.setType(AccountType.IGNORED);
+					acc.setPasswordPolicy(passwordPolicy);
+					acc.setGrantedGroups(new LinkedList<Grup>());
+					acc.setGrantedRoles(new LinkedList<Rol>());
+					acc.setGrantedUsers(new LinkedList<Usuari>());
+					try {
+						acc = accountService.createAccount(acc);
+					} catch (AccountAlreadyExistsException e) {
+						throw new InternalErrorException ("Unexpected exception", e);
+					}
 				}
 			}
 			
-			if (acc.getType().equals (AccountType.IGNORED))
+			if (acc != null && acc.getId() != null && AccountType.IGNORED.equals(acc.getType()))
 				reconcileRoles (acc);
 		}
 	}
@@ -162,6 +165,13 @@ public class ReconcileEngine
 				role2 = serverService.getRoleInfo(role.getNom(), role.getBaseDeDades());
 				if (role2 == null)
 					role2 = createRole (role);
+				else if (role.getDescripcio() != null && ! role2.getDescripcio().equals(role.getDescripcio()))
+				{
+					role2.setDescripcio(role.getDescripcio());
+					if (role2.getDescripcio().length() > 150)
+						role2.setDescripcio(role2.getDescripcio().substring(0, 150));
+					appService.update(role2);
+				}
 			}
 			catch (UnknownRoleException e)
 			{

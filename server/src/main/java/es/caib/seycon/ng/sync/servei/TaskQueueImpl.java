@@ -527,6 +527,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			logs.add(log);
 		}
 		// Actualizar según base de datos
+		long now = System.currentTimeMillis();
 		for (Iterator<TaskLogEntity> it = tasque.getLogs().iterator(); it.hasNext();)
 		{
 			TaskLogEntity tl = it.next();
@@ -538,11 +539,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				{
 					thl.setComplete("S".equals(tl.getComplet()));
 					thl.setReason(tl.getMissatge());
-					thl.setFirst(tl.getDataCreacio() == null ? 0 : tl.getDataCreacio()
-									.getTime());
+					thl.setFirst(tl.getDataCreacio() == null ? 0 : tl.getDataCreacio().getTime());
 					thl.setLast(tl.getDarreraExecucio() == null ? 0 : tl
 									.getDarreraExecucio().longValue());
-					thl.setNext(0);
+					thl.setNext(now);
 					thl.setNumber(tl.getNumExecucions() == null ? 0 : tl
 									.getNumExecucions().intValue());
 					thl.setStackTrace(tl.getStackTrace());
@@ -1021,7 +1021,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		if (thl.getFirst() > 0)
 			elapsed = thl.getLast() - thl.getFirst();
 		else
+		{
 			elapsed = 0;
+			thl.setFirst(now);
+		}
 		if (elapsed < 1000)
 			elapsed = 1000; // Mínimo un segundo
 		if (elapsed > 1000 * 60 * 60 * 8)

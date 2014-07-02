@@ -23,9 +23,9 @@ import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Configuracio;
 import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.servei.ConfiguracioService;
 import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
-
 import it.sauronsoftware.cron4j.Scheduler;
 
 /**
@@ -83,7 +83,9 @@ public class TaskScheduler
 						task.setError(true);
 						task.getLastLog()
 							.append("\nError executing task: ")
-							.append(e.toString());
+							.append(e.toString())
+							.append("\n\nStack trace:\n")
+							.append(SoffidStackTrace.getStackTrace(e));
 					}
       
 					try

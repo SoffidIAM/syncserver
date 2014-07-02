@@ -79,7 +79,17 @@ public class ValueObjectMapper
 			if (len == 0)
 				return null;
 			else if (len > 1)
-				throw new RuntimeException("Multi valued attribute not supported");
+			{
+				StringBuffer b = new StringBuffer();
+				for (int i = 0; i < len; i ++)
+				{
+					if (i > 0) b.append (", ");
+					Object e = Array.get(obj, i); 
+					b.append (e == null? "null": e.toString());
+				}
+				throw new RuntimeException("Multi valued attribute not supported ["+b.toString()+"]");
+				
+			}
 			else
 				return Array.get(obj, 0);
 		}
@@ -157,29 +167,34 @@ public class ValueObjectMapper
 			usuari = new Usuari();
 			for (String attribute: object.getAttributes())
 			{
-				Object value = toSingleton(object.getAttribute(attribute));
-				if ("active".equals(attribute)) usuari.setActiu("true".equals(value));
-				else if ("mailAlias".equals(attribute)) usuari.setAliesCorreu(toString (value));
-				else if ("userName".equals(attribute)) usuari.setCodi(toString( value) );
-				else if ("primaryGroup".equals(attribute)) usuari.setComentari(toString( value));
-				else if ("comments".equals(attribute)) usuari.setCodiGrupPrimari(toString(value));
-				else if ("createdOn".equals(attribute)) usuari.setDataCreacioUsuari(toCalendar(value));
-				else if ("modifiedOn".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
-				else if ("mailDomain".equals(attribute)) usuari.setDominiCorreu(toString(value));
-				else if ("fullName".equals(attribute)) usuari.setFullName(toString(value));
-				else if ("id".equals(attribute)) usuari.setId(toLong(value));
-				else if ("multiSession".equals(attribute)) usuari.setMultiSessio(toBoolean(value));
-				else if ("firstName".equals(attribute)) usuari.setNom(toString(value));
-				else if ("shortName".equals(attribute)) usuari.setNomCurt(toString(value));
-				else if ("lastName".equals(attribute)) usuari.setPrimerLlinatge(toString(value));
-				else if ("lastName2".equals(attribute)) usuari.setSegonLlinatge(toString(value));
-				else if ("mailServer".equals(attribute)) usuari.setServidorCorreu(toString(value));
-				else if ("homeServer".equals(attribute)) usuari.setServidorHome(toString(value));
-				else if ("profileServer".equals(attribute)) usuari.setServidorPerfil(toString(value));
-				else if ("phone".equals(attribute)) usuari.setTelefon(toString(value));
-				else if ("userType".equals(attribute)) usuari.setTipusUsuari(toString(value));
-				else if ("createdBy".equals(attribute)) usuari.setUsuariCreacio(toString(value));
-				else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
+				try 
+				{
+					Object value = toSingleton(object.getAttribute(attribute));
+					if ("active".equals(attribute)) usuari.setActiu("true".equals(value));
+					else if ("mailAlias".equals(attribute)) usuari.setAliesCorreu(toString (value));
+					else if ("userName".equals(attribute)) usuari.setCodi(toString( value) );
+					else if ("primaryGroup".equals(attribute)) usuari.setCodiGrupPrimari(toString( value));
+					else if ("comments".equals(attribute)) usuari.setComentari (toString(value));
+					else if ("createdOn".equals(attribute)) usuari.setDataCreacioUsuari(toCalendar(value));
+					else if ("modifiedOn".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
+					else if ("mailDomain".equals(attribute)) usuari.setDominiCorreu(toString(value));
+					else if ("fullName".equals(attribute)) usuari.setFullName(toString(value));
+					else if ("id".equals(attribute)) usuari.setId(toLong(value));
+					else if ("multiSession".equals(attribute)) usuari.setMultiSessio(toBoolean(value));
+					else if ("firstName".equals(attribute)) usuari.setNom(toString(value));
+					else if ("shortName".equals(attribute)) usuari.setNomCurt(toString(value));
+					else if ("lastName".equals(attribute)) usuari.setPrimerLlinatge(toString(value));
+					else if ("lastName2".equals(attribute)) usuari.setSegonLlinatge(toString(value));
+					else if ("mailServer".equals(attribute)) usuari.setServidorCorreu(toString(value));
+					else if ("homeServer".equals(attribute)) usuari.setServidorHome(toString(value));
+					else if ("profileServer".equals(attribute)) usuari.setServidorPerfil(toString(value));
+					else if ("phone".equals(attribute)) usuari.setTelefon(toString(value));
+					else if ("userType".equals(attribute)) usuari.setTipusUsuari(toString(value));
+					else if ("createdBy".equals(attribute)) usuari.setUsuariCreacio(toString(value));
+					else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
+				} catch (Exception e ) {
+					throw new InternalErrorException ("Error parsing attribute "+attribute, e);
+				}
 			}
 		}
 		return usuari;
@@ -205,48 +220,52 @@ public class ValueObjectMapper
 			}
 			for (String attribute: object.getAttributes())
 			{
-				Object value = object.getAttribute(attribute);
-				if ("active".equals(attribute)) usuari.setActiu(toBoolean(toSingleton(value)));
-				else if ("mailAlias".equals(attribute)) usuari.setAliesCorreu(toSingleString (value));
-				else if ("userName".equals(attribute)) usuari.setCodi(toSingleString( value) );
-				else if ("primaryGroup".equals(attribute)) usuari.setComentari(toSingleString( value));
-				else if ("comments".equals(attribute)) usuari.setCodiGrupPrimari(toSingleString(value));
-				else if ("createdOn".equals(attribute)) usuari.setDataCreacioUsuari(toCalendar(toSingleton(value)));
-				else if ("modifiedOn".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(toSingleton(value)));
-				else if ("mailDomain".equals(attribute)) usuari.setDominiCorreu(toSingleString(value));
-				else if ("fullName".equals(attribute)) usuari.setFullName(toSingleString(value));
-				else if ("id".equals(attribute)) usuari.setId(toLong(toSingleton(value)));
-				else if ("multiSession".equals(attribute)) usuari.setMultiSessio(toBoolean(toSingleton(value)));
-				else if ("firstName".equals(attribute)) usuari.setNom(toSingleString(value));
-				else if ("shortName".equals(attribute)) usuari.setNomCurt(toSingleString(value));
-				else if ("lastName".equals(attribute)) usuari.setPrimerLlinatge(toSingleString(value));
-				else if ("lastName2".equals(attribute)) usuari.setSegonLlinatge(toSingleString(value));
-				else if ("mailServer".equals(attribute)) usuari.setServidorCorreu(toSingleString(value));
-				else if ("homeServer".equals(attribute)) usuari.setServidorHome(toSingleString(value));
-				else if ("profileServer".equals(attribute)) usuari.setServidorPerfil(toSingleString(value));
-				else if ("phone".equals(attribute)) usuari.setTelefon(toSingleString(value));
-				else if ("userType".equals(attribute)) usuari.setTipusUsuari(toSingleString(value));
-				else if ("createdBy".equals(attribute)) usuari.setUsuariCreacio(toSingleString(value));
-				else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(toSingleton(value)));
-				// Ignore account attributes
-				else if ("accountDescription".equals(attribute)) ;
-				else if ("accountId".equals(attribute)) ;
-				else if ("system".equals(attribute)) ;
-				else if ("accountName".equals(attribute)) ;
-				else if ("secondaryGroups". equals(attribute))
-				{
-					change.setGroups(new HashSet<String>((Collection<String>) value));
-				}
-				else
-				{
-					if (change.getAttributes() == null)
-						change.setAttributes(new HashMap<String, String>());
-					
-					if ("changeId".equals(attribute)) id.setChangeId(toSingleton(value));
-					else if ("changeDate".equals(attribute)) id.setDate(toDate(toSingleton(value)));
-					else if ("employeeId". equals(attribute)) id.setChangeId(toSingleton(value));
-					
-					change.getAttributes().put(attribute, toString(toSingleton(value)));
+				try {
+					Object value = object.getAttribute(attribute);
+					if ("active".equals(attribute)) usuari.setActiu(toBoolean(toSingleton(value)));
+					else if ("mailAlias".equals(attribute)) usuari.setAliesCorreu(toSingleString (value));
+					else if ("userName".equals(attribute)) usuari.setCodi(toSingleString( value) );
+					else if ("primaryGroup".equals(attribute)) usuari.setComentari(toSingleString( value));
+					else if ("comments".equals(attribute)) usuari.setCodiGrupPrimari(toSingleString(value));
+					else if ("createdOn".equals(attribute)) usuari.setDataCreacioUsuari(toCalendar(toSingleton(value)));
+					else if ("modifiedOn".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(toSingleton(value)));
+					else if ("mailDomain".equals(attribute)) usuari.setDominiCorreu(toSingleString(value));
+					else if ("fullName".equals(attribute)) usuari.setFullName(toSingleString(value));
+					else if ("id".equals(attribute)) usuari.setId(toLong(toSingleton(value)));
+					else if ("multiSession".equals(attribute)) usuari.setMultiSessio(toBoolean(toSingleton(value)));
+					else if ("firstName".equals(attribute)) usuari.setNom(toSingleString(value));
+					else if ("shortName".equals(attribute)) usuari.setNomCurt(toSingleString(value));
+					else if ("lastName".equals(attribute)) usuari.setPrimerLlinatge(toSingleString(value));
+					else if ("lastName2".equals(attribute)) usuari.setSegonLlinatge(toSingleString(value));
+					else if ("mailServer".equals(attribute)) usuari.setServidorCorreu(toSingleString(value));
+					else if ("homeServer".equals(attribute)) usuari.setServidorHome(toSingleString(value));
+					else if ("profileServer".equals(attribute)) usuari.setServidorPerfil(toSingleString(value));
+					else if ("phone".equals(attribute)) usuari.setTelefon(toSingleString(value));
+					else if ("userType".equals(attribute)) usuari.setTipusUsuari(toSingleString(value));
+					else if ("createdBy".equals(attribute)) usuari.setUsuariCreacio(toSingleString(value));
+					else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(toSingleton(value)));
+					// Ignore account attributes
+					else if ("accountDescription".equals(attribute)) ;
+					else if ("accountId".equals(attribute)) ;
+					else if ("system".equals(attribute)) ;
+					else if ("accountName".equals(attribute)) ;
+					else if ("secondaryGroups". equals(attribute))
+					{
+						change.setGroups(new HashSet<String>((Collection<String>) value));
+					}
+					else
+					{
+						if (change.getAttributes() == null)
+							change.setAttributes(new HashMap<String, Object>());
+						
+						if ("changeId".equals(attribute)) id.setChangeId(toSingleton(value));
+						else if ("changeDate".equals(attribute)) id.setDate(toDate(toSingleton(value)));
+						else if ("employeeId". equals(attribute)) id.setChangeId(toSingleton(value));
+						
+						change.getAttributes().put(attribute, toString(toSingleton(value)));
+					}
+				} catch (Exception e ) {
+					throw new InternalErrorException ("Error parsing attribute "+attribute, e);
 				}
 			}
 		}
