@@ -49,6 +49,7 @@ import org.jbpm.graph.exe.ProcessInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.comu.Account;
 import bsh.EvalError;
@@ -64,6 +65,7 @@ import com.soffid.tools.db.schema.Column;
 import com.soffid.tools.db.schema.Table;
 
 import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.Configuracio;
 import es.caib.seycon.ng.comu.DadaUsuari;
 import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.DominiContrasenya;
@@ -97,6 +99,7 @@ import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.remote.RemoteInvokerFactory;
 import es.caib.seycon.ng.remote.URLManager;
 import es.caib.seycon.ng.servei.AccountService;
+import es.caib.seycon.ng.servei.ConfiguracioService;
 import es.caib.seycon.ng.servei.DadesAddicionalsService;
 import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.GrupService;
@@ -119,6 +122,7 @@ import es.caib.seycon.ng.sync.intf.AgentMgr;
 import es.caib.seycon.ng.sync.intf.AuthoritativeChange;
 import es.caib.seycon.ng.sync.intf.AuthoritativeChangeIdentifier;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
+import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource2;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaMgr;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaOfflineChangeRetriever;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
@@ -566,7 +570,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		{
     			AuthoritativeIdentitySource source = (AuthoritativeIdentitySource) agent;
     			Collection<AuthoritativeChange> changes = source.getChanges();
-    			while ( changes != null && !changes.isEmpty())
+    			if ( changes != null && !changes.isEmpty())
     			{
 	    	        for (AuthoritativeChange change: changes)
 	    	        {
@@ -589,6 +593,55 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	    	        }
 	    			changes = source.getChanges();
     			}
+    		} else if (agent instanceof AuthoritativeIdentitySource2)
+    		{
+    			ConfiguracioService cfgSvc = ServiceLocator.instance().getConfiguracioService();
+    			String lastId = null;
+    			String cfgId = "soffid.sync.authoritative.change."+getDispatcher().getCodi();
+    			Configuracio cfg = cfgSvc.findParametreByCodiAndCodiXarxa(cfgId, null);
+    			if (cfg != null)
+    				lastId = cfg.getValor();
+    			AuthoritativeIdentitySource2 source = (AuthoritativeIdentitySource2) agent;
+				boolean anyError = false;
+				do
+				{
+					Collection<AuthoritativeChange> changes = source.getChanges(lastId);
+					if (changes == null || changes.isEmpty())
+						break;
+	    	        for (AuthoritativeChange change: changes)
+	    	        {
+	    	        	try {
+	    	        		applyChange (change);
+	    	        		result.append ("Applied authoritative change for  ")
+	    	        			.append (change.getUser().getCodi())
+	    	        			.append ("\n");
+	    	        	} catch ( Exception e) {
+	    	        		result.append ("Error uploading change ")
+	    	        			.append(change.getId().toString())
+	    	        			.append(":");
+	    	        		StringWriter sw = new StringWriter();
+	    	        		e.printStackTrace (new PrintWriter(sw));
+	    	        		result.append(sw.getBuffer())
+	    	        			.append ("\n");
+	    	        		result.append("User information: ").append(change.getUser()).append("\n");
+	    	        		anyError = true;
+	    	        	}
+	    	        }
+   				} while (source.hasMoreData());
+				String nextChange = source.getNextChange();
+				if (! anyError && nextChange != null)
+				{
+					if (cfg == null) {
+						cfg = new Configuracio();
+						cfg.setValor(nextChange);
+						cfg.setCodi(cfgId);
+						cfg.setDescripcio("Last authoritative change id loaded");
+						cfgSvc.create(cfg);
+					} else {
+						cfg.setValor(nextChange);
+						cfgSvc.update(cfg);
+					}
+				}
     		} else {
     			result.append ("This agent does not support account reconciliation");
     		}
@@ -711,6 +764,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		Usuari oldUser = usuariService.findUsuariByCodiUsuari(user.getCodi());
 		if (oldUser == null && getDispatcher().isAuthoritative())
 		{
+			if (user.getCodiGrupPrimari() == null) user.setCodiGrupPrimari("World");
+			if (user.getNom() == null) user.setNom("?");
+			if (user.getPrimerLlinatge() == null) user.setPrimerLlinatge("?");
 			if (user.getActiu() == null) user.setActiu(Boolean.TRUE);
 			if (user.getMultiSessio() == null) user.setMultiSessio(Boolean.FALSE);
 			if (user.getServidorCorreu() == null) user.setServidorCorreu("null");
@@ -1479,7 +1535,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         Account acc = accountService.findAccount(t.getTask().getUsuari(), getDispatcher().getCodi());
         if (acc != null && !acc.isDisabled() )
         {
-        	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) {
+        	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
+        	{
 	            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
 	                    + t.getPassword().getHash() + ": ACCEPTED");
 	            log.debug("Accepted proposed password for {}", acc.getName(), null);
@@ -1515,7 +1572,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	        	}
 	        	else
 	        	{
-	        		
 	        		secretStoreService.setPassword(acc.getId(), t.getPassword());
    		            for (String u: accountService.getAccountUsers(acc))
    		            {
@@ -1529,6 +1585,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            auditoria.setObjecte("SC_ACCOUN");
 		            auditoriaDao.create(auditoria);
 	        	}
+            	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
+            			acc.getPasswordPolicy(), getDispatcher().getDominiContrasenyes());
+            	Long l = getPasswordTerm(politica);
+				accountService.updateAccountPasswordDate(acc, l);
         	}
         }
     }
