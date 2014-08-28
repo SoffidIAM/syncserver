@@ -26,10 +26,12 @@ import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.NeedsAccountNameException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.servei.AccountService;
 import es.caib.seycon.ng.servei.AplicacioService;
 import es.caib.seycon.ng.servei.DominiUsuariService;
+import es.caib.seycon.ng.servei.UsuariService;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr;
 import es.caib.seycon.ng.sync.servei.ServerService;
 
@@ -46,6 +48,7 @@ public class ReconcileEngine
 	private Dispatcher dispatcher;
 	private ServerService serverService;
 	private DominiUsuariService dominiService;
+	private UsuariService usuariService;
 
 	/**
 	 * @param dispatcher 
@@ -59,6 +62,7 @@ public class ReconcileEngine
 		appService = ServiceLocator.instance().getAplicacioService();
 		serverService = ServiceLocator.instance().getServerService();
 		dominiService = ServiceLocator.instance().getDominiUsuariService();
+		usuariService = ServiceLocator.instance().getUsuariService();
 	}
 
 	/**
@@ -74,40 +78,56 @@ public class ReconcileEngine
 			Account acc = accountService.findAccount(accountName, dispatcher.getCodi());
 			if (acc == null)
 			{
-				acc = new Account ();
-				acc.setName(accountName);
-				acc.setDispatcher(dispatcher.getCodi());
 				Usuari usuari = agent.getUserInfo(accountName);
 				if (usuari != null)
 				{
-					if (usuari.getFullName() != null)
-						acc.setDescription(usuari.getFullName());
-					else if (usuari.getPrimerLlinatge() != null)
+					String desiredAccount = accountService.gessAccountName(accountName, dispatcher.getCodi());
+					if (desiredAccount != null && desiredAccount.equals(accountName))
 					{
-						if (usuari.getNom() == null)
-							acc.setDescription(usuari.getPrimerLlinatge());
-						else
-							acc.setDescription(usuari.getNom()+" "+usuari.getPrimerLlinatge());
+						try {
+							Usuari existingUser = usuariService.findUsuariByCodiUsuari(accountName);
+							acc = accountService.createAccount(existingUser, dispatcher, accountName);
+						} catch (AccountAlreadyExistsException e) {
+							throw new InternalErrorException ("Unexpected exception", e);
+						} catch (NeedsAccountNameException e) {
+							throw new InternalErrorException ("Unexpected exception", e);
+						}
+						
 					}
 					else
-						acc.setDescription("Autocreated account "+accountName);
-					
-					acc.setDisabled(false);
-					acc.setLastUpdated(Calendar.getInstance());
-					acc.setType(AccountType.IGNORED);
-					acc.setPasswordPolicy(passwordPolicy);
-					acc.setGrantedGroups(new LinkedList<Grup>());
-					acc.setGrantedRoles(new LinkedList<Rol>());
-					acc.setGrantedUsers(new LinkedList<Usuari>());
-					try {
-						acc = accountService.createAccount(acc);
-					} catch (AccountAlreadyExistsException e) {
-						throw new InternalErrorException ("Unexpected exception", e);
+					{
+						acc = new Account ();
+						acc.setName(accountName);
+						acc.setDispatcher(dispatcher.getCodi());
+						if (usuari.getFullName() != null)
+							acc.setDescription(usuari.getFullName());
+						else if (usuari.getPrimerLlinatge() != null)
+						{
+							if (usuari.getNom() == null)
+								acc.setDescription(usuari.getPrimerLlinatge());
+							else
+								acc.setDescription(usuari.getNom()+" "+usuari.getPrimerLlinatge());
+						}
+						else
+							acc.setDescription("Autocreated account "+accountName);
+						
+						acc.setDisabled(false);
+						acc.setLastUpdated(Calendar.getInstance());
+						acc.setType(AccountType.IGNORED);
+						acc.setPasswordPolicy(passwordPolicy);
+						acc.setGrantedGroups(new LinkedList<Grup>());
+						acc.setGrantedRoles(new LinkedList<Rol>());
+						acc.setGrantedUsers(new LinkedList<Usuari>());
+						try {
+							acc = accountService.createAccount(acc);
+						} catch (AccountAlreadyExistsException e) {
+							throw new InternalErrorException ("Unexpected exception", e);
+						}
 					}
 				}
 			}
 			
-			if (acc != null && acc.getId() != null && AccountType.IGNORED.equals(acc.getType()))
+			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || AccountType.IGNORED.equals(acc.getType())))
 				reconcileRoles (acc);
 		}
 	}
