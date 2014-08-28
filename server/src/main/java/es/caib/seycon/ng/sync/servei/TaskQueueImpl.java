@@ -8,6 +8,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Date;
@@ -1309,6 +1310,15 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					m.put(dispatcher.getDispatcher().getCodi(), dispatcher.getConnectException());
 				}
 			}
+		}
+		if (!m.isEmpty())
+		{
+			Tasca tasca = task.getTask();
+			tasca.setDataTasca(Calendar.getInstance());
+			TasqueEntity tasque = getTasqueEntityDao().tascaToEntity(tasca);
+			getTasqueEntityDao().create(tasque);
+			tasca.setId(tasque.getId());
+			addTask(task);
 		}
 		return m;
 	}
