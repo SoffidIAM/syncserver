@@ -7,8 +7,10 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -34,10 +36,8 @@ import it.sauronsoftware.cron4j.Scheduler;
  */
 public class TaskScheduler
 {
-	/**
-	 * @author bubu
-	 *
-	 */
+	 Set<Long> runningTasks = new HashSet<Long>();
+
 	private final class ScheduledTaskRunnable implements Runnable
 	{
 		/**
@@ -69,28 +69,55 @@ public class TaskScheduler
 		public void run ()
 		{
 			try {
+				Thread.currentThread().setName(task.getName());
 				if (!ConnectionPool.isThreadOffline())
 				{
+					boolean ignore = false;
+
 					try
 					{
-						log.info("Executing task " +task.getName());
-						taskSvc.registerStartTask(task);
-						task.setError(false);
-						handler.setTask(task);
-						handler.run();
-					} catch (Exception e) 
+						synchronized (runningTasks) {
+							if (runningTasks.contains(task.getId()))
+								ignore = true;
+							else
+								runningTasks.add(task.getId());
+						}
+						if (!ignore) {
+							log.info("Executing task " + task.getName());
+							taskSvc.registerStartTask(task);
+							task.setError(false);
+							handler.setTask(task);
+							handler.run();
+							log.info("Task finished");
+						} else 
+						{
+							log.info("Not executing task "+task.getName()+" as a previous instance is already running");
+						}
+					} catch (Throwable e) 
 					{
-						task.setError(true);
-						task.getLastLog()
-							.append("\nError executing task: ")
-							.append(e.toString())
-							.append("\n\nStack trace:\n")
-							.append(SoffidStackTrace.getStackTrace(e));
+						if (! ignore)
+						{
+							task.setError(true);
+							task.getLastLog()
+								.append("\nError executing task: ")
+								.append(e.toString())
+								.append("\n\nStack trace:\n")
+								.append(SoffidStackTrace.getStackTrace(e));
+							log.info("Finished task " + task.getName()+" with error:", e);
+						}
+					} finally {
+						if (!ignore) {
+							synchronized (runningTasks) {
+								runningTasks.remove(task.getId());
+							}
+						}
+	
 					}
       
 					try
 					{
-						taskSvc.registerEndTask(task);
+						if (! ignore)
+							taskSvc.registerEndTask(task);
 					}
 					catch (InternalErrorException e)
 					{
