@@ -13,12 +13,16 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 
+import com.soffid.iam.util.DateParser;
+
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.Domini;
 import es.caib.seycon.ng.comu.Grup;
 import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.SoffidObjectType;
+import es.caib.seycon.ng.comu.TipusDomini;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
@@ -109,7 +113,12 @@ public class ValueObjectMapper
 			c.setTime((Date)obj);
 			return c;
 		}
-		throw new ClassCastException(Calendar.class.getName());
+
+		Calendar c = DateParser.parseDate((obj.toString()));
+		if (c == null)
+			throw new ClassCastException(Calendar.class.getName());
+		else
+			return  c;
 	}
 	
 	public Date toDate (Object obj)
@@ -170,7 +179,7 @@ public class ValueObjectMapper
 				try 
 				{
 					Object value = toSingleton(object.getAttribute(attribute));
-					if ("active".equals(attribute)) usuari.setActiu("true".equals(value));
+					if ("active".equals(attribute)) usuari.setActiu(value != null && "true".equals(value.toString()));
 					else if ("mailAlias".equals(attribute)) usuari.setAliesCorreu(toString (value));
 					else if ("userName".equals(attribute)) usuari.setCodi(toString( value) );
 					else if ("primaryGroup".equals(attribute)) usuari.setCodiGrupPrimari(toString( value));
@@ -192,6 +201,17 @@ public class ValueObjectMapper
 					else if ("userType".equals(attribute)) usuari.setTipusUsuari(toString(value));
 					else if ("createdBy".equals(attribute)) usuari.setUsuariCreacio(toString(value));
 					else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
+					else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
+					else if ("attributes".equals(attribute))
+					{
+						if (object.getAttribute(attribute) instanceof Map)
+						{
+							@SuppressWarnings("rawtypes")
+							Map atts = (Map) object.getAttribute(attribute);
+							usuari.setNIF((String) atts.get("NIF"));
+							usuari.setTelefon((String) atts.get("PHONE"));
+						}
+					}
 				} catch (Exception e ) {
 					throw new InternalErrorException ("Error parsing attribute "+attribute, e);
 				}
@@ -287,6 +307,9 @@ public class ValueObjectMapper
 				account.setType(AccountType.SHARED);
 			else
 				account.setType(AccountType.USER);
+			account.setLastUpdated(toCalendar (object.getAttribute("lastUpdate")));
+			account.setLastPasswordSet(toCalendar (object.getAttribute("lastPasswordUpdate")));
+			account.setPasswordExpiration(toCalendar (object.getAttribute("passwordExpiration")));
 		}
 		return account;
 	}
@@ -332,6 +355,25 @@ public class ValueObjectMapper
 			rol.setDescripcio(toSingleString(object.getAttribute("description")));
 			rol.setGestionableWF(toBoolean(toSingleton(object.getAttribute("wfmanaged"))));
 			rol.setNom(toSingleString(object.getAttribute("name")));
+			String domain = toSingleString(object.getAttribute("domain"));
+			Domini d = new Domini ();
+			rol.setDomini(d);
+			if (domain == null)
+			{
+				d.setNom(TipusDomini.SENSE_DOMINI);
+			}
+			else if (domain.equals (TipusDomini.APLICACIONS) || 
+					domain.equals(TipusDomini.GRUPS) || 
+					domain.equals(TipusDomini.GRUPS_USUARI) ||
+					domain.equals(TipusDomini.SENSE_DOMINI))
+			{
+				d.setNom(domain);
+			}
+			else
+			{
+				d.setNom(domain);
+				d.setCodiExtern(rol.getCodiAplicacio());
+			}
 			Collection ownedRolesMap = (Collection) object.getAttribute("ownedRoles");
 			if (ownedRolesMap != null)
 			{
@@ -424,7 +466,7 @@ public class ValueObjectMapper
 		return grant;
 	}
 
-	private RolGrant parseGrant (Map<String,Object> object)
+	public RolGrant parseGrant (Map<String,Object> object)
 	{
 		RolGrant grant;
 		grant = new RolGrant();
@@ -439,7 +481,7 @@ public class ValueObjectMapper
 		grant.setOwnerGroup(toSingleString(object.get("ownerGroup")));
 		grant.setOwnerRol(toLong(toSingleton(object.get("ownerRoleId"))));
 		grant.setOwnerRolName(toSingleString(object.get("ownerRoleName")));
-		grant.setRolName(toSingleString(object.get("grantedRoleName")));
+		grant.setRolName(toSingleString(object.get("grantedRole")));
 		grant.setUser(toSingleString(object.get("user")));
 		return grant;
 	}

@@ -59,6 +59,12 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getDescription();
     		else if ("accountDisabled".equals(attribute))
     			obj = account.isDisabled();
+    		else if ("lastUpdate".equals(attribute))
+    			obj = account.getLastUpdated();
+    		else if ("lastPasswordUpdate".equals(attribute))
+    			obj = account.getLastPasswordSet();
+    		else if ("passwordExpiration".equals(attribute))
+    			obj = account.getPasswordExpiration();
     		else if ("attributes".equals(attribute))
     			obj = new HashMap<String, String>();
     		else if ("grantedRoles".equals(attribute))

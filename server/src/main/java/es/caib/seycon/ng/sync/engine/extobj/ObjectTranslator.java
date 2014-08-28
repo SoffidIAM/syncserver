@@ -5,11 +5,13 @@ package es.caib.seycon.ng.sync.engine.extobj;
 
 import java.util.Calendar;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.apache.axis.InternalException;
 
@@ -195,8 +197,8 @@ public class ObjectTranslator
 		NameSpace ns = interpret.getNameSpace();
 
 		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-						"translator" + dispatcher.getCodi(), sourceObject);
-
+						"translator" + dispatcher.getCodi(), sourceObject, serverService);
+		
 		try {
 			Object result = interpret.eval(attributeExpression, newNs);
 			if (result instanceof Primitive)
@@ -205,7 +207,13 @@ public class ObjectTranslator
 			}
 			targetObject.setAttribute(attribute, result);
 		} catch (EvalError e) {
-			throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+e.getErrorText());
+			String msg;
+			try {
+				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+			} catch (Exception e2) {
+				msg = e.getMessage();
+			}
+			throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
 		}
 	}
 
@@ -219,5 +227,91 @@ public class ObjectTranslator
 				result.add (object);
 		}
 		return result;
+	}
+	
+	public Map<String,String> getObjectProperties (ExtensibleObject obj)
+	{
+		for (ExtensibleObjectMapping mapping: this.objects)
+		{
+			if (mapping.getSystemObject().equals(obj.getObjectType()))
+				return mapping.getProperties();
+		}
+		return Collections.emptyMap();
+	}
+
+	public Object parseInputAttribute(String attributeName, ExtensibleObject sourceObject,
+			ExtensibleObjectMapping objectMapping) throws InternalErrorException {
+		if (objectMapping.getSystemObject().equals(sourceObject.getObjectType()))
+		{
+			ExtensibleObject obj = new ExtensibleObject();
+			obj.setObjectType(objectMapping.getSoffidObject().getValue());
+			
+			for (AttributeMapping attribute : objectMapping.getAttributes())
+			{
+				if (attribute.getSoffidAttribute().equals (attributeName))
+				{
+					if (attribute.getDirection().equals(AttributeDirection.INPUT)
+									|| attribute.getDirection().equals(
+													AttributeDirection.INPUTOUTPUT))
+					{
+						Interpreter interpret = new Interpreter();
+						NameSpace ns = interpret.getNameSpace();
+
+						ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+										"translator" + dispatcher.getCodi(), sourceObject, serverService);
+
+						try {
+							Object result = interpret.eval(attribute.getSystemAttribute(), newNs);
+							if (result instanceof Primitive)
+							{
+								result = ((Primitive)result).getValue();
+							}
+							return result;
+						} catch (EvalError e) {
+							throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+e.getErrorText());
+						}
+					}
+				}
+			}
+		}
+		return null;
+	}
+
+	public Object generateAttribute(String attributeName, ExtensibleObject sourceObject,
+			ExtensibleObjectMapping objectMapping) throws InternalErrorException {
+		if (objectMapping.getSystemObject().equals(sourceObject.getObjectType()))
+		{
+			ExtensibleObject obj = new ExtensibleObject();
+			obj.setObjectType(objectMapping.getSoffidObject().getValue());
+			
+			for (AttributeMapping attribute : objectMapping.getAttributes())
+			{
+				if (attribute.getSystemAttribute().equals (attributeName))
+				{
+					if (attribute.getDirection().equals(AttributeDirection.OUTPUT)
+									|| attribute.getDirection().equals(
+													AttributeDirection.INPUTOUTPUT))
+					{
+						Interpreter interpret = new Interpreter();
+						NameSpace ns = interpret.getNameSpace();
+
+						ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+										"translator" + dispatcher.getCodi(), sourceObject, serverService);
+
+						try {
+							Object result = interpret.eval(attribute.getSoffidAttribute(), newNs);
+							if (result instanceof Primitive)
+							{
+								result = ((Primitive)result).getValue();
+							}
+							return result;
+						} catch (EvalError e) {
+							throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+e.getErrorText());
+						}
+					}
+				}
+			}
+		}
+		return null;
 	}
 }

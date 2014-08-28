@@ -96,6 +96,13 @@ public class RoleExtensibleObject extends ExtensibleObject
     			}
     			obj = ownerGroups;
     		}
+    		else if ("domain".equals(attribute))
+    		{
+    			if (role.getDomini().getCodiExtern() == null)
+    				return role.getDomini().getNom();
+    			else
+    				return role.getDomini().getCodiExtern();
+    		}
     		else if ("grantedAccountNames".equals(attribute) || "allGrantedAccountNames".equals(attribute))
     		{
     			List<String> accounts = new LinkedList<String>();

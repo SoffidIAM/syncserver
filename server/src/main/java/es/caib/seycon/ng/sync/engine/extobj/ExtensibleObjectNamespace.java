@@ -3,7 +3,10 @@
  */
 package es.caib.seycon.ng.sync.engine.extobj;
 
+import es.caib.seycon.ng.ServiceLocator;
+import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
+import es.caib.seycon.ng.sync.servei.ServerService;
 import bsh.BshClassManager;
 import bsh.NameSpace;
 import bsh.Primitive;
@@ -12,6 +15,7 @@ import bsh.UtilEvalError;
 class ExtensibleObjectNamespace extends NameSpace
 {
 	private ExtensibleObject object;
+	private ServerService serverService;
 
 	/**
 	 * @param parent
@@ -22,10 +26,12 @@ class ExtensibleObjectNamespace extends NameSpace
 	 * @param accountName
 	 */
 	public ExtensibleObjectNamespace (NameSpace parent, BshClassManager classManager, String name,
-					ExtensibleObject object)
+					ExtensibleObject object,
+					ServerService serverService)
 	{
 		super(parent, classManager, name);
 		this.object = object;
+		this.serverService = serverService;
 
 	}
 
@@ -35,6 +41,13 @@ class ExtensibleObjectNamespace extends NameSpace
 		Object value = null; 
 		try
 		{
+			if ("serverService".equals (name))
+				return serverService;
+			if ("remoteServiceLocator".equals (name))
+				return new RemoteServiceLocator();
+			if ("serviceLocator".equals (name))
+				return ServiceLocator.instance();
+			
 			value = object.getAttribute(name);
 	    	if (value != null)
 	    		return value;
@@ -43,10 +56,7 @@ class ExtensibleObjectNamespace extends NameSpace
 	    	else
 	    	{
 	    		value = super.getVariable(name, recurse);
-	    		if (Primitive.VOID.equals (value))
-	    			return Primitive.NULL;
-	    		else
-	    			return value;
+    			return value;
 	    	}
 		}
 		catch (Exception e)
