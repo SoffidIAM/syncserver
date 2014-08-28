@@ -18,6 +18,8 @@ import java.util.Vector;
 
 import javax.servlet.ServletException;
 
+import org.apache.commons.logging.LogFactory;
+
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.AgentStatusInfo;
@@ -457,5 +459,19 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		}
 	}
 
+	@Override
+	protected void handleReconfigureDispatchers() throws Exception {
+		new Thread () {
+			@Override
+			public void run() {
+				try {
+					Thread.sleep(3000); // Wait 3 seconds for console transation to complete
+					getTaskGenerator().updateAgents();
+				} catch (Throwable e) {
+					LogFactory.getLog(SyncStatusServiceImpl.class).warn("Error updating configuration", e);
+				}
+			}
+		}.start();
+	}
 
 }
