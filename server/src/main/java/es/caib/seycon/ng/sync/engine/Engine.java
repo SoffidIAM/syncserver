@@ -123,6 +123,7 @@ public class Engine extends Thread {
                 }
 
             }
+            sleep(3000);
         } catch (Exception e) {
             log.warn("Exception ", e);
         }
