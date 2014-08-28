@@ -443,23 +443,29 @@ public class SeyconApplication extends Object {
      * @see es.caib.seycon.ng.sync.engine.session.SessionManager#shutDown
      */
     public static void shutDown() throws FileNotFoundException, IOException {
-        Config config = Config.getConfig();
-        if (config.isServer()) {
-            shutdownPending = true;
-            Engine.getEngine().shutDown ();
-            sso.shutDown();
-            ssoDaemon.shutDown();
-        } else {
-            new Thread () {
-                public void run() {
-                    try {
-                        sleep(3000);
-                    } catch (InterruptedException e) {
-                    }
-                    System.exit(2);
-                };
-            }.start();
-        }
+        new Thread () {
+            public void run() {
+                try {
+                    sleep(3000);
+                } catch (InterruptedException e) {
+                }
+                Config config;
+				try {
+					config = Config.getConfig();
+					jetty.getServer().stop();
+	                if (config.isServer()) {
+	                    shutdownPending = true;
+	                    Engine.getEngine().shutDown ();
+	                    sso.shutDown();
+	                    ssoDaemon.shutDown();
+	                } else {
+	                	System.exit(2);
+	                }
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+            };
+        }.start();
     }
 
     public static es.caib.seycon.ng.sync.engine.session.SessionManager getSsoDaemon() {
