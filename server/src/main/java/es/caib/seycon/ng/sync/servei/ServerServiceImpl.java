@@ -32,6 +32,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.api.AttributeTranslation;
 import com.soffid.iam.service.CertificateValidationService;
 
 import es.caib.seycon.ng.ServiceLocator;
@@ -1286,5 +1287,43 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected byte[] handleGetAddonJar (String addon) throws Exception
 	{
 		throw new UnsupportedOperationException();
+	}
+
+	@Override
+	protected String handleTranslate(String domain, String column1)
+			throws Exception {
+		Collection<AttributeTranslation> list = getAttributeTranslationService().findByColumn1(domain, column1);
+		if (list.isEmpty())
+			return null;
+		else if (list.size() > 1)
+			throw new IllegalArgumentException(String.format("More than one translation available for value %s on domain %s",
+					column1, domain));
+		else
+			return list.iterator().next().getColumn2();
+	}
+
+	@Override
+	protected String handleReverseTranslate(String domain, String column2)
+			throws Exception {
+		Collection<AttributeTranslation> list = getAttributeTranslationService().findByColumn2(domain, column2);
+		if (list.isEmpty())
+			return null;
+		else if (list.size() > 1)
+			throw new IllegalArgumentException(String.format("More than one translation available for value %s on domain %s",
+					column2, domain));
+		else
+			return list.iterator().next().getColumn1();
+	}
+
+	@Override
+	protected Collection<AttributeTranslation> handleTranslate2(String domain,
+			String column1) throws Exception {
+		return getAttributeTranslationService().findByColumn1(domain, column1);
+	}
+
+	@Override
+	protected Collection<AttributeTranslation> handleReverseTranslate2(
+			String domain, String column2) throws Exception {
+		return getAttributeTranslationService().findByColumn2(domain, column2);
 	}
 }
