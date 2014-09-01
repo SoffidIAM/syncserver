@@ -3,6 +3,7 @@ package es.caib.seycon.ng.sync.jetty;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URL;
 
 import org.mortbay.jetty.Handler;
@@ -114,23 +115,21 @@ public class JettyServer implements PublisherInterface
         pool.setMaxThreads(threadNumber);
         server.setThreadPool(pool);
 
-        MySslSocketConnector connector = new MySslSocketConnector();
-        connector.setPort(port);
-        if (host != null) 
-        	connector.setHost(host);
-        connector.setKeystore(SeyconKeyStore.getKeyStoreFile()
-                .getAbsolutePath());
-        connector.setKeyPassword(SeyconKeyStore.getKeyStorePassword()
-                .getPassword());
-        connector.setKeystoreType(SeyconKeyStore.getKeyStoreType());
-        connector.setWantClientAuth(true);
-        connector.setAcceptors(2);
-        connector.setAcceptQueueSize(10);
-        connector.setMaxIdleTime(40000);
-        connector.setLowResourceMaxIdleTime(2000);
-
-        server.addConnector(connector);
-        
+        if (host == null)
+        	addConnector(null);
+        else
+        {
+        	InetAddress[] addrList = InetAddress.getAllByName(host);
+        	if (addrList.length == 0)
+        		addConnector(host);
+        	else
+        	{
+	        	for (InetAddress addr: addrList)
+	        	{
+	        		addConnector(addr.getHostAddress());
+	        	}
+        	}
+        }
         // Afegir el bind alternativo
         if (config.isServer()) {
             String altPort = config.getServerService().getConfig("seycon.https.alternate.port");
@@ -214,8 +213,29 @@ public class JettyServer implements PublisherInterface
    			publish(grupService, "/seycon/GrupService", "agent");
         }
         server.start();
-        log.info("Listening on https://{}:{}/", host == null ? "0.0.0.0": host, new Integer(port));
     }
+
+	private void addConnector(String ip) throws IOException, FileNotFoundException {
+		MySslSocketConnector connector = new MySslSocketConnector();
+        connector.setPort(port);
+        if (ip != null) 
+        {
+        	connector.setHost(ip);
+        }
+        log.info("Listening on https://{}:{}/", ip == null ? "0.0.0.0": ip, new Integer(port));
+        connector.setKeystore(SeyconKeyStore.getKeyStoreFile()
+                .getAbsolutePath());
+        connector.setKeyPassword(SeyconKeyStore.getKeyStorePassword()
+                .getPassword());
+        connector.setKeystoreType(SeyconKeyStore.getKeyStoreType());
+        connector.setWantClientAuth(true);
+        connector.setAcceptors(2);
+        connector.setAcceptQueueSize(10);
+        connector.setMaxIdleTime(40000);
+        connector.setLowResourceMaxIdleTime(2000);
+
+        server.addConnector(connector);
+	}
 
     public void bindAdministrationServlet(String url, String[] rol, Class servletClass) {
         bindServlet (url, Constraint.__BASIC_AUTH, rol, administracioContext, servletClass);

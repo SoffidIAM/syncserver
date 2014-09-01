@@ -17,7 +17,13 @@ public class QueryHelper {
 	
 	boolean enableNullSqlObject  = false;
 
-    /**
+	List<String> columnNames;
+	
+    public List<String> getColumnNames() {
+		return columnNames;
+	}
+
+	/**
 	 * @return the enableNullSqlObject
 	 */
 	public boolean isEnableNullSqlObject ()
@@ -88,6 +94,7 @@ public class QueryHelper {
 	public List<Object[]> selectLimit (String sql, Long maxRows,
 		Object... params) throws SQLException
 	{
+		columnNames = new LinkedList<String>();
 		List<Object[]> result = new LinkedList<Object[]>();
 		PreparedStatement stmt = conn.prepareStatement(sql);
 		int num = 0;
@@ -126,6 +133,10 @@ public class QueryHelper {
 			try
 			{
 				int cols = rset.getMetaData().getColumnCount();
+				for (int i = 0; i < cols; i++)
+				{
+					columnNames.add (rset.getMetaData().getColumnLabel(i+1));
+				}
 				while (rset.next() && (maxRows == null || rows < maxRows.longValue()))
 				{
 					rows++;
@@ -192,9 +203,13 @@ public class QueryHelper {
     		{
     			stmt.setInt(num, (Integer) param);
     		}
-    		else if (param instanceof Date)
+    		else if (param instanceof java.sql.Date)
     		{
-    			stmt.setDate(num, (Date) param);
+    			stmt.setDate(num, (java.sql.Date) param);
+    		}
+    		else if (param instanceof java.util.Date)
+    		{
+    			stmt.setDate(num, new java.sql.Date ( ((java.util.Date) param).getTime() ));
     		}
     		else if (param instanceof Timestamp)
     		{
@@ -239,6 +254,10 @@ public class QueryHelper {
     		else if (param instanceof Date)
     		{
     			stmt.setDate(num, (Date) param);
+    		}
+    		else if (param instanceof java.util.Date)
+    		{
+    			stmt.setDate(num, new java.sql.Date( ((java.util.Date) param).getTime()));
     		}
     		else if (param instanceof java.sql.Timestamp)
     		{

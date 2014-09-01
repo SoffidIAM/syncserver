@@ -137,7 +137,7 @@ public class SeyconLoader extends Object {
         	
         	updateConfig ();
         
-            if ("server".equals(config.getRole())) {
+            if (canUseDatabase()) {
                 je.extractModules(modulesDir);
                 generateJAR();
             } else {
@@ -255,7 +255,7 @@ public class SeyconLoader extends Object {
         String fileName;
         try {
         	fileName = getLibraryName(jarName, extension);
-        } catch (FileNotFoundException e) {
+        } catch (IOException e) {
         	return;
         }
         File targetFile = new File (fileName);
@@ -386,9 +386,9 @@ public class SeyconLoader extends Object {
         }
     }
 
-    private String getLibraryName(String component, String extension) throws SQLException, InternalErrorException, FileNotFoundException {
+    private String getLibraryName(String component, String extension) throws SQLException, InternalErrorException, IOException {
     	JarExtractor je = new JarExtractor();
-    	String dbVersion = je.getComponentVersion("component."+component);
+    	String dbVersion = canUseDatabase() ? je.getComponentVersion("component."+component) : "LATEST";
     	return getLibraryName(component, dbVersion, extension);
     }
     
@@ -414,8 +414,13 @@ public class SeyconLoader extends Object {
     	}
     }
 
+    private boolean canUseDatabase () throws FileNotFoundException, IOException
+    {
+        return "server".equals(Config.getConfig().getRole());
+    }
+    
     private String getBaseLibraryName() throws SQLException, InternalErrorException, IOException {
-    	String dbVersion = new JarExtractor().getBaseJarVersion();
+    	String dbVersion = canUseDatabase() ? new JarExtractor().getBaseJarVersion() : "LATEST";
         String fileName = getLibraryName("syncserver", dbVersion, ".jar");
         return fileName;
     }

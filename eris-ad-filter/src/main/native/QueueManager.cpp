@@ -157,7 +157,7 @@ BOOL getURLs(LPCWSTR lpszURLs, DWORD dwSize) {
 	ERROR_SUCCESS)
 	{
 		if (debug)
-		wprintf (L"Missing Software\\CAIB\\Eris key\n");
+		wprintf (L"Cannot create key Software\\CAIB\\Eris key\n");
 		return FALSE;
 	}
 

@@ -24,6 +24,7 @@ import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.comu.RolAccount;
 import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.Usuari;
+import es.caib.seycon.ng.comu.ValorDomini;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.NeedsAccountNameException;
@@ -33,16 +34,17 @@ import es.caib.seycon.ng.servei.AplicacioService;
 import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.UsuariService;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr;
+import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
 import es.caib.seycon.ng.sync.servei.ServerService;
 
 /**
  * @author bubu
  *
  */
-public class ReconcileEngine
+public class ReconcileEngine2
 {
 
-	private ReconcileMgr agent;
+	private ReconcileMgr2 agent;
 	private AccountService accountService;
 	private AplicacioService appService;
 	private Dispatcher dispatcher;
@@ -54,7 +56,7 @@ public class ReconcileEngine
 	 * @param dispatcher 
 	 * @param agent
 	 */
-	public ReconcileEngine (Dispatcher dispatcher, ReconcileMgr agent)
+	public ReconcileEngine2 (Dispatcher dispatcher, ReconcileMgr2 agent)
 	{
 		this.agent = agent;
 		this.dispatcher = dispatcher;
@@ -78,7 +80,7 @@ public class ReconcileEngine
 			Account acc = accountService.findAccount(accountName, dispatcher.getCodi());
 			if (acc == null)
 			{
-				Usuari usuari = agent.getUserInfo(accountName);
+				Account usuari = agent.getAccountInfo(accountName);
 				if (usuari != null)
 				{
 					String desiredAccount = accountService.gessAccountName(accountName, dispatcher.getCodi());
@@ -87,6 +89,15 @@ public class ReconcileEngine
 						try {
 							Usuari existingUser = usuariService.findUsuariByCodiUsuari(accountName);
 							acc = accountService.createAccount(existingUser, dispatcher, accountName);
+							boolean anyChange = false;
+							if (usuari.getLastPasswordSet() != null || usuari.getLastUpdated() != null ||
+									usuari.getPasswordExpiration() != null)
+							{
+								acc.setLastPasswordSet(usuari.getLastPasswordSet());
+								acc.setLastUpdated(usuari.getLastUpdated());
+								acc.setPasswordExpiration(acc.getPasswordExpiration());
+								accountService.updateAccount(acc);
+							}
 						} catch (AccountAlreadyExistsException e) {
 							throw new InternalErrorException ("Unexpected exception", e);
 						} catch (NeedsAccountNameException e) {
@@ -99,17 +110,10 @@ public class ReconcileEngine
 						acc = new Account ();
 						acc.setName(accountName);
 						acc.setDispatcher(dispatcher.getCodi());
-						if (usuari.getFullName() != null)
-							acc.setDescription(usuari.getFullName());
-						else if (usuari.getPrimerLlinatge() != null)
-						{
-							if (usuari.getNom() == null)
-								acc.setDescription(usuari.getPrimerLlinatge());
-							else
-								acc.setDescription(usuari.getNom()+" "+usuari.getPrimerLlinatge());
-						}
+						if (usuari.getDescription() == null)
+							acc.setDescription(accountName+" "+accountName);
 						else
-							acc.setDescription("Autocreated account "+accountName);
+							acc.setDescription(usuari.getDescription());
 						
 						acc.setDisabled(false);
 						acc.setLastUpdated(Calendar.getInstance());
@@ -125,6 +129,25 @@ public class ReconcileEngine
 						}
 					}
 				}
+			} else {
+				Account usuari = agent.getAccountInfo(accountName);
+				if (usuari != null)
+				{
+					if (usuari.getDescription() != null && usuari.getDescription().trim().length() > 0)
+						acc.setDescription(usuari.getDescription());
+					if (usuari.getLastPasswordSet() != null)
+						acc.setLastPasswordSet(usuari.getLastPasswordSet());
+					if (usuari.getLastUpdated() != null)
+						acc.setLastUpdated(usuari.getLastUpdated());
+					if (usuari.getPasswordExpiration() != null)
+						acc.setPasswordExpiration(acc.getPasswordExpiration());
+					try {
+						accountService.updateAccount(acc);
+					} catch (AccountAlreadyExistsException e) {
+						throw new InternalErrorException ("Unexpected exception", e);
+					}
+				}
+				
 			}
 			
 			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || AccountType.IGNORED.equals(acc.getType())))
@@ -175,27 +198,31 @@ public class ReconcileEngine
 	private void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
 		Collection<RolGrant> grants = serverService.getAccountExplicitRoles(acc.getName(), acc.getDispatcher());
-		for (Rol role: agent.getAccountRoles(acc.getName()))
+		for (RolGrant existingGrant: agent.getAccountGrants(acc.getName()))
 		{
-			if (role.getBaseDeDades() == null)
-				role.setBaseDeDades(dispatcher.getCodi());
+			if (existingGrant.getDispatcher() == null)
+				existingGrant.setDispatcher(dispatcher.getCodi());
+			if (existingGrant.getRolName() == null)
+				throw new InternalErrorException("Received grant to "+acc.getName()+" without role name");
 			Rol role2;
 			try
 			{
-				role2 = serverService.getRoleInfo(role.getNom(), role.getBaseDeDades());
+				role2 = serverService.getRoleInfo(existingGrant.getRolName(), existingGrant.getDispatcher());
 				if (role2 == null)
-					role2 = createRole (role);
-				else if (role.getDescripcio() != null && ! role2.getDescripcio().equals(role.getDescripcio()))
 				{
-					role2.setDescripcio(role.getDescripcio());
+					role2 = agent.getRoleFullInfo(existingGrant.getRolName());
+					if (role2 == null)
+						throw new InternalErrorException("Unable to grab information about role "+existingGrant.getRolName());
+					role2.setBaseDeDades(dispatcher.getCodi());
 					if (role2.getDescripcio().length() > 150)
 						role2.setDescripcio(role2.getDescripcio().substring(0, 150));
-					appService.update(role2);
+					role2 = createRole (role2);
 				}
 			}
 			catch (UnknownRoleException e)
 			{
-				role2 = createRole (role);
+				role2 = agent.getRoleFullInfo(existingGrant.getRolName());
+				role2 = createRole (role2);
 			}
 			// Look if this role is already granted
 			boolean found = false;
@@ -205,12 +232,16 @@ public class ReconcileEngine
 				RolGrant grant = it.next();
 				if (grant.getIdRol().equals (role2.getId()))
 				{
-					found = true;
-					it.remove ();
+					if (grant.getDomainValue() == null && existingGrant.getDomainValue() == null ||
+							grant.getDomainValue() != null && grant.getDomainValue().equals(existingGrant.getDomainValue()))
+					{
+						found = true;
+						it.remove ();
+					}
 				}
 			}
 			if (!found)
-				grant (acc, role2);
+				grant (acc, existingGrant, role2);
 		}
 
 		// Now remove not present roles
@@ -223,6 +254,11 @@ public class ReconcileEngine
 			ra.setBaseDeDades(grant.getDispatcher());
 			ra.setNomRol(grant.getRolName());
 			ra.setId(grant.getId());
+			if (grant.getDomainValue() != null)
+			{
+				ra.setValorDomini(new ValorDomini());
+				ra.getValorDomini().setValor(grant.getDomainValue());
+			}
 			appService.delete(ra);
 		}
 	}
@@ -230,17 +266,21 @@ public class ReconcileEngine
 	/**
 	 * @param acc
 	 * @param role2
+	 * @param role 
 	 * @throws InternalErrorException 
 	 */
-	private void grant (Account acc, Rol role2) throws InternalErrorException
+	private void grant (Account acc, RolGrant role2, Rol role) throws InternalErrorException
 	{
 		RolAccount ra = new RolAccount();
 		ra.setAccountId(acc.getId());
 		ra.setAccountDispatcher(acc.getDispatcher());
 		ra.setAccountName(acc.getName());
-		ra.setBaseDeDades(role2.getBaseDeDades());
-		ra.setNomRol(role2.getNom());
-		ra.setCodiAplicacio(role2.getCodiAplicacio());
+		ra.setBaseDeDades(role2.getDispatcher());
+		ra.setNomRol(role2.getRolName());
+		ra.setCodiAplicacio(role.getCodiAplicacio());
+		ra.setValorDomini(new ValorDomini());
+		ra.getValorDomini().setValor(role2.getDomainValue());
+		ra.getValorDomini().setCodiExternDomini(role2.getDomainValue());
 		
 		appService.create(ra);
 	}
@@ -252,6 +292,8 @@ public class ReconcileEngine
 	 */
 	private Rol createRole (Rol role) throws InternalErrorException
 	{
+		role.setBaseDeDades(dispatcher.getCodi());
+		
 		if (role.getCodiAplicacio() == null)
 			role.setCodiAplicacio(dispatcher.getCodi());
 		Aplicacio app = appService.findAplicacioByCodiAplicacio(role.getCodiAplicacio());
@@ -270,7 +312,7 @@ public class ReconcileEngine
 		if (role.getDefecte() == null)
 			role.setDefecte(Boolean.FALSE);
 		
-		if (role.getDescripcio() == null)
+		if (role.getDescripcio() == null || role.getDescripcio().trim().length() == 0)
 			role.setDescripcio("Autogenerated role "+role.getNom());
 		
 		if (role.getOwnedRoles() == null)
@@ -286,6 +328,8 @@ public class ReconcileEngine
 		{
 			role.setDomini(new Domini());
 		}
+		
+		role.getDomini().setCodiExtern(role.getCodiAplicacio());
 		
 		if (role.getDescripcio().length() > 150)
 			role.setDescripcio(role.getDescripcio().substring(0, 150));

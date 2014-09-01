@@ -49,11 +49,14 @@ import org.jbpm.graph.exe.ProcessInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.comu.Account;
 import bsh.EvalError;
 
 import com.soffid.iam.api.ScheduledTask;
+import com.soffid.iam.api.Task;
+import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
 import com.soffid.iam.reconcile.common.AccountProposedAction;
 import com.soffid.iam.reconcile.common.ProposedAction;
 import com.soffid.iam.reconcile.common.ReconcileAccount;
@@ -64,6 +67,7 @@ import com.soffid.tools.db.schema.Column;
 import com.soffid.tools.db.schema.Table;
 
 import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.Configuracio;
 import es.caib.seycon.ng.comu.DadaUsuari;
 import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.DominiContrasenya;
@@ -97,6 +101,7 @@ import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.remote.RemoteInvokerFactory;
 import es.caib.seycon.ng.remote.URLManager;
 import es.caib.seycon.ng.servei.AccountService;
+import es.caib.seycon.ng.servei.ConfiguracioService;
 import es.caib.seycon.ng.servei.DadesAddicionalsService;
 import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.GrupService;
@@ -119,6 +124,7 @@ import es.caib.seycon.ng.sync.intf.AgentMgr;
 import es.caib.seycon.ng.sync.intf.AuthoritativeChange;
 import es.caib.seycon.ng.sync.intf.AuthoritativeChangeIdentifier;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
+import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource2;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaMgr;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaOfflineChangeRetriever;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
@@ -133,6 +139,7 @@ import es.caib.seycon.ng.sync.intf.LogEntry;
 import es.caib.seycon.ng.sync.intf.MailAliasMgr;
 import es.caib.seycon.ng.sync.intf.NetworkMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr;
+import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
 import es.caib.seycon.ng.sync.intf.RoleMgr;
 import es.caib.seycon.ng.sync.intf.RoleInfo;
 import es.caib.seycon.ng.sync.intf.RoleMgr;
@@ -189,6 +196,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private GrupService grupService;
 	private boolean auditGenerated;
 	private ObjectTranslator attributeTranslator;
+	private AuthoritativeChangeService authoritativeService;
 
 	public DominiContrasenya getPasswordDomain() throws InternalErrorException
 	{
@@ -229,6 +237,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         grupService = ServerServiceLocator.instance().getGrupService();
         auditoriaDao = (AuditoriaEntityDao) ServerServiceLocator.instance().getService("auditoriaEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
+        authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
+        
         active = true;
     }
 
@@ -343,19 +353,23 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
 		else if (trans.equals(TaskHandler.END_RECONCILE))
 		{
-			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class);
+			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class) ||
+					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class);
 		}
 		else if (trans.equals(TaskHandler.RECONCILE_USER))
 		{
-			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class);
+			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class)||
+					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class);
 		}
 		else if (trans.equals(TaskHandler.RECONCILE_ROLE))
 		{
-			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class);
+			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class) ||
+					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class);
 		}
 		else if (trans.equals(TaskHandler.RECONCILE_ROLES))
 		{
-			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class);
+			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class) ||
+					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class);
 		}
 		else if (trans.equals(TaskHandler.UPDATE_OBJECT) ||
 				trans.equals(TaskHandler.DELETE_OBJECT))
@@ -566,29 +580,49 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		{
     			AuthoritativeIdentitySource source = (AuthoritativeIdentitySource) agent;
     			Collection<AuthoritativeChange> changes = source.getChanges();
-    			while ( changes != null && !changes.isEmpty())
+    			if ( changes != null && !changes.isEmpty())
     			{
 	    	        for (AuthoritativeChange change: changes)
 	    	        {
-	    	        	try {
-	    	        		applyChange (change);
-	    	        		result.append ("Applied authoritative change for  ")
-	    	        			.append (change.getUser().getCodi())
-	    	        			.append ("\n");
-	    	        		source.commitChange(change.getId());
-	    	        	} catch ( Exception e) {
-	    	        		result.append ("Error uploading change ")
-	    	        			.append(change.getId().toString())
-	    	        			.append(":");
-	    	        		StringWriter sw = new StringWriter();
-	    	        		e.printStackTrace (new PrintWriter(sw));
-	    	        		result.append(sw.getBuffer())
-	    	        			.append ("\n");
-	    	        		result.append("User information: ").append(change.getUser()).append("\n");
-	    	        	}
+	    	        	processChange(change, source, result);
 	    	        }
 	    			changes = source.getChanges();
     			}
+    		} else if (agent instanceof AuthoritativeIdentitySource2)
+    		{
+    			ConfiguracioService cfgSvc = ServiceLocator.instance().getConfiguracioService();
+    			String lastId = null;
+    			String cfgId = "soffid.sync.authoritative.change."+getDispatcher().getCodi();
+    			Configuracio cfg = cfgSvc.findParametreByCodiAndCodiXarxa(cfgId, null);
+    			if (cfg != null)
+    				lastId = cfg.getValor();
+    			AuthoritativeIdentitySource2 source = (AuthoritativeIdentitySource2) agent;
+				boolean anyError = false;
+				do
+				{
+					Collection<AuthoritativeChange> changes = source.getChanges(lastId);
+					if (changes == null || changes.isEmpty())
+						break;
+	    	        for (AuthoritativeChange change: changes)
+	    	        {
+	    	        	if ( processChange(change, null, result) )
+	    	        		anyError = true;
+	    	        }
+   				} while (source.hasMoreData());
+				String nextChange = source.getNextChange();
+				if (! anyError && nextChange != null)
+				{
+					if (cfg == null) {
+						cfg = new Configuracio();
+						cfg.setValor(nextChange);
+						cfg.setCodi(cfgId);
+						cfg.setDescripcio("Last authoritative change id loaded");
+						cfgSvc.create(cfg);
+					} else {
+						cfg.setValor(nextChange);
+						cfgSvc.update(cfg);
+					}
+				}
     		} else {
     			result.append ("This agent does not support account reconciliation");
     		}
@@ -606,211 +640,38 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		
 	}
 
-	/**
-	 * @param change
-	 * @throws NoSuchMethodException 
-	 * @throws InternalErrorException 
-	 * @throws SecurityException 
-	 * @throws InvocationTargetException 
-	 * @throws IllegalAccessException 
-	 * @throws IllegalArgumentException 
-	 */
-	private void applyChange (AuthoritativeChange change) throws SecurityException, InternalErrorException, NoSuchMethodException, IllegalArgumentException, IllegalAccessException, InvocationTargetException
-	{
-		Security.nestedLogin(getDispatcher().getCodi(), 
-			new String [] { 
-				Security.AUTO_USER_CREATE+Security.AUTO_ALL,
-				Security.AUTO_USER_QUERY+Security.AUTO_ALL,
-				Security.AUTO_USER_UPDATE+Security.AUTO_ALL,
-				Security.AUTO_GROUP_CREATE+Security.AUTO_ALL,
-				Security.AUTO_GROUP_QUERY+Security.AUTO_ALL,
-				Security.AUTO_GROUP_UPDATE+Security.AUTO_ALL,
-				Security.AUTO_USER_GROUP_CREATE+Security.AUTO_ALL,
-				Security.AUTO_USER_GROUP_DELETE+Security.AUTO_ALL,
-				Security.AUTO_USER_ROLE_CREATE+Security.AUTO_ALL,
-				Security.AUTO_USER_ROLE_DELETE+Security.AUTO_ALL,
-				Security.AUTO_USER_ROLE_QUERY+Security.AUTO_ALL,
-				Security.AUTO_METADATA_CREATE+Security.AUTO_ALL,
-				Security.AUTO_METADATA_QUERY+Security.AUTO_ALL,
-				Security.AUTO_METADATA_UPDATE+Security.AUTO_ALL,
-				Security.AUTO_USER_METADATA_UPDATE+Security.AUTO_ALL
-			});
+	private boolean processChange(AuthoritativeChange change,
+			AuthoritativeIdentitySource source, StringBuffer result) {
+		boolean error = false;
+		change.setSourceSystem(getDispatcher().getCodi());
 		try {
-			auditGenerated = false;
-    		Usuari user = applyUserChange (change);
-    		if (change.getAttributes() != null)
-    			applyAttributesChange (user, change);
-    		if (change.getGroups() != null)
-    			applyGroupChange (user, change);
-		} finally {
-			Security.nestedLogoff();
-		}
-	}
-
-	/**
-	 * @param user
-	 * @param change
-	 * @throws InternalErrorException 
-	 */
-	private void applyGroupChange (Usuari user, AuthoritativeChange change) throws InternalErrorException
-	{
-		Collection<UsuariGrup> grups = grupService.findUsuariGrupsByCodiUsuari(user.getCodi());
-
-		Set<String> actualGroups = change.getGroups();
-		
-		// First remove
-		for (Iterator<UsuariGrup> it = grups.iterator(); it.hasNext();)
-		{
-			UsuariGrup ug = it.next();
-			if (actualGroups.contains(ug.getCodiGrup()))
-			{
-				actualGroups.remove(ug.getCodiGrup());
-			}
+			if (authoritativeService
+					.startAuthoritativeChange(change))
+				result.append(
+						"Applied authoritative change for  ")
+						.append(change.getUser().getCodi())
+						.append("\n");
 			else
-			{
-				auditAuthoritativeChange(user.getCodi());
-				grupService.removeGrupFromUsuari(user.getCodi(), ug.getCodiGrup());
-			}
+				result.append(
+						"Prepared authoritative change for  ")
+						.append(change.getUser().getCodi())
+						.append("\n");
+			if (source != null)
+				source.commitChange(change.getId());
+		} catch ( Exception e) {
+			error = true;
+			result.append ("Error uploading change ")
+				.append(change.getId().toString())
+				.append(":");
+			StringWriter sw = new StringWriter();
+			e.printStackTrace (new PrintWriter(sw));
+			result.append(sw.getBuffer())
+				.append ("\n");
+			result.append("User information: ").append(change.getUser()).append("\n");
 		}
-		
-		for (String group: actualGroups)
-		{
-			auditAuthoritativeChange(user.getCodi());
-			grupService.addGrupToUsuari(user.getCodi(), group);
-		}
-		
+		return true;
 	}
 
-	private void auditAuthoritativeChange (String user)
-	{
-		if (!auditGenerated)
-		{
-            AuditoriaEntity auditoria = auditoriaDao.newAuditoriaEntity();
-            auditoria.setAccio("U");
-            auditoria.setData(new Date());
-            auditoria.setUsuari(user);
-            auditoria.setObjecte("AUTH_IDENT");
-            auditoria.setBbdd(getDispatcher().getCodi());
-            auditoriaDao.create(auditoria);
-            auditGenerated = true;
-		}
-	}
-	/**
-	 * @param change
-	 * @return 
-	 * @throws InternalErrorException 
-	 * @throws NoSuchMethodException 
-	 * @throws SecurityException 
-	 * @throws InvocationTargetException 
-	 * @throws IllegalAccessException 
-	 * @throws IllegalArgumentException 
-	 */
-	private Usuari applyUserChange (AuthoritativeChange change) throws InternalErrorException, SecurityException, NoSuchMethodException, IllegalArgumentException, IllegalAccessException, InvocationTargetException
-	{
-		Usuari user = change.getUser();
-		Usuari oldUser = usuariService.findUsuariByCodiUsuari(user.getCodi());
-		if (oldUser == null && getDispatcher().isAuthoritative())
-		{
-			if (user.getActiu() == null) user.setActiu(Boolean.TRUE);
-			if (user.getMultiSessio() == null) user.setMultiSessio(Boolean.FALSE);
-			if (user.getServidorCorreu() == null) user.setServidorCorreu("null");
-			if (user.getServidorHome() == null) user.setServidorHome("null");
-			if (user.getServidorPerfil() == null) user.setServidorPerfil("null");
-			if (user.getTipusUsuari() == null) user.setTipusUsuari("I");
-			oldUser = usuariService.create(user);
-		} else {
-			boolean anyChange = false;
-			for (String att: new String[] {"Actiu", "AliesCorreu", "CodiGrupPrimari", "Comentari", 
-							"DominiCorreu", "MultiSessio", "NIF", "Nom", "NomCurt", "PrimerLlinatge",
-							"SegonLlinatge", "ServidorCorreu", "ServidorPerfil", "ServidorHome", 
-							"Telefon", "TipusUsuari"})
-			{
-				Method getter = Usuari.class.getMethod("get"+att);
-				Method setter = Usuari.class.getMethod("set"+att, getter.getReturnType());
-				Object value = getter.invoke(user);
-				if (value != null)
-				{
-					Object oldValue = getter.invoke(oldUser);
-					if (oldValue == null || !oldValue.equals(value))
-					{
-    					setter.invoke(oldUser, value);
-    					anyChange = true;
-					}
-				}
-			}
-			if (anyChange)
-			{
-				auditAuthoritativeChange(oldUser.getCodi());
-				usuariService.update(oldUser);
-			}
-		}
-		return oldUser;
-	}
-
-	/**
-	 * @param change
-	 * @throws InternalErrorException 
-	 */
-	private void applyAttributesChange (Usuari user, AuthoritativeChange change) throws InternalErrorException
-	{
-		for (String attribute: change.getAttributes().keySet())
-		{
-			Object value = change.getAttributes().get(attribute);
-			TipusDada tda = dadesAddicionalsService.findTipusDadaByCodi(attribute);
-			if (tda == null)
-			{
-				long i = 100;
-				tda = new TipusDada();
-				for (TipusDada tda2: dadesAddicionalsService.getTipusDades())
-				{
-					if (tda2.getOrdre().longValue() >= i)
-						i = tda2.getOrdre().longValue()+1;
-				}
-				auditAuthoritativeChange(user.getCodi());
-				tda.setOrdre(i);
-				tda.setCodi(attribute);
-				tda = dadesAddicionalsService.create(tda);
-			}
-			DadaUsuari dada = usuariService.findDadaByCodiTipusDada(user.getCodi(), attribute);
-			if (dada == null && value != null)
-			{
-				auditAuthoritativeChange(user.getCodi());
-				dada = new DadaUsuari();
-				dada.setCodiDada(tda.getCodi());
-				dada.setCodiUsuari(user.getCodi());
-				if (value instanceof byte[])
-					dada.setBlobDataValue ( (byte[]) value);
-				else if (value instanceof Date)
-				{
-					java.util.Calendar cal = java.util.Calendar.getInstance();
-					cal.setTime ((Date)value);
-					dada.setValorDadaDate (cal);
-				}
-				else
-					dada.setValorDada (value.toString());
-				dadesAddicionalsService.create(dada);
-			} 
-			else if (value == null && dada!= null)
-			{
-				dadesAddicionalsService.delete(dada);
-			} 
-			else if (value != null && ! value.equals(dada.getValorDada())) 
-			{
-				auditAuthoritativeChange(user.getCodi());
-				if (value instanceof byte[])
-					dada.setBlobDataValue ( (byte[]) value);
-				else if (value instanceof Date)
-				{
-					java.util.Calendar cal = java.util.Calendar.getInstance();
-					cal.setTime ((Date)value);
-					dada.setValorDadaDate (cal);
-				}
-				else
-					dada.setValorDada (value.toString());
-				dadesAddicionalsService.update(dada);
-			}
-		}
-	}
 
 	private TaskHandler processAndLogTask (TaskHandler t) throws InternalErrorException
 	{
@@ -1479,7 +1340,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         Account acc = accountService.findAccount(t.getTask().getUsuari(), getDispatcher().getCodi());
         if (acc != null && !acc.isDisabled() )
         {
-        	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) {
+        	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
+        	{
 	            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
 	                    + t.getPassword().getHash() + ": ACCEPTED");
 	            log.debug("Accepted proposed password for {}", acc.getName(), null);
@@ -1490,7 +1352,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            
 		            TasqueEntity te = tasqueEntityDao.newTasqueEntity();
 		            te.setTransa(TaskHandler.UPDATE_PROPAGATED_PASSWORD);
-		            te.setDominiUsuaris(getDispatcher().getDominiUsuaris());
+//		            te.setDominiUsuaris(getDispatcher().getDominiUsuaris());
 		            te.setDominiContrasenyes(getDispatcher().getDominiContrasenyes());
 		            te.setContra(t.getPassword().toString());
 		            te.setUsuari(ua.getUser());
@@ -1515,7 +1377,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	        	}
 	        	else
 	        	{
-	        		
 	        		secretStoreService.setPassword(acc.getId(), t.getPassword());
    		            for (String u: accountService.getAccountUsers(acc))
    		            {
@@ -1529,6 +1390,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            auditoria.setObjecte("SC_ACCOUN");
 		            auditoriaDao.create(auditoria);
 	        	}
+            	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
+            			acc.getPasswordPolicy(), getDispatcher().getDominiContrasenyes());
+            	Long l = getPasswordTerm(politica);
+				accountService.updateAccountPasswordDate(acc, l);
         	}
         }
     }
@@ -1906,7 +1771,17 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         if (user != null)
             return user;
         try {
-            user = server.getUserInfo(task.getTask().getUsuari(), null);
+        	if (task.getTask().getTransa().equals (TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
+        			task.getTask().getTransa().equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD) ||
+        			task.getTask().getTransa().equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD) ||
+        			task.getTask().getTransa().equals(TaskHandler.UPDATE_ACCOUNT))
+        	{
+	            user = server.getUserInfo(task.getTask().getUsuari(), getDispatcher().getCodi());
+        	}
+        	else
+        	{
+	            user = server.getUserInfo(task.getTask().getUsuari(), null);
+        	}
             task.setUsuari(user);
         } catch (UnknownUserException e) {
             user = null;
@@ -1984,10 +1859,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	{
 		TasqueEntity taskEntity;				// Task entity
 		ReconcileMgr reconcileManager = null;	// Reconcile manager
+		ReconcileMgr2 reconcileManager2 = null;	// Reconcile manager
 
 		try
 		{
-			reconcileManager = (ReconcileMgr) agent;
+			if (agent instanceof ReconcileMgr)
+				reconcileManager = (ReconcileMgr) agent;
+			else if (agent instanceof ReconcileMgr2)
+				reconcileManager2 = (ReconcileMgr2) agent;
+			else
+				return;
 		}
 		catch (ClassCastException ex)
 		{
@@ -1995,7 +1876,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 
 		// Create reconcile user task for users
-		for (String user : reconcileManager.getAccountsList())
+		for (String user : (reconcileManager2 == null ? reconcileManager.getAccountsList() : reconcileManager2.getAccountsList()))
 		{
 			// Check user code length
 			if (user.length() <= MAX_LENGTH)
@@ -2073,16 +1954,24 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	public void reconcileUser (Object agent, TaskHandler taskHandler)
 					throws InternalErrorException, RemoteException
 	{
+		if (agent instanceof ReconcileMgr)
+			reconcileUser((ReconcileMgr) agent, taskHandler);
+		else if (agent instanceof ReconcileMgr2)
+			reconcileAccount((ReconcileMgr2) agent, taskHandler);
+		else
+			return;
+	}
+	
+	public void reconcileUser (ReconcileMgr reconcileManager, TaskHandler taskHandler)
+			throws InternalErrorException, RemoteException
+	{
 		Usuari user; // User to reconcile
-		ReconcileMgr reconcileManager = null; // Reconcile manager
 		ReconcileAccount reconcileAccount = null; // Reconcile accounts handler
 		ReconcileAssignment reconcileAssign = null; // Reconcile assignments handler
 
 		try
 		{
-			reconcileManager = (ReconcileMgr) agent;
 		}
-
 		catch (ClassCastException e)
 		{
 			return;
@@ -2153,6 +2042,84 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 	}
 
+	public void reconcileAccount (ReconcileMgr2 reconcileManager, TaskHandler taskHandler)
+			throws InternalErrorException, RemoteException
+	{
+		Account user; // User to reconcile
+		ReconcileAccount reconcileAccount = null; // Reconcile accounts handler
+		ReconcileAssignment reconcileAssign = null; // Reconcile assignments handler
+
+		try
+		{
+		}
+		catch (ClassCastException e)
+		{
+			return;
+		}
+
+		String accountName = taskHandler.getTask().getUsuari();
+		// Check existing user on system
+		Account account = accountService.findAccount(accountName,
+						getDispatcher().getCodi());
+
+		Collection<RolGrant> grants = new LinkedList<RolGrant>();
+		
+		if (account == null)
+		{
+
+			user = reconcileManager.getAccountInfo(taskHandler.getTask().getUsuari());
+
+			// Check correct user
+			if (user != null && user.getName() != null)
+			{
+				// Set user parameters
+				reconcileAccount = new ReconcileAccount();
+				reconcileAccount.setAccountName(user.getName());
+				if (user.getDescription() == null)
+					reconcileAccount.setDescription(reconcileAccount.getAccountName()+" account");
+				else
+					reconcileAccount.setDescription(user.getDescription());
+				reconcileAccount.setProcessId(Long.parseLong(taskHandler.getTask()
+								.getMaquin()));
+				reconcileAccount.setProposedAction(AccountProposedAction.CREATE_NEW_USER);
+				reconcileAccount.setDispatcher(getDispatcher().getCodi());
+				reconcileService.addUser(reconcileAccount);
+			}
+		}
+		else
+			grants = server.getAccountRoles(accountName, getDispatcher().getCodi());
+		
+		for (RolGrant role : reconcileManager.getAccountGrants(taskHandler.getTask().getUsuari()))
+		{
+			if (role.getRolName().length() <= MAX_LENGTH)
+			{
+				boolean found = false;
+				for (RolGrant rg: grants)
+				{
+					if (rg.getRolName().equals (role.getRolName()) && rg.getDispatcher().equals (getDispatcher().getCodi()))
+					{
+						found = true;
+						break;
+					}
+				}
+				
+				if (! found)
+				{
+					reconcileAssign = new ReconcileAssignment();
+					reconcileAssign.setAccountName(accountName);
+					reconcileAssign.setAssignmentName(accountName + " - "
+									+ role.getRolName());
+					reconcileAssign.setProcessId(Long.parseLong(taskHandler
+									.getTask().getMaquin()));
+					reconcileAssign.setProposedAction(ProposedAction.LOAD);
+					reconcileAssign.setRoleName(role.getRolName());
+					reconcileAssign.setDispatcher(getDispatcher().getCodi());
+	
+					reconcileService.addAssignment(reconcileAssign);
+				}
+			}
+		}
+	}
 	/**
 	 * Reconcile roles
 	 * 
@@ -2314,7 +2281,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		if (agent instanceof ReconcileMgr)
     		{
     			new ReconcileEngine (getDispatcher(), (ReconcileMgr) agent).reconcile();
-    		} else {
+    		} 
+    		else if (agent instanceof ReconcileMgr2)
+        	{
+        		new ReconcileEngine2 (getDispatcher(), (ReconcileMgr2) agent).reconcile();
+    		} 
+    		else {
     			result.append ("This agent does not support account reconciliation");
     		}
 		} 
