@@ -14,7 +14,7 @@
   <properties>
     <maven.compile.source>1.5</maven.compile.source>
     <maven.compile.target>1.5</maven.compile.target>
-    <iam.version>${pom.version}</iam.version>
+    <iam.version>1.5.0-beta-1</iam.version>
   </properties>
   <scm>
         <connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/syncserver.git</connection>
@@ -489,18 +489,18 @@
     <dependency>
       <artifactId>iam-common</artifactId>
       <groupId>com.soffid.iam.console</groupId>
-      <version>1.4.1</version>
+      <version>${iam.version}</version>
     </dependency>
     <dependency>
       <artifactId>iam-core</artifactId>
       <groupId>com.soffid.iam.console</groupId>
-      <version>1.4.1</version>
+      <version>${iam.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <artifactId>iam-webservice</artifactId>
       <groupId>com.soffid.iam.console</groupId>
-      <version>1.4.1</version>
+      <version>${iam.version}</version>
       <type>war</type>
       <scope>provided</scope>
     </dependency>
