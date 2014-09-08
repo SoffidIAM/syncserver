@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.soffid.iam.sync.w32</groupId>
+	<artifactId>usradm</artifactId>
+	<packaging>exe</packaging>
+	<name>Program to manage windows accounts (Windows 32 bits) </name>
+	<version>2.0.0</version>
+	<parent>
+		<groupId>com.soffid.iam.sync</groupId>
+		<artifactId>root</artifactId>
+		<version>1.0.0</version>
+	</parent>
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>native-maven-plugin</artifactId>
+				<extensions>true</extensions>
+				<configuration>
+					<compilerProvider>generic</compilerProvider>
+					<compilerExecutable>${cpp.32w}</compilerExecutable>
+					<linkerProvider>generic</linkerProvider>
+					<linkerExecutable>${cpp.32w}</linkerExecutable>
+					<linkerMiddleOptions>
+						<linkerMiddleOption>-municode</linkerMiddleOption>
+						<linkerMiddleOption>-lnetapi32</linkerMiddleOption>
+						<linkerMiddleOption>-lmpr</linkerMiddleOption>
+						<linkerMiddleOption>-Ltarget/lib</linkerMiddleOption>
+						<linkerMiddleOption>-mwindows</linkerMiddleOption>
+						<linkerMiddleOption>-Xlinker</linkerMiddleOption>
+						<linkerMiddleOption>--strip-all</linkerMiddleOption>
+						<linkerMiddleOption>-static-libgcc</linkerMiddleOption>
+						<linkerMiddleOption>-static-libstdc++</linkerMiddleOption>
+					</linkerMiddleOptions>
+					<sources>
+						<source>
+							<!-- relative to your project directory -->
+							<directory>src/main/native</directory>
+							<includes>
+								<include>*.cpp</include>
+							</includes>
+							<excludes>
+								<exclude>**/*.h</exclude>
+							</excludes>
+							<deployable>false</deployable>
+							<dependencyAnalysisParticipation>false</dependencyAnalysisParticipation>
+						</source>
+						<!-- additional system include path -->
+						<source>
+							<directory>../src/main/include</directory>
+							<deployable>true</deployable>
+							<dependencyAnalysisParticipation>true</dependencyAnalysisParticipation>
+						</source>
+						<source>
+							<directory>../src/main/resources</directory>
+							<deployable>false</deployable>
+							<dependencyAnalysisParticipation>true</dependencyAnalysisParticipation>
+						</source>
+					</sources>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
+	<dependencies>
+	</dependencies>
+	<properties>
+		<architecture>w32</architecture>
+	</properties>
+</project>
