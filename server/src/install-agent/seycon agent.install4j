@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<install4j version="5.1.8" transformSequenceNumber="4">
-  <directoryPresets config="./resources" />
+<install4j version="5.1.7" transformSequenceNumber="4">
+  <directoryPresets config="../../target/eris-32/usradm.exe" />
   <application name="Soffid IAM Synchronization Server" distributionSourceDir="" applicationId="5692-3811-3422-9114" mediaDir="../../target/install4j" mediaFilePattern="${compiler:sys.shortName}_${compiler:sys.platform}" compression="6" lzmaCompression="false" pack200Compression="false" excludeSignedFromPacking="true" commonExternalFiles="false" createMd5Sums="true" shrinkRuntime="true" shortName="SoffidIAMSync" publisher="Soffid IAM, S.L." publisherWeb="http://www.soffid.com" version="${compiler:seycon.version}" allPathsRelative="true" backupOnSave="true" autoSave="true" convertDotsToUnderscores="true" macSignature="????" installerName="" javaMinVersion="1.4" javaMaxVersion="1.6" allowBetaVM="true" jdkMode="runtimeJre" jdkName="">
     <languages skipLanguageSelection="false" languageSelectionInPrincipalLanguage="false">
       <principalLanguage id="en" customLocalizationFile="" />
@@ -61,8 +61,8 @@
       <fileEntry mountPoint="33430" file="../../target/test-classes/javadisk.dll" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33430" file="../../target/test-classes/logonuser.exe" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33430" file="../../target/test-classes/rel.exe" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
-      <fileEntry mountPoint="33430" file="../../target/test-classes/usradm.exe" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33430" file="../test/resources/setspn.exe" overwriteMode="3" shared="false" fileMode="644" uninstallMode="2" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
+      <fileEntry mountPoint="33430" file="../../target/eris-32/usradm.exe" overwriteMode="1" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="false" overrideOverwriteMode="true" overrideUninstallMode="false" />
       <fileEntry mountPoint="32860" file="../../target/test-classes/libsapjcorfc.so" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="32860" file="../../target/test-classes/librfccm.so" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="32981" file="../../target/test-classes/librfc32.dll" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
@@ -74,7 +74,9 @@
         <exclude />
       </dirEntry>
       <dirEntry mountPoint="33721" file="../../target/eris-32" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" entryMode="direct" subDirectory="" excludeSuffixes="*.inczip" dirMode="755" overrideDirMode="true">
-        <exclude />
+        <exclude>
+          <entry location="usradm.exe" fileType="regular" />
+        </exclude>
       </dirEntry>
       <dirEntry mountPoint="33728" file="../../target/eris-64" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" entryMode="direct" subDirectory="" excludeSuffixes="*.inczip" dirMode="755" overrideDirMode="true">
         <exclude />

@@ -2135,19 +2135,15 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		throws InternalErrorException, RemoteException
 	{
 		TasqueEntity taskEntity;		// Task entity
-		ReconcileMgr reconcileManager;	// Reconcile manager
+		ReconcileMgr reconcileManager = agent instanceof ReconcileMgr ? (ReconcileMgr) agent: null;	// Reconcile manager
+		ReconcileMgr2 reconcileManager2 = agent instanceof ReconcileMgr2 ? (ReconcileMgr2) agent: null;	// Reconcile manager
 
-		try
-		{
-			reconcileManager = (ReconcileMgr) agent;
-		}
-		catch (ClassCastException ex)
-		{
+		if (reconcileManager == null && reconcileManager2 == null)
 			return;
-		}
-
+		
+		List<String> roles = reconcileManager == null ? reconcileManager2.getRolesList() : reconcileManager.getRolesList();
 		// Create reconcile role task
-		for (String role : reconcileManager.getRolesList())
+		for (String role : roles)
 		{
 			// Check role code length
 			if (role.length() <= MAX_ROLE_CODE_LENGTH)
@@ -2194,8 +2190,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		throws InternalErrorException, RemoteException
 	{
 		Rol role;						// Role to reconcile
-		ReconcileMgr reconMgr = null;	// Reconcile manager
-		ReconcileRole reconRole = null;	// Manage reconcile process
+		ReconcileMgr reconMgr = agent instanceof ReconcileMgr ? (ReconcileMgr) agent : null;	// Reconcile manager
+		ReconcileMgr2 reconMgr2 = agent instanceof ReconcileMgr2 ? (ReconcileMgr2) agent : null;	// Manage reconcile process
+		ReconcileRole reconRole;
 
 		try
 		{
@@ -2208,16 +2205,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				// Check not existing role
 				if (role == null)
 				{
-					try
-					{
-						reconMgr = (ReconcileMgr) agent;
-					}
-					catch (ClassCastException ex)
-					{
-						return;
-					}
-
-					role = reconMgr.getRoleFullInfo(taskHandler.getTask().getRole());
+					role = reconMgr != null ? reconMgr.getRoleFullInfo(taskHandler.getTask().getRole())
+							: reconMgr2 != null? reconMgr2.getRoleFullInfo(taskHandler.getTask().getRole())
+							: null;
 
 					if (role != null)
 					{
@@ -2225,7 +2215,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 						reconRole.setRoleName(role.getNom());
 	
 						// Check role description lenght
-						if (role.getDescripcio().length() <= MAX_LENGTH)
+						if (role.getDescripcio() == null || role.getDescripcio().trim().length() == 0)
+						{
+							reconRole.setDescription(role.getNom());
+						}
+						else if (role.getDescripcio().length() <= MAX_LENGTH)
 							reconRole.setDescription(role.getDescripcio());
 	
 						else

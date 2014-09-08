@@ -63,7 +63,7 @@
         <artifactId>maven-dependency-plugin</artifactId>
         <executions>
           <execution>
-            <id>unpack-metea</id>
+            <id>unpack-meta</id>
             <goals>
               <goal>unpack</goal>
             </goals>
@@ -601,6 +601,12 @@
       <groupId>image4j.sf.net</groupId>
       <artifactId>image4j</artifactId>
       <version>0.7</version>
+    </dependency>
+    <dependency>
+    	<groupId>com.soffid.iam.sync.w32</groupId>
+    	<artifactId>usradm</artifactId>
+    	<version>2.0.0</version>
+    	<type>exe</type>
     </dependency>
   </dependencies>
   <reporting>
