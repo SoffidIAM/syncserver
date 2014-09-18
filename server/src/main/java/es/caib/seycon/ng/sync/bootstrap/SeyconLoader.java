@@ -200,6 +200,7 @@ public class SeyconLoader extends Object {
 		File f = fvm.getInstalledFile(file);
 		if ( f != null)
 		{
+			System.out.println ("Parsing dependencies of "+f.toString());
 			JarFile jf = new JarFile(f);
 			String classPath = jf.getManifest().getMainAttributes().getValue("Class-Path");
 			if (classPath != null)
