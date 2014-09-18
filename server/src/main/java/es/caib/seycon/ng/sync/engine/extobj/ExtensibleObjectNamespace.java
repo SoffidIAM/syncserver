@@ -3,20 +3,27 @@
  */
 package es.caib.seycon.ng.sync.engine.extobj;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.servei.ServerService;
 import bsh.BshClassManager;
+import bsh.ExternalNameSpace;
+import bsh.Modifiers;
 import bsh.NameSpace;
 import bsh.Primitive;
 import bsh.UtilEvalError;
+import bsh.Variable;
 
-class ExtensibleObjectNamespace extends NameSpace
+class ExtensibleObjectNamespace extends ExternalNameSpace
 {
 	private ExtensibleObject object;
 	private ServerService serverService;
-
+	Map<String, Object> externalMap = new HashMap<String, Object>();
+	
 	/**
 	 * @param parent
 	 * @param classManager
@@ -25,39 +32,56 @@ class ExtensibleObjectNamespace extends NameSpace
 	 * @param ead
 	 * @param accountName
 	 */
+	@SuppressWarnings("unchecked")
 	public ExtensibleObjectNamespace (NameSpace parent, BshClassManager classManager, String name,
 					ExtensibleObject object,
 					ServerService serverService)
 	{
-		super(parent, classManager, name);
+		super(parent, name, new HashMap<String, Object>());
+		externalMap = super.getMap();
 		this.object = object;
 		this.serverService = serverService;
 
 	}
 
+	boolean inSetVariable = false;
+	
 	@Override
-	public Object getVariable (String name, boolean recurse) throws UtilEvalError
-	{
-		Object value = null; 
+	protected Variable getVariableImpl(String name, boolean recurse)
+			throws UtilEvalError {
 		try
 		{
-			if ("serverService".equals (name))
-				return serverService;
-			if ("remoteServiceLocator".equals (name))
-				return new RemoteServiceLocator();
-			if ("serviceLocator".equals (name))
-				return ServiceLocator.instance();
+			if (inSetVariable || externalMap.get(name) != null)
+				return super.getVariableImpl(name, recurse);
 			
-			value = object.getAttribute(name);
-	    	if (value != null)
-	    		return value;
-	    	else if (object.containsKey(name))
-	    		return Primitive.NULL;
-	    	else
-	    	{
-	    		value = super.getVariable(name, recurse);
-    			return value;
+			if ("serverService".equals (name))
+				externalMap.put(name,  serverService);
+			else if ("remoteServiceLocator".equals (name))
+				externalMap.put(name,  new RemoteServiceLocator());
+			else if ("serviceLocator".equals (name))
+				externalMap.put(name,  ServiceLocator.instance());
+			else if ("this".equals (name))
+				externalMap.put(name,  object);
+			else
+			{
+				Object value = object.getAttribute(name);
+				if (value != null)
+				{
+					externalMap.put(name,  value);				
+				}
+				else if (object.containsKey(name))
+				{
+					inSetVariable = true;
+					try
+					{
+						super.setVariable(name, Primitive.NULL, true);
+					} finally {
+						inSetVariable = false;
+					}
+				}
 	    	}
+
+			return super.getVariableImpl(name, recurse);
 		}
 		catch (Exception e)
 		{
