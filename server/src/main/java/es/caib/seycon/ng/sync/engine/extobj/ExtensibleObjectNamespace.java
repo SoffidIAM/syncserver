@@ -71,13 +71,7 @@ class ExtensibleObjectNamespace extends ExternalNameSpace
 				}
 				else if (object.containsKey(name))
 				{
-					inSetVariable = true;
-					try
-					{
-						super.setVariable(name, Primitive.NULL, true);
-					} finally {
-						inSetVariable = false;
-					}
+					externalMap.put(name, Primitive.NULL);
 				}
 	    	}
 
