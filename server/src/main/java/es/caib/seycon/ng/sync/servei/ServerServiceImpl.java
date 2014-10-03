@@ -793,12 +793,12 @@ public class ServerServiceImpl extends ServerServiceBase {
         Compile c;
         if ("xml".equals(version)) //$NON-NLS-1$
             return res.getBytes("UTF-8"); //$NON-NLS-1$
-        else if ("3".equals(version)) //$NON-NLS-1$
-            c = new Compile3();
+        else if (version == null || "1".equals(version)) //$NON-NLS-1$
+            c = new Compile();
         else if ("2".equals(version)) //$NON-NLS-1$
             c = new Compile2();
         else
-            c = new Compile();
+            c = new Compile3();
 
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         try {
