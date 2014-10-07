@@ -619,7 +619,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
-          <skip>true</skip>
+          <skip>false</skip>
           <additionalJOption>-J-Xmx128m</additionalJOption>
         </configuration>
       </plugin>
@@ -694,7 +694,7 @@
     <site>
       <id>soffid-open</id>
       <name>Soffid Maven site repository</name>
-      <url>${soffid.deploy.site.url}</url>
+      <url>${soffid.deploy.site.url}/syncserver</url>
     </site>
   </distributionManagement>
 </project>
