@@ -58,8 +58,9 @@ public class FileVersionManager {
             String filename = children[i];
             if (filename.startsWith(pattern)
                     && (filename.endsWith(".jar") || filename.endsWith(".war"))) {
-                return new File(dir, filename);
-            } else {
+            	File f = new File(dir, filename);
+            	if (f.length() > 0)
+            		return f;
             }
         }
         return null;

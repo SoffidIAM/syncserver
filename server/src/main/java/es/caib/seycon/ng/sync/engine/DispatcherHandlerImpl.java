@@ -1168,12 +1168,15 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         } catch (ClassCastException e) {
             return;
         }
-        try {
-            LlistaCorreu llista = server.getMailList(t.getTask().getAlies(), t.getTask()
-                    .getDomcor());
-            aliasMgr.updateListAlias(llista);
-        } catch (UnknownMailListException e) {
-            aliasMgr.removeListAlias(t.getTask().getAlies(), t.getTask().getDomcor());
+    	if (t.getTask().getAlies() != null && t.getTask().getDomcor() != null)
+    	{
+    		try {
+	            LlistaCorreu llista = server.getMailList(t.getTask().getAlies(), t.getTask()
+	                    .getDomcor());
+	            aliasMgr.updateListAlias(llista);
+	        } catch (UnknownMailListException e) {
+	            aliasMgr.removeListAlias(t.getTask().getAlies(), t.getTask().getDomcor());
+        	}
         }
     }
 
@@ -1186,15 +1189,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         try {
             Usuari usuari = getUserInfo(t);
-            String user = null; //server.getUserKey(usuari.getId(), getDispatcher().getDominiUsuaris());
-            if (user == null)
-                throw new UnknownUserException();
-            if (usuari.getNomCurt() == null)
-                aliasMgr.removeUserAlias(user);
+            if (usuari.getNomCurt() == null || usuari.getDominiCorreu() == null)
+                aliasMgr.removeUserAlias(usuari.getCodi());
             else
-                aliasMgr.updateUserAlias(user, usuari);
+                aliasMgr.updateUserAlias(usuari.getCodi(), usuari);
         } catch (UnknownUserException e) {
-//            aliasMgr.removeUserAlias(t.getTask().getUsuari());
+            aliasMgr.removeUserAlias(t.getTask().getUsuari());
         }
     }
 
@@ -1395,6 +1395,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             	Long l = getPasswordTerm(politica);
 				accountService.updateAccountPasswordDate(acc, l);
         	}
+        } else {
+            log.debug("Rejected proposed password for {}", acc.getName(), null);
         }
     }
 
