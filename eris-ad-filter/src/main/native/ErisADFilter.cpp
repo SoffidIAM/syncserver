@@ -83,7 +83,19 @@ PasswordChangeNotify(PUNICODE_STRING UserName, ULONG RelativeId,
  --*/BOOL APIENTRY
 PasswordFilter(PUNICODE_STRING UserName, PUNICODE_STRING FullName,
 		PUNICODE_STRING Password, BOOL SetOperation) {
-	return TRUE;
+		struct PasswordChange p;
+		ZeroMemory (&p, sizeof p);
+		wcsncpy(p.szUser, (LPWSTR) UserName->Buffer,
+				minim(MAXUSERLENGTH-1,UserName->Length/2));
+		wcsncpy(p.szPassword, (LPWSTR) Password->Buffer,
+				minim(MAXUSERLENGTH-1, Password->Length/2));
+		if (!sendMessage(&p)) {
+			HANDLE h = openSpoolFile();
+			writePasswordChange(h, &p);
+			CloseHandle(h);
+		}
+		ZeroMemory (&p, sizeof p);
+		return STATUS_SUCCESS;
 }
 
 /*++

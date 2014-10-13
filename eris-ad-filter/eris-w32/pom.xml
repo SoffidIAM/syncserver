@@ -9,7 +9,7 @@
 	<parent>
 		<artifactId>eris-ad-filter</artifactId>
 		<groupId>com.soffid.iam.sync</groupId>
-		<version>1.0.4</version>
+		<version>1.1.0-SNAPSHOT</version>
 	</parent>
 	<build>
 		<plugins>
@@ -50,7 +50,7 @@
 					<linkerExecutable>${cpp.32w}</linkerExecutable>
 					<linkerMiddleOptions>
 						<linkerMiddleOption>-mwindows</linkerMiddleOption>
-						<linkerMiddleOption>../src/main/def/ErisADFilter.def</linkerMiddleOption>
+						<linkerMiddleOption>../src/main/def/ErisADFilter-new.def</linkerMiddleOption>
 						<linkerMiddleOption>--shared</linkerMiddleOption>
 						<linkerMiddleOption>-Xlinker</linkerMiddleOption>
 						<linkerMiddleOption>--strip-all</linkerMiddleOption>
@@ -91,4 +91,12 @@
 	<properties>
 		<architecture>w32</architecture>
 	</properties>
+	<dependencies>
+	<dependency>
+		<groupId>com.mingw.w32</groupId>
+		<artifactId>libwinhttp</artifactId>
+		<version>3.1</version>
+		<type>a</type>
+	</dependency>
+	</dependencies>
 </project>

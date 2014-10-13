@@ -592,6 +592,113 @@ BOOL DECLSPEC_EXPORT sendMessage(struct PasswordChange *change) {
 }
 
 
+
+BOOL sendUrlTest(LPWSTR url, struct PasswordChange *change, bool &valid) {
+	HINTERNET hSession = NULL;
+	URL_COMPONENTS urlComp;
+
+	// Initialize the URL_COMPONENTS structure.
+	ZeroMemory(&urlComp, sizeof(urlComp));
+	// Set required component lengths to non-zero
+	// so that they are cracked.
+	urlComp.dwStructSize = sizeof(urlComp);
+	WCHAR szScheme[15];
+	urlComp.lpszScheme = szScheme;
+	urlComp.dwSchemeLength = 14;
+	WCHAR szHostName[256];
+	urlComp.lpszHostName = szHostName;
+	urlComp.dwHostNameLength = 255;
+	WCHAR szPath[5096];
+	urlComp.lpszUrlPath = szPath;
+	urlComp.dwUrlPathLength = 4095;
+
+	// Use WinHttpOpen to obtain a session handle.
+	hSession = WinHttpOpen(L"Eris Agent/1.0",
+	WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+	WINHTTP_NO_PROXY_NAME,
+	WINHTTP_NO_PROXY_BYPASS, 0 );
+
+	// Specify an HTTP server.
+	if (hSession)
+	{
+		WinHttpCrackUrl( url, wcslen(url), 0, &urlComp);
+	}
+
+	if( szHostName[0] != L'\0' )
+	{
+		WCHAR szDomain[1000] = L"\0";
+		getDomain(szDomain, sizeof szDomain);
+		WCHAR realPath[5096];
+		std::string u = escapeString (change->szUser);
+		std::string p = escapeString (change->szPassword);
+		std::string d = escapeString (szDomain);
+		wsprintfW (realPath, L"/propagatepass?test=true&user=%hs&password=%hs&domain=%hs",
+				u.c_str(), p.c_str(), d.c_str());
+		LPSTR result = readURL(hSession, szHostName, urlComp.nPort, realPath, FALSE) ;
+		if (result != NULL)
+		{
+			if (strncmp (result, "OK", 2) == 0)
+			{
+				valid = true;
+				return true;
+			}
+			else if (strncmp (result, "IGNORE", 6) == 0)
+			{
+				valid = true;
+				return true;
+			}
+			else if (strncmp (result, "ERROR|", 6) == 0)
+			{
+				valid = false;
+				return true;
+			}
+			else
+				return false;
+		} else {
+			return FALSE;
+		}
+	}
+	else
+		return FALSE;
+
+}
+
+/**
+ * Returns true if password is valid
+ * If no server is available, also sends true
+ */
+BOOL DECLSPEC_EXPORT sendTest(struct PasswordChange *change) {
+	bool result;
+	WCHAR szURLs[20000];
+	if (debug) {
+		wprintf(L"Sending test: User %s Password '%s'\n",
+		change->szUser, change->szPassword);
+	}
+	if (! getURLs(szURLs, sizeof szURLs))
+	{
+		SetLastError (ERROR_BAD_CONFIGURATION);
+		return true;
+	}
+
+	PWCHAR pszURL = szURLs;
+	while ( *pszURL != L'\0')
+	{
+		if (debug)
+		{
+			wprintf (L"Server: %s\n", pszURL);
+		}
+		if (sendUrlTest (pszURL, change, result))
+		{
+			return result;
+		}
+		// Avanzar a la siguiente URL
+		while ( *pszURL ) pszURL ++;
+		pszURL ++;
+	}
+	SetLastError (ERROR_NOT_CONNECTED);
+	return true;
+}
+
 DECLSPEC_EXPORT BOOL configureEris(LPWSTR url, BOOL allowUnknownCA, LPWSTR domain) {
 	URL_COMPONENTS urlComp;
 	DWORD dwDownloaded = -1;
