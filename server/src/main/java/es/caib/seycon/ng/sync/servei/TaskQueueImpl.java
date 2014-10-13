@@ -44,6 +44,7 @@ import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.model.AccountEntity;
 import es.caib.seycon.ng.model.AccountEntityDao;
+import es.caib.seycon.ng.model.DispatcherEntity;
 import es.caib.seycon.ng.model.DominiContrasenyaEntity;
 import es.caib.seycon.ng.model.DominiContrasenyaEntityDao;
 import es.caib.seycon.ng.model.TaskLogEntity;
@@ -147,9 +148,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					return; // Ignorar
 				}
 
-				getSecretStoreService().putSecret(
-					getUsuariEntityDao().toUsuari(usuari),
-					"dompass/" + dc.getId(), newTask.getPassword());
+				storeDomainPassword (newTask);
+				
 				addAndNotifyDispatchers(newTask, entity);
 			}
 			else
@@ -188,9 +188,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 						false, false) == PasswordValidation.PASSWORD_WRONG)
 				{
 					ps.storePassword(usuari, dc, newTask.getPassword(), false);
-					getSecretStoreService().putSecret(
-						getUsuariEntityDao().toUsuari(usuari),
-						"dompass/" + dc.getId(), newTask.getPassword());
+
+					storeDomainPassword (newTask);
 
 					addAndNotifyDispatchers(newTask, entity);
 				}
@@ -241,18 +240,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				}
 				else
 				{
-					getSecretStoreService().setPassword(account.getId(),
-						newTask.getPassword());
 					newTask.cancel();
 					pushTaskToPersist(newTask);
-					for (String u :
-						getAccountService().getAccountUsers(
-							getAccountEntityDao().toAccount(account)))
-					{
-						ServerServiceLocator.instance()
-							.getChangePasswordNotificationQueue()
-							.addNotification(u);
-					}
+					
+					storeAccountPassword(newTask, account);
 				}
 			}
 			else
@@ -308,6 +299,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				{
 					ps.storeAccountPassword(account, newTask.getPassword(),
 						false, null);
+
+					storeDomainPassword(newTask);
+					
 					addAndNotifyDispatchers(newTask, entity);
 				}
 			}
@@ -319,6 +313,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 		else if (newTask.getTask()
 					.getTransa().equals(TaskHandler.PROPAGATE_PASSWORD) ||
+				newTask.getTask()
+					.getTransa().equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
 				newTask.getTask()
 					.getTransa().equals(TaskHandler.VALIDATE_PASSWORD))
 		{
@@ -354,6 +350,67 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			addAndNotifyDispatchers(newTask, entity);
 		}
 	}
+
+	private void storeAccountPassword(TaskHandler newTask,
+			AccountEntity account) throws InternalErrorException {
+		
+		getSecretStoreService().setPassword(account.getId(),
+			newTask.getPassword());
+		Account acc = getAccountEntityDao().toAccount(account);
+//		getAccountService().updateAccountPasswordDate(acc, null);
+
+		for (String u :
+			getAccountService().getAccountUsers(
+				getAccountEntityDao().toAccount(account)))
+		{
+			ServerServiceLocator.instance()
+				.getChangePasswordNotificationQueue()
+				.addNotification(u);
+		}
+	}
+
+	private void storeDomainPassword(TaskHandler task) throws InternalErrorException {
+		
+		DominiContrasenyaEntity dc = getDominiContrasenyaEntityDao().findByCodi(task.getTask()
+				.getDominiContrasenyes());
+		
+		if (dc != null)
+		{
+			UsuariEntityDao usuariDao = getUsuariEntityDao();
+			UsuariEntity usuariEntity = usuariDao
+							.findByCodi(task.getTask().getUsuari());
+			if (usuariEntity == null) // Ignorar
+				return;
+			Usuari usuari = usuariDao.toUsuari(usuariEntity);
+			
+			
+			getSecretStoreService().putSecret(
+					usuari,
+					"dompass/" + dc.getId(), task.getPassword());
+	
+			boolean anyChange = false;
+			for (DispatcherEntity de: dc.getDispatchers())
+			{
+				if (de.getUrl() == null || de.getUrl().length() == 0)
+				{
+					for (AccountEntity account : 
+						getAccountEntityDao().findByUsuariAndDispatcher(usuari.getCodi(), de.getCodi()))
+					{
+						Account acc = getAccountEntityDao().toAccount(account);
+						getSecretStoreService().setPassword(account.getId(), task.getPassword());
+//						getAccountService().updateAccountPasswordDate(acc, null);
+						anyChange = true;
+					}
+				}
+			}
+
+			if (anyChange)
+				getChangePasswordNotificationQueue().addNotification(usuari.getCodi());
+
+		}	
+	}
+
+
 
 	/**
 	 * @param entity
@@ -1252,9 +1309,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					return m; // Ignorar
 				}
 
-				getSecretStoreService().putSecret(
-									getUsuariEntityDao().toUsuari(usuari),
-									"dompass/" + dc.getId(), task.getPassword());
+				storeDomainPassword(task);
 			}
 			else
 			{
@@ -1279,11 +1334,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				DispatcherHandler dispatcher = getTaskGenerator().getDispatcher(task.getTask().getCoddis());
 				if (dispatcher == null || ! dispatcher.isActive()) 
 				{
-	        		getSecretStoreService().setPassword(account.getId(), task.getPassword());
-   		            for (String u: getAccountService().getAccountUsers(getAccountEntityDao().toAccount(account)))
-   		            {
-   		            	ServerServiceLocator.instance().getChangePasswordNotificationQueue().addNotification(u);
-   		            }
+					storeAccountPassword(task, account);
    		            return m;
 				}
 			}
