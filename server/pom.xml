@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:maven="http://maven.apache.org/POM/4.0.0">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:maven="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
   <parent>
     <artifactId>root</artifactId>
     <groupId>com.soffid.iam.sync</groupId>
@@ -8,14 +8,18 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.soffid.iam.sync</groupId>
   <artifactId>syncserver</artifactId>
-  <version>1.5.0-SNAPSHOT</version>
+  <version>1.6.0-SNAPSHOT</version>
   <packaging>jar</packaging>
   <name>Soffid IAM Sync server</name>
   <properties>
     <maven.compile.source>1.5</maven.compile.source>
     <maven.compile.target>1.5</maven.compile.target>
-    <iam.version>1.5.0-SNAPSHOT</iam.version>
+    <iam.version>1.5.0-beta-1</iam.version>
   </properties>
+  <scm>
+        <connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/syncserver.git</connection>
+    <tag>HEAD</tag>
+  </scm>
   <licenses>
     <license>
       <name>GNU GPL Version 3.0</name>
@@ -274,7 +278,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -293,7 +297,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -312,7 +316,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -331,7 +335,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
                 <pluginExecution>
@@ -350,7 +354,7 @@
                     </goals>
                   </pluginExecutionFilter>
                   <action>
-                    <ignore/>
+                    <ignore />
                   </action>
                 </pluginExecution>
               </pluginExecutions>
@@ -486,18 +490,18 @@
     <dependency>
       <artifactId>iam-common</artifactId>
       <groupId>com.soffid.iam.console</groupId>
-      <version>1.5.0-SNAPSHOT</version>
+      <version>${iam.version}</version>
     </dependency>
     <dependency>
       <artifactId>iam-core</artifactId>
       <groupId>com.soffid.iam.console</groupId>
-      <version>1.5.0-SNAPSHOT</version>
+      <version>${iam.version}</version>
       <scope>provided</scope>
     </dependency>
     <dependency>
       <artifactId>iam-webservice</artifactId>
       <groupId>com.soffid.iam.console</groupId>
-      <version>1.5.0-SNAPSHOT</version>
+      <version>${iam.version}</version>
       <type>war</type>
       <scope>provided</scope>
     </dependency>
@@ -615,7 +619,7 @@
         <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-javadoc-plugin</artifactId>
         <configuration>
-          <skip>true</skip>
+          <skip>false</skip>
           <additionalJOption>-J-Xmx128m</additionalJOption>
         </configuration>
       </plugin>
@@ -644,9 +648,9 @@
                 <phase>package</phase>
                 <configuration>
                   <target>
-                    <taskdef name="install4j" classname="com.install4j.Install4JTask" classpath="${env.INSTALL4J_HOME}/bin/ant.jar"/>
+                    <taskdef name="install4j" classname="com.install4j.Install4JTask" classpath="${env.INSTALL4J_HOME}/bin/ant.jar" />
                     <install4j projectfile="src/install-agent/seycon agent.install4j">
-                      <variable name="seycon.version" value="${pom.version}"/>
+                      <variable name="seycon.version" value="${pom.version}" />
                     </install4j>
                   </target>
                 </configuration>
@@ -690,7 +694,7 @@
     <site>
       <id>soffid-open</id>
       <name>Soffid Maven site repository</name>
-      <url>${soffid.deploy.site.url}</url>
+      <url>${soffid.deploy.site.url}/syncserver</url>
     </site>
   </distributionManagement>
 </project>
