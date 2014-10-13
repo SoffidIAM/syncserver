@@ -3,6 +3,7 @@ package es.caib.seycon.ng.sync.web.esso;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.rmi.RemoteException;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -12,14 +13,18 @@ import javax.servlet.http.HttpServletResponse;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import es.caib.seycon.ng.servei.DispatcherService;
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.Dispatcher;
+import es.caib.seycon.ng.comu.PoliticaContrasenya;
 import es.caib.seycon.ng.comu.Sessio;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.comu.sso.Secret;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.servei.AccountService;
+import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.SessioService;
 import es.caib.seycon.ng.servei.UsuariService;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
@@ -85,9 +90,10 @@ public class ChangeSecretServlet extends HttpServlet {
      * @param value 
 	 * @return
      * @throws InternalErrorException 
+     * @throws RemoteException 
 	 */
 	private String doChangeSecret (Usuari usuari, String secret, String account,
-					String system, String value) throws InternalErrorException
+					String system, String value) throws InternalErrorException, RemoteException
 	{
 
         SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
@@ -117,6 +123,24 @@ public class ChangeSecretServlet extends HttpServlet {
         			return "ERROR|Not authorized";
         	}
            	sss.setPassword(acc.getId(), new Password(value));
+
+           	AccountService acs = ServiceLocator.instance().getAccountService();
+           	DominiUsuariService dominiService = ServiceLocator.instance().getDominiUsuariService();
+           	DispatcherService dispatcherService = ServiceLocator.instance().getDispatcherService();
+           	Dispatcher dispatcher = dispatcherService.findDispatcherByCodi(system);
+        	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
+        			acc.getPasswordPolicy(), dispatcher.getDominiContrasenyes());
+    		Long l = null;
+    		
+    		if (politica != null && politica.getDuradaMaxima() != null && politica.getTipus().equals("M"))
+    		    l = politica.getDuradaMaxima();
+    		else if (politica != null && politica.getTempsRenovacio() != null && politica.getTipus().equals("A"))
+    			l = politica.getTempsRenovacio();
+
+           	acs.updateAccountPasswordDate(acc, l);
+
+           	ServiceLocator.instance().getLogonService().propagatePassword(system, account, value);
+    		
         }
         return "OK";
     }
