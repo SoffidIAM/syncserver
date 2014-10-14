@@ -44,7 +44,7 @@ public class PropagatePasswordServlet extends HttpServlet {
             try {
             	if (testOnly)
             	{
-            		PolicyCheckResult r = passwordService.checkPolicy(domain, user, new Password(pass));
+            		PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
             		if (r == null)
             			writer.write("IGNORE");
             		else if (r.isValid())
