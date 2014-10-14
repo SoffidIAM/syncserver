@@ -418,9 +418,9 @@ public class JettyServer implements PublisherInterface
             bindAdministrationServlet("/reencodesecrets", new String[]{"SEU_ADMINISTRADOR"}, ReencodeSecretsServlet.class);
             if (System.getProperty("seycon.secret.debug") != null)
                 bindAdministrationServlet("/testSecrets", new String[]{"SEU_ADMINISTRADOR"}, TestSecretsServlet.class);
-            bindAdministrationServlet("/status", null, StatusServlet.class);
             bindPublicWeb();
         }
+        bindAdministrationServlet("/status", null, StatusServlet.class);
     }
 
     private void bindPublicWeb() throws FileNotFoundException, IOException {

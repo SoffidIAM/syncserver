@@ -1,13 +1,18 @@
 package es.caib.seycon.ng.sync.engine.pool;
 
+import java.lang.ref.WeakReference;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
 import org.jfree.util.Log;
 
 public abstract class AbstractPool<S> implements Runnable {
+	static LinkedList<WeakReference<AbstractPool<?>>> currentPools = new LinkedList<WeakReference<AbstractPool<?>>>();
+
 	org.apache.commons.logging.Log log = LogFactory.getLog(getClass());
 	
 	private Thread theThread;
@@ -56,6 +61,16 @@ public abstract class AbstractPool<S> implements Runnable {
 		theThread = new Thread(this);
 		theThread.setName(getClass()+" Pool Manager Thread");
 		theThread.start();
+		currentPools.add(new WeakReference<AbstractPool<?>>(this));
+	}
+	
+	protected void finalize () {
+		for (Iterator<WeakReference<AbstractPool<?>>> it = currentPools.iterator(); it.hasNext();)
+		{
+			WeakReference<AbstractPool<?>> wr = it.next();
+			if (wr.get() == this)
+				it.remove();
+		}
 	}
 	
 	LinkedList<PoolElement<S>> freeList = new LinkedList<PoolElement<S>>();
@@ -200,13 +215,14 @@ public abstract class AbstractPool<S> implements Runnable {
 		{
 			performCloseConnection(element);
 		}
+		freeList.clear();
 	}
 
 
 	private void performCloseConnection(PoolElement<S> element) {
 		try 
 		{
-			currentSize ++;
+			currentSize --;
 			closeConnection(element.getObject());
 		} catch (Exception e) 
 		{
@@ -219,5 +235,48 @@ public abstract class AbstractPool<S> implements Runnable {
 	protected boolean isConnectionValid(S connection) throws Exception
 	{
 		return true;
+	}
+	
+	public String getStatus ()
+	{
+		StringBuffer b = new StringBuffer();
+		b.append("Pool ").append (toString()).append ('\n')
+				.append("Size: ")
+				.append(currentSize)
+				.append ('\n')
+				.append("Free: ")
+				.append(freeList.size())
+				.append('\n');
+		synchronized(inUse)
+		{
+			int i = 1;
+			for (PoolElement<S> element: inUse)
+			{
+				b.append ("\n#").append(i).append(" Thread: ").append (element.getBoundThread().getName())
+					.append(" generated on ") .append (new  Date(element.getCreation()))
+					.append (" last access on ") .append (new  Date(element.getLastUse()))
+					.append (" locks: ") .append (element.getLocks())
+					.append ('\n');
+				for ( StackTraceElement ste: element.getStackTrace())
+				{
+					b.append(" . . . ")
+						.append(ste.toString())
+						.append('\n');
+				}
+			}
+		}
+		return b.toString();
+	}
+	
+	public static List<AbstractPool<?>> getPools()
+	{
+		LinkedList<AbstractPool<?>> ll = new LinkedList<AbstractPool<?>> ();
+		for (Iterator<WeakReference<AbstractPool<?>>> it = currentPools.iterator(); it.hasNext();)
+		{
+			WeakReference<AbstractPool<?>> wr = it.next();
+			if (wr.get() != null)
+				ll.add(wr.get());
+		}
+		return ll;
 	}
 }

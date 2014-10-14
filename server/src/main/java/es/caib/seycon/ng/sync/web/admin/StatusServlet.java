@@ -3,17 +3,20 @@ package es.caib.seycon.ng.sync.web.admin;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.ServiceLoader;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.servei.ServeiService;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
 import es.caib.seycon.ng.sync.engine.DispatcherHandler;
 import es.caib.seycon.ng.sync.engine.Engine;
+import es.caib.seycon.ng.sync.engine.pool.AbstractPool;
 import es.caib.seycon.ng.sync.servei.SyncStatusService;
 import es.caib.seycon.ng.sync.servei.TaskGenerator;
 import es.caib.seycon.ng.sync.servei.TaskQueue;
@@ -23,12 +26,8 @@ public class StatusServlet extends HttpServlet {
      * 
      */
     private static final long serialVersionUID = 1L;
-    private TaskGenerator taskGenerator;
-    private TaskQueue taskQueue;
 
     public StatusServlet() {
-        taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
-        taskQueue = ServerServiceLocator.instance().getTaskQueue();
 
     }
 
@@ -42,14 +41,27 @@ public class StatusServlet extends HttpServlet {
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(),
                 "UTF-8"));
         try {
-            writer.write(getTasksStatus());
+        	if ("pools".equals (type))
+                writer.write(getPoolStatus());
+        	else
+        		writer.write(getTasksStatus());
         } catch (InternalErrorException e) {
             throw new ServletException(e);
         }
         writer.close();
     }
 
-    /**
+    private String getPoolStatus() {
+    	StringBuffer sb = new StringBuffer();
+    	for (AbstractPool<?> ap: AbstractPool.getPools())
+    	{
+    		sb.append (ap.getStatus());
+    		sb.append ("*****************************************\n");
+    	}
+    	return sb.toString();
+	}
+
+	/**
      * Generar información de tareas
      * 
      * @return cadena describiendo el estado de cada agente y el número de
@@ -64,9 +76,10 @@ public class StatusServlet extends HttpServlet {
         } else {
             result = result + "Engine: stopped ";
         }
+        TaskQueue taskQueue = ServiceLocator.instance().getTaskQueue();
         result = result + "Tasks: " + Integer.toString(taskQueue.countTasks()) + "\n";
 
-        for (DispatcherHandler disp : taskGenerator.getDispatchers()) {
+        for (DispatcherHandler disp : ServiceLocator.instance().getTaskGenerator().getDispatchers()) {
             if (disp != null && disp.isActive()) {
                 result = result + disp.getDispatcher().getCodi() + ": ";
                 if (disp.getRemoteAgent() != null) {
@@ -76,7 +89,7 @@ public class StatusServlet extends HttpServlet {
                 }
 
                 int contador = taskQueue.countTasks(disp);
-                result = result + " Tasks: " + Integer.toString(contador) + " Round-Trip: 0\n";
+                result = result + " Tasks: " + Integer.toString(contador) + "\n";
             }
         }
         return result;
