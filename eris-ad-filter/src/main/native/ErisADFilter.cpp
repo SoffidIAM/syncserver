@@ -89,13 +89,9 @@ PasswordFilter(PUNICODE_STRING UserName, PUNICODE_STRING FullName,
 				minim(MAXUSERLENGTH-1,UserName->Length/2));
 		wcsncpy(p.szPassword, (LPWSTR) Password->Buffer,
 				minim(MAXUSERLENGTH-1, Password->Length/2));
-		if (!sendMessage(&p)) {
-			HANDLE h = openSpoolFile();
-			writePasswordChange(h, &p);
-			CloseHandle(h);
-		}
+		bool bValid = sendTest(&p);
 		ZeroMemory (&p, sizeof p);
-		return STATUS_SUCCESS;
+		return bValid;
 }
 
 /*++

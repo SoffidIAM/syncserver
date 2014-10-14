@@ -22,6 +22,7 @@ HANDLE openSpoolFile ();
 BOOL readPasswordChange (HANDLE f, struct PasswordChange *change, BOOL skip);
 BOOL writePasswordChange (HANDLE f, struct PasswordChange *change);
 BOOL sendMessage (struct PasswordChange *change);
+BOOL sendTest(struct PasswordChange *change) ;
 void setQueueDebug(BOOL bDebug);
 void deletePasswordChange (HANDLE f) ;
 BOOL configureEris (LPWSTR f, BOOL allowUnknownCA, LPWSTR d) ;
