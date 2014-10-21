@@ -44,13 +44,21 @@ public class PropagatePasswordServlet extends HttpServlet {
             try {
             	if (testOnly)
             	{
-            		PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
-            		if (r == null)
-            			writer.write("IGNORE");
-            		else if (r.isValid())
+            		// When modifying a.d. passwod, a.d. will ask for password correctnes, but this password
+            		// does not apply to password policy as it is the current password
+            		if ( passwordService.checkPassword(user, domain, new Password(pass), false, true) )
             			writer.write ("OK");
+            		// 
             		else
-            			writer.write ("ERROR|"+r.getReason());
+            		{
+	            		PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
+	            		if (r == null)
+	            			writer.write("IGNORE");
+	            		else if (r.isValid())
+	            			writer.write ("OK");
+	            		else
+	            			writer.write ("ERROR|"+r.getReason());
+            		}
             	}
             	else
             	{
