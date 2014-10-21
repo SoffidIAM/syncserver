@@ -377,6 +377,13 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 				secret.setName("account."+account.getDispatcher());
 				secret.setValue(new Password (account.getName()));
 				secrets.add(secret);
+				if (! account.getType().equals(AccountType.USER))
+				{
+					secret = new Secret();
+					secret.setName("accdesc."+account.getDispatcher()+"."+account.getName());
+					secret.setValue(new Password (account.getDescription()));
+					secrets.add(secret);
+				}
 				secret = new Secret ();
 				secret.setName("pass."+account.getDispatcher()+"."+account.getName());
 				secret.setValue(p);
