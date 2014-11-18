@@ -179,7 +179,9 @@ public class ReconcileEngine2
 			public int compare (PoliticaContrasenya o1, PoliticaContrasenya o2)
 			{
 				if (o1.getTipus().equals(o2.getTipus()))
-					if ( o1.getDuradaMaxima() < o2.getDuradaMaxima())
+					if ( o1.getDuradaMaxima() == null)
+						return o2.getDuradaMaxima() == null ? 0: +1;
+					else if ( o1.getDuradaMaxima() < o2.getDuradaMaxima())
 						return -1;
 					else if ( o1.getDuradaMaxima() > o2.getDuradaMaxima())
 						return +1;
