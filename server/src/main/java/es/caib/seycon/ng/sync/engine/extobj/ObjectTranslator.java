@@ -205,7 +205,8 @@ public class ObjectTranslator
 			{
 				result = ((Primitive)result).getValue();
 			}
-			targetObject.setAttribute(attribute, result);
+			AttributeReferenceParser.parse(targetObject, attribute)
+				.setValue(result);
 		} catch (EvalError e) {
 			String msg;
 			try {
