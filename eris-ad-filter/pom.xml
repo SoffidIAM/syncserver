@@ -12,7 +12,7 @@
     <version>1.0.0</version>
   </parent>
   <scm>
-        <connection>scm:git:ssh://git@github.com:SoffidIAM/syncserver.git</connection>
+        <connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
     <tag>eris-ad-filter-1.1.0</tag>
   </scm>
   <modules>
