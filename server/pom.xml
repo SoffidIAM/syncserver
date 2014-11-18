@@ -17,7 +17,7 @@
     <iam.version>1.5.0</iam.version>
   </properties>
   <scm>
-        <connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/syncserver.git</connection>
+        <connection>scm:git:ssh://git@github.com:SoffidIAM/syncserver.git</connection>
     <tag>HEAD</tag>
   </scm>
   <licenses>
