@@ -11,14 +11,14 @@ import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.servei.ServerService;
 import bsh.BshClassManager;
-import bsh.ExternalNameSpace;
+import bsh.ExternalNameSpace2;
 import bsh.Modifiers;
 import bsh.NameSpace;
 import bsh.Primitive;
 import bsh.UtilEvalError;
 import bsh.Variable;
 
-class ExtensibleObjectNamespace extends ExternalNameSpace
+class ExtensibleObjectNamespace extends ExternalNameSpace2
 {
 	private ExtensibleObject object;
 	private ServerService serverService;
