@@ -363,7 +363,11 @@ public class ConnectionPool {
             if (qci.locks <= 0)
             {
                 try {
-                    qci.connection.rollback();
+                	if (! qci.connection.getAutoCommit())
+                	{
+                		qci.connection.rollback();
+                		qci.connection.setAutoCommit(true);
+                	}
                 } catch (SQLException e) {
                     
                 }
