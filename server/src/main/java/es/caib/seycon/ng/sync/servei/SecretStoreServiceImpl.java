@@ -232,7 +232,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
     protected Collection<Usuari> handleGetUsersWithSecrets() {
         List<UsuariEntity> usuaris = getUsuariEntityDao().query(
                 "select distinct usuari " + "from es.caib.seycon.ng.model.UsuariEntity as usuari "
-                        + "join usuari.secret as secret", null);
+                        + "join usuari.secrets as secret", null);
         return getUsuariEntityDao().toUsuariList(usuaris);
     }
 

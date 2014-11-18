@@ -13,6 +13,8 @@ import javax.servlet.http.HttpServletResponse;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
@@ -73,7 +75,8 @@ public class ReencodeSecretsServlet extends HttpServlet {
         final SecretStoreService secretStoreService = ServerServiceLocator.instance()
                 .getSecretStoreService();
         final Collection<Usuari> usuaris = secretStoreService.getUsersWithSecrets();
-        max = usuaris.size();
+        final Collection<Account> accounts = secretStoreService.getAccountsWithPassword();
+        max = usuaris.size() + accounts.size();
 
         processed = 0;
 
@@ -81,6 +84,7 @@ public class ReencodeSecretsServlet extends HttpServlet {
 
             public void run() {
                 for (Usuari usuari : usuaris) {
+                	log.info("Reencoding secrets for user {}", usuari.getCodi(), null);
                     try {
                         secretStoreService.reencode(usuari);
                     } catch (InternalErrorException e) {
@@ -88,7 +92,19 @@ public class ReencodeSecretsServlet extends HttpServlet {
                     }
                     processed++;
                 }
-            }
+
+                for (Account acc : accounts) {
+                	log.info("Reencoding secrets for account {} @ {}", acc.getName(), acc.getDispatcher());
+                    try {
+                    	Password p = secretStoreService.getPassword(acc.getId());
+                    	if (p != null)
+                    		secretStoreService.setPassword(acc.getId(), p);
+                    } catch (InternalErrorException e) {
+                        log.warn("Error reencoding secrets", e);
+                    }
+                    processed++;
+                }
+}
             
         };
         thread = new  Thread(r);
