@@ -7,10 +7,16 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
+import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.SoffidObjectType;
+import es.caib.seycon.ng.comu.UserAccount;
+import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownGroupException;
+import es.caib.seycon.ng.exception.UnknownRoleException;
+import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.servei.ServerService;
 
@@ -61,6 +67,45 @@ public class GrantExtensibleObject extends ExtensibleObject
 			obj = grant.getOwnerRolName();
 		else if ("ownerUser".equals(attribute))
 			obj = grant.getUser();
+		else if ("ownerUserObject".equals(attribute) && grant.getUser() != null)
+		{
+			try {
+				obj = null;
+				Usuari usuari = serverService.getUserInfo(grant.getOwnerAccountName(), grant.getOwnerDispatcher());
+				if (usuari == null)
+					return null;
+				for (UserAccount acc: serverService.getUserAccounts(usuari.getId(), grant.getOwnerDispatcher()))
+				{
+					if (acc.getName().equals(grant.getOwnerAccountName()))
+					{
+						obj = new UserExtensibleObject(acc, usuari, serverService);
+						break;
+					}
+				}
+			} catch (InternalErrorException e) {
+				throw new RuntimeException(e);
+			} catch (UnknownUserException e) {
+				obj = null;
+			}
+		}
+		else if ("ownerAccountObject".equals(attribute) && grant.getOwnerAccountName() != null)
+		{
+			Account acc = new Account();
+			acc.setName(grant.getOwnerAccountName());
+			acc.setDispatcher(grant.getOwnerDispatcher());
+			obj = new AccountExtensibleObject(acc, serverService);
+		}
+		else if ("grantedRoleObject".equals(attribute))
+		{
+			try {
+				Rol role = serverService.getRoleInfo(grant.getRolName(), grant.getDispatcher());
+				obj = new RoleExtensibleObject(role, serverService);
+			} catch (InternalErrorException e) {
+				throw new RuntimeException(e);
+			} catch (UnknownRoleException e) {
+				obj = null;
+			}
+		}
 		else
 			return null;
 		put (attribute, obj);

@@ -22,6 +22,7 @@ class ExtensibleObjectNamespace extends ExternalNameSpace2
 {
 	private ExtensibleObject object;
 	private ServerService serverService;
+	private BSHAgentObject agent;
 	Map<String, Object> externalMap = new HashMap<String, Object>();
 	
 	/**
@@ -35,13 +36,13 @@ class ExtensibleObjectNamespace extends ExternalNameSpace2
 	@SuppressWarnings("unchecked")
 	public ExtensibleObjectNamespace (NameSpace parent, BshClassManager classManager, String name,
 					ExtensibleObject object,
-					ServerService serverService)
+					ServerService serverService, BSHAgentObject bshAgentObject)
 	{
 		super(parent, name, new HashMap<String, Object>());
 		externalMap = super.getMap();
 		this.object = object;
 		this.serverService = serverService;
-
+		this.agent = bshAgentObject;
 	}
 
 	boolean inSetVariable = false;
@@ -53,27 +54,24 @@ class ExtensibleObjectNamespace extends ExternalNameSpace2
 		{
 			if (inSetVariable || externalMap.get(name) != null)
 				return super.getVariableImpl(name, recurse);
-			
-			if ("serverService".equals (name))
+
+			Object value = object.get(name);
+			if (object.containsKey(name)){
+				if (value == null)
+					externalMap.put(name,  Primitive.NULL);
+				else
+					externalMap.put(name,  value);				
+			}
+			else if ("serverService".equals (name))
 				externalMap.put(name,  serverService);
 			else if ("remoteServiceLocator".equals (name))
 				externalMap.put(name,  new RemoteServiceLocator());
 			else if ("serviceLocator".equals (name))
 				externalMap.put(name,  ServiceLocator.instance());
+			else if ("dispatcherService".equals (name))
+				externalMap.put(name,  agent);
 			else if ("this".equals (name))
 				externalMap.put(name,  object);
-			else
-			{
-				Object value = object.getAttribute(name);
-				if (value != null)
-				{
-					externalMap.put(name,  value);				
-				}
-				else if (object.containsKey(name))
-				{
-					externalMap.put(name, Primitive.NULL);
-				}
-	    	}
 
 			return super.getVariableImpl(name, recurse);
 		}

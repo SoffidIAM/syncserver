@@ -19,6 +19,7 @@ import bsh.EvalError;
 import bsh.Interpreter;
 import bsh.NameSpace;
 import bsh.Primitive;
+import bsh.TargetError;
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
@@ -48,8 +49,10 @@ public class ObjectTranslator
 {
 	Dispatcher dispatcher;
 	ServerService serverService;
+	ExtensibleObjectFinder objectFinder;
 	private Collection<ExtensibleObjectMapping> objects;
-
+	BSHAgentObject agentObject;
+	
 	/**
 	 * @throws InternalErrorException
 	 * 
@@ -75,6 +78,7 @@ public class ObjectTranslator
 			object.setProperties(properties);
 			object.setAttributes(dispatcherService.findAttributeMappingsByObject(object.getId()));
 		}
+		agentObject = new BSHAgentObject(null, this);
 	}
 
 	public ObjectTranslator (Dispatcher dispatcher, ServerService serverService, Collection<ExtensibleObjectMapping> objects) throws InternalErrorException
@@ -82,6 +86,16 @@ public class ObjectTranslator
 		this.serverService = serverService;
 		this.dispatcher = dispatcher;
 		this.objects = objects;
+		agentObject = new BSHAgentObject(null, this);
+	}
+
+	public ExtensibleObjectFinder getObjectFinder() {
+		return objectFinder;
+	}
+
+	public void setObjectFinder(ExtensibleObjectFinder objectFinder) {
+		this.objectFinder = objectFinder;
+		agentObject = new BSHAgentObject(objectFinder, this);
 	}
 
 	public Collection<ExtensibleObjectMapping> getObjects ()
@@ -197,7 +211,8 @@ public class ObjectTranslator
 		NameSpace ns = interpret.getNameSpace();
 
 		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-						"translator" + dispatcher.getCodi(), sourceObject, serverService);
+						"translator" + dispatcher.getCodi(), sourceObject, serverService,
+						agentObject);
 		
 		try {
 			Object result = interpret.eval(attributeExpression, newNs);
@@ -207,6 +222,15 @@ public class ObjectTranslator
 			}
 			AttributeReferenceParser.parse(targetObject, attribute)
 				.setValue(result);
+		} catch (TargetError e) {
+			String msg;
+			try {
+				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+			} catch (Exception e2) {
+				msg = e.getMessage();
+			}
+			throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg,
+					e.getTarget());
 		} catch (EvalError e) {
 			String msg;
 			try {
@@ -259,7 +283,8 @@ public class ObjectTranslator
 						NameSpace ns = interpret.getNameSpace();
 
 						ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-										"translator" + dispatcher.getCodi(), sourceObject, serverService);
+										"translator" + dispatcher.getCodi(), sourceObject, serverService,
+										agentObject);
 
 						try {
 							Object result = interpret.eval(attribute.getSystemAttribute(), newNs);
@@ -297,7 +322,8 @@ public class ObjectTranslator
 						NameSpace ns = interpret.getNameSpace();
 
 						ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-										"translator" + dispatcher.getCodi(), sourceObject, serverService);
+										"translator" + dispatcher.getCodi(), sourceObject, serverService,
+										agentObject);
 
 						try {
 							Object result = interpret.eval(attribute.getSoffidAttribute(), newNs);
