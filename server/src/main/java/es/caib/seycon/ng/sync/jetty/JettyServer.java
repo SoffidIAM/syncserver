@@ -40,6 +40,7 @@ import es.caib.seycon.ng.sync.web.admin.QueryServlet;
 import es.caib.seycon.ng.sync.web.admin.RedirectServlet;
 import es.caib.seycon.ng.sync.web.admin.ReencodeSecretsServlet;
 import es.caib.seycon.ng.sync.web.admin.ResetServlet;
+import es.caib.seycon.ng.sync.web.admin.ScheduledTasksServlet;
 import es.caib.seycon.ng.sync.web.admin.StatusServlet;
 import es.caib.seycon.ng.sync.web.admin.StressTest;
 import es.caib.seycon.ng.sync.web.admin.TasquesPendentsServlet;
@@ -404,6 +405,8 @@ public class JettyServer implements PublisherInterface
                     AdministrationServlet.class);
             bindAdministrationServlet("/admin", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
                     AdministrationServlet.class);
+            bindAdministrationServlet("/scheduledTasks", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
+                    ScheduledTasksServlet.class);
             bindAdministrationServlet("/admin/main", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
                     AdministrationServlet.class);
             bindAdministrationServlet("/", null, RedirectServlet.class);

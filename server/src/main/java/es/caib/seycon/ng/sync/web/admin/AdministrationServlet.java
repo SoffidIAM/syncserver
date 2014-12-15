@@ -47,6 +47,7 @@ public class AdministrationServlet extends HttpServlet {
                 printWriter.println(getJettyThreadStatus());
                 printWriter.println(getSSODaemonThreadStatus());
                 printWriter.println(getTaskGeneratorThreadStatus());
+                printWriter.println ("<p><a href='/scheduledTasks'>Scheduled tasks</a></p>");
                 Date rootCertNotAfter = getRootCertificateNotValidAfter();
                 if (rootCertNotAfter != null) {
                     String s_notAfter = new SimpleDateFormat(
