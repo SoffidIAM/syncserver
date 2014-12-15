@@ -15,6 +15,8 @@ import java.io.InputStream;
 import java.rmi.RemoteException;
 import java.util.Properties;
 
+import javax.security.auth.login.Configuration;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,7 @@ import es.caib.seycon.ng.sync.agent.AgentManager;
 import es.caib.seycon.ng.sync.agent.AgentManagerImpl;
 import es.caib.seycon.ng.sync.engine.Engine;
 import es.caib.seycon.ng.sync.engine.diag.DiagThread;
+import es.caib.seycon.ng.sync.engine.kerberos.ChainConfiguration;
 import es.caib.seycon.ng.sync.engine.log.LogConfigurator;
 import es.caib.seycon.ng.sync.jetty.JettyServer;
 import es.caib.seycon.ng.sync.jetty.SeyconLog;
@@ -292,6 +295,8 @@ public class SeyconApplication extends Object {
 
             // Establecemos el cacerts (copiamos el de JVM a conf si no existe)
             configureCerts(config);
+            // Configure login auth
+            Configuration.setConfiguration(new ChainConfiguration());
 
             // enableIPTables(config);
             if ("server".equals (config.getRole())) {

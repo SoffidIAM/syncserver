@@ -206,7 +206,7 @@ public class KerberosManager {
         String keytabFile = null;
         LoginContext lc = null;
 
-        Configuration.setConfiguration(KerberosLoginConfiguration.getInstance());
+        ChainConfiguration.addConfiguration(new KerberosLoginConfiguration(domain));
         // First try using cache
         try {
             user = properties.getProperty(domain + ".user");
@@ -274,7 +274,16 @@ class KerberosCache {
 }
 
 class KerberosLoginConfiguration extends Configuration {
-    public AppConfigurationEntry[] getAppConfigurationEntry(String codi) {
+	String domain;
+    public KerberosLoginConfiguration(String domain) {
+    	this.domain = domain;
+	}
+
+	public AppConfigurationEntry[] getAppConfigurationEntry(String codi) 
+	{
+		if (! codi.equals (domain))
+			return null;
+		
         AppConfigurationEntry app[] = new AppConfigurationEntry[1];
         HashMap<String, String> params = new HashMap<String, String>();
         params.put("storeKey", "true");
@@ -295,12 +304,6 @@ class KerberosLoginConfiguration extends Configuration {
                 AppConfigurationEntry.LoginModuleControlFlag.REQUIRED, params);
         return app;
     }
-
-    public static Configuration getInstance() {
-        return theInstance;
-    }
-
-    static KerberosLoginConfiguration theInstance = new KerberosLoginConfiguration();
 
     public void refresh() {
     }
