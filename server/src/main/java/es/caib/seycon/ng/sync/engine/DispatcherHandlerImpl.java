@@ -1396,7 +1396,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				accountService.updateAccountPasswordDate(acc, l);
         	}
         } else {
-            log.debug("Rejected proposed password for {}", acc.getName(), null);
+            log.debug("Rejected proposed password for {}", t.getTask().getUsuari(), null);
         }
     }
 
