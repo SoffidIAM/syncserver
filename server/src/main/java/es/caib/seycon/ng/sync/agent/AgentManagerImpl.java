@@ -126,8 +126,13 @@ public class AgentManagerImpl extends AgentManagerBaseCustom implements AgentMan
             agent.setServer(ServerServiceLocator.instance().getServerService());
         } else {
             Invoker invoker = Invoker.getInvoker();
-            RemoteServiceLocator rsl = new RemoteServiceLocator(invoker.getUser());
-            agent.setServer(rsl.getServerService());
+            try {
+	            RemoteServiceLocator rsl = new RemoteServiceLocator(invoker.getUser());
+	            agent.setServer(rsl.getServerService());
+            } catch (Exception e) {
+	            RemoteServiceLocator rsl = new RemoteServiceLocator();
+	            agent.setServer(rsl.getServerService());
+            }
         }
         agent.setJettyServer(ServerApplication.getJetty());
 
@@ -135,50 +140,54 @@ public class AgentManagerImpl extends AgentManagerBaseCustom implements AgentMan
         return agent;
     }
 
-    private synchronized static void loadPlugin(String agentClass) throws IOException, InternalErrorException
+    private static void loadPlugin(String agentClass) throws IOException, InternalErrorException
     {
-    	PluginInfo pi = pluginsLoader.get(agentClass);
-    	if (pi == null)
+    	synchronized (pluginsLoader)
     	{
-    		Plugin sp = getAnyServer().getPlugin(agentClass);
-            if (sp == null || sp.getContent() == null) {
-                throw new InternalErrorException("No plugin available for class " + agentClass);
-            }
-            File f = File.createTempFile("seycon-" + agentClass + "-"+ sp.getVersion(), ".jar");
-            OutputStream out = new FileOutputStream(f);
-            out.write(sp.getContent());
-            out.close();
-            f.deleteOnExit();
-
-
-            pi = new PluginInfo();
-            pi.expiration = new Date (System.currentTimeMillis() + 600000); // 10 mins cache
-            pi.name = sp.getName();
-            pi.version = sp.getVersion();
-            pi.classLoader = new AgentClassLoader(new URL[] { f.toURI().toURL() });
-    		pluginsLoader.put(agentClass, pi);
-    	} 
-    	else if (new Date().after(pi.expiration))
-    	{
-    		Plugin sp = getAnyServer().getPlugin(agentClass);
-            if (sp == null || sp.getContent() == null) {
-                throw new InternalErrorException("No plugin available for class " + agentClass);
-            }
-            // Version has changed
-            if (! sp.getVersion().equals(pi.version))
-            {
-                File f = File.createTempFile("seycon-" + agentClass + "-"+ sp.getVersion(), ".jar");
-                OutputStream out = new FileOutputStream(f);
-                out.write(sp.getContent());
-                out.close();
-                f.deleteOnExit();
-
-                pi.expiration = new Date (System.currentTimeMillis() + 600000); // 10 mins cache
-                pi.version = sp.getVersion();
-                pi.classLoader = new AgentClassLoader(new URL[] { f.toURI().toURL() });
-            }
+	    	PluginInfo pi = pluginsLoader.get(agentClass);
+	    	if (pi == null)
+	    	{
+	    		Plugin sp = getAnyServer().getPlugin(agentClass);
+	            if (sp == null || sp.getContent() == null) {
+	                throw new InternalErrorException("No plugin available for class " + agentClass);
+	            }
+	            File f = File.createTempFile("seycon-" + agentClass + "-"+ sp.getVersion(), ".jar");
+	            OutputStream out = new FileOutputStream(f);
+	            out.write(sp.getContent());
+	            out.close();
+	            f.deleteOnExit();
+	
+	
+	            pi = new PluginInfo();
+	            pi.expiration = new Date (System.currentTimeMillis() + 600000); // 10 mins cache
+	            pi.name = sp.getName();
+	            pi.version = sp.getVersion();
+	            pi.classLoader = new AgentClassLoader(new URL[] { f.toURI().toURL() });
+	    		pluginsLoader.put(agentClass, pi);
+	    	} 
+	    	else if (new Date().after(pi.expiration))
+	    	{
+	    		Plugin sp = getAnyServer().getPlugin(agentClass);
+	            if (sp == null || sp.getContent() == null) {
+	                throw new InternalErrorException("No plugin available for class " + agentClass);
+	            }
+	            // Version has changed
+	            if (! sp.getVersion().equals(pi.version))
+	            {
+	                File f = File.createTempFile("seycon-" + agentClass + "-"+ sp.getVersion(), ".jar");
+	                OutputStream out = new FileOutputStream(f);
+	                out.write(sp.getContent());
+	                out.close();
+	                f.deleteOnExit();
+	
+	                pi.expiration = new Date (System.currentTimeMillis() + 600000); // 10 mins cache
+	                pi.version = sp.getVersion();
+	                pi.classLoader = new AgentClassLoader(new URL[] { f.toURI().toURL() });
+	            }
+	            else
+	                pi.expiration = new Date (System.currentTimeMillis() + 600000); // 10 mins cache
+	    	}
     	}
-    	
     }
 
  

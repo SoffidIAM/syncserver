@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -143,6 +144,51 @@ public class TaskScheduler
 		return theScheduler;
 	}
 	
+	public void runNow (ScheduledTask task) throws ClassNotFoundException, InstantiationException, IllegalAccessException, InternalErrorException
+	{
+		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
+		
+		for (ScheduledTaskHandler stk: taskSvc.listHandlers())
+		{
+			if (stk.getName().equals (task.getHandlerName()))
+			{
+				TaskHandler handlerObject = null;
+				try
+				{
+					handlerObject = (TaskHandler) ServiceLocator.instance().getService(stk.getClassName());
+				} catch (NoSuchBeanDefinitionException e)
+				{
+					Class<?> cl = Class.forName(stk.getClassName());
+					handlerObject = (TaskHandler) cl.newInstance();
+				}
+				final TaskHandler h = handlerObject;
+				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task);
+				r.run();
+			}
+		}
+	}
+	
+	public List<ScheduledTask> getTasks () throws ClassNotFoundException, InstantiationException, IllegalAccessException, InternalErrorException, FileNotFoundException, IOException
+	{
+		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
+		
+		List<ScheduledTask> list = taskSvc.listTasks();
+		List<ScheduledTask> result = new LinkedList<ScheduledTask>();
+		String hostName = Config.getConfig().getHostName();
+		
+		for (final ScheduledTask task: list)
+		{
+			if (task.isEnabled() &&
+						(task.getServerName() == null || 
+							task.getServerName().equals("*") || 
+							task.getServerName().equals (hostName)))
+			{
+				result.add (task);
+			}
+		}
+		return result;
+	}
+
 	public void reconfigure () throws InternalErrorException, FileNotFoundException, IOException
 	{
 		Scheduler newCronScheduler = new Scheduler();
