@@ -75,6 +75,7 @@ public class GetSecretsServlet extends HttpServlet {
 
         }
         result.append ("|sessionKey|").append(sessionKey);
+        result.append ("|fullName|").append(user.getFullName());
         
         return result.toString();
     }

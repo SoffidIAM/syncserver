@@ -146,6 +146,7 @@ public class KerberosLoginServlet extends HttpServlet {
                 result.append(s.getValue().getPassword());
             }
             result.append ("|sessionKey|").append(challenge.getChallengeId());
+            result.append ("|fullName|").append(challenge.getUser().getFullName());
             challengeStore.removeChallenge(challenge);
             return result.toString();
         }

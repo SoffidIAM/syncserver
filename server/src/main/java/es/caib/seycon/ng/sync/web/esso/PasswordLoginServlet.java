@@ -161,6 +161,7 @@ public class PasswordLoginServlet extends HttpServlet {
                 result.append(secret.getValue().getPassword());
             }
             result.append ("|sessionKey|").append(challenge.getChallengeId());
+            result.append ("|fullName|").append(challenge.getUser().getFullName());
             challengeStore.removeChallenge(challenge);
             return result.toString();
         }
