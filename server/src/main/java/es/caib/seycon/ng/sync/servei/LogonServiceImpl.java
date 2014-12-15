@@ -1,5 +1,7 @@
 package es.caib.seycon.ng.sync.servei;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.InetAddress;
 import java.security.Principal;
 import java.sql.Timestamp;
@@ -16,6 +18,7 @@ import org.mortbay.log.Logger;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.Auditoria;
 import es.caib.seycon.ng.comu.Challenge;
+import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.EstatContrasenya;
 import es.caib.seycon.ng.comu.Maquina;
 import es.caib.seycon.ng.comu.Password;
@@ -50,6 +53,7 @@ import es.caib.seycon.ng.model.XarxaEntityDao;
 import es.caib.seycon.ng.servei.InternalPasswordService;
 import es.caib.seycon.ng.sync.engine.TaskHandler;
 import es.caib.seycon.ng.sync.engine.challenge.ChallengeStore;
+import es.caib.seycon.ng.sync.engine.kerberos.KerberosManager;
 import es.caib.seycon.ng.sync.engine.session.SessionManager;
 import es.caib.seycon.ng.sync.jetty.Invoker;
 import es.caib.seycon.ng.utils.Security;
@@ -210,7 +214,8 @@ public class LogonServiceImpl extends LogonServiceBase {
 								challenge.getChallengeId()));
             }
 
-            if (!ch.getUser().equals(challenge.getUser())
+            if (!ch.getUser().getId().equals(challenge.getUser().getId())
+                    || !ch.getUser().getCodi().equals(challenge.getUser().getCodi())
                     || !ch.getTimeStamp().equals(challenge.getTimeStamp())
                     || !ch.getCardNumber().equals(challenge.getCardNumber())
                     || !ch.getCell().equals(challenge.getCell())) {
@@ -337,7 +342,23 @@ public class LogonServiceImpl extends LogonServiceBase {
 		final int cardSupport, int version) throws LogonDeniedException,
 		InternalErrorException, UnknownUserException, UnknownHostException
 	{
+		if (type == Challenge.TYPE_KERBEROS && domain == null && user.contains("@"))
+		{
+			KerberosManager km;
+			try {
+				km = new KerberosManager();
+			} catch (IOException e) {
+				throw new UnknownUserException("Unknown realm for "+user);
+			}
+			int i = user.lastIndexOf('@');
+			Dispatcher dispatcher = km.getDispatcherForRealm(user.substring(i+1));
+			if (dispatcher == null)
+				throw new UnknownUserException("Unknown realm for "+user);
+			domain = dispatcher.getCodi();
+			user = user.substring(0, i);
+		}
 		Resolver resolver = new Resolver(user, domain);
+
 		final UsuariEntity userEntity = resolver.getUserEntity();
 
 		// Check shared account login
