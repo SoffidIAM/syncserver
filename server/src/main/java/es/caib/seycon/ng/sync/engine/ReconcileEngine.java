@@ -127,7 +127,7 @@ public class ReconcileEngine
 				}
 			}
 			
-			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || AccountType.IGNORED.equals(acc.getType())))
+			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
 				reconcileRoles (acc);
 		}
 	}
