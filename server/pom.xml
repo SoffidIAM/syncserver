@@ -14,7 +14,7 @@
   <properties>
     <maven.compile.source>1.5</maven.compile.source>
     <maven.compile.target>1.5</maven.compile.target>
-    <iam.version>1.5.0</iam.version>
+    <iam.version>1.5.2</iam.version>
   </properties>
   <scm>
         <connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/syncserver.git</connection>
