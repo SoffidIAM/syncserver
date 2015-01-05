@@ -456,6 +456,12 @@ public class JettyServer implements PublisherInterface
             bindAdministrationServlet("/websession", null, WebSessionServlet.class);
             bindAdministrationServlet("/cert", null, PublicCertServlet.class);
             bindAdministrationServlet("/errortest", null, ErrorServlet.class);
+            try {
+            	Class cl = Class.forName("com.soffid.iam.doc.servlet.NASServlet");
+                bindAdministrationServlet("/doc", null, cl);
+            } catch (ClassNotFoundException e) 
+            {
+            }
         }
     }
 
