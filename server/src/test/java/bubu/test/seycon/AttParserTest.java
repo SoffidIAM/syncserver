@@ -70,6 +70,16 @@ public class AttParserTest extends TestCase {
 		AttributeReferenceParser.parse(eo, "att1{\"att3\"}").setValue("Test3");
 		AttributeReferenceParser.parse(eo, "att2[0]").setValue("Test4");
 		AttributeReferenceParser.parse(eo, "att2[2]").setValue("Test5");
+		AttributeReferenceParser.parse(eo, "att2[2]").getValue();
+		boolean ok = false;
+		try {
+			AttributeReferenceParser.parse(eo, "if (att2[2] == null) null;").getValue();
+			ok = true;
+		} catch (RuntimeException e) {
+			System.out.println ("Received expected exceptin: "+e );
+		}
+		if (ok )
+			throw new AssertionError("Attribute parser did no throw exception");
 		dump ("" , eo);
 	}
 }
