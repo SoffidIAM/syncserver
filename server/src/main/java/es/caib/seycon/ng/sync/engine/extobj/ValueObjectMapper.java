@@ -179,7 +179,7 @@ public class ValueObjectMapper
 				try 
 				{
 					Object value = toSingleton(object.getAttribute(attribute));
-					if ("active".equals(attribute)) usuari.setActiu(value != null && "true".equals(value.toString()));
+					if ("active".equals(attribute)) usuari.setActiu(value == null ? null: "true".equals(value.toString()));
 					else if ("mailAlias".equals(attribute)) usuari.setAliesCorreu(toString (value));
 					else if ("userName".equals(attribute)) usuari.setCodi(toString( value) );
 					else if ("primaryGroup".equals(attribute)) usuari.setCodiGrupPrimari(toString( value));
