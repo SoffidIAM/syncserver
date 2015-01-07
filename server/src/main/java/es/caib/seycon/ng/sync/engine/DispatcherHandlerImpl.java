@@ -1394,10 +1394,25 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             			acc.getPasswordPolicy(), getDispatcher().getDominiContrasenyes());
             	Long l = getPasswordTerm(politica);
 				accountService.updateAccountPasswordDate(acc, l);
-        	}
-        } else {
-            log.debug("Rejected proposed password for {}", t.getTask().getUsuari(), null);
-        }
+	        } else {
+	        	String timeout = System.getProperty("soffid.propagate.timeout");
+	        	if (timeout != null)
+	        	{
+	        		long timeoutLong = Long.decode(timeout)*1000;
+		        	TaskHandlerLog tasklog = t.getLog(getInternalId());
+		        	if (tasklog == null || tasklog.first == 0 ||
+		        			System.currentTimeMillis() < tasklog.first + timeoutLong)
+		        	{
+		                log.info("Rejected proposed password for {}. Retrying", t.getTask().getUsuari(), null);
+		                throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUsuari()+". Retry");
+		        	}
+	        	}
+	        	
+	       		log.info("Rejected proposed password for {}", t.getTask().getUsuari(), null);
+	        }
+	    } else {
+       		log.debug("Ignoring proposed password for {}", t.getTask().getUsuari(), null);
+	    }
     }
 
 
@@ -2117,7 +2132,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					reconcileAssign.setProposedAction(ProposedAction.LOAD);
 					reconcileAssign.setRoleName(role.getRolName());
 					reconcileAssign.setDispatcher(getDispatcher().getCodi());
-	
 					reconcileService.addAssignment(reconcileAssign);
 				}
 			}

@@ -39,7 +39,10 @@ public class PropagatePasswordServlet extends HttpServlet {
             boolean testOnly = "true".equals(req.getParameter("test"));
             
             resp.setContentType("text/plain; charset=UTF-8");
-            log.info("PropagatePassword: user={} domain={}", user, domain);
+            if (testOnly)
+            	log.info("CheckPasswordPolicy: user={} domain={} source="+req.getRemoteHost()+"("+req.getRemoteAddr()+")", user, domain);
+            else
+            	log.info("PropagatePassword: user={} domain={} source="+req.getRemoteHost()+"("+req.getRemoteAddr()+")", user, domain);
             BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
             try {
             	if (testOnly)
