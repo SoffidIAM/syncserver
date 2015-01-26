@@ -71,6 +71,10 @@ public class AttParserTest extends TestCase {
 		AttributeReferenceParser.parse(eo, "att2[0]").setValue("Test4");
 		AttributeReferenceParser.parse(eo, "att2[2]").setValue("Test5");
 		AttributeReferenceParser.parse(eo, "att2[2]").getValue();
+		assertEquals(AttributeReferenceParser.parse(eo, "10").getValue(), 10);
+		assertEquals(AttributeReferenceParser.parse(eo, "10.12").getValue(), 10.12);
+		assertEquals(AttributeReferenceParser.parse(eo, "true").getValue(), true);
+		assertEquals(AttributeReferenceParser.parse(eo, "false").getValue(), false);
 		boolean ok = false;
 		try {
 			AttributeReferenceParser.parse(eo, "if (att2[2] == null) null;").getValue();
