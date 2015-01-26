@@ -197,12 +197,12 @@ public class SeyconApplication extends Object {
     public static class InputChecking implements Runnable {
         public void run() {
             try {
-                while (System.in.read() >= 0)
+                while (System.in.read() > 0)
                     ;
             } catch (IOException e) {
                 e.printStackTrace();
             }
-            System.exit(0);
+        	System.exit(2);
         }
     }
 
