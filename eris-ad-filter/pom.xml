@@ -5,7 +5,7 @@
   <artifactId>eris-ad-filter</artifactId>
   <packaging>pom</packaging>
   <name>Executable per a la configuració de la sessió</name>
-  <version>1.1.0</version>
+  <version>1.1.1-SNAPSHOT</version>
   <parent>
     <groupId>com.soffid.iam.sync</groupId>
     <artifactId>root</artifactId>
@@ -17,7 +17,7 @@
   </modules>
   <scm>
         <connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/syncserver.git</connection>
-        <tag>eris-ad-filter-1.1.0</tag>
+        <tag>HEAD</tag>
   </scm>
   <licenses>
     <license>

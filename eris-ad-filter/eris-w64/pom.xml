@@ -9,7 +9,7 @@
 	<parent>
 		<artifactId>eris-ad-filter</artifactId>
 		<groupId>com.soffid.iam.sync</groupId>
-		<version>1.1.0</version>
+		<version>1.1.1-SNAPSHOT</version>
 	</parent>
 	<build>
 		<plugins>
