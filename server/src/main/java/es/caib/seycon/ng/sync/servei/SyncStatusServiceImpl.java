@@ -104,7 +104,8 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
         Calendar dataActualServer = Calendar.getInstance();
 
         String estatConnexioAgents = getAgentConnectionStatus();
-        String estat = (getTaskGenerator() == null || getTaskGenerator().getDispatchers() == null) ? "Starting" //$NON-NLS-1$
+        String estat = (getTaskGenerator() == null || getTaskGenerator().getDispatchers() == null
+        		|| getTaskGenerator().getDispatchers().size() == 0) ? "Starting" //$NON-NLS-1$
                 : (!getAgentConnectionStatus().startsWith("OK")) ? "Qualque Agent desconnectat" //$NON-NLS-1$ //$NON-NLS-2$
                         : "OK"; //$NON-NLS-1$
 
