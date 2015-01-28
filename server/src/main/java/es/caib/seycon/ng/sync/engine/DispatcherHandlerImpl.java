@@ -2139,8 +2139,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					reconcileAssign.setProposedAction(ProposedAction.LOAD);
 					reconcileAssign.setRoleName(role.getRolName());
 					reconcileAssign.setDispatcher(getDispatcher().getCodi());
-					if (role.getDomainValue() != null)
-						reconcileAssign.setDomainValue(role.getDomainValue());
+					//if (role.getDomainValue() != null)
+						//reconcileAssign.setDomainValue(role.getDomainValue());
 					reconcileService.addAssignment(reconcileAssign);
 				}
 			}
