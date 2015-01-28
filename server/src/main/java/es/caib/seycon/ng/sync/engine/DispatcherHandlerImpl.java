@@ -908,6 +908,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		else if (trans.equals(TaskHandler.UPDATE_OBJECT))
 		{
 			updateObject(agent, t);
+		}
+
+		else if (trans.equals(TaskHandler.UPDATE_PRINTER))
+		{
+			// Nothing to do
         } else {
             throw new InternalErrorException("Tipo de transacción no válida: " + trans);
         }
@@ -1042,6 +1047,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		UserMgr userMgr = agent instanceof UserMgr ? (UserMgr) agent: null;
 		if (userMgr != null)
 		{
+			if (t.getTask().getUsuari() == null || t.getTask().getUsuari().trim().length() == 0 )
+				return;
            	Account acc = accountService.findAccount(t.getTask().getUsuari(), getDispatcher().getCodi());
            	if (acc == null || acc.isDisabled())
            	{
@@ -2132,6 +2139,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					reconcileAssign.setProposedAction(ProposedAction.LOAD);
 					reconcileAssign.setRoleName(role.getRolName());
 					reconcileAssign.setDispatcher(getDispatcher().getCodi());
+					if (role.getDomainValue() != null)
+						reconcileAssign.setDomainValue(role.getDomainValue());
 					reconcileService.addAssignment(reconcileAssign);
 				}
 			}
@@ -2295,7 +2304,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		} 
     		else if (agent instanceof ReconcileMgr2)
         	{
-        		new ReconcileEngine2 (getDispatcher(), (ReconcileMgr2) agent).reconcile();
+        		new ReconcileEngine2 (getDispatcher(), (ReconcileMgr2) agent, result).reconcile();
     		} 
     		else {
     			result.append ("This agent does not support account reconciliation");

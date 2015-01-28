@@ -459,15 +459,15 @@ public class SeyconLoader extends Object {
                         BASE_DIRECTORY + FILE_SEPARATOR + "lib", null);
                 System.exit(1);
             } else {
-                for (int i = 0; i < children.length; i++) {
-                    File file = new File(dir, children[i]);
-                    libraryList.append(LIBRARY_SEPARATOR);
-                    libraryList.append(file.getPath());
-                }
                 for (File module: modulesDir.listFiles())
                 {
                     libraryList.append(LIBRARY_SEPARATOR);
                     libraryList.append(module.getPath());
+                }
+                for (int i = 0; i < children.length; i++) {
+                    File file = new File(dir, children[i]);
+                    libraryList.append(LIBRARY_SEPARATOR);
+                    libraryList.append(file.getPath());
                 }
             }
 

@@ -54,6 +54,7 @@ public class ReconcileEngine2
 	private DominiUsuariService dominiService;
 	private UsuariService usuariService;
 	private DominiService rolDomainService;
+	private StringBuffer log;
 
 	/**
 	 * @param dispatcher 
@@ -69,6 +70,20 @@ public class ReconcileEngine2
 		dominiService = ServiceLocator.instance().getDominiUsuariService();
 		usuariService = ServiceLocator.instance().getUsuariService();
 		rolDomainService = ServiceLocator.instance().getDominiService();
+		log = new StringBuffer();
+	}
+
+	public ReconcileEngine2(Dispatcher dispatcher, ReconcileMgr2 agent,
+			StringBuffer result) {
+		this.agent = agent;
+		this.dispatcher = dispatcher;
+		accountService = ServiceLocator.instance().getAccountService();
+		appService = ServiceLocator.instance().getAplicacioService();
+		serverService = ServiceLocator.instance().getServerService();
+		dominiService = ServiceLocator.instance().getDominiUsuariService();
+		usuariService = ServiceLocator.instance().getUsuariService();
+		rolDomainService = ServiceLocator.instance().getDominiService();
+		log = result;
 	}
 
 	/**
@@ -100,6 +115,7 @@ public class ReconcileEngine2
 								acc.setLastPasswordSet(usuari.getLastPasswordSet());
 								acc.setLastUpdated(usuari.getLastUpdated());
 								acc.setPasswordExpiration(acc.getPasswordExpiration());
+								log.append ("Updating account ").append (accountName).append ('\n');
 								accountService.updateAccount(acc);
 							}
 						} catch (AccountAlreadyExistsException e) {
@@ -127,6 +143,7 @@ public class ReconcileEngine2
 						acc.setGrantedRoles(new LinkedList<Rol>());
 						acc.setGrantedUsers(new LinkedList<Usuari>());
 						try {
+							log.append ("Creating account ").append (accountName).append ('\n');
 							acc = accountService.createAccount(acc);
 						} catch (AccountAlreadyExistsException e) {
 							throw new InternalErrorException ("Unexpected exception", e);
@@ -146,6 +163,7 @@ public class ReconcileEngine2
 					if (usuari.getPasswordExpiration() != null)
 						acc.setPasswordExpiration(acc.getPasswordExpiration());
 					try {
+						log.append ("Updating account ").append (accountName).append ('\n');
 						accountService.updateAccount(acc);
 					} catch (AccountAlreadyExistsException e) {
 						throw new InternalErrorException ("Unexpected exception", e);
@@ -247,7 +265,13 @@ public class ReconcileEngine2
 				}
 			}
 			if (!found)
+			{
+				log.append ("Granting ").append (existingGrant.getRolName());
+				if (existingGrant.getDomainValue() != null && existingGrant.getDomainValue().trim().length() > 0)
+					log.append (" [").append (existingGrant.getDomainValue()).append("]");
+				log.append (" to ").append(acc.getName()).append('\n');
 				grant (acc, existingGrant, role2);
+			}
 		}
 
 		// Now remove not present roles
@@ -265,6 +289,10 @@ public class ReconcileEngine2
 				ra.setValorDomini(new ValorDomini());
 				ra.getValorDomini().setValor(grant.getDomainValue());
 			}
+			log.append ("Revoking ").append (grant.getRolName());
+			if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
+				log.append (" [").append (grant.getDomainValue()).append("]");
+			log.append (" from ").append(acc.getName()).append('\n');
 			appService.delete(ra);
 		}
 	}
@@ -314,6 +342,7 @@ public class ReconcileEngine2
 	 */
 	private Rol createRole (Rol role) throws InternalErrorException
 	{
+		log.append ("Creating role "+role.getNom());
 		role.setBaseDeDades(dispatcher.getCodi());
 		
 		if (role.getCodiAplicacio() == null)
