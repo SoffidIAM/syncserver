@@ -908,6 +908,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		else if (trans.equals(TaskHandler.UPDATE_OBJECT))
 		{
 			updateObject(agent, t);
+		}
+
+		else if (trans.equals(TaskHandler.UPDATE_PRINTER))
+		{
+			// Nothing to do
         } else {
             throw new InternalErrorException("Tipo de transacción no válida: " + trans);
         }
