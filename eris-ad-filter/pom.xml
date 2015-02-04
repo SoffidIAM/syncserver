@@ -19,6 +19,10 @@
     <module>eris-w32</module>
     <module>eris-w64</module>
   </modules>
+  <scm>
+        <connection>scm:git:ssh://git@stash.dev.lab:7999/iam2/syncserver.git</connection>
+        <tag>HEAD</tag>
+  </scm>
   <licenses>
     <license>
       <name>GNU GPL Version 3.0</name>
