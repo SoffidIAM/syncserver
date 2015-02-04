@@ -230,6 +230,12 @@
 									</file>
                   <type>sh</type>
                 </artifact>
+                <artifact>
+                  <file>
+										target/install4j/SoffidIAMSync_unix.deb
+									</file>
+                  <type>deb</type>
+                </artifact>
               </artifacts>
             </configuration>
           </execution>
