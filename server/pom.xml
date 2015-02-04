@@ -232,7 +232,7 @@
                 </artifact>
                 <artifact>
                   <file>
-										target/install4j/SoffidIAMSync_unix.deb
+										target/install4j/SoffidIAMSync_linux.deb
 									</file>
                   <type>deb</type>
                 </artifact>
