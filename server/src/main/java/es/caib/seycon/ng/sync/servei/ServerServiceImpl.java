@@ -51,7 +51,6 @@ import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.PasswordValidation;
 import es.caib.seycon.ng.comu.PoliticaContrasenya;
 import es.caib.seycon.ng.comu.Rol;
-import es.caib.seycon.ng.comu.RolAssociacioRol;
 import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.RolsGrup;
 import es.caib.seycon.ng.comu.Server;
