@@ -1521,53 +1521,59 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		if (newTask.isChanged())
 		{
-    		TasqueEntityDao dao = getTasqueEntityDao();
-    		TaskLogEntityDao tlDao = getTaskLogEntityDao();
-    		newTask.setChanged(false);
-    		TasqueEntity tasque = dao.load(newTask.getTask().getId());
-    		if (tasque == null)
-    		{
-    			// Ignore
-    		}
-    		else if (newTask.isComplete())
-    		{
-    			if (tasque != null)
-    			{
-        			tlDao.remove(tasque.getLogs());
-        			dao.remove(tasque);
-    			}
-    		}
-    		else
-    		{
-    			tasque.setStatus(newTask.getTask().getStatus());
-    			tasque.setHash(newTask.getTask().getHash());
-    			tasque.setServer(newTask.getTask().getServer());
-    			tasque.setPrioritat(new Long(newTask.getPriority()));
-    			dao.update(tasque);
-    
-    			Collection<TaskLogEntity> daoEntities = tasque.getLogs();
-    			if (newTask.getLogs() != null)
-    			{
-        			for (TaskHandlerLog log: newTask.getLogs())
-        			{
-        				boolean found = false;
-        				for (TaskLogEntity logEntity: daoEntities)
-        				{
-        					if (logEntity.getDispatcher().getId().equals (log.getDispatcher().getDispatcher().getId()))
-        					{
-        						found = true;
-        						persistLog (tasque, log, logEntity);
-        						break;
-        					}
-        				}
-        				if (! found)
-        				{
-        					TaskLogEntity logEntity = tlDao.newTaskLogEntity();
-        					persistLog (tasque, log, logEntity);
-        				}
-        			}
-    			}
-    		}
+			try {
+	    		TasqueEntityDao dao = getTasqueEntityDao();
+	    		TaskLogEntityDao tlDao = getTaskLogEntityDao();
+	    		newTask.setChanged(false);
+	    		TasqueEntity tasque = dao.load(newTask.getTask().getId());
+	    		if (tasque == null)
+	    		{
+	    			// Ignore
+	    		}
+	    		else if (newTask.isComplete())
+	    		{
+	    			if (tasque != null)
+	    			{
+	        			tlDao.remove(tasque.getLogs());
+	        			dao.remove(tasque);
+	    			}
+	    		}
+	    		else
+	    		{
+	    			tasque.setStatus(newTask.getTask().getStatus());
+	    			tasque.setHash(newTask.getTask().getHash());
+	    			tasque.setServer(newTask.getTask().getServer());
+	    			tasque.setPrioritat(new Long(newTask.getPriority()));
+	    			dao.update(tasque);
+	    
+	    			Collection<TaskLogEntity> daoEntities = tasque.getLogs();
+	    			if (newTask.getLogs() != null)
+	    			{
+	        			for (TaskHandlerLog log: newTask.getLogs())
+	        			{
+	        				boolean found = false;
+	        				for (TaskLogEntity logEntity: daoEntities)
+	        				{
+	        					if (logEntity.getDispatcher().getId().equals (log.getDispatcher().getDispatcher().getId()))
+	        					{
+	        						found = true;
+	        						persistLog (tasque, log, logEntity);
+	        						break;
+	        					}
+	        				}
+	        				if (! found)
+	        				{
+	        					TaskLogEntity logEntity = tlDao.newTaskLogEntity();
+	        					persistLog (tasque, log, logEntity);
+	        				}
+	        			}
+	    			}
+	    		}
+			} catch (Exception e) {
+	    		newTask.setChanged(true);
+				tasksToPersist.addFirst(newTask);
+				throw e;
+			}
 		}
 	}
 

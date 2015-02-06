@@ -29,6 +29,10 @@ public class UpdateTaskStatusThread extends Thread
         	} catch (Throwable e)
         	{
         		log.warn("Error on update tasks thread", e);
+        		try {
+					Thread.sleep(2000);
+				} catch (InterruptedException e1) {
+				}
         	}
         }
 	}
