@@ -113,7 +113,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 	        	PolicyCheckResult policyCheck = ips.checkAccountPolicy(r.getAccountEntity(), p2);
 	        	if (!policyCheck.isValid())
 	        		throw new BadPasswordException(policyCheck.getReason());
-	            ips.storeAndForwardAccountPassword(r.getAccountEntity(),
+	            ips.storeAndSynchronizeAccountPassword(r.getAccountEntity(),
 	                    p2, false, null);
 	            auditAccountPassword(r.getAccountEntity());
 	        }
@@ -123,7 +123,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 	        	PolicyCheckResult policyCheck = ips.checkPolicy(r.getUserEntity(),r.getDominiContrasenyaEntity(), p2);
 	        	if (!policyCheck.isValid())
 	        		throw new BadPasswordException(policyCheck.getReason());
-   	            getInternalPasswordService().storeAndForwardPassword(r.getUserEntity(),
+   	            getInternalPasswordService().storeAndSynchronizePassword(r.getUserEntity(),
 	    	                    r.getDominiContrasenyaEntity(), p2, false);
 	            auditUserPassword(r.getUserEntity(), r.getDominiContrasenyaEntity());
 	        }
