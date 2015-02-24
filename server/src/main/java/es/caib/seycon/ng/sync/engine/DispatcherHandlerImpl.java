@@ -1050,15 +1050,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			if (t.getTask().getUsuari() == null || t.getTask().getUsuari().trim().length() == 0 )
 				return;
            	Account acc = accountService.findAccount(t.getTask().getUsuari(), getDispatcher().getCodi());
-           	if (acc == null || acc.isDisabled())
-           	{
-       			userMgr.removeUser(t.getTask().getUsuari());
-           			
-           	}
-           	else if (acc.getType().equals (AccountType.IGNORED))
+           	if (acc != null && acc.getType().equals (AccountType.IGNORED))
            	{
            		// Nothing to do
            		return;
+           	}
+           	else if (acc == null || 
+           			acc.isDisabled())
+           	{
+       			userMgr.removeUser(t.getTask().getUsuari());
+           			
            	}
            	else
            	{
@@ -1258,12 +1259,15 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         } catch (ClassCastException e) {
             return;
         }
-        try {
-            Grup grup = server.getGroupInfo(t.getTask().getGrup(), getDispatcher().getCodi());
-            groupMgr.updateGroup(t.getTask().getGrup(), grup);
-        } catch (UnknownGroupException e) {
-            groupMgr.removeGroup(t.getTask().getGrup());
-        }
+    	if (t.getTask().getGrup() != null)
+    	{
+	        try {
+	            Grup grup = server.getGroupInfo(t.getTask().getGrup(), getDispatcher().getCodi());
+	            groupMgr.updateGroup(t.getTask().getGrup(), grup);
+	        } catch (UnknownGroupException e) {
+	            groupMgr.removeGroup(t.getTask().getGrup());
+	        }
+    	}
     }
 
     // TODO: Fix
@@ -1571,7 +1575,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         if (agent instanceof UserMgr )
         {
             Usuari user = null;
-            String codi = null;
             try {
     	        user = getUserInfo(t);
     	        for (Account account: getAccounts(t))
