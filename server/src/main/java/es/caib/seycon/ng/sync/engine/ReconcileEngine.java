@@ -130,6 +130,8 @@ public class ReconcileEngine
 			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
 				reconcileRoles (acc);
 		}
+		
+		reconcileAllRoles();
 	}
 
 	/**
@@ -293,4 +295,28 @@ public class ReconcileEngine
 		return appService.create(role);
 	}
 
+
+	private void reconcileAllRoles() throws RemoteException, InternalErrorException {
+		List<String> roles = agent.getRolesList();
+		if (roles == null)
+			return;
+		
+		for (String roleName: agent.getRolesList())
+		{
+			if (roleName != null)
+			{
+				Rol existingRole =  null;
+				try {
+					existingRole = serverService.getRoleInfo(roleName, dispatcher.getCodi());
+				} catch (UnknownRoleException e) {
+				}
+				if (existingRole == null)
+				{
+					Rol r = agent.getRoleFullInfo(roleName);
+					if (r != null)
+						createRole(r);
+				}
+			}
+		}
+	}
 }
