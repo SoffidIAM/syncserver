@@ -169,27 +169,32 @@ public class ObjectTranslator
 					ExtensibleObjectMapping objectMapping, boolean ignoreErrors)
 					throws InternalErrorException
 	{
-		ExtensibleObject targetObject = new ExtensibleObject();
-		targetObject.setObjectType(objectMapping.getSystemObject());
-		boolean anyAttribute = false;
-		for (AttributeMapping attribute : objectMapping.getAttributes())
+		if (!evalCondition(sourceObject, objectMapping))
+			return null;
+		else
 		{
-			if (attribute.getDirection().equals(AttributeDirection.OUTPUT)
-							|| attribute.getDirection().equals(
-											AttributeDirection.INPUTOUTPUT))
+			ExtensibleObject targetObject = new ExtensibleObject();
+			targetObject.setObjectType(objectMapping.getSystemObject());
+			boolean anyAttribute = false;
+			for (AttributeMapping attribute : objectMapping.getAttributes())
 			{
-				try {
-					evaluate (sourceObject, targetObject, attribute.getSystemAttribute(), attribute.getSoffidAttribute());
-					anyAttribute = true;
-				} catch (InternalErrorException e) {
-					if (!ignoreErrors) throw e;
+				if (attribute.getDirection().equals(AttributeDirection.OUTPUT)
+								|| attribute.getDirection().equals(
+												AttributeDirection.INPUTOUTPUT))
+				{
+					try {
+						evaluate (sourceObject, targetObject, attribute.getSystemAttribute(), attribute.getSoffidAttribute());
+						anyAttribute = true;
+					} catch (InternalErrorException e) {
+						if (!ignoreErrors) throw e;
+					}
 				}
 			}
+			if (anyAttribute)
+				return targetObject;
+			else
+				return null;
 		}
-		if (anyAttribute)
-			return targetObject;
-		else
-			return null;
 	}
 
 
@@ -349,5 +354,31 @@ public class ObjectTranslator
 			}
 		}
 		return null;
+	}
+
+	public boolean evalCondition(ExtensibleObject sourceObject,
+			ExtensibleObjectMapping objectMapping) throws InternalErrorException {
+		if (objectMapping.getCondition() == null || objectMapping.getCondition().trim().length() == 0)
+			return true;
+		
+		Interpreter interpret = new Interpreter();
+		NameSpace ns = interpret.getNameSpace();
+
+		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+						"translator" + dispatcher.getCodi(), sourceObject, serverService,
+						agentObject);
+		try {
+			Object result = interpret.eval(objectMapping.getCondition(), newNs);
+			if (result instanceof Primitive)
+			{
+				result = ((Primitive)result).getValue();
+			}
+			if (result == null || "false".equalsIgnoreCase(result.toString()))
+				return false;
+			else
+				return true;
+		} catch (EvalError e) {
+			throw new InternalErrorException ("Error evaluating expression "+objectMapping.getCondition()+": "+e.getErrorText());
+		}
 	}
 }
