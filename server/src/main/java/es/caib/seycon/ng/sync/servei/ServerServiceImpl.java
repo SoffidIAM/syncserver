@@ -782,6 +782,30 @@ public class ServerServiceImpl extends ServerServiceBase {
     }
 
     @Override
+    protected void handleChangePasswordSync(String user, String dispatcher, Password p, boolean mustChange)
+            throws Exception {
+        UsuariEntity userEntity;
+        DominiContrasenyaEntity dc;
+        if (dispatcher == null) 
+        	dispatcher = getInternalPasswordService().getDefaultDispatcher();
+        
+        AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(user, dispatcher);
+        if (acc == null)
+            throw new InternalErrorException(String.format("Uknown user %s/%s", user, dispatcher)); //$NON-NLS-1$
+        
+        if (acc.getType().equals(AccountType.USER))
+        {
+        	for (UserAccountEntity uae: acc.getUsers())
+        	{
+            	getInternalPasswordService().storeAndSynchronizePassword(uae.getUser(), 
+            			acc.getDispatcher().getDomini(), p, mustChange);
+        	}
+        } else {
+            getInternalPasswordService().storeAndSynchronizeAccountPassword(acc, p, mustChange, null);
+        }
+    }
+
+    @Override
     protected byte[] handleGetUserMazingerRules(long userId, String version) throws Exception {
         UsuariEntity user = getUsuariEntityDao().load(userId);
         if (user == null)
@@ -1324,5 +1348,11 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected Collection<AttributeTranslation> handleReverseTranslate2(
 			String domain, String column2) throws Exception {
 		return getAttributeTranslationService().findByColumn2(domain, column2);
+	}
+
+	@Override
+	protected Account handleGetAccountInfo(String accountName,
+			String dispatcherId) throws Exception {
+		return getAccountService().findAccount(accountName, dispatcherId);
 	}
 }
