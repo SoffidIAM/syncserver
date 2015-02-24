@@ -260,13 +260,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			AccountEntity account =
 				accDao.findByNameAndDispatcher(newTask.getTask()
 					.getUsuari(), newTask.getTask().getCoddis());
-			if (account == null)
-			{
-				newTask.cancel();
-				pushTaskToPersist(newTask);
-				return;
-			}
-
 			// Update for virtual dispatchers
 			DispatcherHandler dispatcher =
 				getTaskGenerator().getDispatcher(newTask.getTask().getCoddis());
