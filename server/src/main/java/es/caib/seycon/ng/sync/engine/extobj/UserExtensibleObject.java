@@ -118,10 +118,13 @@ public class UserExtensibleObject extends ExtensibleObject
     		else if ("attributes".equals(attribute))
     		{
     			Collection<DadaUsuari> dades = serverService.getUserData(usuari.getId());
-    			Map<String, String> dadesMap = new HashMap<String, String>();
+    			Map<String, Object> dadesMap = new HashMap<String, Object>();
     			for (DadaUsuari dada: dades)
     			{
-    				dadesMap.put(dada.getCodiDada(), dada.getValorDada());
+    				if (dada.getValorDadaDate() != null)
+        				dadesMap.put(dada.getCodiDada(), dada.getValorDadaDate().getTime());
+    				else
+    					dadesMap.put(dada.getCodiDada(), dada.getValorDada());
     			}
     			obj = dadesMap;
     		}
