@@ -1,27 +1,17 @@
 /**
  * 
  */
+/**
+ * 
+ */
 package es.caib.seycon.ng.sync.replica;
 
-import java.sql.Connection;
-import java.sql.SQLException;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-
-import org.apache.commons.logging.LogFactory;
-import org.hibernate.SessionFactory;
-import org.hibernate.classic.Session;
-
+import com.soffid.iam.model.AccountEntityDao;
+import com.soffid.iam.model.PasswordDomainEntityDao;
+import com.soffid.iam.model.UserEntityDao;
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.EstatContrasenya;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.model.AccountEntity;
-import es.caib.seycon.ng.model.AccountEntityDao;
-import es.caib.seycon.ng.model.DominiContrasenyaEntity;
-import es.caib.seycon.ng.model.DominiContrasenyaEntityDao;
-import es.caib.seycon.ng.model.UsuariEntity;
-import es.caib.seycon.ng.model.UsuariEntityDao;
 import es.caib.seycon.ng.servei.InternalPasswordService;
 import es.caib.seycon.ng.servei.PasswordService;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
@@ -31,6 +21,14 @@ import es.caib.seycon.ng.sync.intf.DatabaseReplicaOfflineChangeRetriever;
 import es.caib.seycon.ng.sync.intf.OfflineChange;
 import es.caib.seycon.ng.sync.intf.OfflineDatabaseChange;
 import es.caib.seycon.ng.sync.intf.OfflinePasswordChange;
+import java.sql.Connection;
+import java.sql.SQLException;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import org.apache.commons.logging.LogFactory;
+import org.hibernate.SessionFactory;
+import org.hibernate.classic.Session;
 
 /**
  * @author bubu
@@ -43,15 +41,15 @@ public class MainDatabaseSynchronizer
 	DatabaseReplicaOfflineChangeRetriever agent;
 	private InternalPasswordService ips;
 	private AccountEntityDao accountEntityDao;
-	private UsuariEntityDao usuariEntityDao;
-	private DominiContrasenyaEntityDao dominiContrasenyaEntityDao;
+	private UserEntityDao usuariEntityDao;
+	private PasswordDomainEntityDao dominiContrasenyaEntityDao;
 
 	public MainDatabaseSynchronizer()
 	{
 		ips = ServiceLocator.instance().getInternalPasswordService(); 
 		accountEntityDao = (AccountEntityDao) ServerServiceLocator.instance().getService("accountEntityDao");
-		usuariEntityDao = (UsuariEntityDao) ServerServiceLocator.instance().getService("usuariEntityDao");
-		dominiContrasenyaEntityDao = (DominiContrasenyaEntityDao) ServerServiceLocator.instance().getService("dominiContrasenyaEntityDao");
+		usuariEntityDao = (UserEntityDao) ServerServiceLocator.instance().getService("usuariEntityDao");
+		dominiContrasenyaEntityDao = (PasswordDomainEntityDao) ServerServiceLocator.instance().getService("dominiContrasenyaEntityDao");
 	}
 	
 	public DatabaseReplicaOfflineChangeRetriever getAgent ()

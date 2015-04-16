@@ -1,5 +1,38 @@
 package es.caib.seycon.ng.sync.servei;
 
+import com.soffid.iam.model.AccountEntity;
+import com.soffid.iam.model.AccountEntityDao;
+import com.soffid.iam.model.PasswordDomainEntity;
+import com.soffid.iam.model.PasswordDomainEntityDao;
+import com.soffid.iam.model.SystemEntity;
+import com.soffid.iam.model.TaskEntity;
+import com.soffid.iam.model.TaskEntityDao;
+import com.soffid.iam.model.TaskLogEntity;
+import com.soffid.iam.model.TaskLogEntityDao;
+import com.soffid.iam.model.UserEntity;
+import com.soffid.iam.model.UserEntityDao;
+import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.Grup;
+import es.caib.seycon.ng.comu.Password;
+import es.caib.seycon.ng.comu.PasswordValidation;
+import es.caib.seycon.ng.comu.Tasca;
+import es.caib.seycon.ng.comu.UserAccount;
+import es.caib.seycon.ng.comu.Usuari;
+import es.caib.seycon.ng.config.Config;
+import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.SoffidStackTrace;
+import es.caib.seycon.ng.exception.UnknownGroupException;
+import es.caib.seycon.ng.exception.UnknownRoleException;
+import es.caib.seycon.ng.remote.RemoteServiceLocator;
+import es.caib.seycon.ng.servei.InternalPasswordService;
+import es.caib.seycon.ng.sync.ServerServiceLocator;
+import es.caib.seycon.ng.sync.engine.DispatcherHandler;
+import es.caib.seycon.ng.sync.engine.PriorityTaskQueue;
+import es.caib.seycon.ng.sync.engine.TaskHandler;
+import es.caib.seycon.ng.sync.engine.TaskHandlerLog;
+import es.caib.seycon.ng.sync.engine.TaskQueueIterator;
+import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -18,7 +51,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 import org.springframework.beans.BeansException;
@@ -28,41 +60,6 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.TransactionStatus;
-
-import es.caib.seycon.ng.comu.Account;
-import es.caib.seycon.ng.comu.AccountType;
-import es.caib.seycon.ng.comu.Grup;
-import es.caib.seycon.ng.comu.Password;
-import es.caib.seycon.ng.comu.PasswordValidation;
-import es.caib.seycon.ng.comu.Tasca;
-import es.caib.seycon.ng.comu.UserAccount;
-import es.caib.seycon.ng.comu.Usuari;
-import es.caib.seycon.ng.config.Config;
-import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.SoffidStackTrace;
-import es.caib.seycon.ng.exception.UnknownGroupException;
-import es.caib.seycon.ng.exception.UnknownRoleException;
-import es.caib.seycon.ng.model.AccountEntity;
-import es.caib.seycon.ng.model.AccountEntityDao;
-import es.caib.seycon.ng.model.DispatcherEntity;
-import es.caib.seycon.ng.model.DominiContrasenyaEntity;
-import es.caib.seycon.ng.model.DominiContrasenyaEntityDao;
-import es.caib.seycon.ng.model.TaskLogEntity;
-import es.caib.seycon.ng.model.TaskLogEntityDao;
-import es.caib.seycon.ng.model.TasqueEntity;
-import es.caib.seycon.ng.model.TasqueEntityDao;
-import es.caib.seycon.ng.model.UserAccountEntity;
-import es.caib.seycon.ng.model.UsuariEntity;
-import es.caib.seycon.ng.model.UsuariEntityDao;
-import es.caib.seycon.ng.remote.RemoteServiceLocator;
-import es.caib.seycon.ng.servei.InternalPasswordService;
-import es.caib.seycon.ng.sync.ServerServiceLocator;
-import es.caib.seycon.ng.sync.engine.DispatcherHandler;
-import es.caib.seycon.ng.sync.engine.PriorityTaskQueue;
-import es.caib.seycon.ng.sync.engine.TaskHandler;
-import es.caib.seycon.ng.sync.engine.TaskHandlerLog;
-import es.caib.seycon.ng.sync.engine.TaskQueueIterator;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 
 public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAware
 {
@@ -112,7 +109,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		newTask.setOfflineTask(ConnectionPool.isThreadOffline());
 		
-		TasqueEntity entity = getTasqueEntityDao().load(newTask.getTask().getId());
+		TaskEntity entity = getTaskEntityDao().load(newTask.getTask().getId());
 		// Actualizar la cache de passwords
 		es.caib.seycon.ng.sync.servei.TaskGenerator tg = getTaskGenerator();
 		if (entity == null ||
@@ -129,18 +126,16 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (newTask.getPassword() != null)
 			{
 				InternalPasswordService ps = getInternalPasswordService();
-				UsuariEntityDao usuariDao = getUsuariEntityDao();
-				UsuariEntity usuari = usuariDao
-								.findByCodi(newTask.getTask().getUsuari());
+				UserEntityDao usuariDao = getUserEntityDao();
+				UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUsuari());
 				if (usuari == null) // Ignorar
 				{
 					newTask.cancel();
 					pushTaskToPersist(newTask);
 					return;
 				}
-				DominiContrasenyaEntityDao dcDao = getDominiContrasenyaEntityDao();
-				DominiContrasenyaEntity dc = dcDao.findByCodi(newTask.getTask()
-								.getDominiContrasenyes());
+				PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
+				PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getDominiContrasenyes());
 				if (dc == null)
 				{
 					newTask.cancel();
@@ -164,9 +159,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (newTask.getPassword() != null)
 			{
 				InternalPasswordService ps = getInternalPasswordService();
-				UsuariEntityDao usuariDao = getUsuariEntityDao();
-				UsuariEntity usuari =
-					usuariDao.findByCodi(newTask.getTask().getUsuari());
+				UserEntityDao usuariDao = getUserEntityDao();
+				UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUsuari());
 				if (usuari == null) // Ignorar
 				{
 					newTask.cancel();
@@ -174,9 +168,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					return;
 				}
 				
-				DominiContrasenyaEntityDao dcDao = getDominiContrasenyaEntityDao();
-				DominiContrasenyaEntity dc = dcDao.findByCodi(newTask.getTask()
-								.getDominiContrasenyes());
+				PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
+				PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getDominiContrasenyes());
 				if (dc == null)
 				{
 					newTask.cancel();
@@ -212,10 +205,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			{
 				InternalPasswordService ps = getInternalPasswordService();
 				AccountEntityDao accDao = getAccountEntityDao();
-				AccountEntity account =
-					accDao.findByNameAndDispatcher(
-						newTask.getTask().getUsuari(),
-						newTask.getTask().getCoddis());
+				AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUsuari(), newTask.getTask().getCoddis());
 				if (account == null)
 				{
 					newTask.cancel();
@@ -257,9 +247,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			InternalPasswordService ps = getInternalPasswordService();
 			AccountEntityDao accDao = getAccountEntityDao();
-			AccountEntity account =
-				accDao.findByNameAndDispatcher(newTask.getTask()
-					.getUsuari(), newTask.getTask().getCoddis());
+			AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUsuari(), newTask.getTask().getCoddis());
 			// Update for virtual dispatchers
 			DispatcherHandler dispatcher =
 				getTaskGenerator().getDispatcher(newTask.getTask().getCoddis());
@@ -278,9 +266,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			{
 				InternalPasswordService ps = getInternalPasswordService();
 				AccountEntityDao accDao = getAccountEntityDao();
-				AccountEntity account =
-					accDao.findByNameAndDispatcher(newTask.getTask()
-						.getUsuari(), newTask.getTask().getCoddis());
+				AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUsuari(), newTask.getTask().getCoddis());
 				if (account == null)
 				{
 					newTask.cancel();
@@ -364,14 +350,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	private void storeDomainPassword(TaskHandler task) throws InternalErrorException {
 		
-		DominiContrasenyaEntity dc = getDominiContrasenyaEntityDao().findByCodi(task.getTask()
-				.getDominiContrasenyes());
+		PasswordDomainEntity dc = getPasswordDomainEntityDao().findByName(task.getTask().getDominiContrasenyes());
 		
 		if (dc != null)
 		{
-			UsuariEntityDao usuariDao = getUsuariEntityDao();
-			UsuariEntity usuariEntity = usuariDao
-							.findByCodi(task.getTask().getUsuari());
+			UserEntityDao usuariDao = getUserEntityDao();
+			UserEntity usuariEntity = usuariDao.findByUserName(task.getTask().getUsuari());
 			if (usuariEntity == null) // Ignorar
 				return;
 			Usuari usuari = usuariDao.toUsuari(usuariEntity);
@@ -382,20 +366,15 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					"dompass/" + dc.getId(), task.getPassword());
 	
 			boolean anyChange = false;
-			for (DispatcherEntity de: dc.getDispatchers())
-			{
-				if (de.getUrl() == null || de.getUrl().length() == 0)
-				{
-					for (AccountEntity account : 
-						getAccountEntityDao().findByUsuariAndDispatcher(usuari.getCodi(), de.getCodi()))
-					{
-						Account acc = getAccountEntityDao().toAccount(account);
-						getSecretStoreService().setPassword(account.getId(), task.getPassword());
-//						getAccountService().updateAccountPasswordDate(acc, null);
-						anyChange = true;
-					}
-				}
-			}
+			for (SystemEntity de : dc.getSystems()) {
+                if (de.getUrl() == null || de.getUrl().length() == 0) {
+                    for (AccountEntity account : getAccountEntityDao().findByUserAndSystem(usuari.getCodi(), de.getName())) {
+                        Account acc = getAccountEntityDao().toAccount(account);
+                        getSecretStoreService().setPassword(account.getId(), task.getPassword());
+                        anyChange = true;
+                    }
+                }
+            }
 
 			if (anyChange)
 				getChangePasswordNotificationQueue().addNotification(usuari.getCodi());
@@ -412,10 +391,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	 * @throws NumberFormatException 
 	 * @throws UnknownRoleException 
 	 */
-	private void notifyChangePassword (TasqueEntity entity)
-		throws InternalErrorException, NumberFormatException,
-			UnknownGroupException, UnknownRoleException
-	{
+	private void notifyChangePassword(TaskEntity entity) throws InternalErrorException, NumberFormatException, UnknownGroupException, UnknownRoleException {
 		notifyChangePasswordToUser(entity);
 		
 		notifyChangePasswordToGroup(entity);
@@ -429,10 +405,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	 * @throws UnknownRoleException
 	 * @throws NumberFormatException
 	 */
-	private void notifyChangePasswordToRole (TasqueEntity entity)
-					throws InternalErrorException, UnknownRoleException,
-					NumberFormatException
-	{
+	private void notifyChangePasswordToRole(TaskEntity entity) throws InternalErrorException, UnknownRoleException, NumberFormatException {
 		// Check notify to role
 		if (entity.getRole() != null)
 		{
@@ -456,21 +429,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	 * @throws UnknownGroupException
 	 * @throws NumberFormatException
 	 */
-	private void notifyChangePasswordToGroup (TasqueEntity entity)
-					throws InternalErrorException, UnknownGroupException,
-					NumberFormatException
-	{
+	private void notifyChangePasswordToGroup(TaskEntity entity) throws InternalErrorException, UnknownGroupException, NumberFormatException {
 		// Check notify to group
-		if (entity.getGrup() != null)
+		if (entity.getGroup() != null)
 		{
 			// Notify to users of group
-			for (Usuari user : getServerService()
-					.getGroupUsers(Long.parseLong(entity.getGrup()),
-						false, null))
-			{
-				getChangePasswordNotificationQueue()
-					.addNotification(user.getCodi());
-			}
+			for (Usuari user : getServerService().getGroupUsers(Long.parseLong(entity.getGroup()), false, null)) {
+                getChangePasswordNotificationQueue().addNotification(user.getCodi());
+            }
 		}
 	}
 
@@ -478,20 +444,15 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	 * @param entity
 	 * @throws InternalErrorException
 	 */
-	private void notifyChangePasswordToUser (TasqueEntity entity)
-					throws InternalErrorException
-	{
+	private void notifyChangePasswordToUser(TaskEntity entity) throws InternalErrorException {
 		// Check notify to user
-		if (entity.getUsuari() != null)
+		if (entity.getUser() != null)
 		{
-			getChangePasswordNotificationQueue()
-				.addNotification(entity.getUsuari());
+			getChangePasswordNotificationQueue().addNotification(entity.getUser());
 		}
 	}
 
-	private synchronized void addAndNotifyDispatchers (TaskHandler newTask,
-					TasqueEntity tasqueEntity) throws InternalErrorException
-	{
+	private synchronized void addAndNotifyDispatchers(TaskHandler newTask, TaskEntity tasqueEntity) throws InternalErrorException {
 		String hash = tasqueEntity.getHash();
 		// Eliminar tareas similares
 		if (hash == null)
@@ -503,16 +464,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (oldTask != null && !oldTask.getTask().getId().equals(newTask.getTask().getId()))
 			{
 				oldTask.cancel();
-				persistTask(oldTask);
+				pushTaskToPersist(oldTask);
 			}
 			// Cancel remote tasks
-			TasqueEntityDao dao = getTasqueEntityDao();
-			for (Iterator<TasqueEntity> it = dao.findByHash(hash).iterator(); it
-							.hasNext();)
-			{
-				TasqueEntity remoteTask = it.next();
-				cancelRemoteTask(remoteTask);
-			}
+			TaskEntityDao dao = getTaskEntityDao();
+			for (Iterator<TaskEntity> it = dao.findByHash(hash).iterator(); it.hasNext(); ) {
+                TaskEntity remoteTask = it.next();
+                cancelRemoteTask(remoteTask);
+            }
 //			newTask.setTask(getTasqueEntityDao().toTasca(tasqueEntity));
 			newTask.getTask().setStatus("P");
 			newTask.getTask().setServer(hostname);
@@ -521,7 +480,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			tasqueEntity.setStatus("P");
 			tasqueEntity.setServer(hostname);
 			tasqueEntity.setHash(hash);
-			getTasqueEntityDao().update(tasqueEntity);
+			getTaskEntityDao().update(tasqueEntity);
 		} else {
 			// Cancel local tasks
 			TaskHandler oldTask = null;
@@ -529,7 +488,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (oldTask != null && !oldTask.getTask().getId().equals(newTask.getTask().getId()))
 			{
 				oldTask.cancel();
-				persistTask(oldTask);
+				pushTaskToPersist(oldTask);
 			}
 		}
 
@@ -559,9 +518,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
-	private void populateTaskLog (TaskHandler newTask, TasqueEntity tasque)
-					throws InternalErrorException
-	{
+	private void populateTaskLog(TaskHandler newTask, TaskEntity tasque) throws InternalErrorException {
 		// Instanciar los logs
 		Collection<DispatcherHandler> dispatchers = getTaskGenerator().getDispatchers();
 		ArrayList<TaskHandlerLog> logs = new ArrayList<TaskHandlerLog>(
@@ -579,36 +536,29 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 		// Actualizar según base de datos
 		long now = System.currentTimeMillis();
-		for (Iterator<TaskLogEntity> it = tasque.getLogs().iterator(); it.hasNext();)
-		{
-			TaskLogEntity tl = it.next();
-			for (Iterator<TaskHandlerLog> it2 = logs.iterator(); it2.hasNext();)
-			{
-				TaskHandlerLog thl = it2.next();
-				if (thl.getDispatcher().getDispatcher().getId()
-								.equals(tl.getDispatcher().getId()))
-				{
-					thl.setComplete("S".equals(tl.getComplet()));
-					thl.setReason(tl.getMissatge());
-					thl.setFirst(tl.getDataCreacio() == null ? 0 : tl.getDataCreacio().getTime());
-					thl.setLast(tl.getDarreraExecucio() == null ? 0 : tl
-									.getDarreraExecucio().longValue());
-					thl.setNext(now);
-					thl.setNumber(tl.getNumExecucions() == null ? 0 : tl
-									.getNumExecucions().intValue());
-					thl.setStackTrace(tl.getStackTrace());
-					thl.setId(tl.getId());
-					break;
-				}
-			}
-		}
+		for (Iterator<TaskLogEntity> it = tasque.getLogs().iterator(); it.hasNext(); ) {
+            TaskLogEntity tl = it.next();
+            for (Iterator<TaskHandlerLog> it2 = logs.iterator(); it2.hasNext(); ) {
+                TaskHandlerLog thl = it2.next();
+                if (thl.getDispatcher().getDispatcher().getId().equals(tl.getSystem().getId())) {
+                    thl.setComplete("S".equals(tl.getCompleted()));
+                    thl.setReason(tl.getMessage());
+                    thl.setFirst(tl.getCreationDate() == null ? 0 : tl.getCreationDate().getTime());
+                    thl.setLast(tl.getLastExecution() == null ? 0 : tl.getLastExecution().longValue());
+                    thl.setNext(now);
+                    thl.setNumber(tl.getExecutionsNumber() == null ? 0 : tl.getExecutionsNumber().intValue());
+                    thl.setStackTrace(tl.getStackTrace());
+                    thl.setId(tl.getId());
+                    break;
+                }
+            }
+        }
 		newTask.setLogs(logs);
 	}
 
-	private void cancelRemoteTask (TasqueEntity task) throws InternalErrorException
-	{
+	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
 		TaskHandler th = new TaskHandler ();
-		th.setTask(getTasqueEntityDao().toTasca(task));
+		th.setTask(getTaskEntityDao().toTasca(task));
 		th.cancel();
 		pushTaskToPersist(th);
 		
@@ -629,8 +579,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	@Override
-	protected void handleRemoveTask (TasqueEntity task)
-	{
+    protected void handleRemoveTask(TaskEntity task) {
 		throw new UnsupportedOperationException();
 	}
 
@@ -640,17 +589,16 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	@Override
-	protected TaskHandler handleAddTask (TasqueEntity newTask) throws Exception
-	{
+    protected TaskHandler handleAddTask(TaskEntity newTask) throws Exception {
 		if (newTask.getId() == null)
 		{
 			newTask.setServer(hostname);
 			newTask.setStatus("P");
-			newTask.setData(new Timestamp(System.currentTimeMillis()));
-			getTasqueEntityDao().create(newTask);
+			newTask.setDate(new Timestamp(System.currentTimeMillis()));
+			getTaskEntityDao().create(newTask);
 		}
 		TaskHandler th = new TaskHandler();
-		th.setTask(getTasqueEntityDao().toTasca(newTask));
+		th.setTask(getTaskEntityDao().toTasca(newTask));
 		th.setTimeout(null);
 		th.setValidated(false);
 		addTask(th);
@@ -1138,10 +1086,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (transaction.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD)
 							|| transaction.equals(TaskHandler.UPDATE_USER_PASSWORD))
 			{
-				UsuariEntity usuari = getUsuariEntityDao().findByCodi(
-								task.getTask().getUsuari());
-				DominiContrasenyaEntity passDomain = getDominiContrasenyaEntityDao()
-								.findByCodi(task.getTask().getDominiContrasenyes());
+				UserEntity usuari = getUserEntityDao().findByUserName(task.getTask().getUsuari());
+				PasswordDomainEntity passDomain = getPasswordDomainEntityDao().findByName(task.getTask().getDominiContrasenyes());
 				if (usuari != null && passDomain != null)
 					getInternalPasswordService().confirmPassword(usuari, passDomain,
 									task.getPassword());
@@ -1268,8 +1214,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	 * @see es.caib.seycon.ng.sync.servei.TaskQueueBase#handleUpdateTask(es.caib.seycon.ng.model.TasqueEntity)
 	 */
 	@Override
-	protected void handleUpdateTask (TasqueEntity task) throws Exception
-	{
+    protected void handleUpdateTask(TaskEntity task) throws Exception {
 		throw new UnsupportedOperationException();
 	}
 
@@ -1287,16 +1232,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (task.getPassword() != null)
 			{
 				InternalPasswordService ps = getInternalPasswordService();
-				UsuariEntityDao usuariDao = getUsuariEntityDao();
-				UsuariEntity usuari = usuariDao
-								.findByCodi(task.getTask().getUsuari());
+				UserEntityDao usuariDao = getUserEntityDao();
+				UserEntity usuari = usuariDao.findByUserName(task.getTask().getUsuari());
 				if (usuari == null) // Ignorar
 				{
 					return m;
 				}
-				DominiContrasenyaEntityDao dcDao = getDominiContrasenyaEntityDao();
-				DominiContrasenyaEntity dc = dcDao.findByCodi(task.getTask()
-								.getDominiContrasenyes());
+				PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
+				PasswordDomainEntity dc = dcDao.findByName(task.getTask().getDominiContrasenyes());
 				if (dc == null)
 				{
 					return m; // Ignorar
@@ -1316,8 +1259,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			{
 				InternalPasswordService ps = getInternalPasswordService();
 				AccountEntityDao accDao = getAccountEntityDao();
-				AccountEntity account = accDao.findByNameAndDispatcher(task.getTask()
-								.getUsuari(), task.getTask().getCoddis());
+				AccountEntity account = accDao.findByNameAndSystem(task.getTask().getUsuari(), task.getTask().getCoddis());
 				if (account == null)
 				{
 					return m;
@@ -1359,8 +1301,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			Tasca tasca = task.getTask();
 			tasca.setDataTasca(Calendar.getInstance());
-			TasqueEntity tasque = getTasqueEntityDao().tascaToEntity(tasca);
-			getTasqueEntityDao().create(tasque);
+			TaskEntity tasque = getTaskEntityDao().tascaToEntity(tasca);
+			getTaskEntityDao().create(tasque);
 			tasca.setId(tasque.getId());
 			addTask(task);
 		}
@@ -1473,27 +1415,26 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
-	private void persistLog (TasqueEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity)
-	{
+	private void persistLog(TaskEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity) {
 		if (thl.getId() == null)
 		{
 
 			if (thl.getLast() == 0) return; // Still not done task
 				
 			entity = getTaskLogEntityDao().newTaskLogEntity();
-			entity.setDispatcher(getDispatcherEntityDao().load(thl.getDispatcher().getDispatcher().getId()));
-			entity.setTasca(tasqueEntity);
-			entity.setDataCreacio(new Date());
+			entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getDispatcher().getId()));
+			entity.setTask(tasqueEntity);
+			entity.setCreationDate(new Date());
 		}
 		else
 		{
 			entity = getTaskLogEntityDao().load(thl.getId().longValue());
 		}
-		entity.setNumExecucions(new Long(thl.getNumber()));
-		entity.setProximaExecucio(thl.getNext());
-		entity.setComplet(thl.isComplete() ? "S" : "N");
-		entity.setDarreraExecucio(thl.getLast());
-		entity.setMissatge(thl.getReason());
+		entity.setExecutionsNumber(new Long(thl.getNumber()));
+		entity.setNextExecution(thl.getNext());
+		entity.setCompleted(thl.isComplete() ? "S" : "N");
+		entity.setLastExecution(thl.getLast());
+		entity.setMessage(thl.getReason());
 		entity.setStackTrace(thl.getStackTrace());
 		if (thl.getId() == null)
 		{
@@ -1515,10 +1456,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		if (newTask.isChanged())
 		{
 			try {
-	    		TasqueEntityDao dao = getTasqueEntityDao();
+	    		TaskEntityDao dao = getTaskEntityDao();
 	    		TaskLogEntityDao tlDao = getTaskLogEntityDao();
 	    		newTask.setChanged(false);
-	    		TasqueEntity tasque = dao.load(newTask.getTask().getId());
+	    		TaskEntity tasque = dao.load(newTask.getTask().getId());
 	    		if (tasque == null)
 	    		{
 	    			// Ignore
@@ -1536,30 +1477,26 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			tasque.setStatus(newTask.getTask().getStatus());
 	    			tasque.setHash(newTask.getTask().getHash());
 	    			tasque.setServer(newTask.getTask().getServer());
-	    			tasque.setPrioritat(new Long(newTask.getPriority()));
+	    			tasque.setPriority(new Long(newTask.getPriority()));
 	    			dao.update(tasque);
 	    
 	    			Collection<TaskLogEntity> daoEntities = tasque.getLogs();
 	    			if (newTask.getLogs() != null)
 	    			{
-	        			for (TaskHandlerLog log: newTask.getLogs())
-	        			{
-	        				boolean found = false;
-	        				for (TaskLogEntity logEntity: daoEntities)
-	        				{
-	        					if (logEntity.getDispatcher().getId().equals (log.getDispatcher().getDispatcher().getId()))
-	        					{
-	        						found = true;
-	        						persistLog (tasque, log, logEntity);
-	        						break;
-	        					}
-	        				}
-	        				if (! found)
-	        				{
-	        					TaskLogEntity logEntity = tlDao.newTaskLogEntity();
-	        					persistLog (tasque, log, logEntity);
-	        				}
-	        			}
+	        			for (TaskHandlerLog log : newTask.getLogs()) {
+                            boolean found = false;
+                            for (TaskLogEntity logEntity : daoEntities) {
+                                if (logEntity.getSystem().getId().equals(log.getDispatcher().getDispatcher().getId())) {
+                                    found = true;
+                                    persistLog(tasque, log, logEntity);
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
+                                persistLog(tasque, log, logEntity);
+                            }
+                        }
 	    			}
 	    		}
 			} catch (Exception e) {

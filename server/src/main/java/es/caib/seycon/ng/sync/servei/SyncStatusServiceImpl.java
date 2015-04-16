@@ -1,5 +1,32 @@
 package es.caib.seycon.ng.sync.servei;
 
+import com.soffid.iam.model.AccountEntity;
+import com.soffid.iam.model.AccountEntityDao;
+import com.soffid.iam.model.UserAccountEntity;
+import com.soffid.iam.model.UserEntityDao;
+import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.AgentStatusInfo;
+import es.caib.seycon.ng.comu.Password;
+import es.caib.seycon.ng.comu.SeyconServerInfo;
+import es.caib.seycon.ng.comu.UserAccount;
+import es.caib.seycon.ng.comu.Usuari;
+import es.caib.seycon.ng.config.Config;
+import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.SoffidStackTrace;
+import es.caib.seycon.ng.exception.UnknownUserException;
+import es.caib.seycon.ng.remote.RemoteServiceLocator;
+import es.caib.seycon.ng.remote.URLManager;
+import es.caib.seycon.ng.servei.AccountService;
+import es.caib.seycon.ng.servei.InternalPasswordService;
+import es.caib.seycon.ng.sync.SeyconApplication;
+import es.caib.seycon.ng.sync.agent.AgentManager;
+import es.caib.seycon.ng.sync.engine.DispatcherHandler;
+import es.caib.seycon.ng.sync.engine.Engine;
+import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
+import es.caib.seycon.ng.sync.jetty.JettyServer;
+import es.caib.seycon.ng.sync.web.esso.GetSecretsServlet;
+import es.caib.seycon.ssl.SeyconKeyStore;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -15,38 +42,8 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Vector;
-
 import javax.servlet.ServletException;
-
 import org.apache.commons.logging.LogFactory;
-
-import es.caib.seycon.ng.comu.Account;
-import es.caib.seycon.ng.comu.AccountType;
-import es.caib.seycon.ng.comu.AgentStatusInfo;
-import es.caib.seycon.ng.comu.Password;
-import es.caib.seycon.ng.comu.SeyconServerInfo;
-import es.caib.seycon.ng.comu.UserAccount;
-import es.caib.seycon.ng.comu.Usuari;
-import es.caib.seycon.ng.config.Config;
-import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.SoffidStackTrace;
-import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.model.AccountEntity;
-import es.caib.seycon.ng.model.AccountEntityDao;
-import es.caib.seycon.ng.model.UserAccountEntity;
-import es.caib.seycon.ng.model.UsuariEntityDao;
-import es.caib.seycon.ng.remote.RemoteServiceLocator;
-import es.caib.seycon.ng.remote.URLManager;
-import es.caib.seycon.ng.servei.AccountService;
-import es.caib.seycon.ng.servei.InternalPasswordService;
-import es.caib.seycon.ng.sync.SeyconApplication;
-import es.caib.seycon.ng.sync.agent.AgentManager;
-import es.caib.seycon.ng.sync.engine.DispatcherHandler;
-import es.caib.seycon.ng.sync.engine.Engine;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
-import es.caib.seycon.ng.sync.jetty.JettyServer;
-import es.caib.seycon.ng.sync.web.esso.GetSecretsServlet;
-import es.caib.seycon.ssl.SeyconKeyStore;
 
 public class SyncStatusServiceImpl extends SyncStatusServiceBase {
     @Override
@@ -369,7 +366,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	{
 		AccountService svc = getAccountService();
 		AccountEntityDao accountDao = getAccountEntityDao();
-		UsuariEntityDao usuariDao = getUsuariEntityDao();
+		UserEntityDao usuariDao = getUserEntityDao();
 		
 		AccountEntity accEntity = accountDao.load(accountId);
 		Account account = accountDao.toAccount(accEntity);
@@ -379,11 +376,9 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		if (account.getType().equals(AccountType.USER))
 		{
 			boolean found = false;
-			for (UserAccountEntity ua: accEntity.getUsers())
-			{
-				if (ua.getUser().getCodi().equals(user))
-					found = true;
-			}
+			for (UserAccountEntity ua : accEntity.getUsers()) {
+                if (ua.getUser().getUserName().equals(user)) found = true;
+            }
 			if (! found )
 				throw new SecurityException(Messages.getString("SyncStatusServiceImpl.NotAuthorized")); //$NON-NLS-1$
 		} 
@@ -393,29 +388,17 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			boolean caducada = false;
 			boolean ownedByOther = false;
 			String otherOwner = null;
-			for (UserAccountEntity ua: accEntity.getUsers())
-			{
-				if (!ua.getUser().getCodi().equals(user) &&
-						ua.getUntilDate() != null &&
-						new Date().before(ua.getUntilDate()))
-				{
-					ownedByOther = true;
-					otherOwner = ua.getUser().getCodi();
-				}
-				else if (ua.getUser().getCodi().equals(user) && 
-						ua.getUntilDate() != null &&
-						new Date().before(ua.getUntilDate()))
-				{
-					found = true;
-				}
-				else if (ua.getUser().getCodi().equals(user) && 
-						ua.getUntilDate() != null &&
-						new Date().after(ua.getUntilDate()))
-				{
-					found = true;
-					caducada = true;
-				}
-			}
+			for (UserAccountEntity ua : accEntity.getUsers()) {
+                if (!ua.getUser().getUserName().equals(user) && ua.getUntilDate() != null && new Date().before(ua.getUntilDate())) {
+                    ownedByOther = true;
+                    otherOwner = ua.getUser().getUserName();
+                } else if (ua.getUser().getUserName().equals(user) && ua.getUntilDate() != null && new Date().before(ua.getUntilDate())) {
+                    found = true;
+                } else if (ua.getUser().getUserName().equals(user) && ua.getUntilDate() != null && new Date().after(ua.getUntilDate())) {
+                    found = true;
+                    caducada = true;
+                }
+            }
 			if (found && caducada)
 				throw new SecurityException(String.format(Messages.getString("SyncStatusServiceImpl.PasswordExpired"))); //$NON-NLS-1$
 			else if (! found && ownedByOther)
@@ -434,11 +417,10 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		if (p == null && account.getType().equals(AccountType.USER))
 		{
 			Usuari u = new Usuari();
-			for (UserAccountEntity ua: accEntity.getUsers())
-			{
-				u = getUsuariEntityDao().toUsuari(ua.getUser());
-			}
-        	p = getSecretStoreService().getSecret(u, "dompass/"+accEntity.getDispatcher().getDomini().getId()); //$NON-NLS-1$
+			for (UserAccountEntity ua : accEntity.getUsers()) {
+                u = getUserEntityDao().toUsuari(ua.getUser());
+            }
+        	p = getSecretStoreService().getSecret(u, "dompass/" + accEntity.getSystem().getPasswordDomain().getId()); //$NON-NLS-1$
 		}
        	return p;
 		

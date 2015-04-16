@@ -1,14 +1,15 @@
 /**
  * 
  */
-package es.caib.seycon.ng.sync.identity;
+package com.soffid.iam.sync.identity;
 
 import java.sql.SQLException;
 
 import org.hibernate.engine.SessionImplementor;
 
+import com.soffid.iam.sync.identity.IdentityGeneratorThread;
+
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.sync.identity.IdentityGeneratorThread;
 import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 import es.caib.seycon.ng.sync.engine.db.ConnectionPool.ThreadBound;
 
@@ -16,7 +17,7 @@ import es.caib.seycon.ng.sync.engine.db.ConnectionPool.ThreadBound;
  * @author bubu
  *
  */
-public class IdentityGeneratorBean extends es.caib.seycon.ng.model.identity.IdentityGeneratorBean
+public class IdentityGeneratorBean extends com.soffid.iam.model.identity.IdentityGeneratorBean
 {
 	IdentityGeneratorThread onlineThread = null;
 	IdentityGeneratorThread offlineThread = null;

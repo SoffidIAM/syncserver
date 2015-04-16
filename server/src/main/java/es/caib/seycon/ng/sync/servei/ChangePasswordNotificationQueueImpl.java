@@ -1,5 +1,11 @@
 package es.caib.seycon.ng.sync.servei;
 
+import com.soffid.iam.model.SessionEntity;
+import es.caib.seycon.ng.sync.engine.ChangePasswordNotification;
+import es.caib.seycon.ng.sync.engine.challenge.ChallengeStore;
+import es.caib.seycon.ng.sync.engine.cpn.ChangePasswordNotificationThread;
+import es.caib.seycon.ng.sync.servei.ChangePasswordNotificationQueueBase;
+import es.caib.seycon.ssl.AlwaysTrustConnectionFactory;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -12,16 +18,8 @@ import java.net.URLConnection;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
-
-import es.caib.seycon.ng.model.SessioEntity;
-import es.caib.seycon.ng.sync.engine.ChangePasswordNotification;
-import es.caib.seycon.ng.sync.engine.challenge.ChallengeStore;
-import es.caib.seycon.ng.sync.engine.cpn.ChangePasswordNotificationThread;
-import es.caib.seycon.ng.sync.servei.ChangePasswordNotificationQueueBase;
-import es.caib.seycon.ssl.AlwaysTrustConnectionFactory;
 
 public class ChangePasswordNotificationQueueImpl extends
         ChangePasswordNotificationQueueBase {
@@ -33,24 +31,19 @@ public class ChangePasswordNotificationQueueImpl extends
     
     @Override
     protected void handleAddNotification(String user) throws Exception {
-        List<SessioEntity> sessions = getSessioEntityDao().findSessionsByCodiUsuari(user);
-        for (Iterator<SessioEntity> it = sessions.iterator(); it.hasNext();) {
-            SessioEntity sessio = it.next();
+        List<SessionEntity> sessions = getSessionEntityDao().findSessionByUserName(user);
+        for (Iterator<SessionEntity> it = sessions.iterator(); it.hasNext(); ) {
+            SessionEntity sessio = it.next();
             ChangePasswordNotification n = new ChangePasswordNotification();
             n.setUser(user);
             n.setSessionId(sessio.getId());
-            if (sessio.getMaquina() == null || sessio.getMaquina().getAdreca() == null)
-            	n.setHost(sessio.getHostAddress());
-            else
-            	n.setHost(sessio.getMaquina().getAdreca());
-            if (sessio.getPort() != null)
-            	n.setPortNumber(sessio.getPort().intValue());
-            if (sessio.getWebHandler() != null)
-            	n.setUrl(sessio.getWebHandler());
+            if (sessio.getHost() == null || sessio.getHost().getHostIP() == null) n.setHost(sessio.getHostAddress()); else n.setHost(sessio.getHost().getHostIP());
+            if (sessio.getPort() != null) n.setPortNumber(sessio.getPort().intValue());
+            if (sessio.getWebHandler() != null) n.setUrl(sessio.getWebHandler());
             synchronized (semaphore) {
                 sessionsToNotify.addLast(n);
                 startNotificationThreads();
-                semaphore.notify ();
+                semaphore.notify();
             }
         }
     }
@@ -173,14 +166,14 @@ public class ChangePasswordNotificationQueueImpl extends
     protected void handleSendNotification(ChangePasswordNotification n)
             throws Exception {
         try {
-            SessioEntity sessio = getSessioEntityDao().load(n.getSessionId());
-            if (sessio == null || sessio.getClau() == null)
+            SessionEntity sessio = getSessionEntityDao().load(n.getSessionId());
+            if (sessio == null || sessio.getKey() == null)
                 return;
             // Generar la nova clau
             String newKey = ChallengeStore.getInstance().generateSessionKey();
-            String dif = computeDiferences(sessio.getClau(),newKey);
-            sessio.setNovaClau(newKey);
-            getSessioEntityDao().update(sessio);
+            String dif = computeDiferences(sessio.getKey(), newKey);
+            sessio.setNewKey(newKey);
+            getSessionEntityDao().update(sessio);
             if (n.getUrl() == null)
             	sendKeySocketMessage(n, dif);
             else

@@ -1,62 +1,13 @@
 package es.caib.seycon.ng.sync.engine;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.Serializable;
-import java.io.StringWriter;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.URL;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
-import java.sql.SQLException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
-import java.util.Vector;
-
-import javax.ejb.ObjectNotFoundException;
-import javax.sql.DataSource;
-
-import org.hibernate.EntityMode;
-import org.hibernate.SessionFactory;
-import org.hibernate.classic.Session;
-import org.hibernate.metadata.ClassMetadata;
-import org.hibernate.persister.entity.AbstractEntityPersister;
-import org.hibernate.type.OneToOneType;
-import org.hibernate.type.Type;
-import org.jbpm.JbpmConfiguration;
-import org.jbpm.JbpmContext;
-import org.jbpm.context.exe.ContextInstance;
-import org.jbpm.graph.exe.ProcessInstance;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import es.caib.seycon.ng.ServiceLocator;
-import es.caib.seycon.ng.remote.RemoteServiceLocator;
-import es.caib.seycon.ng.comu.Account;
 import bsh.EvalError;
-
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.Task;
 import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
+import com.soffid.iam.model.AuditEntity;
+import com.soffid.iam.model.AuditEntityDao;
+import com.soffid.iam.model.TaskEntity;
+import com.soffid.iam.model.TaskEntityDao;
 import com.soffid.iam.reconcile.common.AccountProposedAction;
 import com.soffid.iam.reconcile.common.ProposedAction;
 import com.soffid.iam.reconcile.common.ReconcileAccount;
@@ -65,7 +16,8 @@ import com.soffid.iam.reconcile.common.ReconcileRole;
 import com.soffid.iam.reconcile.service.ReconcileService;
 import com.soffid.tools.db.schema.Column;
 import com.soffid.tools.db.schema.Table;
-
+import es.caib.seycon.ng.ServiceLocator;
+import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.Configuracio;
 import es.caib.seycon.ng.comu.DadaUsuari;
@@ -93,12 +45,8 @@ import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.model.AuditoriaEntity;
-import es.caib.seycon.ng.model.AuditoriaEntityDao;
-import es.caib.seycon.ng.model.TasqueEntity;
-import es.caib.seycon.ng.model.TasqueEntityDao;
-import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.remote.RemoteInvokerFactory;
+import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.remote.URLManager;
 import es.caib.seycon.ng.servei.AccountService;
 import es.caib.seycon.ng.servei.ConfiguracioService;
@@ -129,6 +77,7 @@ import es.caib.seycon.ng.sync.intf.DatabaseReplicaMgr;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaOfflineChangeRetriever;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMapping;
+import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjects;
 import es.caib.seycon.ng.sync.intf.GroupInfo;
 import es.caib.seycon.ng.sync.intf.GroupMgr;
@@ -140,14 +89,11 @@ import es.caib.seycon.ng.sync.intf.MailAliasMgr;
 import es.caib.seycon.ng.sync.intf.NetworkMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
-import es.caib.seycon.ng.sync.intf.RoleMgr;
 import es.caib.seycon.ng.sync.intf.RoleInfo;
 import es.caib.seycon.ng.sync.intf.RoleMgr;
 import es.caib.seycon.ng.sync.intf.SharedFolderMgr;
-import es.caib.seycon.ng.sync.intf.UserMgr;
 import es.caib.seycon.ng.sync.intf.UserInfo;
 import es.caib.seycon.ng.sync.intf.UserMgr;
-import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
 import es.caib.seycon.ng.sync.replica.DatabaseRepository;
 import es.caib.seycon.ng.sync.replica.MainDatabaseSynchronizer;
 import es.caib.seycon.ng.sync.servei.ChangePasswordNotificationQueue;
@@ -157,6 +103,51 @@ import es.caib.seycon.ng.sync.servei.ServerService;
 import es.caib.seycon.ng.sync.web.esso.GetSecretsServlet;
 import es.caib.seycon.ng.utils.Security;
 import es.caib.seycon.util.Syslogger;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.Serializable;
+import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.URL;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.sql.Types;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Random;
+import java.util.Set;
+import java.util.Vector;
+import javax.ejb.ObjectNotFoundException;
+import javax.sql.DataSource;
+import org.hibernate.EntityMode;
+import org.hibernate.SessionFactory;
+import org.hibernate.classic.Session;
+import org.hibernate.metadata.ClassMetadata;
+import org.hibernate.persister.entity.AbstractEntityPersister;
+import org.hibernate.type.OneToOneType;
+import org.hibernate.type.Type;
+import org.jbpm.JbpmConfiguration;
+import org.jbpm.JbpmContext;
+import org.jbpm.context.exe.ContextInstance;
+import org.jbpm.graph.exe.ProcessInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable {
     private static JbpmConfiguration jbpmConfig;
@@ -181,13 +172,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     private String targetHost;
     private Thread currentThread;
     private ChangePasswordNotificationQueue changePasswordNotificationQueue;
-    private TasqueEntityDao tasqueEntityDao;
+    private TaskEntityDao tasqueEntityDao;
     private InternalPasswordService internalPasswordService;
 	private ReconcileService reconcileService;
 	private AccountService accountService;
 	private DominiUsuariService dominiService;
 	
-	private AuditoriaEntityDao auditoriaDao;
+	private AuditEntityDao auditoriaDao;
 	private static final int MAX_LENGTH = 150;
 	private static final int MAX_ROLE_CODE_LENGTH = 50;
 	private DominiContrasenya passwordDomain = null;
@@ -227,7 +218,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         taskgenerator = ServerServiceLocator.instance().getTaskGenerator();
         secretStoreService = ServerServiceLocator.instance().getSecretStoreService();
         changePasswordNotificationQueue = ServerServiceLocator.instance().getChangePasswordNotificationQueue();
-        tasqueEntityDao = (TasqueEntityDao) ServerServiceLocator.instance().getService("tasqueEntityDao");
+        tasqueEntityDao = (TaskEntityDao) ServerServiceLocator.instance().getService("tasqueEntityDao");
         internalPasswordService = (InternalPasswordService)
         		ServerServiceLocator.instance().getInternalPasswordService();
         accountService = ServerServiceLocator.instance().getAccountService();
@@ -235,7 +226,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         usuariService = ServerServiceLocator.instance().getUsuariService();
         dadesAddicionalsService = ServerServiceLocator.instance().getDadesAddicionalsService();
         grupService = ServerServiceLocator.instance().getGrupService();
-        auditoriaDao = (AuditoriaEntityDao) ServerServiceLocator.instance().getService("auditoriaEntityDao");
+        auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditoriaEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
         authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
         
@@ -766,19 +757,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     private Password getTaskPassword(TaskHandler t) throws RemoteException, InternalErrorException {
-        if (getDispatcher().getBasRol().booleanValue()) {
-            Collection<RolGrant> roles = null;
-            try {
-                Usuari usuari = t.getUsuari();
-                if (usuari != null)
-                    roles = server.getUserRoles(t.getUsuari().getId(), getDispatcher().getCodi());
-            } catch (UnknownUserException e) {
-                return generateRandomUserPassword(t);
-            }
-            if (roles == null || roles.isEmpty()) {
-                return generateRandomUserPassword(t);
-            }
-        }
         return t.getPassword();
     }
 
@@ -1361,21 +1339,21 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	        	{
 	        		UserAccount ua = (UserAccount) acc;
 		            
-		            TasqueEntity te = tasqueEntityDao.newTasqueEntity();
-		            te.setTransa(TaskHandler.UPDATE_PROPAGATED_PASSWORD);
+		            TaskEntity te = tasqueEntityDao.newTaskEntity();
+		            te.setTransaction(TaskHandler.UPDATE_PROPAGATED_PASSWORD);
 //		            te.setDominiUsuaris(getDispatcher().getDominiUsuaris());
-		            te.setDominiContrasenyes(getDispatcher().getDominiContrasenyes());
-		            te.setContra(t.getPassword().toString());
-		            te.setUsuari(ua.getUser());
+		            te.setPasswordsDomain(getDispatcher().getDominiContrasenyes());
+		            te.setPassword(t.getPassword().toString());
+		            te.setUser(ua.getUser());
 		            taskqueue.addTask(te);
 		            
-		            AuditoriaEntity auditoria = auditoriaDao.newAuditoriaEntity();
-		            auditoria.setAccio("L");
-		            auditoria.setData(new Date());
-		            auditoria.setUsuari(ua.getUser());
+		            AuditEntity auditoria = auditoriaDao.newAuditEntity();
+		            auditoria.setAction("L");
+		            auditoria.setDate(new Date());
+		            auditoria.setUser(ua.getUser());
 		            auditoria.setPasswordDomain(getDispatcher().getDominiContrasenyes());
-		            auditoria.setObjecte("SC_USUARI");
-		            auditoria.setBbdd(getDispatcher().getCodi());
+		            auditoria.setObject("SC_USUARI");
+		            auditoria.setDb(getDispatcher().getCodi());
 		            auditoriaDao.create(auditoria);
 
 					internalPasswordService.storePassword(ua.getUser(), getDispatcher().getDominiContrasenyes(), 
@@ -1393,12 +1371,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
    		            {
    		            	changePasswordNotificationQueue.addNotification(u);
    		            }
-		            AuditoriaEntity auditoria = auditoriaDao.newAuditoriaEntity();
-		            auditoria.setAccio("L");
-		            auditoria.setData(new Date());
+		            AuditEntity auditoria = auditoriaDao.newAuditEntity();
+		            auditoria.setAction("L");
+		            auditoria.setDate(new Date());
 		            auditoria.setAccount(acc.getName());
-		            auditoria.setBbdd(acc.getDispatcher());
-		            auditoria.setObjecte("SC_ACCOUN");
+		            auditoria.setDb(acc.getDispatcher());
+		            auditoria.setObject("SC_ACCOUN");
 		            auditoriaDao.create(auditoria);
 	        	}
             	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
@@ -1510,14 +1488,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     
     private void auditAccountPasswordChange (Account account, Usuari user, boolean random)
     {
-        AuditoriaEntity auditoria = auditoriaDao.newAuditoriaEntity();
-        auditoria.setAccio(random ? "Z": "X");
-        auditoria.setData(new Date());
+        AuditEntity auditoria = auditoriaDao.newAuditEntity();
+        auditoria.setAction(random ? "Z" : "X");
+        auditoria.setDate(new Date());
         auditoria.setAccount(account.getName());
-        auditoria.setBbdd(account.getDispatcher());
-        auditoria.setObjecte("SC_ACCOUN");
-        if (user != null) auditoria.setUsuari(user.getCodi());
-        auditoria.setBbdd(getDispatcher().getCodi());
+        auditoria.setDb(account.getDispatcher());
+        auditoria.setObject("SC_ACCOUN");
+        if (user != null) auditoria.setUser(user.getCodi());
+        auditoria.setDb(getDispatcher().getCodi());
         auditoriaDao.create(auditoria);
     }
 
@@ -1885,7 +1863,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	public void reconcileUsers (Object agent, TaskHandler taskHandler)
 		throws InternalErrorException, RemoteException
 	{
-		TasqueEntity taskEntity;				// Task entity
+		TaskEntity taskEntity;				// Task entity
 		ReconcileMgr reconcileManager = null;	// Reconcile manager
 		ReconcileMgr2 reconcileManager2 = null;	// Reconcile manager
 
@@ -1904,28 +1882,24 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 
 		// Create reconcile user task for users
-		for (String user : (reconcileManager2 == null ? reconcileManager.getAccountsList() : reconcileManager2.getAccountsList()))
-		{
-			// Check user code length
-			if (user.length() <= MAX_LENGTH)
-			{
-				taskEntity = tasqueEntityDao.newTasqueEntity();
-				taskEntity.setTransa(TaskHandler.RECONCILE_USER);
-				taskEntity.setData(new Timestamp(System.currentTimeMillis()));
-				taskEntity.setMaquin(taskHandler.getTask().getMaquin());
-				taskEntity.setUsuari(user);
-				taskEntity.setCoddis(getDispatcher().getCodi());
-				
-				taskqueue.addTask(taskEntity);
-			}
-		}
+		for (String user : (reconcileManager2 == null ? reconcileManager.getAccountsList() : reconcileManager2.getAccountsList())) {
+            if (user.length() <= MAX_LENGTH) {
+                taskEntity = tasqueEntityDao.newTaskEntity();
+                taskEntity.setTransaction(TaskHandler.RECONCILE_USER);
+                taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
+                taskEntity.setHost(taskHandler.getTask().getMaquin());
+                taskEntity.setUser(user);
+                taskEntity.setSystemName(getDispatcher().getCodi());
+                taskqueue.addTask(taskEntity);
+            }
+        }
 
 		// Create reconcile roles task
-		taskEntity = tasqueEntityDao.newTasqueEntity();
-		taskEntity.setTransa(TaskHandler.RECONCILE_ROLES);
-		taskEntity.setData(new Timestamp(System.currentTimeMillis()));
-		taskEntity.setMaquin(taskHandler.getTask().getMaquin());
-		taskEntity.setCoddis(getDispatcher().getCodi());
+		taskEntity = tasqueEntityDao.newTaskEntity();
+		taskEntity.setTransaction(TaskHandler.RECONCILE_ROLES);
+		taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
+		taskEntity.setHost(taskHandler.getTask().getMaquin());
+		taskEntity.setSystemName(getDispatcher().getCodi());
 
 		taskqueue.addTask(taskEntity);
 	}
@@ -2163,7 +2137,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	public void reconcileRoles (Object agent, TaskHandler taskHandler)
 		throws InternalErrorException, RemoteException
 	{
-		TasqueEntity taskEntity;		// Task entity
+		TaskEntity taskEntity;		// Task entity
 		ReconcileMgr reconcileManager = agent instanceof ReconcileMgr ? (ReconcileMgr) agent: null;	// Reconcile manager
 		ReconcileMgr2 reconcileManager2 = agent instanceof ReconcileMgr2 ? (ReconcileMgr2) agent: null;	// Reconcile manager
 
@@ -2172,30 +2146,25 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		
 		List<String> roles = reconcileManager == null ? reconcileManager2.getRolesList() : reconcileManager.getRolesList();
 		// Create reconcile role task
-		for (String role : roles)
-		{
-			// Check role code length
-			if (role.length() <= MAX_ROLE_CODE_LENGTH)
-			{
-				taskEntity = tasqueEntityDao.newTasqueEntity();
-				
-				taskEntity.setTransa(TaskHandler.RECONCILE_ROLE);
-				taskEntity.setData(new Timestamp(System.currentTimeMillis()));
-				taskEntity.setMaquin(taskHandler.getTask().getMaquin());
-				taskEntity.setRole(role);
-				taskEntity.setBd(getDispatcher().getCodi());
-				taskEntity.setCoddis(getDispatcher().getCodi());
-				
-				taskqueue.addTask(taskEntity);
-			}
-		}
+		for (String role : roles) {
+            if (role.length() <= MAX_ROLE_CODE_LENGTH) {
+                taskEntity = tasqueEntityDao.newTaskEntity();
+                taskEntity.setTransaction(TaskHandler.RECONCILE_ROLE);
+                taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
+                taskEntity.setHost(taskHandler.getTask().getMaquin());
+                taskEntity.setRole(role);
+                taskEntity.setDb(getDispatcher().getCodi());
+                taskEntity.setSystemName(getDispatcher().getCodi());
+                taskqueue.addTask(taskEntity);
+            }
+        }
 
 		// Create reconcile roles task
-		taskEntity = tasqueEntityDao.newTasqueEntity();
-		taskEntity.setTransa(TaskHandler.END_RECONCILE);
-		taskEntity.setData(new Timestamp(System.currentTimeMillis()));
-		taskEntity.setMaquin(taskHandler.getTask().getMaquin());
-		taskEntity.setCoddis(getDispatcher().getCodi());
+		taskEntity = tasqueEntityDao.newTaskEntity();
+		taskEntity.setTransaction(TaskHandler.END_RECONCILE);
+		taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
+		taskEntity.setHost(taskHandler.getTask().getMaquin());
+		taskEntity.setSystemName(getDispatcher().getCodi());
 
 		taskqueue.addTask(taskEntity);
 	}

@@ -1,5 +1,14 @@
 package es.caib.seycon.ng.sync.servei;
 
+import com.soffid.iam.model.ServerEntity;
+import es.caib.seycon.ng.comu.Password;
+import es.caib.seycon.ng.comu.Server;
+import es.caib.seycon.ng.comu.ServerType;
+import es.caib.seycon.ng.config.Config;
+import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
+import es.caib.seycon.ng.sync.servei.SecretConfigurationServiceBase;
+import es.caib.seycon.ssl.SeyconKeyStore;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -31,22 +40,10 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.Vector;
-
 import org.bouncycastle.asn1.x509.X509Name;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
-
-import es.caib.seycon.ng.comu.Password;
-import es.caib.seycon.ng.comu.Server;
-import es.caib.seycon.ng.comu.ServerType;
-import es.caib.seycon.ng.config.Config;
-import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.model.ServerEntity;
-import es.caib.seycon.ng.model.ServerEntityImpl;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
-import es.caib.seycon.ng.sync.servei.SecretConfigurationServiceBase;
-import es.caib.seycon.ssl.SeyconKeyStore;
 
 public class SecretConfigurationServiceImpl extends
         SecretConfigurationServiceBase {
@@ -207,12 +204,12 @@ public class SecretConfigurationServiceImpl extends
 
 
     private void updateServerEntity () throws InternalErrorException, SQLException, FileNotFoundException, IOException {
-        ServerEntity server = getServerEntityDao().findByNom(config.getHostName());
+        ServerEntity server = getServerEntityDao().findByName(config.getHostName());
         if (server == null) {
             generateAuthToken();
             server = getServerEntityDao().newServerEntity();
             server.setAuth(currentToken);
-            server.setNom(config.getHostName());
+            server.setName(config.getHostName());
             server.setPk(publicKey.getEncoded());
             getServerEntityDao().create(server); 
         } else {

@@ -1,5 +1,25 @@
 package es.caib.seycon.ng.sync.servei;
 
+import com.soffid.iam.model.Parameter;
+import com.soffid.iam.model.ReplicaDatabaseEntity;
+import com.soffid.iam.model.SystemEntity;
+import com.soffid.iam.model.TaskEntity;
+import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
+import com.soffid.tools.db.persistence.XmlReader;
+import com.soffid.tools.db.persistence.XmlWriter;
+import com.soffid.tools.db.schema.Column;
+import com.soffid.tools.db.schema.Database;
+import com.soffid.tools.db.schema.Table;
+import es.caib.seycon.ng.comu.Dispatcher;
+import es.caib.seycon.ng.config.Config;
+import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.sync.engine.DispatcherHandler;
+import es.caib.seycon.ng.sync.engine.DispatcherHandlerImpl;
+import es.caib.seycon.ng.sync.engine.ReplicaConnection;
+import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
+import es.caib.seycon.ng.sync.replica.DatabaseRepository;
+import es.caib.seycon.ng.sync.servei.TaskGeneratorBase;
+import es.caib.seycon.ng.sync.servei.TaskQueue;
 import java.io.ByteArrayOutputStream;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -13,7 +33,6 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.slf4j.LoggerFactory;
@@ -21,28 +40,6 @@ import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.orm.hibernate3.SessionFactoryUtils;
-
-import com.soffid.tools.db.persistence.XmlReader;
-import com.soffid.tools.db.persistence.XmlWriter;
-import com.soffid.tools.db.schema.Table;
-import com.soffid.tools.db.schema.Column;
-import com.soffid.tools.db.schema.Database;
-
-import es.caib.seycon.ng.comu.Dispatcher;
-import es.caib.seycon.ng.config.Config;
-import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.model.DispatcherEntity;
-import es.caib.seycon.ng.model.Parameter;
-import es.caib.seycon.ng.model.ReplicaDatabaseEntity;
-import es.caib.seycon.ng.model.TasqueEntity;
-import es.caib.seycon.ng.model.criteria.CriteriaSearchConfiguration;
-import es.caib.seycon.ng.sync.engine.DispatcherHandler;
-import es.caib.seycon.ng.sync.engine.DispatcherHandlerImpl;
-import es.caib.seycon.ng.sync.engine.ReplicaConnection;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
-import es.caib.seycon.ng.sync.replica.DatabaseRepository;
-import es.caib.seycon.ng.sync.servei.TaskGeneratorBase;
-import es.caib.seycon.ng.sync.servei.TaskQueue;
 
 public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationContextAware {
 
@@ -77,7 +74,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 
     @Override
     protected void handleLoadTasks() throws Exception {
-        Collection<TasqueEntity> tasks ;
+        Collection<TaskEntity> tasks;
         Connection connection = ConnectionPool.getPool().getPoolConnection();
         Runtime runtime = Runtime.getRuntime();
         if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
@@ -94,24 +91,15 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         	{
                 log.info("Looking for new tasks to schedule");
                 if (firstRun) {
-                    tasks = getTasqueEntityDao().query(
-                            "select tasca " + "from es.caib.seycon.ng.model.TasqueEntity tasca "
-                                    + "where tasca.server = :server " + "order by tasca.id",
-                            new Parameter[] { new Parameter("server", config.getHostName()) });
+                    tasks = getTaskEntityDao().query("select tasca from es.caib.seycon.ng.model.TasqueEntity tasca where tasca.server = :server order by tasca.id", new Parameter[]{new Parameter("server", config.getHostName())});
                 } else {
-                    tasks = getTasqueEntityDao()
-                            .query("select tasca " + "from es.caib.seycon.ng.model.TasqueEntity tasca "
-                                    + "where tasca.server is null " + "order by tasca.prioritat, tasca.id", new Parameter[0],
-                                    csc);
+                    tasks = getTaskEntityDao().query("select tasca from es.caib.seycon.ng.model.TasqueEntity tasca where tasca.server is null order by tasca.prioritat, tasca.id", new Parameter[0], csc);
                 }
         	} else {
                 if (firstOfflineRun) {
                     log.info("Looking for offline tasks");
                     firstOfflineRun = false;
-                    tasks = getTasqueEntityDao().query(
-                            "select tasca " + "from es.caib.seycon.ng.model.TasqueEntity tasca "
-                                    + "where tasca.server = :server " + "order by tasca.id",
-                            new Parameter[] { new Parameter("server", config.getHostName()) });
+                    tasks = getTaskEntityDao().query("select tasca from es.caib.seycon.ng.model.TasqueEntity tasca where tasca.server = :server order by tasca.id", new Parameter[]{new Parameter("server", config.getHostName())});
                 } else {
                 	tasks = Collections.emptyList();
                 }
@@ -119,14 +107,13 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             TaskQueue taskQueue = getTaskQueue();
             int i = 0;
             flushAndClearSession();
-            for (Iterator<TasqueEntity> it = tasks.iterator(); active && it.hasNext();) {
-                TasqueEntity tasca = it.next();
+            for (Iterator<TaskEntity> it = tasks.iterator(); active && it.hasNext(); ) {
+                TaskEntity tasca = it.next();
                 taskQueue.addTask(tasca);
-               	flushAndClearSession ();
-                if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && ! firstRun)
-                {
-                	runtime.gc();
-                	return;
+                flushAndClearSession();
+                if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
+                    runtime.gc();
+                    return;
                 }
             }
         	if (((ReplicaConnection)connection).isMainDatabase())
@@ -180,33 +167,26 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         log.info("Looking for agent updates", null, null);
         ArrayList<DispatcherHandlerImpl> oldDispatchers = new ArrayList<DispatcherHandlerImpl>(
                 dispatchers);
-        Collection<DispatcherEntity> entities = getDispatcherEntityDao().loadAll();
+        Collection<SystemEntity> entities = getSystemEntityDao().loadAll();
         // Reconfigurar dispatcher modificats
-        for (Iterator<DispatcherEntity> it = entities.iterator(); it.hasNext();) {
-            DispatcherEntity dispatcherEntity = it.next();
+        for (Iterator<SystemEntity> it = entities.iterator(); it.hasNext(); ) {
+            SystemEntity dispatcherEntity = it.next();
             if (dispatcherEntity.getUrl() == null || dispatcherEntity.getUrl().isEmpty()) {
                 it.remove();
             } else {
-                for (Iterator<DispatcherHandlerImpl> itOld = oldDispatchers.iterator(); itOld
-                        .hasNext();) {
+                for (Iterator<DispatcherHandlerImpl> itOld = oldDispatchers.iterator(); itOld.hasNext(); ) {
                     DispatcherHandlerImpl oldHandler = itOld.next();
-                    if (oldHandler.getDispatcher().getId().equals(dispatcherEntity.getId()) &&
-                            oldHandler.isActive()) {
-                        // Dispatcher ja existent
+                    if (oldHandler.getDispatcher().getId().equals(dispatcherEntity.getId()) && oldHandler.isActive()) {
                         itOld.remove();
                         it.remove();
-                        // Comprova si hi ha hagut canvis
                         DispatcherHandlerImpl current = dispatchers.get(oldHandler.getInternalId());
-                        Dispatcher newDispatcher = getDispatcherEntityDao().toDispatcher(
-                                dispatcherEntity);
+                        Dispatcher newDispatcher = getSystemEntityDao().toDispatcher(dispatcherEntity);
                         populateReplicaAttributes(dispatcherEntity, newDispatcher);
                         checkNulls(newDispatcher);
                         Dispatcher oldDispatcher = current.getDispatcher();
-                        if (!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) 
-                        {// S'han produït canvis
+                        if (!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) {
                             current.reconfigure(newDispatcher);
                         }
-                        // Seguent entity
                         break;
                     }
                 }
@@ -223,12 +203,12 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         }
 
         // Instanciar nous dispatchers
-        for (Iterator<DispatcherEntity> it = entities.iterator(); it.hasNext();) {
-            DispatcherEntity entity = it.next();
+        for (Iterator<SystemEntity> it = entities.iterator(); it.hasNext(); ) {
+            SystemEntity entity = it.next();
             DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
             int id = dispatchers.size();
-            Dispatcher dis = getDispatcherEntityDao().toDispatcher(entity);
-            populateReplicaAttributes (entity, dis);
+            Dispatcher dis = getSystemEntityDao().toDispatcher(entity);
+            populateReplicaAttributes(entity, dis);
             checkNulls(dis);
             handler.setDispatcher(dis);
             handler.setInternalId(id);
@@ -245,8 +225,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
      * @throws Exception 
      * @throws IOException 
 	 */
-	private void populateReplicaAttributes (DispatcherEntity entity, Dispatcher dis) throws IOException, Exception
-	{
+	private void populateReplicaAttributes(SystemEntity entity, Dispatcher dis) throws IOException, Exception {
 
 		if (! entity.getReplicaDatabases().isEmpty())
 		{

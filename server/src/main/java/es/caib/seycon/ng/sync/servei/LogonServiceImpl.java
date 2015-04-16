@@ -1,20 +1,20 @@
 package es.caib.seycon.ng.sync.servei;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.security.Principal;
-import java.sql.Timestamp;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Date;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Locale;
-
-import org.mortbay.log.Log;
-import org.mortbay.log.Logger;
-
+import com.soffid.iam.model.AccountEntity;
+import com.soffid.iam.model.AuditEntity;
+import com.soffid.iam.model.CardCellEntity;
+import com.soffid.iam.model.CardCellEntityDao;
+import com.soffid.iam.model.CardEntity;
+import com.soffid.iam.model.HostEntity;
+import com.soffid.iam.model.HostEntityDao;
+import com.soffid.iam.model.Parameter;
+import com.soffid.iam.model.PasswordDomainEntity;
+import com.soffid.iam.model.PasswordEntity;
+import com.soffid.iam.model.PasswordEntityDao;
+import com.soffid.iam.model.TaskEntity;
+import com.soffid.iam.model.UserAccountEntity;
+import com.soffid.iam.model.UserDataEntity;
+import com.soffid.iam.model.UserEntity;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.Auditoria;
 import es.caib.seycon.ng.comu.Challenge;
@@ -33,23 +33,6 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.LogonDeniedException;
 import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.model.AccountEntity;
-import es.caib.seycon.ng.model.AuditoriaEntity;
-import es.caib.seycon.ng.model.ContrasenyaEntity;
-import es.caib.seycon.ng.model.ContrasenyaEntityDao;
-import es.caib.seycon.ng.model.DadaUsuariEntity;
-import es.caib.seycon.ng.model.DominiContrasenyaEntity;
-import es.caib.seycon.ng.model.MaquinaEntity;
-import es.caib.seycon.ng.model.MaquinaEntityDao;
-import es.caib.seycon.ng.model.Parameter;
-import es.caib.seycon.ng.model.ScContar;
-import es.caib.seycon.ng.model.ScContarDao;
-import es.caib.seycon.ng.model.ScTarget;
-import es.caib.seycon.ng.model.TasqueEntity;
-import es.caib.seycon.ng.model.UserAccountEntity;
-import es.caib.seycon.ng.model.UsuariEntity;
-import es.caib.seycon.ng.model.XarxaEntity;
-import es.caib.seycon.ng.model.XarxaEntityDao;
 import es.caib.seycon.ng.servei.InternalPasswordService;
 import es.caib.seycon.ng.sync.engine.TaskHandler;
 import es.caib.seycon.ng.sync.engine.challenge.ChallengeStore;
@@ -57,6 +40,19 @@ import es.caib.seycon.ng.sync.engine.kerberos.KerberosManager;
 import es.caib.seycon.ng.sync.engine.session.SessionManager;
 import es.caib.seycon.ng.sync.jetty.Invoker;
 import es.caib.seycon.ng.utils.Security;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.security.Principal;
+import java.sql.Timestamp;
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Locale;
+import org.mortbay.log.Log;
+import org.mortbay.log.Logger;
 
 public class LogonServiceImpl extends LogonServiceBase {
     private static final int MIN_PAIN = 2000;
@@ -75,28 +71,28 @@ public class LogonServiceImpl extends LogonServiceBase {
         Auditoria auditoria = new Auditoria();
         auditoria.setAccio("p"); //$NON-NLS-1$
         auditoria.setAccount(account.getName());
-        auditoria.setBbdd(account.getDispatcher().getCodi());
+        auditoria.setBbdd(account.getSystem().getName());
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy kk:mm:ss"); //$NON-NLS-1$
         auditoria.setData(dateFormat.format(Calendar.getInstance().getTime()));
         auditoria.setObjecte("SC_ACCOUN"); //$NON-NLS-1$
 
-        AuditoriaEntity auditoriaEntity = getAuditoriaEntityDao().auditoriaToEntity(auditoria);
-        getAuditoriaEntityDao().create(auditoriaEntity);
+        AuditEntity auditoriaEntity = getAuditEntityDao().auditoriaToEntity(auditoria);
+        getAuditEntityDao().create(auditoriaEntity);
     }
 
-    private void auditUserPassword (UsuariEntity account, DominiContrasenyaEntity dominiContrasenyaEntity ) throws Exception {
+    private void auditUserPassword(UserEntity account, PasswordDomainEntity dominiContrasenyaEntity) throws Exception {
 
         Auditoria auditoria = new Auditoria();
         auditoria.setAccio("p"); //$NON-NLS-1$
-        auditoria.setUsuari(account.getCodi());
-        auditoria.setPasswordDomain(dominiContrasenyaEntity.getCodi());
+        auditoria.setUsuari(account.getUserName());
+        auditoria.setPasswordDomain(dominiContrasenyaEntity.getName());
         auditoria.setAutor(null);
         SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy kk:mm:ss"); //$NON-NLS-1$
         auditoria.setData(dateFormat.format(Calendar.getInstance().getTime()));
         auditoria.setObjecte("SC_USUARI"); //$NON-NLS-1$
 
-        AuditoriaEntity auditoriaEntity = getAuditoriaEntityDao().auditoriaToEntity(auditoria);
-        getAuditoriaEntityDao().create(auditoriaEntity);
+        AuditEntity auditoriaEntity = getAuditEntityDao().auditoriaToEntity(auditoria);
+        getAuditEntityDao().create(auditoriaEntity);
     }
 
     @Override
@@ -135,8 +131,8 @@ public class LogonServiceImpl extends LogonServiceBase {
             throws Exception {
         Resolver r = new Resolver(user, domain);
 
-        TasqueEntity tasque = getTasqueEntityDao().newTasqueEntity();
-        tasque.setData(new Timestamp(System.currentTimeMillis()));
+        TaskEntity tasque = getTaskEntityDao().newTaskEntity();
+        tasque.setDate(new Timestamp(System.currentTimeMillis()));
     	InternalPasswordService ips = getInternalPasswordService();
     	
     	Password p = new Password(password);
@@ -155,17 +151,17 @@ public class LogonServiceImpl extends LogonServiceBase {
 
        	if (domain == null)
         {
-        	tasque.setTransa(TaskHandler.PROPAGATE_PASSWORD);
-            tasque.setUsuari(r.getUserEntity().getCodi());
+        	tasque.setTransaction(TaskHandler.PROPAGATE_PASSWORD);
+            tasque.setUser(r.getUserEntity().getUserName());
         }
         else
         {
-        	tasque.setTransa(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD);
-            tasque.setUsuari(user);
-            tasque.setCoddis(domain);
+        	tasque.setTransaction(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD);
+            tasque.setUser(user);
+            tasque.setSystemName(domain);
         }
         
-        tasque.setContra(new Password(password).toString());
+        tasque.setPassword(new Password(password).toString());
         getTaskQueue().addTask(tasque);
     }
 
@@ -174,9 +170,9 @@ public class LogonServiceImpl extends LogonServiceBase {
         Resolver r = new Resolver(user, domain);
         if (domain == null)
         {
-	        ContrasenyaEntityDao dao = getContrasenyaEntityDao();
-	        ContrasenyaEntity contra = dao.findLastByUsuariDomini(r.getUserEntity(), r.getDominiContrasenyaEntity());
-	        if (contra == null || contra.getDataCaducitat().before(new Date()))
+	        PasswordEntityDao dao = getPasswordEntityDao();
+	        PasswordEntity contra = dao.findLastByUserDomain(r.getUserEntity(), r.getDominiContrasenyaEntity());
+	        if (contra == null || contra.getExpirationDate().before(new Date()))
 	            return true;
 	        else
 	            return false;
@@ -237,16 +233,11 @@ public class LogonServiceImpl extends LogonServiceBase {
             if (!ch.getCardNumber().equals("")) { //$NON-NLS-1$
                 String value = ""; //$NON-NLS-1$
                 // Localizar tarjeta y celda
-                List<ScContar> contar = getScContarDao().query(
-                        "from es.caib.seycon.ng.model.ScConTar contar " //$NON-NLS-1$
-                                + "join contar.targeta as targeta " //$NON-NLS-1$
-                                + "where targeta.codi=:codi and contar.filcol=:filcol", //$NON-NLS-1$
-                        new Parameter[] { new Parameter("codi", ch.getCardNumber()), //$NON-NLS-1$
-                                new Parameter("codi", ch.getCell()) }); //$NON-NLS-1$
-                if (contar.size() == 1 && contar.get(0).getValor().equals(challenge.getValue())) {
-                    ScContar contarEntity = contar.get(0);
-                    contarEntity.setDadaUs(new Date());
-                    getScContarDao().update(contarEntity);
+                List<CardCellEntity> contar = getCardCellEntityDao().query("from es.caib.seycon.ng.model.ScConTar contar join contar.targeta as targeta where targeta.codi=:codi and contar.filcol=:filcol", new Parameter[]{new Parameter("codi", ch.getCardNumber()), new Parameter("codi", ch.getCell())}); //$NON-NLS-1$
+                if (contar.size() == 1 && contar.get(0).getValue().equals(challenge.getValue())) {
+                    CardCellEntity contarEntity = contar.get(0);
+                    contarEntity.setExpirationDate(new Date());
+                    getCardCellEntityDao().update(contarEntity);
                 } else {
                     log.debug("Denied Challenge {} for user {}", challenge.getChallengeId(), //$NON-NLS-1$
                             challenge.getUser());
@@ -307,13 +298,11 @@ public class LogonServiceImpl extends LogonServiceBase {
 
     @Override
     protected boolean handleValidatePIN(String user, String pin) throws Exception {
-        UsuariEntity userEntity = getUsuariEntityDao().findByCodi(user);
-        for (Iterator<DadaUsuariEntity> it = userEntity.getDadaUsuari().iterator(); it.hasNext();) {
-            DadaUsuariEntity dada = it.next();
-            if (dada.getTipusDada().getCodi().equals("PIN")) { //$NON-NLS-1$
-                if (pin.equals(dada.getValorDada()))
-                    return true;
-                else {
+        UserEntity userEntity = getUserEntityDao().findByUserName(user);
+        for (Iterator<UserDataEntity> it = userEntity.getUserData().iterator(); it.hasNext(); ) {
+            UserDataEntity dada = it.next();
+            if (dada.getDataType().getName().equals("PIN")) {
+                if (pin.equals(dada.getValue())) return true; else {
                     punish();
                     return false;
                 }
@@ -359,7 +348,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 		}
 		Resolver resolver = new Resolver(user, domain);
 
-		final UsuariEntity userEntity = resolver.getUserEntity();
+		final UserEntity userEntity = resolver.getUserEntity();
 
 		// Check shared account login
 		if ((resolver.getAccountEntity() != null) &&
@@ -376,8 +365,8 @@ public class LogonServiceImpl extends LogonServiceBase {
 				Messages.getString("LogonServiceImpl.UknownUserMsg"), user)); //$NON-NLS-1$
 		}
         
-        final Usuari usuari = getUsuariEntityDao().toUsuari(userEntity);
-        log.debug("Received requestChallenge for user {} on {}", userEntity.getCodi(), clientIp); //$NON-NLS-1$
+        final Usuari usuari = getUserEntityDao().toUsuari(userEntity);
+        log.debug("Received requestChallenge for user {} on {}", userEntity.getUserName(), clientIp); //$NON-NLS-1$
 
         boolean able = false;
         boolean needed = false;
@@ -403,23 +392,15 @@ public class LogonServiceImpl extends LogonServiceBase {
             }
         }
         ch.setHost(findMaquina(hostIp));
-        List<ScTarget> targetes = getScTargetDao()
-                .query("select targeta from es.caib.seycon.ng.model.UsuariEntity as usuari " //$NON-NLS-1$
-                        + "join usuari.targetesExtranet as targeta " //$NON-NLS-1$
-                        + "with targeta.actiu='S' and targeta.dataCaducitat >= :now and targeta.dataEmissio < :now " //$NON-NLS-1$
-                        + "where usuari.codi = :codi " + "order by targeta.dataEmissio desc", //$NON-NLS-1$ //$NON-NLS-2$
-                        new Parameter[] { new Parameter("now", new Date()), //$NON-NLS-1$
-                                new Parameter("codi", user) }); //$NON-NLS-1$
+        List<CardEntity> targetes = getCardEntityDao().query("select targeta from es.caib.seycon.ng.model.UsuariEntity as usuari join usuari.targetesExtranet as targeta with targeta.actiu=\'S\' and targeta.dataCaducitat >= :now and targeta.dataEmissio < :now where usuari.codi = :codi order by targeta.dataEmissio desc", new Parameter[]{new Parameter("now", new Date()), new Parameter("codi", user)}); //$NON-NLS-1$
 
         if (targetes.size() > 0) {
-            ScTarget targeta = targetes.get(0);
+            CardEntity targeta = targetes.get(0);
             // Localizar una casilla al azar
             java.util.Random r = new java.util.Random();
-            ch.setCardNumber(targeta.getCodi());
-            ScContarDao contarDao = getScContarDao();
-            List<ScContar> cells = contarDao.query("from es.caib.seycon.ng.model.ScContar contar " //$NON-NLS-1$
-                    + "where contar.targeta=:targeta " + "order by contar.dadaUs", //$NON-NLS-1$ //$NON-NLS-2$
-                    new Parameter[] { new Parameter("targeta", targeta) }); //$NON-NLS-1$
+            ch.setCardNumber(targeta.getCode());
+            CardCellEntityDao contarDao = getCardCellEntityDao();
+            List<CardCellEntity> cells = contarDao.query("from es.caib.seycon.ng.model.ScContar contar where contar.targeta=:targeta order by contar.dadaUs", new Parameter[]{new Parameter("targeta", targeta)}); //$NON-NLS-1$
 
             int l = r.nextInt() % 50;
             if (cells.size() < l)
@@ -512,14 +493,14 @@ public class LogonServiceImpl extends LogonServiceBase {
             hostName = maquina;
         }
 
-        MaquinaEntityDao dao = getMaquinaEntityDao();
-        MaquinaEntity m = dao.findByAdreca(maquina);
+        HostEntityDao dao = getHostEntityDao();
+        HostEntity m = dao.findByIP(maquina);
         if (m == null) {
-        	m = dao.findByNom(hostName);
+        	m = dao.findByName(hostName);
         	if (m == null) {
                 int firstDot = hostName.indexOf("."); //$NON-NLS-1$
                 if (firstDot > 0) {
-                    m = dao.findByNom(hostName.substring(0, firstDot));
+                    m = dao.findByName(hostName.substring(0, firstDot));
                 }
             }
         }
@@ -531,20 +512,20 @@ public class LogonServiceImpl extends LogonServiceBase {
     }
 
     class Resolver {
-        UsuariEntity userEntity;
+        UserEntity userEntity;
         AccountEntity accountEntity;
-		DominiContrasenyaEntity dc;
+		PasswordDomainEntity dc;
 
 		public AccountEntity getAccountEntity ()
 		{
 			return accountEntity;
 		}
 
-        public UsuariEntity getUserEntity() {
+        public UserEntity getUserEntity() {
             return userEntity;
         }
 
-        public DominiContrasenyaEntity getDominiContrasenyaEntity() {
+        public PasswordDomainEntity getDominiContrasenyaEntity() {
             return dc;
         }
 
@@ -556,14 +537,13 @@ public class LogonServiceImpl extends LogonServiceBase {
 				domain = getPasswordService().getDefaultDispatcher();
 			}
 			
-			accountEntity = getAccountEntityDao()
-				.findByNameAndDispatcher(user, domain);
+			accountEntity = getAccountEntityDao().findByNameAndSystem(user, domain);
 			
 			if (accountEntity == null)
 				throw new UnknownUserException(String.format(
 					Messages.getString("LogonServiceImpl.UnknownUserOnDomainMsg"), user, domain)); //$NON-NLS-1$
 
-			dc = accountEntity.getDispatcher().getDomini();
+			dc = accountEntity.getSystem().getPasswordDomain();
 			for (UserAccountEntity ua : accountEntity.getUsers())
 			{
 				userEntity = ua.getUser();

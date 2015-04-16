@@ -1,5 +1,22 @@
 package es.caib.seycon.ng.sync.servei;
 
+import com.soffid.iam.model.AccountEntity;
+import com.soffid.iam.model.PasswordDomainEntity;
+import com.soffid.iam.model.SecretEntity;
+import com.soffid.iam.model.UserAccountEntity;
+import com.soffid.iam.model.UserEntity;
+import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.Password;
+import es.caib.seycon.ng.comu.PoliticaContrasenya;
+import es.caib.seycon.ng.comu.Server;
+import es.caib.seycon.ng.comu.UserAccount;
+import es.caib.seycon.ng.comu.Usuari;
+import es.caib.seycon.ng.comu.sso.Secret;
+import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.servei.DominiUsuariService;
+import es.caib.seycon.ng.servei.InternalPasswordService;
+import es.caib.seycon.util.Base64;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -14,35 +31,13 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
-
 import org.bouncycastle.crypto.RuntimeCryptoException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
-
-import es.caib.seycon.ng.comu.Account;
-import es.caib.seycon.ng.comu.AccountType;
-import es.caib.seycon.ng.comu.Password;
-import es.caib.seycon.ng.comu.PoliticaContrasenya;
-import es.caib.seycon.ng.comu.Server;
-import es.caib.seycon.ng.comu.UserAccount;
-import es.caib.seycon.ng.comu.Usuari;
-import es.caib.seycon.ng.comu.sso.Secret;
-import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.model.AccountEntity;
-import es.caib.seycon.ng.model.DispatcherEntity;
-import es.caib.seycon.ng.model.DominiContrasenyaEntity;
-import es.caib.seycon.ng.model.PoliticaContrasenyaEntity;
-import es.caib.seycon.ng.model.SecretEntity;
-import es.caib.seycon.ng.model.UserAccountEntity;
-import es.caib.seycon.ng.model.UsuariEntity;
-import es.caib.seycon.ng.servei.DominiUsuariService;
-import es.caib.seycon.ng.servei.InternalPasswordService;
-import es.caib.seycon.util.Base64;
 
 public class SecretStoreServiceImpl extends SecretStoreServiceBase {
     Logger log = Log.getLogger("SecretStore");
@@ -130,7 +125,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
             BadPaddingException, InternalErrorException {
         Secret s;
         
-        UsuariEntity userEntity = getUsuariEntityDao().load(user.getId());
+        UserEntity userEntity = getUserEntityDao().load(user.getId());
         // Afegir secrets amb codi d'usuari
         for ( Iterator<Secret> it = secrets.iterator(); it.hasNext(); ) {
             s = it.next();
@@ -141,32 +136,22 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
         s.setName("user");
         s.setValue(new Password(user.getCodi()));
         secrets.add(s);
-        for (Iterator<Server> it = getSecretConfigurationService().getAllServers().iterator(); it
-                .hasNext();) {
+        for (Iterator<Server> it = getSecretConfigurationService().getAllServers().iterator(); it.hasNext(); ) {
             Server server = it.next();
-            SecretEntity secretEntity = getSecretEntityDao().findByUserAndServer(user.getId(),
-                    server.getId());
+            SecretEntity secretEntity = getSecretEntityDao().findByUserAndServer(user.getId(), server.getId());
             boolean create = false;
             if (secretEntity == null) {
                 create = true;
                 secretEntity = getSecretEntityDao().newSecretEntity();
-                secretEntity.setUsuari(userEntity);
+                secretEntity.setUser(userEntity);
                 secretEntity.setServer(getServerEntityDao().load(server.getId()));
             }
-
             if (server.getPublicKey() != null || true) {
-
-                byte b[] = encode(secrets);
-                // Cifrar el mensaje
+                byte[] b = encode(secrets);
                 byte[] r = encrypt(server, b);
-
                 secretEntity.setSecrets(r);
-                if (create)
-                    getSecretEntityDao().create(secretEntity);
-                else
-                    getSecretEntityDao().update(secretEntity);
+                if (create) getSecretEntityDao().create(secretEntity); else getSecretEntityDao().update(secretEntity);
             }
-
         }
     }
 
@@ -230,10 +215,8 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
     }
 
     protected Collection<Usuari> handleGetUsersWithSecrets() {
-        List<UsuariEntity> usuaris = getUsuariEntityDao().query(
-                "select distinct usuari " + "from es.caib.seycon.ng.model.UsuariEntity as usuari "
-                        + "join usuari.secrets as secret", null);
-        return getUsuariEntityDao().toUsuariList(usuaris);
+        List<UserEntity> usuaris = getUserEntityDao().query("select distinct usuari from es.caib.seycon.ng.model.UsuariEntity as usuari join usuari.secrets as secret", null);
+        return getUserEntityDao().toUsuariList(usuaris);
     }
 
 	@Override
@@ -367,7 +350,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 			{
 				if (account instanceof UserAccount)
 				{
-					DominiContrasenyaEntity dce = getDominiContrasenyaEntityDao().findByDispatcher(account.getDispatcher());
+					PasswordDomainEntity dce = getPasswordDomainEntityDao().findBySystem(account.getDispatcher());
 					p = searchSecret(secrets, "dompass/"+dce.getId());
 				}
 			}
@@ -398,7 +381,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	public void handleSetPassword (Usuari user, String passwordDomain, Password p)
 					throws Exception
 	{
-		DominiContrasenyaEntity domini = getDominiContrasenyaEntityDao().findByCodi(passwordDomain);
+		PasswordDomainEntity domini = getPasswordDomainEntityDao().findByName(passwordDomain);
 		if (domini != null)
 			handlePutSecret(user, "dompass/"+domini.getId(), p);
 	}

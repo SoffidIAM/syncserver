@@ -1,40 +1,46 @@
 package es.caib.seycon.ng.sync.servei;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.io.Reader;
-import java.net.InetAddress;
-import java.net.URL;
-import java.security.cert.X509Certificate;
-import java.sql.Clob;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.servlet.http.HttpServletRequest;
-
-import org.mortbay.log.Log;
-import org.mortbay.log.Logger;
-
 import com.soffid.iam.api.AttributeTranslation;
+import com.soffid.iam.model.AccessControlEntity;
+import com.soffid.iam.model.AccessControlEntityDao;
+import com.soffid.iam.model.AccountEntity;
+import com.soffid.iam.model.AgentDescriptorEntity;
+import com.soffid.iam.model.AuthorizationEntity;
+import com.soffid.iam.model.AuthorizationEntityDao;
+import com.soffid.iam.model.ConfigEntity;
+import com.soffid.iam.model.EmailListContainerEntity;
+import com.soffid.iam.model.EmailListEntity;
+import com.soffid.iam.model.EmailListEntityDao;
+import com.soffid.iam.model.EntryPointEntity;
+import com.soffid.iam.model.EntryPointEntityDao;
+import com.soffid.iam.model.ExternEmailEntity;
+import com.soffid.iam.model.GroupEntity;
+import com.soffid.iam.model.GroupEntityDao;
+import com.soffid.iam.model.HostEntity;
+import com.soffid.iam.model.NetworkAuthorizationEntity;
+import com.soffid.iam.model.NetworkEntity;
+import com.soffid.iam.model.NetworkEntityDao;
+import com.soffid.iam.model.Parameter;
+import com.soffid.iam.model.PasswordDomainEntity;
+import com.soffid.iam.model.PasswordPolicyEntity;
+import com.soffid.iam.model.RoleDependencyEntityDao;
+import com.soffid.iam.model.RoleEntity;
+import com.soffid.iam.model.RoleEntityDao;
+import com.soffid.iam.model.RoleGroupEntity;
+import com.soffid.iam.model.RoleGroupEntityDao;
+import com.soffid.iam.model.SystemEntity;
+import com.soffid.iam.model.SystemEntityDao;
+import com.soffid.iam.model.UserAccountEntity;
+import com.soffid.iam.model.UserDataEntity;
+import com.soffid.iam.model.UserDataEntityDao;
+import com.soffid.iam.model.UserDomainEntityDao;
+import com.soffid.iam.model.UserEmailEntity;
+import com.soffid.iam.model.UserEntity;
+import com.soffid.iam.model.UserEntityDao;
+import com.soffid.iam.model.UserGroupEntity;
+import com.soffid.iam.model.UserGroupEntityDao;
+import com.soffid.iam.model.UserPrinterEntityDao;
 import com.soffid.iam.service.CertificateValidationService;
-
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
@@ -74,51 +80,6 @@ import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownNetworkException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.model.AccountEntity;
-import es.caib.seycon.ng.model.AccountEntityDao;
-import es.caib.seycon.ng.model.AgentDescriptorEntity;
-import es.caib.seycon.ng.model.AutoritzacioRolEntity;
-import es.caib.seycon.ng.model.AutoritzacioRolEntityDao;
-import es.caib.seycon.ng.model.ConfiguracioEntity;
-import es.caib.seycon.ng.model.ControlAccessEntity;
-import es.caib.seycon.ng.model.ControlAccessEntityDao;
-import es.caib.seycon.ng.model.CorreuExternEntity;
-import es.caib.seycon.ng.model.DadaUsuariEntity;
-import es.caib.seycon.ng.model.DadaUsuariEntityDao;
-import es.caib.seycon.ng.model.DispatcherEntity;
-import es.caib.seycon.ng.model.DispatcherEntityDao;
-import es.caib.seycon.ng.model.DominiContrasenyaEntity;
-import es.caib.seycon.ng.model.DominiUsuariEntity;
-import es.caib.seycon.ng.model.DominiUsuariEntityDao;
-import es.caib.seycon.ng.model.GrupDispatcherEntity;
-import es.caib.seycon.ng.model.GrupEntity;
-import es.caib.seycon.ng.model.GrupEntityDao;
-import es.caib.seycon.ng.model.LlistaCorreuEntity;
-import es.caib.seycon.ng.model.LlistaCorreuEntityDao;
-import es.caib.seycon.ng.model.LlistaCorreuUsuariEntity;
-import es.caib.seycon.ng.model.MaquinaEntity;
-import es.caib.seycon.ng.model.Parameter;
-import es.caib.seycon.ng.model.PoliticaContrasenyaEntity;
-import es.caib.seycon.ng.model.PuntEntradaEntity;
-import es.caib.seycon.ng.model.PuntEntradaEntityDao;
-import es.caib.seycon.ng.model.RelacioLlistaCorreuEntity;
-import es.caib.seycon.ng.model.RolAccountEntity;
-import es.caib.seycon.ng.model.RolAssociacioRolEntity;
-import es.caib.seycon.ng.model.RolAssociacioRolEntityDao;
-import es.caib.seycon.ng.model.RolEntity;
-import es.caib.seycon.ng.model.RolEntityDao;
-import es.caib.seycon.ng.model.RolsGrupEntity;
-import es.caib.seycon.ng.model.RolsGrupEntityDao;
-import es.caib.seycon.ng.model.TipusUsuariDispatcherEntity;
-import es.caib.seycon.ng.model.UserAccountEntity;
-import es.caib.seycon.ng.model.UsuariEntity;
-import es.caib.seycon.ng.model.UsuariEntityDao;
-import es.caib.seycon.ng.model.UsuariGrupEntity;
-import es.caib.seycon.ng.model.UsuariGrupEntityDao;
-import es.caib.seycon.ng.model.UsuariImpressoraEntityDao;
-import es.caib.seycon.ng.model.XarxaACEntity;
-import es.caib.seycon.ng.model.XarxaEntity;
-import es.caib.seycon.ng.model.XarxaEntityDao;
 import es.caib.seycon.ng.servei.DispatcherService;
 import es.caib.seycon.ng.servei.UsuariService;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
@@ -133,6 +94,35 @@ import es.caib.seycon.ng.sync.servei.server.Compile;
 import es.caib.seycon.ng.sync.servei.server.Compile2;
 import es.caib.seycon.ng.sync.servei.server.Compile3;
 import es.caib.seycon.ng.utils.Security;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.Reader;
+import java.net.InetAddress;
+import java.net.URL;
+import java.security.cert.X509Certificate;
+import java.sql.Clob;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import javax.servlet.http.HttpServletRequest;
+import org.mortbay.log.Log;
+import org.mortbay.log.Logger;
 
 public class ServerServiceImpl extends ServerServiceBase {
     Logger log = Log.getLogger("ServerServiceImpl"); //$NON-NLS-1$
@@ -140,19 +130,19 @@ public class ServerServiceImpl extends ServerServiceBase {
     @Override
     protected Usuari handleGetUserInfo(String user, String dispatcherId)
             throws Exception {
-        DominiUsuariEntityDao duDao = getDominiUsuariEntityDao();
-        UsuariEntityDao dao = getUsuariEntityDao();
+        UserDomainEntityDao duDao = getUserDomainEntityDao();
+        UserEntityDao dao = getUserEntityDao();
 
-        UsuariEntity entity = null;
+        UserEntity entity = null;
 
         if (dispatcherId == null) {
-            entity = dao.findByCodi(user);
+            entity = dao.findByUserName(user);
             if (entity == null)
                 throw new UnknownUserException(user);
         } else {
         	String codi = null;
             
-        	AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(user, dispatcherId);
+        	AccountEntity acc = getAccountEntityDao().findByNameAndSystem(user, dispatcherId);
         	
         	if (acc == null)
         		throw new UnknownUserException();
@@ -167,7 +157,7 @@ public class ServerServiceImpl extends ServerServiceBase {
    			if (entity == null)
    				throw new UnknownUserException();
         }
-		return getUsuariEntityDao().toUsuari(entity);
+		return getUserEntityDao().toUsuari(entity);
     }
 
     private Dispatcher getDispatcher(String dispatcherId) throws InternalErrorException {
@@ -190,31 +180,25 @@ public class ServerServiceImpl extends ServerServiceBase {
         	dispatcher = getDispatcher(dispatcherId);
         }
 
-        GrupEntityDao daoGrup = getGrupEntityDao();
-        UsuariEntityDao daoUsuari = getUsuariEntityDao();
-        UsuariGrupEntityDao daoUsuariGrup = getUsuariGrupEntityDao();
-        GrupEntity entity = daoGrup.load(groupId);
+        GroupEntityDao daoGrup = getGroupEntityDao();
+        UserEntityDao daoUsuari = getUserEntityDao();
+        UserGroupEntityDao daoUsuariGrup = getUserGroupEntityDao();
+        GroupEntity entity = daoGrup.load(groupId);
         if (entity == null)
             throw new UnknownGroupException(Long.toString(groupId));
 
         Collection<Usuari> result = new LinkedList<Usuari>();
-        for (Iterator<UsuariEntity> it = daoUsuari.findByGrupPrimari(entity.getCodi()).iterator(); it
-                .hasNext();) {
-            UsuariEntity usuariEntity = it.next();
-            if (!nomesUsuarisActius && "S".equals(usuariEntity.getActiu())) { //$NON-NLS-1$
-                if (dispatcher == null || 
-                	getDispatcherService().isUserAllowed(dispatcher, usuariEntity.getCodi()))
-                		result.add(daoUsuari.toUsuari(usuariEntity));
+        for (Iterator<UserEntity> it = daoUsuari.findByPrimaryGroup(entity.getName()).iterator(); it.hasNext(); ) {
+            UserEntity usuariEntity = it.next();
+            if (!nomesUsuarisActius && "S".equals(usuariEntity.getActive())) {
+                if (dispatcher == null || getDispatcherService().isUserAllowed(dispatcher, usuariEntity.getUserName())) result.add(daoUsuari.toUsuari(usuariEntity));
             }
         }
 
-        for (Iterator<UsuariGrupEntity> it = daoUsuariGrup.findByCodiGrup(entity.getCodi())
-                .iterator(); it.hasNext();) {
-            UsuariGrupEntity ugEntity = it.next();
-            if (!nomesUsuarisActius && "S".equals(ugEntity.getUsuari().getActiu())) { //$NON-NLS-1$
-                if (dispatcher == null || 
-                    	getDispatcherService().isUserAllowed(dispatcher, ugEntity.getUsuari().getCodi()))
-                    result.add(daoUsuari.toUsuari(ugEntity.getUsuari()));
+        for (Iterator<UserGroupEntity> it = daoUsuariGrup.findByGroupName(entity.getName()).iterator(); it.hasNext(); ) {
+            UserGroupEntity ugEntity = it.next();
+            if (!nomesUsuarisActius && "S".equals(ugEntity.getUser().getActive())) {
+                if (dispatcher == null || getDispatcherService().isUserAllowed(dispatcher, ugEntity.getUser().getUserName())) result.add(daoUsuari.toUsuari(ugEntity.getUser()));
             }
         }
 
@@ -228,20 +212,12 @@ public class ServerServiceImpl extends ServerServiceBase {
     	List<Account> acc = new LinkedList<Account>();
     	Collection<RolGrant> rgs = getAplicacioService().findEffectiveRolGrantsByRolId(roleId);
     	Date now = new Date();
-    	for (RolGrant rg: rgs)
-    	{
-			if ( (rg.getStartDate() == null || now.after(rg.getStartDate())) &&
-		    				(rg.getEndDate() == null || now.before(rg.getEndDate())))
-   			{
-        		AccountEntity account = getAccountEntityDao().
-        				findByNameAndDispatcher(rg.getOwnerAccountName(), rg.getOwnerDispatcher());
-        		if (account.getUsers().isEmpty())
-        			acc.add(getAccountEntityDao().toAccount(account));
-        		else
-        			for (UserAccountEntity uae: account.getUsers())
-        				acc.add(getUserAccountEntityDao().toUserAccount(uae));
-   			}
-    	}
+    	for (RolGrant rg : rgs) {
+            if ((rg.getStartDate() == null || now.after(rg.getStartDate())) && (rg.getEndDate() == null || now.before(rg.getEndDate()))) {
+                AccountEntity account = getAccountEntityDao().findByNameAndSystem(rg.getOwnerAccountName(), rg.getOwnerDispatcher());
+                if (account.getUsers().isEmpty()) acc.add(getAccountEntityDao().toAccount(account)); else for (UserAccountEntity uae : account.getUsers()) acc.add(getUserAccountEntityDao().toUserAccount(uae));
+            }
+        }
     	return acc;
     }
 
@@ -250,110 +226,91 @@ public class ServerServiceImpl extends ServerServiceBase {
             throws Exception {
     	List<Account> acc = new LinkedList<Account>();
     	Collection<RolGrant> rgs = getAplicacioService().findEffectiveRolGrantsByRolId(roleId);
-    	for (RolGrant rg: rgs)
-    	{
-    		AccountEntity account = getAccountEntityDao().
-    				findByNameAndDispatcher(rg.getOwnerAccountName(), rg.getOwnerDispatcher());
-    		if (!account.isDisabled())
-    		{
-        		if (account.getUsers().isEmpty())
-        			acc.add(getAccountEntityDao().toAccount(account));
-        		else
-        			for (UserAccountEntity uae: account.getUsers())
-        				acc.add(getUserAccountEntityDao().toUserAccount(uae));
-    		}
-    	}
+    	for (RolGrant rg : rgs) {
+            AccountEntity account = getAccountEntityDao().findByNameAndSystem(rg.getOwnerAccountName(), rg.getOwnerDispatcher());
+            if (!account.isDisabled()) {
+                if (account.getUsers().isEmpty()) acc.add(getAccountEntityDao().toAccount(account)); else for (UserAccountEntity uae : account.getUsers()) acc.add(getUserAccountEntityDao().toUserAccount(uae));
+            }
+        }
     	return acc;
     }
 
     @Override
     protected Collection<RolGrant> handleGetRoleExplicitRoles(long roleId) throws Exception {
-        RolEntityDao rolDao = getRolEntityDao();
-        RolAssociacioRolEntityDao rarDao = getRolAssociacioRolEntityDao();
+        RoleEntityDao rolDao = getRoleEntityDao();
+        RoleDependencyEntityDao rarDao = getRoleDependencyEntityDao();
 
-        RolEntity rol = rolDao.load(roleId);
+        RoleEntity rol = rolDao.load(roleId);
         if (rol == null)
             throw new UnknownRoleException();
 
-        return rarDao.toRolGrantList(rol.getRolAssociacioRolSocContenidor());
+        return rarDao.toRolGrantList(rol.getContainedRole());
     }
 
     @Override
     protected Collection<Grup> handleGetUserGroups(String accountName, String dispatcherId) throws Exception {
-        HashMap<String, GrupEntity> grups = getUserGrupsMap(accountName, dispatcherId);
-        return getGrupEntityDao().toGrupList(grups.values());
+        HashMap<String, GroupEntity> grups = getUserGrupsMap(accountName, dispatcherId);
+        return getGroupEntityDao().toGrupList(grups.values());
     }
 
-	private HashMap<String, GrupEntity> getUserGrupsMap(String accountName,
-			String dispatcherId) throws UnknownUserException,
-			InternalErrorException {
-		UsuariEntityDao dao = getUsuariEntityDao();
-    	GrupEntityDao grupDao = getGrupEntityDao();
-        HashMap<String, GrupEntity>grups = new HashMap<String, GrupEntity>();
+	private HashMap<String, GroupEntity> getUserGrupsMap(String accountName, String dispatcherId) throws UnknownUserException, InternalErrorException {
+		UserEntityDao dao = getUserEntityDao();
+    	GroupEntityDao grupDao = getGroupEntityDao();
+        HashMap<String, GroupEntity> grups = new HashMap<String, GroupEntity>();
 
         if (dispatcherId == null)
         {
-        	UsuariEntity user = dao.findByCodi(accountName);
-        	if (! grups.containsKey(user.getGrupPrimari().getCodi()))
-        		grups.put(user.getGrupPrimari().getCodi(), user.getGrupPrimari());
-	        for (Iterator<UsuariGrupEntity> it = user.getGrupsSecundaris().iterator(); it.hasNext();) {
-	            UsuariGrupEntity uge = it.next();
-	        	if (! grups.containsKey(uge.getGrup().getCodi()))
-	        		grups.put(uge.getGrup().getCodi(), uge.getGrup());
-	        }
+        	UserEntity user = dao.findByUserName(accountName);
+        	if (!grups.containsKey(user.getPrimaryGroup().getName()))
+        		grups.put(user.getPrimaryGroup().getName(), user.getPrimaryGroup());
+	        for (Iterator<UserGroupEntity> it = user.getSecondaryGroups().iterator(); it.hasNext(); ) {
+                UserGroupEntity uge = it.next();
+                if (!grups.containsKey(uge.getGroup().getName())) grups.put(uge.getGroup().getName(), uge.getGroup());
+            }
         }
         else
         {
-	        AccountEntity account = getAccountEntityDao().findByNameAndDispatcher(accountName, dispatcherId); 
+	        AccountEntity account = getAccountEntityDao().findByNameAndSystem(accountName, dispatcherId); 
 	        if (account == null)
 	            throw new UnknownUserException(accountName+"/"+dispatcherId); //$NON-NLS-1$
 	
 	        if (account.getType().equals (AccountType.USER))
 	        {
 	        	Dispatcher dispatcher = getDispatcher (dispatcherId);
-		        for (UserAccountEntity ua: account.getUsers())
-		        {
-		        	UsuariEntity user = ua.getUser();
-			        if (getDispatcherService().isGroupAllowed(dispatcher, user.getGrupPrimari().getCodi()))
-			        {
-			        	if (! grups.containsKey(user.getGrupPrimari().getCodi()))
-			        		grups.put(user.getGrupPrimari().getCodi(),
-				        		user.getGrupPrimari());
-			        }
-			        for (Iterator<UsuariGrupEntity> it = user.getGrupsSecundaris().iterator(); it.hasNext();) {
-			            UsuariGrupEntity uge = it.next();
-				        if (getDispatcherService().isGroupAllowed(dispatcher, uge.getGrup().getCodi()))
-				        	if (! grups.containsKey(uge.getGrup().getCodi()))
-				        		grups.put(uge.getGrup().getCodi(),
-				        			uge.getGrup());
-			        }
-		        }
+		        for (UserAccountEntity ua : account.getUsers()) {
+                    UserEntity user = ua.getUser();
+                    if (getDispatcherService().isGroupAllowed(dispatcher, user.getPrimaryGroup().getName())) {
+                        if (!grups.containsKey(user.getPrimaryGroup().getName())) grups.put(user.getPrimaryGroup().getName(), user.getPrimaryGroup());
+                    }
+                    for (Iterator<UserGroupEntity> it = user.getSecondaryGroups().iterator(); it.hasNext(); ) {
+                        UserGroupEntity uge = it.next();
+                        if (getDispatcherService().isGroupAllowed(dispatcher, uge.getGroup().getName())) if (!grups.containsKey(uge.getGroup().getName())) grups.put(uge.getGroup().getName(), uge.getGroup());
+                    }
+                }
 	        }
         }
 		return grups;
 	}
 
-	private void testInclusion(Dispatcher dispatcher, UsuariEntity entity)
-			throws InternalErrorException, UnknownUserException {
-		if (dispatcher != null && !getDispatcherService().isUserAllowed(dispatcher, entity.getCodi()))
+	private void testInclusion(Dispatcher dispatcher, UserEntity entity) throws InternalErrorException, UnknownUserException {
+		if (dispatcher != null && !getDispatcherService().isUserAllowed(dispatcher, entity.getUserName()))
         	throw new UnknownUserException();
 	}
 
     @Override
     protected Collection<Grup> handleGetUserGroupsHierarchy(String accountName, String dispatcherId)
             throws Exception {
-        HashMap<String, GrupEntity> grups = getUserGrupsMap(accountName, dispatcherId);
+        HashMap<String, GroupEntity> grups = getUserGrupsMap(accountName, dispatcherId);
         LinkedList<Grup> values = new LinkedList<Grup>();
         HashSet<String> keys = new HashSet<String>(grups.keySet());
-        GrupEntityDao grupDao = getGrupEntityDao();
-        for (GrupEntity grup: grups.values())
-        {
-        	while ( grup != null && ! keys.contains(grup.getCodi()))
-        	{
-        		keys.add(grup.getCodi());
-        		values.add(grupDao.toGrup(grup));
-        		grup = grup.getPare();
-        	};
+        GroupEntityDao grupDao = getGroupEntityDao();
+        for (GroupEntity grup : grups.values()) {
+            while (grup != null && !keys.contains(grup.getName())) {
+                keys.add(grup.getName());
+                values.add(grupDao.toGrup(grup));
+                grup = grup.getParent();
+            }
+            ;
         }
 
         return values;
@@ -363,7 +320,7 @@ public class ServerServiceImpl extends ServerServiceBase {
     @Override
     protected Collection<RolGrant> handleGetUserRoles(long userId, String dispatcherid)
             throws Exception {
-    	UsuariEntity user = getUsuariEntityDao().load(new Long(userId));
+    	UserEntity user = getUserEntityDao().load(new Long(userId));
     	List<AccountEntity> accounts = null;
     	if (dispatcherid == null)
     	{
@@ -375,7 +332,7 @@ public class ServerServiceImpl extends ServerServiceBase {
     		}
     	}
     	else
-    		accounts = getAccountEntityDao().findByUsuariAndDispatcher(user.getCodi(), dispatcherid);
+    		accounts = getAccountEntityDao().findByUserAndSystem(user.getUserName(), dispatcherid);
     	
     	Collection<RolGrant> grants = new LinkedList<RolGrant>();
 		Date now = new Date();
@@ -392,10 +349,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected Collection<RolGrant> handleGetGroupExplicitRoles(long groupId) throws Exception {
-        GrupEntityDao grupDao = getGrupEntityDao();
-        GrupEntity grup = grupDao.load(groupId);
-        RolsGrupEntityDao rgDao = getRolsGrupEntityDao();
-        Collection<RolsGrupEntity> rols = grup.getRolsOtorgatsGrup();
+        GroupEntityDao grupDao = getGroupEntityDao();
+        GroupEntity grup = grupDao.load(groupId);
+        RoleGroupEntityDao rgDao = getRoleGroupEntityDao();
+        Collection<RoleGroupEntity> rols = grup.getAllowedRolesToGroup();
         return rgDao.toRolGrantList(rols);
     }
 
@@ -417,11 +374,11 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected DadaUsuari handleGetUserData(long userId, String data) throws Exception {
-        DadaUsuariEntityDao dao = getDadaUsuariEntityDao();
+        UserDataEntityDao dao = getUserDataEntityDao();
 
-        UsuariEntity usuari = getUsuariEntityDao().load(userId);
+        UserEntity usuari = getUserEntityDao().load(userId);
 
-        DadaUsuariEntity dataEntity = dao.findDadaByCodiTipusDada(usuari.getCodi(), data);
+        UserDataEntity dataEntity = dao.findByDataType(usuari.getUserName(), data);
         if (dataEntity == null)
             return null;
         else
@@ -431,35 +388,35 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected Collection<UsuariImpressora> handleGetUserPrinters(Long userId) throws Exception {
-        UsuariEntity user = getUsuariEntityDao().load(userId);
+        UserEntity user = getUserEntityDao().load(userId);
         if (user == null)
             throw new UnknownUserException(userId.toString());
-        UsuariImpressoraEntityDao dao = getUsuariImpressoraEntityDao();
-        return dao.toUsuariImpressoraList(user.getImpressores());
+        UserPrinterEntityDao dao = getUserPrinterEntityDao();
+        return dao.toUsuariImpressoraList(user.getPrinters());
     }
 
     @Override
     protected Maquina handleGetHostInfo(String hostName) throws Exception {
-        MaquinaEntity host = getMaquinaEntityDao().findByNom(hostName);
+        HostEntity host = getHostEntityDao().findByName(hostName);
         if (host == null)
             throw new UnknownHostException(hostName);
-        return getMaquinaEntityDao().toMaquina(host);
+        return getHostEntityDao().toMaquina(host);
     }
 
     @Override
     protected Maquina handleGetHostInfoByIP(String ip) throws Exception {
-        MaquinaEntity host = getMaquinaEntityDao().findByAdreca(ip);
+        HostEntity host = getHostEntityDao().findByIP(ip);
         if (host == null)
             throw new UnknownHostException(ip);
-        return getMaquinaEntityDao().toMaquina(host);
+        return getHostEntityDao().toMaquina(host);
     }
 
     @Override
     protected Xarxa handleGetNetworkInfo(String network) throws Exception {
-        XarxaEntity xarxa = getXarxaEntityDao().findByCodi(network);
+        NetworkEntity xarxa = getNetworkEntityDao().findByName(network);
         if (xarxa == null)
             throw new UnknownNetworkException(network);
-        return getXarxaEntityDao().toXarxa(xarxa);
+        return getNetworkEntityDao().toXarxa(xarxa);
     }
 
     @Override
@@ -471,24 +428,22 @@ public class ServerServiceImpl extends ServerServiceBase {
         
         DispatcherService disSvc = getDispatcherService();
 
-        GrupEntityDao dao = getGrupEntityDao();
-        GrupEntity entity = dao.load(groupId);
+        GroupEntityDao dao = getGroupEntityDao();
+        GroupEntity entity = dao.load(groupId);
         if (entity == null)
             throw new UnknownGroupException(Long.toString(groupId));
         LinkedList<Grup> grups = new LinkedList<Grup>();
-        for (Iterator<GrupEntity> it = entity.getFills().iterator(); it.hasNext();) {
-            GrupEntity ge = it.next();
-            if (dispatcher == null ||
-            	disSvc.isGroupAllowed(dispatcher, ge.getCodi()))
-                grups.add(dao.toGrup(ge));
+        for (Iterator<GroupEntity> it = entity.getChildrens().iterator(); it.hasNext(); ) {
+            GroupEntity ge = it.next();
+            if (dispatcher == null || disSvc.isGroupAllowed(dispatcher, ge.getName())) grups.add(dao.toGrup(ge));
         }
         return grups;
     }
 
     @Override
     protected Rol handleGetRoleInfo(String role, String bd) throws Exception {
-        RolEntityDao dao = getRolEntityDao();
-        RolEntity rolEntity = dao.findByNameAndDispatcher(role, bd);
+        RoleEntityDao dao = getRoleEntityDao();
+        RoleEntity rolEntity = dao.findByNameAndSystem(role, bd);
         if (rolEntity != null)  
             return dao.toRol(rolEntity);
         else
@@ -497,7 +452,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected Collection<Xarxa> handleGetNetworksList() throws Exception {
-        XarxaEntityDao dao = getXarxaEntityDao();
+        NetworkEntityDao dao = getNetworkEntityDao();
         return dao.toXarxaList(dao.loadAll());
     }
 
@@ -529,19 +484,19 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected Collection<Maquina> handleGetHostsFromNetwork(long networkId) throws Exception {
-        XarxaEntity xarxa = getXarxaEntityDao().load(networkId);
+        NetworkEntity xarxa = getNetworkEntityDao().load(networkId);
         if (xarxa == null)
             throw new UnknownNetworkException(Long.toString(networkId));
-        return getMaquinaEntityDao().toMaquinaList(xarxa.getMaquines());
+        return getHostEntityDao().toMaquinaList(xarxa.getHosts());
     }
 
     @Override
     protected String handleGetConfig(String param) throws Exception {
         Invoker invoker = Invoker.getInvoker();
-        XarxaEntity xarxa = null;
+        NetworkEntity xarxa = null;
 
         if (invoker != null) {
-            XarxaEntityDao dao = getXarxaEntityDao();
+            NetworkEntityDao dao = getNetworkEntityDao();
             InetAddress addr = invoker.getAddr();
             byte b[] = addr.getAddress();
             for (int bc = b.length - 1; xarxa == null && bc >= 0; bc--) {
@@ -551,62 +506,53 @@ public class ServerServiceImpl extends ServerServiceBase {
                     b[bc] = (byte) (b[bc] & mascara);
                     InetAddress addr2 = InetAddress.getByAddress(b);
                     String addrText = addr2.getHostAddress();
-                    xarxa = dao.findByAdreca(addrText);
+                    xarxa = dao.findByAddress(addrText);
                 }
             }
         }
-        ConfiguracioEntity config;
+        ConfigEntity config;
         if (xarxa == null)
-            config = getConfiguracioEntityDao().findByCodiAndCodiXarxa(param, null);
+            config = getConfigEntityDao().findByCodeAndNetworkCode(param, null);
         else {
-            config = getConfiguracioEntityDao().findByCodiAndCodiXarxa(param, xarxa.getCodi());
+            config = getConfigEntityDao().findByCodeAndNetworkCode(param, xarxa.getName());
             if (config == null)
-                config = getConfiguracioEntityDao().findByCodiAndCodiXarxa(param, null);
+                config = getConfigEntityDao().findByCodeAndNetworkCode(param, null);
         }
 
         if (config == null)
             return null;
         else
-            return config.getValor();
+            return config.getValue();
 
     }
 
     @Override
     protected LlistaCorreu handleGetMailList(String list, String domain) throws Exception {
-        LlistaCorreuEntityDao dao = getLlistaCorreuEntityDao();
-        LlistaCorreuEntity entity = dao.findByNomAndCodiDomini(list, domain);
+        EmailListEntityDao dao = getEmailListEntityDao();
+        EmailListEntity entity = dao.findByNameAndDomain(list, domain);
         if (entity != null) {
             return dao.toLlistaCorreu(entity);
         }
         
-            UsuariEntity usuari = getUserForMailList(list, domain);
+            UserEntity usuari = getUserForMailList(list, domain);
             LlistaCorreu llista = new LlistaCorreu();
             llista.setId(null);
             llista.setCodiDomini(domain);
             llista.setNom(list);
-            llista.setLlistaUsuaris(usuari.getCodi());
-            llista.setDescripcio(usuari.getNom()+" "+usuari.getPrimerLlinatge()+" "+usuari.getSegonLlinatge()); //$NON-NLS-1$ //$NON-NLS-2$
+            llista.setLlistaUsuaris(usuari.getUserName());
+            llista.setDescripcio(usuari.getFirstName() + " " + usuari.getLastName() + " " + usuari.getMiddleName()); //$NON-NLS-1$ //$NON-NLS-2$
             return llista;
     }
 
-    private UsuariEntity getUserForMailList(String list, String domain)
-            throws UnknownMailListException {
-        List<UsuariEntity> usuaris;
+    private UserEntity getUserForMailList(String list, String domain) throws UnknownMailListException {
+        List<UserEntity> usuaris;
         if (domain == null)
-            usuaris = getUsuariEntityDao().query("select usuari from es.caib.seycon.ng.model.UsuariEntity as usuari " + //$NON-NLS-1$
-        		"where usuari.nomCurt=:nomCurt and usuari.dominiCorreu is null", new Parameter[] { //$NON-NLS-1$
-                new Parameter("nomCurt", list) //$NON-NLS-1$
-            });
+            usuaris = getUserEntityDao().query("select usuari from es.caib.seycon.ng.model.UsuariEntity as usuari where usuari.nomCurt=:nomCurt and usuari.dominiCorreu is null", new Parameter[]{new Parameter("nomCurt", list)});
         else
-            usuaris = getUsuariEntityDao().query("select usuari from es.caib.seycon.ng.model.UsuariEntity as usuari " + //$NON-NLS-1$
-                    "join usuari.dominiCorreu as domini with domini.codi=:domini " + //$NON-NLS-1$
-                    "where usuari.nomCurt=:nomCurt", new Parameter[] { //$NON-NLS-1$
-                new Parameter("domini", domain), //$NON-NLS-1$
-                new Parameter("nomCurt", list) //$NON-NLS-1$
-            });
+            usuaris = getUserEntityDao().query("select usuari from es.caib.seycon.ng.model.UsuariEntity as usuari join usuari.dominiCorreu as domini with domini.codi=:domini where usuari.nomCurt=:nomCurt", new Parameter[]{new Parameter("domini", domain), new Parameter("nomCurt", list)});
         if (usuaris == null || usuaris.isEmpty())
             throw new UnknownMailListException(list + "@" + domain); //$NON-NLS-1$
-        UsuariEntity usuari = usuaris.get(0);
+        UserEntity usuari = usuaris.get(0);
         return usuari;
     }
 
@@ -614,50 +560,46 @@ public class ServerServiceImpl extends ServerServiceBase {
     protected Collection<Object> handleGetMailListMembers(String list, String domain)
             throws Exception {
         LinkedList<Object> members = new LinkedList<Object>();
-        LlistaCorreuEntityDao dao = getLlistaCorreuEntityDao();
-        LlistaCorreuEntity entity = dao.findByNomAndCodiDomini(list, domain);
+        EmailListEntityDao dao = getEmailListEntityDao();
+        EmailListEntity entity = dao.findByNameAndDomain(list, domain);
         if (entity != null)
         {
     
-            for (Iterator<LlistaCorreuUsuariEntity> it = entity.getLlistaDeCorreuUsuari().iterator(); it
-                    .hasNext();) {
-                LlistaCorreuUsuariEntity lcu = it.next();
-                members.add(getUsuariEntityDao().toUsuari(lcu.getUsuari()));
+            for (Iterator<UserEmailEntity> it = entity.getUserMailLists().iterator(); it.hasNext(); ) {
+                UserEmailEntity lcu = it.next();
+                members.add(getUserEntityDao().toUsuari(lcu.getUser()));
             }
     
-            for (Iterator<CorreuExternEntity> it = entity.getExterns().iterator(); it.hasNext();) {
-                CorreuExternEntity lcu = it.next();
-                members.add(lcu.getAdreca());
+            for (Iterator<ExternEmailEntity> it = entity.getExternals().iterator(); it.hasNext(); ) {
+                ExternEmailEntity lcu = it.next();
+                members.add(lcu.getAddress());
             }
     
-            for (Iterator<RelacioLlistaCorreuEntity> it = entity.getRelacioLlistaCorreuFromConte()
-                    .iterator(); it.hasNext();) {
-                RelacioLlistaCorreuEntity lcu = it.next();
-                members.add(dao.toLlistaCorreu(lcu.getPertany()));
+            for (Iterator<EmailListContainerEntity> it = entity.getMailListContent().iterator(); it.hasNext(); ) {
+                EmailListContainerEntity lcu = it.next();
+                members.add(dao.toLlistaCorreu(lcu.getPertains()));
             }
             return members;
         }
-        UsuariEntity usuari = getUserForMailList(list, domain);
-        members.add (getUsuariEntityDao().toUsuari(usuari));
+        UserEntity usuari = getUserForMailList(list, domain);
+        members.add(getUserEntityDao().toUsuari(usuari));
         return members;
     }
 
     @Override
     protected Dispatcher handleGetDispatcherInfo(String codi) throws Exception {
-        DispatcherEntityDao dao = getDispatcherEntityDao();
-        return dao.toDispatcher(dao.findByCodi(codi));
+        SystemEntityDao dao = getSystemEntityDao();
+        return dao.toDispatcher(dao.findByName(codi));
     }
 
     private boolean hasAuthorization(Collection<RolGrant> roles, String authorization)
             throws InternalErrorException, UnknownUserException {
-        AutoritzacioRolEntityDao autDao = getAutoritzacioRolEntityDao();
-        for (Iterator<AutoritzacioRolEntity> it = autDao.findByAutoritzacio(authorization)
-                .iterator(); it.hasNext();) {
-            AutoritzacioRolEntity aut = it.next();
-            for (Iterator<RolGrant> itGrant = roles.iterator(); itGrant.hasNext();) {
+        AuthorizationEntityDao autDao = getAuthorizationEntityDao();
+        for (Iterator<AuthorizationEntity> it = autDao.findByAuthorization(authorization).iterator(); it.hasNext(); ) {
+            AuthorizationEntity aut = it.next();
+            for (Iterator<RolGrant> itGrant = roles.iterator(); itGrant.hasNext(); ) {
                 RolGrant grant = itGrant.next();
-                if (grant.getIdRol().equals(aut.getRol().getId()))
-                    return true;
+                if (grant.getIdRol().equals(aut.getRole().getId())) return true;
             }
         }
         return false;
@@ -672,29 +614,25 @@ public class ServerServiceImpl extends ServerServiceBase {
 
         // Comprovar si existeix una ACL per a ell
         boolean found = true;
-        UsuariEntity usuariEntity = getUsuariEntityDao().load(userId);
-        Collection<Grup> grups = getUserGroups(usuariEntity.getCodi(), null);
-        grups.addAll(getUserGroupsHierarchy(usuariEntity.getCodi(), null));
-        MaquinaEntity maq = getMaquinaEntityDao().load(hostId);
-        XarxaEntity xarxa = maq.getXarxa();
-        for (Iterator<XarxaACEntity> it = xarxa.getAutoritzacions().iterator(); !found
-                && it.hasNext();) {
-            XarxaACEntity ace = it.next();
-            if (ace.getNivell() >= 1 && Pattern.matches(ace.getNomMaquines(), maq.getNom())) {
+        UserEntity usuariEntity = getUserEntityDao().load(userId);
+        Collection<Grup> grups = getUserGroups(usuariEntity.getUserName(), null);
+        grups.addAll(getUserGroupsHierarchy(usuariEntity.getUserName(), null));
+        HostEntity maq = getHostEntityDao().load(hostId);
+        NetworkEntity xarxa = maq.getNetwork();
+        for (Iterator<NetworkAuthorizationEntity> it = xarxa.getAuthorizations().iterator(); !found && it.hasNext(); ) {
+            NetworkAuthorizationEntity ace = it.next();
+            if (ace.getLevel() >= 1 && Pattern.matches(ace.getHostsName(), maq.getName())) {
                 if (ace.getRole() != null) {
-                    for (Iterator<RolGrant> itGrant = roles.iterator(); !found && itGrant.hasNext();) {
+                    for (Iterator<RolGrant> itGrant = roles.iterator(); !found && itGrant.hasNext(); ) {
                         RolGrant grant = itGrant.next();
-                        if (grant.getIdRol().equals(ace.getRole().getId()))
-                            found = true;
+                        if (grant.getIdRol().equals(ace.getRole().getId())) found = true;
                     }
                 }
-                if (ace.getUsuari() != null && ace.getUsuari().getId().longValue() == userId)
-                    found = true;
-                if (ace.getGrup() != null) {
-                    for (Iterator<Grup> itGrup = grups.iterator(); itGrup.hasNext();) {
+                if (ace.getUser() != null && ace.getUser().getId().longValue() == userId) found = true;
+                if (ace.getGroup() != null) {
+                    for (Iterator<Grup> itGrup = grups.iterator(); itGrup.hasNext(); ) {
                         Grup grup = itGrup.next();
-                        if (grup.getId().equals(ace.getGrup().getId()))
-                            found = true;
+                        if (grup.getId().equals(ace.getGroup().getId())) found = true;
                     }
                 }
             }
@@ -731,24 +669,22 @@ public class ServerServiceImpl extends ServerServiceBase {
         
         String codi = usuariService.addUsuari(Arrays.asList(certs) , "E"); //$NON-NLS-1$
 
-        UsuariEntity entity = getUsuariEntityDao().findByCodi(codi);
+        UserEntity entity = getUserEntityDao().findByUserName(codi);
 
-        return getUsuariEntityDao().toUsuari(entity);
+        return getUserEntityDao().toUsuari(entity);
     }
 
     @Override
     protected PasswordValidation handleValidatePassword(String account, String dispatcher, Password p)
             throws Exception {
-        UsuariEntity userEntity;
-        DominiContrasenyaEntity dc;
+        UserEntity userEntity;
+        PasswordDomainEntity dc;
         if (dispatcher == null) {
-        	userEntity = getUsuariEntityDao().findByCodi(account);
-        	dc = getDispatcherEntityDao().
-        		findByCodi(getDefaultDispatcher()).
-        			getDomini();
+        	userEntity = getUserEntityDao().findByUserName(account);
+        	dc = getSystemEntityDao().findByName(getDefaultDispatcher()).getPasswordDomain();
             return getInternalPasswordService().checkPassword(userEntity, dc, p, true, true);
         } else {
-        	AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(account, dispatcher);
+        	AccountEntity acc = getAccountEntityDao().findByNameAndSystem(account, dispatcher);
         	if (acc == null)
         		return PasswordValidation.PASSWORD_WRONG;
         	
@@ -760,22 +696,20 @@ public class ServerServiceImpl extends ServerServiceBase {
     @Override
     protected void handleChangePassword(String user, String dispatcher, Password p, boolean mustChange)
             throws Exception {
-        UsuariEntity userEntity;
-        DominiContrasenyaEntity dc;
+        UserEntity userEntity;
+        PasswordDomainEntity dc;
         if (dispatcher == null) 
         	dispatcher = getInternalPasswordService().getDefaultDispatcher();
         
-        AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(user, dispatcher);
+        AccountEntity acc = getAccountEntityDao().findByNameAndSystem(user, dispatcher);
         if (acc == null)
             throw new InternalErrorException(String.format("Uknown user %s/%s", user, dispatcher)); //$NON-NLS-1$
         
         if (acc.getType().equals(AccountType.USER))
         {
-        	for (UserAccountEntity uae: acc.getUsers())
-        	{
-            	getInternalPasswordService().storeAndForwardPassword(uae.getUser(), 
-            			acc.getDispatcher().getDomini(), p, mustChange);
-        	}
+        	for (UserAccountEntity uae : acc.getUsers()) {
+                getInternalPasswordService().storeAndForwardPassword(uae.getUser(), acc.getSystem().getPasswordDomain(), p, mustChange);
+            }
         } else {
             getInternalPasswordService().storeAndForwardAccountPassword(acc, p, mustChange, null);
         }
@@ -784,22 +718,20 @@ public class ServerServiceImpl extends ServerServiceBase {
     @Override
     protected void handleChangePasswordSync(String user, String dispatcher, Password p, boolean mustChange)
             throws Exception {
-        UsuariEntity userEntity;
-        DominiContrasenyaEntity dc;
+        UserEntity userEntity;
+        PasswordDomainEntity dc;
         if (dispatcher == null) 
         	dispatcher = getInternalPasswordService().getDefaultDispatcher();
         
-        AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(user, dispatcher);
+        AccountEntity acc = getAccountEntityDao().findByNameAndSystem(user, dispatcher);
         if (acc == null)
             throw new InternalErrorException(String.format("Uknown user %s/%s", user, dispatcher)); //$NON-NLS-1$
         
         if (acc.getType().equals(AccountType.USER))
         {
-        	for (UserAccountEntity uae: acc.getUsers())
-        	{
-            	getInternalPasswordService().storeAndSynchronizePassword(uae.getUser(), 
-            			acc.getDispatcher().getDomini(), p, mustChange);
-        	}
+        	for (UserAccountEntity uae : acc.getUsers()) {
+                getInternalPasswordService().storeAndSynchronizePassword(uae.getUser(), acc.getSystem().getPasswordDomain(), p, mustChange);
+            }
         } else {
             getInternalPasswordService().storeAndSynchronizeAccountPassword(acc, p, mustChange, null);
         }
@@ -807,7 +739,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected byte[] handleGetUserMazingerRules(long userId, String version) throws Exception {
-        UsuariEntity user = getUsuariEntityDao().load(userId);
+        UserEntity user = getUserEntityDao().load(userId);
         if (user == null)
             throw new UnknownUserException(Long.toString(userId));
 
@@ -834,12 +766,11 @@ public class ServerServiceImpl extends ServerServiceBase {
         return out.toByteArray();
     }
 
-    public String getUserPueXMLDescriptors(UsuariEntity user) throws InternalErrorException,
-            UnknownUserException {
+    public String getUserPueXMLDescriptors(UserEntity user) throws InternalErrorException, UnknownUserException {
         StringBuffer xmlPUE = new StringBuffer(
                 "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<Mazinger>"); //$NON-NLS-1$
         HashSet<Long> duplicates = new HashSet<Long>();
-        PuntEntradaEntityDao dao = getPuntEntradaEntityDao();
+        EntryPointEntityDao dao = getEntryPointEntityDao();
         // Punts d'entrada publics
         addPuntsEntrada(xmlPUE, duplicates, dao.query(
                 "select punt from es.caib.seycon.ng.model.PuntEntradaEntity as punt " //$NON-NLS-1$
@@ -854,15 +785,9 @@ public class ServerServiceImpl extends ServerServiceBase {
                 new Parameter[] { new Parameter("user", user.getId()) })); //$NON-NLS-1$
 
         // Punts d'entrada dels grups
-        for (Iterator<Grup> it = getUserGroupsHierarchy(user.getCodi(), null).iterator(); it
-                .hasNext();) {
+        for (Iterator<Grup> it = getUserGroupsHierarchy(user.getUserName(), null).iterator(); it.hasNext(); ) {
             Grup grup = it.next();
-            addPuntsEntrada(xmlPUE, duplicates, dao.query(
-                    "select punt " + //$NON-NLS-1$
-                    "from es.caib.seycon.ng.model.PuntEntradaEntity AS punt " //$NON-NLS-1$
-                            + "join punt.autoritzaGrup AS autGrup " //$NON-NLS-1$
-                            + "where autGrup.idGrup = :grup and punt.xmlPUE is not null", //$NON-NLS-1$
-                    new Parameter[] { new Parameter("grup", grup.getId()) })); //$NON-NLS-1$
+            addPuntsEntrada(xmlPUE, duplicates, dao.query("select punt from es.caib.seycon.ng.model.PuntEntradaEntity AS punt join punt.autoritzaGrup AS autGrup where autGrup.idGrup = :grup and punt.xmlPUE is not null", new Parameter[]{new Parameter("grup", grup.getId())}));
         }
 
         // Punts d'entrada dels rols
@@ -882,32 +807,19 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     }
 
-    private void addPuntsEntrada(StringBuffer xmlPUE, HashSet<Long> duplicates,
-            List<PuntEntradaEntity> query) {
-        for (Iterator<PuntEntradaEntity> it = query.iterator(); it.hasNext();) {
-            PuntEntradaEntity punt = it.next();
+    private void addPuntsEntrada(StringBuffer xmlPUE, HashSet<Long> duplicates, List<EntryPointEntity> query) {
+        for (Iterator<EntryPointEntity> it = query.iterator(); it.hasNext(); ) {
+            EntryPointEntity punt = it.next();
             if (!duplicates.contains(punt.getId())) {
                 duplicates.add(punt.getId());
-                String xml = punt.getXmlPUE();
-                String comentari = "<!-- " //$NON-NLS-1$
-                        + (punt.getCodi() == null ? punt.getNom() : punt.getCodi() + " - " //$NON-NLS-1$
-                                + punt.getNom()) + " -->"; //$NON-NLS-1$
-                // Llevem la capçalera de l'aplicació
-                // i afegim comentari
-                // Podem tindre dues possibilitats:
-                // - etiqueta buida <Mazinger/>: admet espais
-                // [espais]<Mazinger[espais]/>
-                // - Inici i fi <Mazinger[espais]> i
-                // </Mazinger[espais]>[espais]
-                final String regexInici = "<Mazinger[\\s]*>"; //$NON-NLS-1$
-                final String regexFi = "</Mazinger[\\s]*>[\\s]*"; //$NON-NLS-1$
-                final String regexBuit = "[\\s]*<[\\s]*Mazinger[\\s]*/[\\s]*>[\\s]*"; //$NON-NLS-1$
-
+                String xml = punt.getXmlEntryPoint();
+                String comentari = "<!-- " + (punt.getCode() == null ? punt.getName() : punt.getCode() + " - " + punt.getName()) + " -->";
+                final String regexInici = "<Mazinger[\\s]*>";
+                final String regexFi = "</Mazinger[\\s]*>[\\s]*";
+                final String regexBuit = "[\\s]*<[\\s]*Mazinger[\\s]*/[\\s]*>[\\s]*";
                 if (xml == null || xml.length() == 0 || xml.matches(regexBuit)) {
-                    // Si és "regexBuit", no afegim res
                 } else {
                     try {
-                        // Cerquem patró d'ini i fi
                         Pattern pi = Pattern.compile(regexInici);
                         Pattern pf = Pattern.compile(regexFi);
                         Matcher mi = pi.matcher(xml);
@@ -920,19 +832,15 @@ public class ServerServiceImpl extends ServerServiceBase {
                         while (mf.find()) {
                             fi = mf.start();
                         }
-                        // Si esto no va bien causamos error
                         if ((inici < 0) || (fi < inici) || (fi < inici)) {
-                            xmlPUE.append(comentari
-                                    + Messages.getString("ServerServiceImpl.error1")); //$NON-NLS-1$
+                            xmlPUE.append(comentari + Messages.getString("ServerServiceImpl.error1"));
                         } else {
                             xmlPUE.append(comentari);
                             xmlPUE.append(xml, inici, fi);
                         }
                     } catch (Throwable th) {
-                        xmlPUE.append(comentari
-                                + Messages.getString("ServerServiceImpl.error2")); //$NON-NLS-1$
+                        xmlPUE.append(comentari + Messages.getString("ServerServiceImpl.error2"));
                     }
-
                 }
             }
         }
@@ -940,9 +848,9 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected Collection<Secret> handleGetUserSecrets(long userId) throws Exception {
-        UsuariEntity user = getUsuariEntityDao().load(userId);
+        UserEntity user = getUserEntityDao().load(userId);
         SecretStoreService sss = getSecretStoreService();
-        Usuari usuari = getUsuariEntityDao().toUsuari(user);
+        Usuari usuari = getUserEntityDao().toUsuari(user);
         return sss.getAllSecrets(usuari);
     }
 
@@ -952,19 +860,19 @@ public class ServerServiceImpl extends ServerServiceBase {
 
         if (! getDispatcherService().isGroupAllowed(dispatcher, codi))
             throw new es.caib.seycon.ng.exception.UnknownGroupException(codi);
-        GrupEntity grup = getGrupEntityDao().findByCodi(codi);
+        GroupEntity grup = getGroupEntityDao().findByName(codi);
         if (grup == null)
             throw new es.caib.seycon.ng.exception.UnknownGroupException(codi);
 
-        return getGrupEntityDao().toGrup(grup);
+        return getGroupEntityDao().toGrup(grup);
     }
 
     @Override
     protected Collection<DadaUsuari> handleGetUserData(long userId) throws Exception {
-        DadaUsuariEntityDao dao = getDadaUsuariEntityDao();
+        UserDataEntityDao dao = getUserDataEntityDao();
 
-        UsuariEntity usuari = getUsuariEntityDao().load(userId);
-        return dao.toDadaUsuariList(usuari.getDadaUsuari());
+        UserEntity usuari = getUserEntityDao().load(userId);
+        return dao.toDadaUsuariList(usuari.getUserData());
 
     }
 
@@ -978,17 +886,15 @@ public class ServerServiceImpl extends ServerServiceBase {
         if (dispatcher == null) 
         	dispatcher = getInternalPasswordService().getDefaultDispatcher();
         
-        AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(account, dispatcher);
+        AccountEntity acc = getAccountEntityDao().findByNameAndSystem(account, dispatcher);
         if (acc == null)
             throw new InternalErrorException(String.format(Messages.getString("ServerServiceImpl.unknownUser"), account, dispatcher)); //$NON-NLS-1$
         
         if (acc.getType().equals(AccountType.USER))
         {
-        	for (UserAccountEntity uae: acc.getUsers())
-        	{
-            	return getInternalPasswordService().generateFakePassword(uae.getUser(), 
-            			acc.getDispatcher().getDomini());
-        	}
+        	for (UserAccountEntity uae : acc.getUsers()) {
+                return getInternalPasswordService().generateFakePassword(uae.getUser(), acc.getSystem().getPasswordDomain());
+            }
             throw new InternalErrorException(String.format(Messages.getString("ServerServiceImpl.unknownUser"), account, dispatcher)); //$NON-NLS-1$
         } else {
             return getInternalPasswordService().generateFakeAccountPassword(acc);
@@ -1000,15 +906,15 @@ public class ServerServiceImpl extends ServerServiceBase {
     @Override
     protected DispatcherAccessControl handleGetDispatcherAccessControl(Long dispatcherId)
             throws Exception {
-        DispatcherEntity dispatcher = getDispatcherEntityDao().load(dispatcherId.longValue());
+        SystemEntity dispatcher = getSystemEntityDao().load(dispatcherId.longValue());
         if (dispatcher == null)
             throw new InternalErrorException(Messages.getString("ServerServiceImpl.dispatcherNotFound")); //$NON-NLS-1$
 
-        DispatcherAccessControl dispatcherInfo = new DispatcherAccessControl(dispatcher.getCodi());
-        dispatcherInfo.setControlAccessActiu(new Boolean(Messages.getString("ServerServiceImpl.53").equals(dispatcher.getControlAcces()))); //$NON-NLS-1$
+        DispatcherAccessControl dispatcherInfo = new DispatcherAccessControl(dispatcher.getName());
+        dispatcherInfo.setControlAccessActiu(new Boolean(Messages.getString("ServerServiceImpl.53").equals(dispatcher.getEnableAccessControl()))); //$NON-NLS-1$
 
-        Collection<ControlAccessEntity> acl = dispatcher.getControlAccess();
-        ControlAccessEntityDao aclDao = getControlAccessEntityDao();
+        Collection<AccessControlEntity> acl = dispatcher.getAccessControls();
+        AccessControlEntityDao aclDao = getAccessControlEntityDao();
         dispatcherInfo.getControlAcces().addAll(aclDao.toControlAccesList(acl));
 
         return dispatcherInfo;
@@ -1016,18 +922,17 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected Password handleGetAccountPassword(String userId, String dispatcherId) throws Exception {
-    	AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(userId, dispatcherId);
+    	AccountEntity acc = getAccountEntityDao().findByNameAndSystem(userId, dispatcherId);
     	if (acc == null)
     		return null;
     	
     	Password p = getSecretStoreService().getPassword(acc.getId());
     	if (p == null && acc.getType().equals(AccountType.USER))
     	{
-    		for (UserAccountEntity uae: acc.getUsers())
-    		{
-    			Usuari usuari = getUsuariEntityDao().toUsuari(uae.getUser());
-    			p = getSecretStoreService().getSecret(usuari, "dompass/"+acc.getDispatcher().getDomini().getId()); //$NON-NLS-1$
-    		}
+    		for (UserAccountEntity uae : acc.getUsers()) {
+                Usuari usuari = getUserEntityDao().toUsuari(uae.getUser());
+                p = getSecretStoreService().getSecret(usuari, "dompass/" + acc.getSystem().getPasswordDomain().getId());
+            }
     	}
     		
     	return p;
@@ -1035,7 +940,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 
     @Override
     protected Password handleGenerateFakePassword(String passDomain) throws Exception {
-        DominiContrasenyaEntity dc = getDominiContrasenyaEntityDao().findByCodi(passDomain);
+        PasswordDomainEntity dc = getPasswordDomainEntityDao().findByName(passDomain);
 
         return getInternalPasswordService().generateFakePassword(null, dc);
     }
@@ -1046,25 +951,22 @@ public class ServerServiceImpl extends ServerServiceBase {
         if (dispatcher == null) 
         	dispatcher = getInternalPasswordService().getDefaultDispatcher();
         
-        DispatcherEntity dispatcherEntity = getDispatcherEntityDao().findByCodi(dispatcher);
+        SystemEntity dispatcherEntity = getSystemEntityDao().findByName(dispatcher);
 
-        AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(account, dispatcher);
+        AccountEntity acc = getAccountEntityDao().findByNameAndSystem(account, dispatcher);
         if (acc == null)
             throw new InternalErrorException(String.format(Messages.getString("ServerServiceImpl.unknownAccount"), account, dispatcher)); //$NON-NLS-1$
         
         if (acc.getType().equals(AccountType.USER))
         {
-        	for (UserAccountEntity uae: acc.getUsers())
-        	{
-                for (PoliticaContrasenyaEntity pc: dispatcherEntity.getDomini().getPoliticaContrasenyes()) {
-                    if (pc.getTipusUsuariDomini().getCodi().equals(uae.getUser().getTipusUsuari().getCodi()))
-                        return getPoliticaContrasenyaEntityDao().toPoliticaContrasenya(pc);
+        	for (UserAccountEntity uae : acc.getUsers()) {
+                for (PasswordPolicyEntity pc : dispatcherEntity.getPasswordDomain().getPasswordPolicies()) {
+                    if (pc.getUserType().getName().equals(uae.getUser().getUserType().getName())) return getPasswordPolicyEntityDao().toPoliticaContrasenya(pc);
                 }
-        	}
+            }
         } else {
-            for (PoliticaContrasenyaEntity pc: dispatcherEntity.getDomini().getPoliticaContrasenyes()) {
-                if (pc.getTipusUsuariDomini().getCodi().equals(acc.getPasswordPolicy().getCodi()))
-                    return getPoliticaContrasenyaEntityDao().toPoliticaContrasenya(pc);
+            for (PasswordPolicyEntity pc : dispatcherEntity.getPasswordDomain().getPasswordPolicies()) {
+                if (pc.getUserType().getName().equals(acc.getPasswordPolicy().getName())) return getPasswordPolicyEntityDao().toPoliticaContrasenya(pc);
             }
         }
         return null;
@@ -1077,20 +979,17 @@ public class ServerServiceImpl extends ServerServiceBase {
 		
         Password secret = getAccountPassword(account, dispatcherId);
         if (secret == null) {
-            AccountEntity acc = getAccountEntityDao().findByNameAndDispatcher(account, dispatcherId);
+            AccountEntity acc = getAccountEntityDao().findByNameAndSystem(account, dispatcherId);
             if (acc.getType().equals(AccountType.USER))
             {
-            	for (UserAccountEntity uae: acc.getUsers())
-            	{
-            		DominiContrasenyaEntity dce = acc.getDispatcher().getDomini();
-            		
-               		secret = getInternalPasswordService().generateNewPassword(uae.getUser(), dce, false);
-                	getInternalPasswordService().storePassword(uae.getUser(), dce, secret, true);
-               	
-                    String secretName =  "dompass/"+dce.getId(); //$NON-NLS-1$
-            		Usuari u = getUsuariEntityDao().toUsuari(uae.getUser());
-                	getSecretStoreService().putSecret(u, secretName, secret);
-            	}
+            	for (UserAccountEntity uae : acc.getUsers()) {
+                    PasswordDomainEntity dce = acc.getSystem().getPasswordDomain();
+                    secret = getInternalPasswordService().generateNewPassword(uae.getUser(), dce, false);
+                    getInternalPasswordService().storePassword(uae.getUser(), dce, secret, true);
+                    String secretName = "dompass/" + dce.getId();
+                    Usuari u = getUserEntityDao().toUsuari(uae.getUser());
+                    getSecretStoreService().putSecret(u, secretName, secret);
+                }
             } else {
            		secret = getInternalPasswordService().generateNewAccountPassword(acc, false);
             	// getInternalPasswordService().storeAccountPassword(acc, secret, true, null);
@@ -1104,7 +1003,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 	@Override
 	protected Usuari handleGetUserInfo(long userId) throws Exception {
-		return getUsuariEntityDao().toUsuari(getUsuariEntityDao().load(new Long(userId)));
+		return getUserEntityDao().toUsuari(getUserEntityDao().load(new Long(userId)));
 	}
 
 	@Override
@@ -1115,7 +1014,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Collection<RolGrant> handleGetAccountRoles(String account,
 			String dispatcherId) throws Exception {
-        AccountEntity accountEntity = getAccountEntityDao().findByNameAndDispatcher(account, dispatcherId);
+        AccountEntity accountEntity = getAccountEntityDao().findByNameAndSystem(account, dispatcherId);
         		
 
         return getAplicacioService().findEffectiveRolGrantByAccount(accountEntity.getId());
@@ -1124,7 +1023,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Collection<RolGrant> handleGetAccountExplicitRoles(String account,
 			String dispatcherId) throws Exception {
-        AccountEntity accountEntity = getAccountEntityDao().findByNameAndDispatcher(account, dispatcherId);
+        AccountEntity accountEntity = getAccountEntityDao().findByNameAndSystem(account, dispatcherId);
 		
 
         return getAplicacioService().findRolGrantByAccount(accountEntity.getId());
@@ -1133,9 +1032,9 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Collection<UserAccount> handleGetUserAccounts(long userId,
 			String dispatcherId) throws Exception {
-		UsuariEntity usuari = getUsuariEntityDao().load(new Long(userId));
+		UserEntity usuari = getUserEntityDao().load(new Long(userId));
 		Collection<UserAccount> accounts = new LinkedList<UserAccount>();
-		List<AccountEntity> accountList = getAccountEntityDao().findByUsuariAndDispatcher(usuari.getCodi(), dispatcherId);
+		List<AccountEntity> accountList = getAccountEntityDao().findByUserAndSystem(usuari.getUserName(), dispatcherId);
 		for (AccountEntity ae: accountList)
 		{
 			if (ae.getType().equals (AccountType.USER))
@@ -1153,19 +1052,18 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Collection<Grup> handleGetUserGroups (Long userId) throws Exception
 	{
-    	UsuariEntity user = getUsuariEntityDao().load(userId);
+    	UserEntity user = getUserEntityDao().load(userId);
 
-    	HashMap<String, GrupEntity>grups = new HashMap<String, GrupEntity>();
+    	HashMap<String, GroupEntity> grups = new HashMap<String, GroupEntity>();
     	
-    	if (! grups.containsKey(user.getGrupPrimari().getCodi()))
-    		grups.put(user.getGrupPrimari().getCodi(), user.getGrupPrimari());
-        for (Iterator<UsuariGrupEntity> it = user.getGrupsSecundaris().iterator(); it.hasNext();) {
-            UsuariGrupEntity uge = it.next();
-        	if (! grups.containsKey(uge.getGrup().getCodi()))
-        		grups.put(uge.getGrup().getCodi(), uge.getGrup());
+    	if (!grups.containsKey(user.getPrimaryGroup().getName()))
+    		grups.put(user.getPrimaryGroup().getName(), user.getPrimaryGroup());
+        for (Iterator<UserGroupEntity> it = user.getSecondaryGroups().iterator(); it.hasNext(); ) {
+            UserGroupEntity uge = it.next();
+            if (!grups.containsKey(uge.getGroup().getName())) grups.put(uge.getGroup().getName(), uge.getGroup());
         }
         
-        return getGrupEntityDao().toGrupList(grups.values());
+        return getGroupEntityDao().toGrupList(grups.values());
 	}
 
 	/* (non-Javadoc)
@@ -1175,32 +1073,30 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected Collection<Grup> handleGetUserGroupsHierarchy (Long userId)
 					throws Exception
 	{
-    	UsuariEntity user = getUsuariEntityDao().load(userId);
+    	UserEntity user = getUserEntityDao().load(userId);
 
-    	HashMap<String, GrupEntity>grups = new HashMap<String, GrupEntity>();
+    	HashMap<String, GroupEntity> grups = new HashMap<String, GroupEntity>();
     	
-    	if (! grups.containsKey(user.getGrupPrimari().getCodi()))
-    		grups.put(user.getGrupPrimari().getCodi(), user.getGrupPrimari());
-        for (Iterator<UsuariGrupEntity> it = user.getGrupsSecundaris().iterator(); it.hasNext();) {
-            UsuariGrupEntity uge = it.next();
-        	if (! grups.containsKey(uge.getGrup().getCodi()))
-        		grups.put(uge.getGrup().getCodi(), uge.getGrup());
+    	if (!grups.containsKey(user.getPrimaryGroup().getName()))
+    		grups.put(user.getPrimaryGroup().getName(), user.getPrimaryGroup());
+        for (Iterator<UserGroupEntity> it = user.getSecondaryGroups().iterator(); it.hasNext(); ) {
+            UserGroupEntity uge = it.next();
+            if (!grups.containsKey(uge.getGroup().getName())) grups.put(uge.getGroup().getName(), uge.getGroup());
         }
 
         LinkedList<Grup> values = new LinkedList<Grup>();
         HashSet<String> keys = new HashSet<String>(grups.keySet());
-        GrupEntityDao grupDao = getGrupEntityDao();
-        for (GrupEntity grup: grups.values())
-        {
-        	while ( grup != null && ! keys.contains(grup.getCodi()))
-        	{
-        		keys.add(grup.getCodi());
-        		values.add(grupDao.toGrup(grup));
-        		grup = grup.getPare();
-        	};
+        GroupEntityDao grupDao = getGroupEntityDao();
+        for (GroupEntity grup : grups.values()) {
+            while (grup != null && !keys.contains(grup.getName())) {
+                keys.add(grup.getName());
+                values.add(grupDao.toGrup(grup));
+                grup = grup.getParent();
+            }
+            ;
         }
 
-        return getGrupEntityDao().toGrupList(grups.values());
+        return getGroupEntityDao().toGrupList(grups.values());
 	}
 
 	/* (non-Javadoc)
@@ -1248,7 +1144,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected boolean handleUpdateExpiredPasswords (Usuari usuari, boolean externalAuth)
 					throws Exception
 	{
-		UsuariEntity usuariEntity = getUsuariEntityDao().load(usuari.getId());
+		UserEntity usuariEntity = getUserEntityDao().load(usuari.getId());
 		if (usuariEntity != null)
 		{
 			return getInternalPasswordService().updateExpiredPasswords(usuariEntity, externalAuth);
@@ -1264,11 +1160,11 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected Collection<DominiContrasenya> handleGetExpiredPasswordDomains (
 					Usuari usuari) throws Exception
 	{
-		UsuariEntity usuariEntity = getUsuariEntityDao().load(usuari.getId());
+		UserEntity usuariEntity = getUserEntityDao().load(usuari.getId());
 		if (usuariEntity != null)
 		{
-			Collection<DominiContrasenyaEntity> list = getInternalPasswordService().enumExpiredPasswords(usuariEntity); 
-			return getDominiContrasenyaEntityDao().toDominiContrasenyaList(list);
+			Collection<PasswordDomainEntity> list = getInternalPasswordService().enumExpiredPasswords(usuariEntity); 
+			return getPasswordDomainEntityDao().toDominiContrasenyaList(list);
 		}
 		else
 			return Collections.EMPTY_LIST;
