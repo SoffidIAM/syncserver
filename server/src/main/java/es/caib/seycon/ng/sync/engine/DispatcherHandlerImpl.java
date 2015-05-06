@@ -766,19 +766,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     private Password getTaskPassword(TaskHandler t) throws RemoteException, InternalErrorException {
-        if (getDispatcher().getBasRol().booleanValue()) {
-            Collection<RolGrant> roles = null;
-            try {
-                Usuari usuari = t.getUsuari();
-                if (usuari != null)
-                    roles = server.getUserRoles(t.getUsuari().getId(), getDispatcher().getCodi());
-            } catch (UnknownUserException e) {
-                return generateRandomUserPassword(t);
-            }
-            if (roles == null || roles.isEmpty()) {
-                return generateRandomUserPassword(t);
-            }
-        }
         return t.getPassword();
     }
 
