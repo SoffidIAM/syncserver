@@ -176,7 +176,7 @@ public class ReconcileEngine
 	 */
 	private void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
-		Collection<RolGrant> grants = serverService.getAccountExplicitRoles(acc.getName(), acc.getDispatcher());
+		Collection<RolGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getDispatcher());
 		for (Rol role: agent.getAccountRoles(acc.getName()))
 		{
 			if (role.getBaseDeDades() == null)
@@ -218,14 +218,19 @@ public class ReconcileEngine
 		// Now remove not present roles
 		for (RolGrant grant: grants)
 		{
-			RolAccount ra = new RolAccount();
-			ra.setAccountId(acc.getId());
-			ra.setAccountDispatcher(acc.getDispatcher());
-			ra.setAccountName(acc.getName());
-			ra.setBaseDeDades(grant.getDispatcher());
-			ra.setNomRol(grant.getRolName());
-			ra.setId(grant.getId());
-			appService.delete(ra);
+			if (grant.getOwnerGroup() == null &&
+					grant.getOwnerRol() == null &&
+					grant.getId() != null)
+			{
+				RolAccount ra = new RolAccount();
+				ra.setAccountId(acc.getId());
+				ra.setAccountDispatcher(acc.getDispatcher());
+				ra.setAccountName(acc.getName());
+				ra.setBaseDeDades(grant.getDispatcher());
+				ra.setNomRol(grant.getRolName());
+				ra.setId(grant.getId());
+				appService.delete(ra);
+			}
 		}
 	}
 

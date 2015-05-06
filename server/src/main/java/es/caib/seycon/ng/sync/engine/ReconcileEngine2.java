@@ -249,7 +249,7 @@ public class ReconcileEngine2
 	 */
 	private void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
-		Collection<RolGrant> grants = serverService.getAccountExplicitRoles(acc.getName(), acc.getDispatcher());
+		Collection<RolGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getDispatcher());
 		for (RolGrant existingGrant: agent.getAccountGrants(acc.getName()))
 		{
 			if (existingGrant.getDispatcher() == null)
@@ -305,23 +305,28 @@ public class ReconcileEngine2
 		// Now remove not present roles
 		for (RolGrant grant: grants)
 		{
-			RolAccount ra = new RolAccount();
-			ra.setAccountId(acc.getId());
-			ra.setAccountDispatcher(acc.getDispatcher());
-			ra.setAccountName(acc.getName());
-			ra.setBaseDeDades(grant.getDispatcher());
-			ra.setNomRol(grant.getRolName());
-			ra.setId(grant.getId());
-			if (grant.getDomainValue() != null)
+			if (grant.getOwnerGroup() == null &&
+					grant.getOwnerRol() == null &&
+					grant.getId() != null)
 			{
-				ra.setValorDomini(new ValorDomini());
-				ra.getValorDomini().setValor(grant.getDomainValue());
+				RolAccount ra = new RolAccount();
+				ra.setAccountId(acc.getId());
+				ra.setAccountDispatcher(acc.getDispatcher());
+				ra.setAccountName(acc.getName());
+				ra.setBaseDeDades(grant.getDispatcher());
+				ra.setNomRol(grant.getRolName());
+				ra.setId(grant.getId());
+				if (grant.getDomainValue() != null)
+				{
+					ra.setValorDomini(new ValorDomini());
+					ra.getValorDomini().setValor(grant.getDomainValue());
+				}
+				log.append ("Revoking ").append (grant.getRolName());
+				if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
+					log.append (" [").append (grant.getDomainValue()).append("]");
+				log.append (" from ").append(acc.getName()).append('\n');
+				appService.delete(ra);
 			}
-			log.append ("Revoking ").append (grant.getRolName());
-			if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
-				log.append (" [").append (grant.getDomainValue()).append("]");
-			log.append (" from ").append(acc.getName()).append('\n');
-			appService.delete(ra);
 		}
 	}
 
