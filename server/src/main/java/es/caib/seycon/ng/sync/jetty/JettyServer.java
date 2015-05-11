@@ -46,6 +46,7 @@ import es.caib.seycon.ng.sync.web.admin.StressTest;
 import es.caib.seycon.ng.sync.web.admin.TasquesPendentsServlet;
 import es.caib.seycon.ng.sync.web.admin.TestSecretsServlet;
 import es.caib.seycon.ng.sync.web.admin.ViewLogServlet;
+import es.caib.seycon.ng.sync.web.esso.AuditPasswordQueryServlet;
 import es.caib.seycon.ng.sync.web.esso.CertificateLoginServlet;
 import es.caib.seycon.ng.sync.web.esso.ChangePasswordServlet;
 import es.caib.seycon.ng.sync.web.esso.ChangeSecretServlet;
@@ -448,6 +449,7 @@ public class JettyServer implements PublisherInterface
             bindAdministrationServlet("/updateHostAddress", null, UpdateHostAddress.class);
             bindAdministrationServlet("/setSecret", null, ChangeSecretServlet.class);
             bindAdministrationServlet("/generatePassword", null, GeneratePasswordServlet.class);
+            bindAdministrationServlet("/auditPassword", null, AuditPasswordQueryServlet.class);
             if (Config .getConfig().isDebug()) {
                 bindAdministrationServlet("/queryhql", null, QueryHQL.class);
             	bindAdministrationServlet("/stress", null, StressTest.class);

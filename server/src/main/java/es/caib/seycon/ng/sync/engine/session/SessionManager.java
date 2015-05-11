@@ -474,4 +474,5 @@ public class SessionManager extends Thread {
     {
     	sessioService.sessioKeepAlive(session);
     }
+
 }

@@ -503,7 +503,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (oldTask != null && !oldTask.getTask().getId().equals(newTask.getTask().getId()))
 			{
 				oldTask.cancel();
-				persistTask(oldTask);
+				pushTaskToPersist(oldTask);
 			}
 			// Cancel remote tasks
 			TasqueEntityDao dao = getTasqueEntityDao();
@@ -529,7 +529,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (oldTask != null && !oldTask.getTask().getId().equals(newTask.getTask().getId()))
 			{
 				oldTask.cancel();
-				persistTask(oldTask);
+				pushTaskToPersist(oldTask);
 			}
 		}
 

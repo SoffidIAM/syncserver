@@ -95,6 +95,8 @@ public class LogoffThread extends Object implements Runnable {
                 	{
                         if (!sessionManager.check(s)) {
                             sessionManager.deleteSession(s);
+                        } else {
+                        	sessionManager.keepAliveSession(s);
                         }
                 	}
                 } catch (Exception e) {
