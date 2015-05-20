@@ -37,6 +37,13 @@ public class AccountExtensibleObject extends ExtensibleObject
 		this.account = account;
 		this.serverService = serverService;
 		setObjectType(SoffidObjectType.OBJECT_ACCOUNT.getValue());
+		if (account.getId() == null)
+		{
+			try {
+				account = serverService.getAccountInfo(account.getName(), account.getDispatcher());
+			} catch (InternalErrorException e) {
+			}
+		}
 
 	}
 
@@ -115,6 +122,8 @@ public class AccountExtensibleObject extends ExtensibleObject
     			}
     			obj = dadesList;
     		}
+    		else if ("attributes".equals(attribute) || "accountAttributes".equals(attribute))
+    			return account.getAttributes();
     		else
     			return null;
     		

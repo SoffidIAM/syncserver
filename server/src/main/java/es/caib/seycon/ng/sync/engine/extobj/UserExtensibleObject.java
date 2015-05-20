@@ -39,6 +39,13 @@ public class UserExtensibleObject extends ExtensibleObject
 		this.usuari = usuari;
 		this.serverService = serverService;
 		setObjectType(SoffidObjectType.OBJECT_USER.getValue());
+		if (account.getId() == null)
+		{
+			try {
+				account = serverService.getAccountInfo(account.getName(), account.getDispatcher());
+			} catch (InternalErrorException e) {
+			}
+		}
 	}
 
 	@Override
@@ -115,10 +122,29 @@ public class UserExtensibleObject extends ExtensibleObject
     			}
     			obj = list;
     		} 
+    		else if ("accountAttributes".equals(attribute))
+    		{
+    			return account.getAttributes();
+    		}
+    		else if ("userAttributes".equals(attribute))
+    		{
+    			Collection<DadaUsuari> dades = serverService.getUserData(usuari.getId());
+    			Map<String, Object> dadesMap = new HashMap<String, Object>();
+    			for (DadaUsuari dada: dades)
+    			{
+    				if (dada.getValorDadaDate() != null)
+        				dadesMap.put(dada.getCodiDada(), dada.getValorDadaDate().getTime());
+    				else
+    					dadesMap.put(dada.getCodiDada(), dada.getValorDada());
+    			}
+    			obj = dadesMap;
+    		}
     		else if ("attributes".equals(attribute))
     		{
     			Collection<DadaUsuari> dades = serverService.getUserData(usuari.getId());
     			Map<String, Object> dadesMap = new HashMap<String, Object>();
+   				if (account.getAttributes() != null)
+    				dadesMap.putAll(account.getAttributes());
     			for (DadaUsuari dada: dades)
     			{
     				if (dada.getValorDadaDate() != null)
