@@ -103,6 +103,7 @@ public class KerberosManager {
         System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
         StringBuffer realms = new StringBuffer();
         boolean reconfig = false;
+        String defaultRealm = null;
 
         Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
         for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
@@ -112,6 +113,8 @@ public class KerberosManager {
                 if (krb != null) {
                     try {
                         String realm = krb.getRealmName();
+                    	if (defaultRealm == null)
+                    		defaultRealm = realm;
                         String servers[] = krb.getRealmServers();
                         StringBuffer b = new StringBuffer();
                         realms.append(realm);
@@ -146,6 +149,7 @@ public class KerberosManager {
             writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
             writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
             writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc");
+            writer.println("default_realm="+defaultRealm);
             writer.println();
             writer.println("[realms]");
             writer.println(realms.toString());
