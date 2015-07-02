@@ -201,7 +201,7 @@ public class ServerServiceImpl extends ServerServiceBase {
         for (Iterator<UsuariEntity> it = daoUsuari.findByGrupPrimari(entity.getCodi()).iterator(); it
                 .hasNext();) {
             UsuariEntity usuariEntity = it.next();
-            if (!nomesUsuarisActius && "S".equals(usuariEntity.getActiu())) { //$NON-NLS-1$
+            if (!nomesUsuarisActius || "S".equals(usuariEntity.getActiu())) { //$NON-NLS-1$
                 if (dispatcher == null || 
                 	getDispatcherService().isUserAllowed(dispatcher, usuariEntity.getCodi()))
                 		result.add(daoUsuari.toUsuari(usuariEntity));
@@ -211,7 +211,7 @@ public class ServerServiceImpl extends ServerServiceBase {
         for (Iterator<UsuariGrupEntity> it = daoUsuariGrup.findByCodiGrup(entity.getCodi())
                 .iterator(); it.hasNext();) {
             UsuariGrupEntity ugEntity = it.next();
-            if (!nomesUsuarisActius && "S".equals(ugEntity.getUsuari().getActiu())) { //$NON-NLS-1$
+            if (!nomesUsuarisActius || "S".equals(ugEntity.getUsuari().getActiu())) { //$NON-NLS-1$
                 if (dispatcher == null || 
                     	getDispatcherService().isUserAllowed(dispatcher, ugEntity.getUsuari().getCodi()))
                     result.add(daoUsuari.toUsuari(ugEntity.getUsuari()));
