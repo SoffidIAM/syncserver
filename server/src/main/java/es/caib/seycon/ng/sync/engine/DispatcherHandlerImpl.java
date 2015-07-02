@@ -25,6 +25,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -80,6 +81,7 @@ import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.SoffidObjectType;
 import es.caib.seycon.ng.comu.TipusDada;
+import es.caib.seycon.ng.comu.TipusUsuari;
 import es.caib.seycon.ng.comu.UserAccount;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.comu.UsuariGrup;
@@ -1037,7 +1039,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			if (t.getTask().getUsuari() == null || t.getTask().getUsuari().trim().length() == 0 )
 				return;
            	Account acc = accountService.findAccount(t.getTask().getUsuari(), getDispatcher().getCodi());
-           	if (acc != null && acc.getType().equals (AccountType.IGNORED))
+           	if (acc != null && ( acc.getType().equals (AccountType.IGNORED) ||
+           			isUnmanagedType (acc.getPasswordPolicy())))
            	{
            		// Nothing to do
            		return;
@@ -1075,6 +1078,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 	}
 
+	static long unmanagedTypesTS = 0;
+	static HashSet<String> unmangedTypes = null;
+	private boolean isUnmanagedType(String passwordPolicy) throws InternalErrorException {
+		if (System.currentTimeMillis() > unmanagedTypesTS)
+		{
+			unmangedTypes = new HashSet<String>();
+			for (TipusUsuari tu: ServiceLocator.instance().getDominiUsuariService().findAllTipusUsuari())
+			{
+				if (tu.isUnmanaged())
+					unmangedTypes.add(tu.getCodi());
+			}
+			unmanagedTypesTS = System.currentTimeMillis() + 60000; // Requery every minute 
+		}
+		return unmangedTypes.contains(passwordPolicy);
+	}
+
 	/**
 	 * @param t
 	 * @throws InternalErrorException 
@@ -1090,7 +1109,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	return;
         
        	Account acc = accountService.findAccount(t.getTask().getUsuari(), getDispatcher().getCodi());
-       	if (acc != null && !acc.isDisabled())
+       	if (acc != null && !acc.isDisabled() &&
+       			! acc.getType().equals (AccountType.IGNORED) &&
+       			! isUnmanagedType(acc.getPasswordPolicy()))
        	{
 	        if ("S".equals(t.getTask().getCancon()) && !getDispatcher().getSegur().booleanValue()) {
 	            Password p = server.generateFakePassword(acc.getName(), getDispatcher().getCodi());
@@ -1104,27 +1125,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	
         		auditAccountPasswordChange(acc, null, false);
 
-        		secretStoreService.setPassword(acc.getId(), p);
+        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), p,
+        				 "S".equals((t.getTask().getCancon())),
+        				 t.getTask().getExpirationDate() == null ? null: t.getTask().getExpirationDate().getTime());
 	            
-	            if (! "S".equals((t.getTask().getCancon())))
-	            {
-	            	Long time = null;
-	            	if (t.getTask().getExpirationDate() != null)
-	            	{
-    		    		accountService.updateAccountPasswordDate2(acc, t.getTask().getExpirationDate().getTime());
-	            	} else {
-    	            	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
-    	            			acc.getPasswordPolicy(), getDispatcher().getDominiContrasenyes());
-    	            	Long l = getPasswordTerm(politica);
-
-    		    		accountService.updateAccountPasswordDate(acc, l);
-	            	}
-	            }
-	            else
-	            {
-		    		accountService.updateAccountPasswordDate(acc, new Long(0));
-	            }
-
 	            for (String user: accountService.getAccountUsers(acc))
 	            {
 	            	changePasswordNotificationQueue.addNotification(user);
@@ -1350,7 +1354,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            
 		            TasqueEntity te = tasqueEntityDao.newTasqueEntity();
 		            te.setTransa(TaskHandler.UPDATE_PROPAGATED_PASSWORD);
-//		            te.setDominiUsuaris(getDispatcher().getDominiUsuaris());
 		            te.setDominiContrasenyes(getDispatcher().getDominiContrasenyes());
 		            te.setContra(t.getPassword().toString());
 		            te.setUsuari(ua.getUser());
@@ -1363,6 +1366,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            auditoria.setPasswordDomain(getDispatcher().getDominiContrasenyes());
 		            auditoria.setObjecte("SC_USUARI");
 		            auditoria.setBbdd(getDispatcher().getCodi());
+		            auditoria.setAccio(acc.getName());
 		            auditoriaDao.create(auditoria);
 
 					internalPasswordService.storePassword(ua.getUser(), getDispatcher().getDominiContrasenyes(), 
@@ -1371,11 +1375,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 									getTaskUser(t),
 									"dompass/" + getPasswordDomain().getId(), 
 									t.getPassword());
-
 	        	}
 	        	else
 	        	{
-	        		secretStoreService.setPassword(acc.getId(), t.getPassword());
    		            for (String u: accountService.getAccountUsers(acc))
    		            {
    		            	changePasswordNotificationQueue.addNotification(u);
@@ -1388,10 +1390,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            auditoria.setObjecte("SC_ACCOUN");
 		            auditoriaDao.create(auditoria);
 	        	}
-            	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
-            			acc.getPasswordPolicy(), getDispatcher().getDominiContrasenyes());
-            	Long l = getPasswordTerm(politica);
-				accountService.updateAccountPasswordDate(acc, l);
+        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), t.getPassword(), false, null);
 	        } else {
 	        	String timeout = System.getProperty("soffid.propagate.timeout");
 	        	if (timeout != null)
@@ -1452,6 +1451,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         } catch (UnknownUserException e) {
             return;
         }
+        if (isUnmanagedType(user.getTipusUsuari()))
+        	return;
         boolean anyChange = false;
     	for (Account acc: getAccounts(t))
     	{
@@ -1464,10 +1465,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            				t.getTask().getUsuari(), getDispatcher().getCodi());
 		            userMgr.updateUserPassword(acc.getName(), user, p, false);
             		auditAccountPasswordChange(acc, user, false);
-	            	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
-	    	            			acc.getPasswordPolicy(), getDispatcher().getDominiContrasenyes());
-	           		accountService.updateAccountPasswordDate(acc, getPasswordTerm(politica));
-   		            secretStoreService.setPassword(acc.getId(), p);
+   		            secretStoreService.setPasswordAndUpdateAccount(acc.getId(), p,
+   		            	false, null);
    		            anyChange = true;
 		        } else {
 		        	Password old = secretStoreService.getPassword(acc.getId());
@@ -1480,10 +1479,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		        	{
 		        		log.debug("Storing already updated password for {}/{}",
 		        						t.getTask().getUsuari(), getDispatcher().getCodi());
-		            	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
-		    	            			acc.getPasswordPolicy(), getDispatcher().getDominiContrasenyes());
-   	            		accountService.updateAccountPasswordDate(acc, getPasswordTerm(politica));
-	   		            secretStoreService.setPassword(acc.getId(), p);
+	   		            secretStoreService.setPasswordAndUpdateAccount(acc.getId(), p,
+	   		            		false, null);
 	   		            anyChange = true;
 		        	}
 		        }
@@ -1521,6 +1518,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         } catch (UnknownUserException e) {
             return;
         }
+
+        if (isUnmanagedType(user.getTipusUsuari()))
+        	return;
         
     	for (Account acc: getAccounts(t))
     	{
@@ -1564,14 +1564,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             Usuari user = null;
             try {
     	        user = getUserInfo(t);
-    	        for (Account account: getAccounts(t))
+    	        if (! isUnmanagedType ( user.getTipusUsuari()))
     	        {
-    	        	account.setLastUpdated(Calendar.getInstance());
-    				accountService.updateAccountLastUpdate(account);
-    	        	if (account.isDisabled())
-    	            	((UserMgr) agent).removeUser(account.getName());
-    	        	else
-    	        		((UserMgr) agent).updateUser(account.getName(), user);
+	        		for (Account account: getAccounts(t))
+	    	        {
+	    				accountService.updateAccountLastUpdate(account);
+	    	        	if (account.isDisabled())
+	    	            	((UserMgr) agent).removeUser(account.getName());
+	    	        	else
+	    	        		((UserMgr) agent).updateUser(account.getName(), user);
+	    	        }
     	        }
             } 
             catch (UnknownUserException e) 
