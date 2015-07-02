@@ -8,16 +8,17 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.soffid.iam.sync</groupId>
   <artifactId>syncserver</artifactId>
-  <version>1.5.8-SNAPSHOT</version>
+  <version>1.5.8</version>
   <packaging>jar</packaging>
   <name>Soffid IAM Sync server</name>
   <properties>
     <maven.compile.source>1.5</maven.compile.source>
     <maven.compile.target>1.5</maven.compile.target>
-    <iam.version>1.5.13-SNAPSHOT</iam.version>
+    <iam.version>1.5.13</iam.version>
   </properties>
   <scm>
         <connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
+    <tag>syncserver-1.5.8</tag>
   </scm>
   <licenses>
     <license>
