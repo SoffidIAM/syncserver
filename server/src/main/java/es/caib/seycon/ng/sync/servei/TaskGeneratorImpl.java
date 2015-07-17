@@ -55,6 +55,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     private Object logCollectorLock;
     private String logCollector;
 	private long memoryLimit;
+	
+	SharedThreadPool threadPool = new SharedThreadPool();
 
     public TaskGeneratorImpl() throws FileNotFoundException, IOException, InternalErrorException {
         config = Config.getConfig();
@@ -171,6 +173,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 
     @Override
     protected void handleUpdateAgents() throws Exception {
+    	boolean anySharedThreadChange = false;
+    	
         log.info("Looking for agent updates", null, null);
         ArrayList<DispatcherHandlerImpl> oldDispatchers = new ArrayList<DispatcherHandlerImpl>(
                 dispatchers);
@@ -191,8 +195,28 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                         populateReplicaAttributes(dispatcherEntity, newDispatcher);
                         checkNulls(newDispatcher);
                         Dispatcher oldDispatcher = current.getDispatcher();
-                        if (!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) {
-                            current.reconfigure(newDispatcher);
+                        if (!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) 
+                        {// S'han produït canvis
+                        	boolean oldThread = oldDispatcher.getSharedDispatcher() != null && oldDispatcher.getSharedDispatcher().booleanValue();
+                        	boolean newThread = newDispatcher.getSharedDispatcher() != null && newDispatcher.getSharedDispatcher().booleanValue();
+                        	if (oldThread && newThread || ! oldThread && ! newThread)
+                        		current.reconfigure(newDispatcher);
+                        	else 
+                        	{
+                        		
+                       			current.gracefullyStop();
+                                DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
+                                int id = current.getInternalId();
+                                checkNulls(newDispatcher);
+                                handler.setDispatcher(newDispatcher);
+                                handler.setInternalId(id);
+                                dispatchers.remove(oldHandler);
+                                dispatchers.add(handler);
+                                dispatchersMap.put(newDispatcher.getCodi(), handler);
+                                if (newThread)
+                                	handler.start();
+                                anySharedThreadChange = true;
+                        	}
                         }
                         break;
                     }
@@ -221,9 +245,14 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             handler.setInternalId(id);
             dispatchers.add(handler);
             dispatchersMap.put(dis.getCodi(), handler);
-            handler.start();
+            if (dis.getSharedDispatcher() == null || ! dis.getSharedDispatcher().booleanValue())
+            	handler.start();
+            else
+                anySharedThreadChange = true;
         }
 
+        if (anySharedThreadChange)
+        	threadPool.updateThreads(dispatchers);
     }
 
     /**

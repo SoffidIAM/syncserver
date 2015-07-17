@@ -2,7 +2,6 @@ package es.caib.seycon.ng.sync.engine;
 
 import bsh.EvalError;
 import com.soffid.iam.api.ScheduledTask;
-import com.soffid.iam.api.Task;
 import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
 import com.soffid.iam.model.AuditEntity;
 import com.soffid.iam.model.AuditEntityDao;
@@ -16,11 +15,11 @@ import com.soffid.iam.reconcile.common.ReconcileRole;
 import com.soffid.iam.reconcile.service.ReconcileService;
 import com.soffid.tools.db.schema.Column;
 import com.soffid.tools.db.schema.Table;
+
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.Configuracio;
-import es.caib.seycon.ng.comu.DadaUsuari;
 import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.DominiContrasenya;
 import es.caib.seycon.ng.comu.Grup;
@@ -35,11 +34,8 @@ import es.caib.seycon.ng.comu.TipusDada;
 import es.caib.seycon.ng.comu.TipusUsuari;
 import es.caib.seycon.ng.comu.UserAccount;
 import es.caib.seycon.ng.comu.Usuari;
-import es.caib.seycon.ng.comu.UsuariGrup;
-import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.SeyconException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownHostException;
@@ -55,13 +51,10 @@ import es.caib.seycon.ng.servei.DadesAddicionalsService;
 import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.GrupService;
 import es.caib.seycon.ng.servei.InternalPasswordService;
-import es.caib.seycon.ng.servei.SeyconServiceLocator;
 import es.caib.seycon.ng.servei.UsuariService;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
-import es.caib.seycon.ng.sync.agent.Agent;
 import es.caib.seycon.ng.sync.agent.AgentInterface;
 import es.caib.seycon.ng.sync.agent.AgentManager;
-import es.caib.seycon.ng.sync.bootstrap.NullSqlObjet;
 import es.caib.seycon.ng.sync.bootstrap.QueryHelper;
 import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 import es.caib.seycon.ng.sync.engine.db.ConnectionPool.ThreadBound;
@@ -69,31 +62,22 @@ import es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator;
 import es.caib.seycon.ng.sync.engine.kerberos.KerberosManager;
 import es.caib.seycon.ng.sync.intf.AccessControlMgr;
 import es.caib.seycon.ng.sync.intf.AccessLogMgr;
-import es.caib.seycon.ng.sync.intf.AgentMgr;
 import es.caib.seycon.ng.sync.intf.AuthoritativeChange;
-import es.caib.seycon.ng.sync.intf.AuthoritativeChangeIdentifier;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource2;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaMgr;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaOfflineChangeRetriever;
-import es.caib.seycon.ng.sync.intf.ExtensibleObject;
-import es.caib.seycon.ng.sync.intf.ExtensibleObjectMapping;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
-import es.caib.seycon.ng.sync.intf.ExtensibleObjects;
-import es.caib.seycon.ng.sync.intf.GroupInfo;
 import es.caib.seycon.ng.sync.intf.GroupMgr;
 import es.caib.seycon.ng.sync.intf.HostMgr;
-import es.caib.seycon.ng.sync.intf.IbsalutMgr;
 import es.caib.seycon.ng.sync.intf.KerberosAgent;
 import es.caib.seycon.ng.sync.intf.LogEntry;
 import es.caib.seycon.ng.sync.intf.MailAliasMgr;
 import es.caib.seycon.ng.sync.intf.NetworkMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr;
 import es.caib.seycon.ng.sync.intf.ReconcileMgr2;
-import es.caib.seycon.ng.sync.intf.RoleInfo;
 import es.caib.seycon.ng.sync.intf.RoleMgr;
 import es.caib.seycon.ng.sync.intf.SharedFolderMgr;
-import es.caib.seycon.ng.sync.intf.UserInfo;
 import es.caib.seycon.ng.sync.intf.UserMgr;
 import es.caib.seycon.ng.sync.replica.DatabaseRepository;
 import es.caib.seycon.ng.sync.replica.MainDatabaseSynchronizer;
@@ -101,8 +85,6 @@ import es.caib.seycon.ng.sync.servei.ChangePasswordNotificationQueue;
 import es.caib.seycon.ng.sync.servei.LogCollectorService;
 import es.caib.seycon.ng.sync.servei.SecretStoreService;
 import es.caib.seycon.ng.sync.servei.ServerService;
-import es.caib.seycon.ng.sync.web.esso.GetSecretsServlet;
-import es.caib.seycon.ng.utils.Security;
 import es.caib.seycon.util.Syslogger;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -162,13 +144,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     private ServerService server;
     private boolean actionStop;
     private long taskQueueStartTime;
-    private long lastLoop;
     private long nextConnect;
     private Exception connectException;
     private String agentVersion;
     private es.caib.seycon.ng.sync.servei.TaskQueue taskqueue;
     private es.caib.seycon.ng.sync.servei.TaskGenerator taskgenerator;
-    private long taskQueueExpendedTime;
     private SecretStoreService secretStoreService;
     private String targetHost;
     private Thread currentThread;
@@ -183,12 +163,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private static final int MAX_LENGTH = 150;
 	private static final int MAX_ROLE_CODE_LENGTH = 50;
 	private DominiContrasenya passwordDomain = null;
-	private DadesAddicionalsService dadesAddicionalsService;
-	private UsuariService usuariService;
-	private GrupService grupService;
-	private boolean auditGenerated;
 	private ObjectTranslator attributeTranslator;
 	private AuthoritativeChangeService authoritativeService;
+
+	private enum DispatcherStatus {
+		STARTING,
+		LOOP_START,
+		NEXT_TASK,
+		GET_LOGS,
+		WAIT
+	}
+	DispatcherStatus dispatcherStatus = DispatcherStatus.STARTING;
+	private UsuariService usuariService;
+	private GrupService grupService;
 
 	public DominiContrasenya getPasswordDomain() throws InternalErrorException
 	{
@@ -225,7 +212,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         accountService = ServerServiceLocator.instance().getAccountService();
         dominiService = ServerServiceLocator.instance().getDominiUsuariService();
         usuariService = ServerServiceLocator.instance().getUsuariService();
-        dadesAddicionalsService = ServerServiceLocator.instance().getDadesAddicionalsService();
+        ServerServiceLocator.instance().getDadesAddicionalsService();
         grupService = ServerServiceLocator.instance().getGrupService();
         auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
@@ -411,7 +398,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     @Override
     public void reconfigure() {
         reconfigure = true;
-        currentThread.interrupt();
+        if (currentThread != null)
+        	currentThread.interrupt();
         passwordDomain = null;
     }
 
@@ -438,86 +426,36 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         new Thread(this).start();
     }
 
+    int delay, timeoutDelay;
+    boolean abort = false;
+	private TaskHandler nextTask;
+	private long waitUntil;
+
+
     public void run() {
         try {
         	ConnectionPool pool = ConnectionPool.getPool();
         	
             currentThread = Thread.currentThread();
             Thread.currentThread().setName(getDispatcher().getCodi());
-            int delay, timeoutDelay;
             // boolean runTimedOutTasks = true;
             log.info("Registered dispatcher thread", null, null);
-            String retry = server.getConfig("server.dispatcher.delay");
-            if (retry == null)
-                delay = 10000;
-            else
-                delay = Integer.decode(retry).intValue() * 1000;
-            retry = server.getConfig("server.dispatcher.timeout");
-            if (retry == null)
-                timeoutDelay = 60000;
-            else
-                timeoutDelay = Integer.decode(retry).intValue() * 1000;
+            runInit();
             // setName (agentName);
             while (active) {
                 // Actualiza información del último bucle realizado
-                taskQueueStartTime = lastLoop = new java.util.Date().getTime();
+                taskQueueStartTime = new java.util.Date().getTime();
 
                 // Forzar la reconexion
-                if (reconfigure) {
-                	if (agent != null)
-                		log.info ("Disconnecting agent in order to apply new configuration");
-                    agent = null;
-                    nextConnect = 0;
-                    reconfigure = false;
-                }
-                // //////////////////////////////////////////////////////////
-                // Contactar con el agente
-                //
-                if (agent == null && nextConnect < new java.util.Date().getTime()) {
-                    try {
-                        setStatus("Looking up server");
-                        log.info("Connecting ...");
-                        agent = connect(true);
-                        nextConnect = new java.util.Date().getTime() + timeoutDelay;
-                        if (agent instanceof DatabaseReplicaMgr)
-                        {
-                        	try {
-                            	MainDatabaseSynchronizer mds = new MainDatabaseSynchronizer();
-                            	mds.setAgent((DatabaseReplicaOfflineChangeRetriever) agent);
-                            	mds.doSynchronize();
-                            } catch (Throwable e) {
-                                log.warn("Error synchronyzing main database {}: {} ", getDispatcher().getCodi(), e.toString());
-                            }
-                        }
-                    } catch (Throwable e) {
-                        delay = timeoutDelay;
-                        if (e instanceof Exception)
-                        	connectException = (Exception) e;
-                        else
-                        	connectException = new InternalErrorException("Unexepcted error", e);
-                        log.warn("Error connecting {}: {} ", getDispatcher().getCodi(), e.toString());
-                    }
-                }
-
-                boolean abort = false;
 
                 try {
                     // //////////////////////////////////////////////////////////
                     // Ejecutar las transacciones
-                    TaskHandler t;
-                    String reason;
+                    runLoopStart();
                     boolean ok = true;
                     setStatus("Getting Task");
-                    log.info("Getting tasks");
-                    t = taskqueue.getPendingTask(this);
-                    while (t != null && !abort && !actionStop && !reconfigure && agent != null) {
-                        lastLoop = new java.util.Date().getTime();
-                        
-                        if (t.isOfflineTask() && pool.isOfflineMode() ||
-                        	! t.isOfflineTask() && ! pool.isOfflineMode())
-                        	t = processAndLogTask(t);
-                        else
-                           	t = taskqueue.getNextPendingTask(this, t);
+                    while (nextTask != null && !abort && !actionStop && !reconfigure && agent != null) {
+                        runLoopNext();
                     }
                     
                 } catch (Throwable e) {
@@ -525,21 +463,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 }
                 // //////////////////////////////////////////////////////////
                 // Recuperar los logs
-                if (!actionStop && !abort && agent != null && taskgenerator.canGetLog(this)) {
-                    setStatus("Retrieving logs");
-                    try {
-                        lastLoop = new java.util.Date().getTime();
-                        getLog();
-                    } catch (RemoteException e) {
-                        handleRMIError(e);
-                    } catch (InternalErrorException e) {
-                        log.info("Cannot retrieve logs: {}", e.getMessage(), null);
-                    } catch (Throwable e) {
-                        log.warn("Cannot retrieve logs: {}", e);
-                    } finally {
-                        taskgenerator.finishGetLog(this);
-                    }
-                }
+                runGetLogs();
                 // El séptimo dia descansó
                 setStatus("Sleeping");
                 try {
@@ -547,7 +471,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                         Thread.sleep(delay);
                 } catch (InterruptedException e2) {
                 }
-                taskQueueExpendedTime = System.currentTimeMillis() - taskQueueStartTime;
             } // Fin del bucle infinito (qué paradoja!)
         } catch (Throwable e) {
             log.warn("Distpacher dead", e);
@@ -558,6 +481,93 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
 
     }
+
+	private void runGetLogs() throws InternalErrorException {
+		if (!actionStop && !abort && agent != null && taskgenerator.canGetLog(this)) {
+		    setStatus("Retrieving logs");
+		    try {
+		        getLog();
+		    } catch (RemoteException e) {
+		        handleRMIError(e);
+		    } catch (InternalErrorException e) {
+		        log.info("Cannot retrieve logs: {}", e.getMessage(), null);
+		    } catch (Throwable e) {
+		        log.warn("Cannot retrieve logs: {}", e);
+		    } finally {
+		        taskgenerator.finishGetLog(this);
+		    }
+		}
+		waitUntil = System.currentTimeMillis() + delay;
+	}
+
+	private void runLoopNext()
+			throws InternalErrorException {
+    	ConnectionPool pool = ConnectionPool.getPool();
+		if (nextTask.isOfflineTask() && pool.isOfflineMode() ||
+			! nextTask.isOfflineTask() && ! pool.isOfflineMode())
+			nextTask = processAndLogTask(nextTask);
+		else
+			nextTask = taskqueue.getNextPendingTask(this, nextTask);
+	}
+
+	private void runLoopStart() throws InternalErrorException {
+		if (reconfigure) {
+			if (agent != null)
+				log.info ("Disconnecting agent in order to apply new configuration");
+		    agent = null;
+		    nextConnect = 0;
+		    reconfigure = false;
+		}
+		// //////////////////////////////////////////////////////////
+		// Contactar con el agente
+		//
+		if (agent == null && nextConnect < new java.util.Date().getTime()) {
+		    try {
+		        setStatus("Looking up server");
+		        log.info("Connecting ...");
+		        agent = connect(true);
+		        nextConnect = new java.util.Date().getTime() + timeoutDelay;
+		        if (agent instanceof DatabaseReplicaMgr)
+		        {
+		        	try {
+		            	MainDatabaseSynchronizer mds = new MainDatabaseSynchronizer();
+		            	mds.setAgent((DatabaseReplicaOfflineChangeRetriever) agent);
+		            	mds.doSynchronize();
+		            } catch (Throwable e) {
+		                log.warn("Error synchronyzing main database {}: {} ", getDispatcher().getCodi(), e.toString());
+		            }
+		        }
+		    } catch (Throwable e) {
+		        delay = timeoutDelay;
+		        if (e instanceof Exception)
+		        	connectException = (Exception) e;
+		        else
+		        	connectException = new InternalErrorException("Unexepcted error", e);
+		        log.warn("Error connecting {}: {} ", getDispatcher().getCodi(), e.toString());
+		    }
+		}
+
+        boolean ok = true;
+        setStatus("Getting Task");
+        log.info("Getting tasks");
+
+    	ConnectionPool pool = ConnectionPool.getPool();
+    	
+    	nextTask = taskqueue.getPendingTask(this);
+	}
+
+	private void runInit() throws InternalErrorException {
+		String retry = server.getConfig("server.dispatcher.delay");
+		if (retry == null)
+		    delay = 10000;
+		else
+		    delay = Integer.decode(retry).intValue() * 1000;
+		retry = server.getConfig("server.dispatcher.timeout");
+		if (retry == null)
+		    timeoutDelay = 60000;
+		else
+		    timeoutDelay = Integer.decode(retry).intValue() * 1000;
+	}
 
 	/**
 	 * @throws Exception 
@@ -2296,5 +2306,47 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				result.append (out.toString("UTF-8"));
 			} catch (Exception e2) {}
 		}
+	}
+	
+	public TaskHandler getNextTask ()
+	{
+		return nextTask;
+	}
+	
+	public DispatcherStatus getDispatcherStatus ()
+	{
+		return dispatcherStatus;
+	}
+	
+	public boolean runStep () throws InternalErrorException
+	{
+		boolean done = true;
+		switch (dispatcherStatus)
+		{
+		case STARTING:
+			runInit();
+			dispatcherStatus = DispatcherStatus.LOOP_START;
+			break;
+		case WAIT:
+			if (System.currentTimeMillis() < waitUntil)
+			{
+				done = false;
+				break;
+			}
+			// Go on with loop_start
+		case LOOP_START:
+			runLoopStart();
+			dispatcherStatus = nextTask == null ? DispatcherStatus.GET_LOGS : DispatcherStatus.NEXT_TASK;
+			break;
+		case NEXT_TASK:
+			runLoopNext();
+			dispatcherStatus = nextTask == null ? DispatcherStatus.GET_LOGS : DispatcherStatus.NEXT_TASK;
+			break;
+		case GET_LOGS:
+			runGetLogs();
+			dispatcherStatus = DispatcherStatus.WAIT;
+			break;
+		}
+		return done;
 	}
 }

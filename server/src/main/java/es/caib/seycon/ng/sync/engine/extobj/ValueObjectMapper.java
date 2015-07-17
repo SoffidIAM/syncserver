@@ -202,7 +202,7 @@ public class ValueObjectMapper
 					else if ("createdBy".equals(attribute)) usuari.setUsuariCreacio(toString(value));
 					else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
 					else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
-					else if ("attributes".equals(attribute))
+					else if ("attributes".equals(attribute) || "userAttributes".equals(attribute))
 					{
 						if (object.getAttribute(attribute) instanceof Map)
 						{
@@ -310,6 +310,15 @@ public class ValueObjectMapper
 			account.setLastUpdated(toCalendar (object.getAttribute("lastUpdate")));
 			account.setLastPasswordSet(toCalendar (object.getAttribute("lastPasswordUpdate")));
 			account.setPasswordExpiration(toCalendar (object.getAttribute("passwordExpiration")));
+			Object map = object.getAttribute("accountAttributes");
+			if (map != null && map instanceof Map)
+			{
+				account.setAttributes((Map<String, Object>) map);
+			} else {
+				map = object.getAttribute("attributes");
+				if (map != null && map instanceof Map)
+					account.setAttributes((Map<String, Object>) map);
+			}
 		}
 		return account;
 	}

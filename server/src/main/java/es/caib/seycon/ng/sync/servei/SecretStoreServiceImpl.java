@@ -257,7 +257,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		for (int i=0; i < p.length; i++)
 			p[i] = '\0';
 		acc.setSecrets(b.toString());
-		getAccountEntityDao().update(acc);
+		getAccountEntityDao().update(acc, "x");
 	}
 
 	@Override

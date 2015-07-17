@@ -8,14 +8,19 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+
+import com.soffid.iam.api.AttributeVisibilityEnum;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.Aplicacio;
+import es.caib.seycon.ng.comu.DadaUsuari;
 import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.Domini;
 import es.caib.seycon.ng.comu.Grup;
@@ -23,7 +28,9 @@ import es.caib.seycon.ng.comu.PoliticaContrasenya;
 import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.comu.RolAccount;
 import es.caib.seycon.ng.comu.RolGrant;
+import es.caib.seycon.ng.comu.TipusDada;
 import es.caib.seycon.ng.comu.TipusDomini;
+import es.caib.seycon.ng.comu.TypeEnumeration;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.comu.ValorDomini;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
@@ -32,6 +39,7 @@ import es.caib.seycon.ng.exception.NeedsAccountNameException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.servei.AccountService;
 import es.caib.seycon.ng.servei.AplicacioService;
+import es.caib.seycon.ng.servei.DadesAddicionalsService;
 import es.caib.seycon.ng.servei.DominiService;
 import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.UsuariService;
@@ -48,6 +56,7 @@ public class ReconcileEngine2
 
 	private ReconcileMgr2 agent;
 	private AccountService accountService;
+	private DadesAddicionalsService dadesAddicionalsService;
 	private AplicacioService appService;
 	private Dispatcher dispatcher;
 	private ServerService serverService;
@@ -70,6 +79,7 @@ public class ReconcileEngine2
 		dominiService = ServiceLocator.instance().getDominiUsuariService();
 		usuariService = ServiceLocator.instance().getUsuariService();
 		rolDomainService = ServiceLocator.instance().getDominiService();
+		dadesAddicionalsService = ServiceLocator.instance().getDadesAddicionalsService();
 		log = new StringBuffer();
 	}
 
@@ -97,10 +107,11 @@ public class ReconcileEngine2
 		for (String accountName: agent.getAccountsList())
 		{
 			Account acc = accountService.findAccount(accountName, dispatcher.getCodi());
+			Account existingAccount;
 			if (acc == null)
 			{
-				Account usuari = agent.getAccountInfo(accountName);
-				if (usuari != null)
+				existingAccount = agent.getAccountInfo(accountName);
+				if (existingAccount != null)
 				{
 					acc = new Account ();
 					acc.setName(accountName);
@@ -125,16 +136,16 @@ public class ReconcileEngine2
 					}
 				}
 			} else {
-				Account usuari = agent.getAccountInfo(accountName);
-				if (usuari != null)
+				existingAccount = agent.getAccountInfo(accountName);
+				if (existingAccount != null)
 				{
-					if (usuari.getDescription() != null && usuari.getDescription().trim().length() > 0)
-						acc.setDescription(usuari.getDescription());
-					if (usuari.getLastPasswordSet() != null)
-						acc.setLastPasswordSet(usuari.getLastPasswordSet());
-					if (usuari.getLastUpdated() != null)
-						acc.setLastUpdated(usuari.getLastUpdated());
-					if (usuari.getPasswordExpiration() != null)
+					if (existingAccount.getDescription() != null && existingAccount.getDescription().trim().length() > 0)
+						acc.setDescription(existingAccount.getDescription());
+					if (existingAccount.getLastPasswordSet() != null)
+						acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
+					if (existingAccount.getLastUpdated() != null)
+						acc.setLastUpdated(existingAccount.getLastUpdated());
+					if (existingAccount.getPasswordExpiration() != null)
 						acc.setPasswordExpiration(acc.getPasswordExpiration());
 					try {
 						log.append ("Updating account ").append (accountName).append ('\n');
@@ -146,6 +157,7 @@ public class ReconcileEngine2
 				
 			}
 
+			reconcileAccountAttributes (acc, existingAccount);
 			// Only reconcile grants on unmanaged accounts
 			// or read only dispatchers
 			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
@@ -153,6 +165,84 @@ public class ReconcileEngine2
 		}
 		
 		reconcileAllRoles ();
+	}
+
+	private void reconcileAccountAttributes(Account soffidAccount, Account systemAccount) throws InternalErrorException {
+		List<DadaUsuari> soffidAttributes = accountService.getAccountAttributes(soffidAccount);
+		if (systemAccount.getAttributes() != null)
+		{
+			for (String key: systemAccount.getAttributes().keySet())
+			{
+				Object value = systemAccount.getAttributes().get(key);
+				DadaUsuari soffidValue = null;
+				for (Iterator<DadaUsuari> it = soffidAttributes.iterator(); it.hasNext();)
+				{
+					DadaUsuari du = it.next();
+					if (du.getCodiDada().equals (key))
+					{
+						it.remove();
+						soffidValue = du;
+						break;
+					}
+				}
+				if (value == null) // Remove attribute
+				{
+					if (soffidValue != null )
+					{
+						dadesAddicionalsService.delete(soffidValue);
+					}
+				} else if (soffidValue == null) // Create value
+				{
+					// Verify attribute exists
+					TipusDada type = dadesAddicionalsService.findSystemDataType(soffidAccount.getDispatcher(), key);
+					if (type == null)
+					{
+						type = new TipusDada();
+						type.setSystemName(soffidAccount.getDispatcher());
+						type.setOrdre(0L);
+						type.setCodi(key);
+						type.setLabel(key);
+						type.setOperatorVisibility(AttributeVisibilityEnum.HIDDEN);
+						type.setAdminVisibility(AttributeVisibilityEnum.HIDDEN);
+						type.setUserVisibility(AttributeVisibilityEnum.HIDDEN);
+						type.setType(value instanceof byte[] ? TypeEnumeration.BINARY_TYPE:
+							value instanceof Date || value instanceof Calendar ? TypeEnumeration.DATE_TYPE:
+							TypeEnumeration.STRING_TYPE);
+					}
+					soffidValue = new DadaUsuari();
+					soffidValue.setAccountName(soffidAccount.getName());
+					soffidValue.setSystemName(soffidAccount.getDispatcher());
+					soffidValue.setCodiDada(key);
+					setDadaValue(soffidValue, value);
+					dadesAddicionalsService.create(soffidValue);
+				}
+				else
+				{
+					setDadaValue(soffidValue, value);
+					dadesAddicionalsService.update(soffidValue);
+				}
+			}
+		}
+	}
+
+	private void setDadaValue(DadaUsuari soffidValue, Object value) {
+		if (value instanceof Date)
+		{
+			Calendar c = Calendar.getInstance();
+			c.setTime((Date) value);
+			soffidValue.setValorDadaDate(c);
+		} else if (value instanceof byte[])
+		{
+			soffidValue.setBlobDataValue((byte[]) value);
+		}
+		else if (value instanceof Calendar)
+		{
+			soffidValue.setValorDadaDate((Calendar) value);
+		}
+		else 
+		{
+			soffidValue.setValorDada(value.toString());
+		}
 	}
 
 	private void reconcileAllRoles() throws RemoteException, InternalErrorException {
