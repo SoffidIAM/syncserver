@@ -218,7 +218,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         taskgenerator = ServerServiceLocator.instance().getTaskGenerator();
         secretStoreService = ServerServiceLocator.instance().getSecretStoreService();
         changePasswordNotificationQueue = ServerServiceLocator.instance().getChangePasswordNotificationQueue();
-        tasqueEntityDao = (TaskEntityDao) ServerServiceLocator.instance().getService("tasqueEntityDao");
+        tasqueEntityDao = (TaskEntityDao) ServerServiceLocator.instance().getService("taskEntityDao");
         internalPasswordService = (InternalPasswordService)
         		ServerServiceLocator.instance().getInternalPasswordService();
         accountService = ServerServiceLocator.instance().getAccountService();
@@ -226,7 +226,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         usuariService = ServerServiceLocator.instance().getUsuariService();
         dadesAddicionalsService = ServerServiceLocator.instance().getDadesAddicionalsService();
         grupService = ServerServiceLocator.instance().getGrupService();
-        auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditoriaEntityDao");
+        auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
         authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
         

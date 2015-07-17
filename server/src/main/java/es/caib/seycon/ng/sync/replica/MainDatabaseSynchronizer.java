@@ -48,8 +48,8 @@ public class MainDatabaseSynchronizer
 	{
 		ips = ServiceLocator.instance().getInternalPasswordService(); 
 		accountEntityDao = (AccountEntityDao) ServerServiceLocator.instance().getService("accountEntityDao");
-		usuariEntityDao = (UserEntityDao) ServerServiceLocator.instance().getService("usuariEntityDao");
-		dominiContrasenyaEntityDao = (PasswordDomainEntityDao) ServerServiceLocator.instance().getService("dominiContrasenyaEntityDao");
+		usuariEntityDao = (UserEntityDao) ServerServiceLocator.instance().getService("userEntityDao");
+		dominiContrasenyaEntityDao = (PasswordDomainEntityDao) ServerServiceLocator.instance().getService("passwordDomainEntityDao");
 	}
 	
 	public DatabaseReplicaOfflineChangeRetriever getAgent ()
