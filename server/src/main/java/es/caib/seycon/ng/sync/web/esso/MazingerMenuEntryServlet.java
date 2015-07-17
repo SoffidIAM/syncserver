@@ -102,11 +102,16 @@ public class MazingerMenuEntryServlet extends HttpServlet {
                     if (punts.size() == 1)
                         pue = punts.iterator().next();
                 }
-                if (pue == null || !puntEntradaService.canExecute(pue))
+                if (pue == null)
+                	writer.write ("ERROR|Unknown application entry point");
+                else if (!puntEntradaService.canExecute(pue))
                     throw new InternalErrorException("Not authorized to execute application");
-                String result = generatePuntEntrada(pue, req.getRemoteAddr());
-                writer.write("OK|");
-                writer.write(result);
+                else
+                {
+	                String result = generatePuntEntrada(pue, req.getRemoteAddr());
+	                writer.write("OK|");
+	                writer.write(result);
+                }
             } catch (Exception e) {
                 log("Error getting menu id:" + id + " codi:" + codi, e);
                 writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n");

@@ -547,9 +547,17 @@ public class ServerServiceImpl extends ServerServiceBase {
     private UserEntity getUserForMailList(String list, String domain) throws UnknownMailListException {
         List<UserEntity> usuaris;
         if (domain == null)
-            usuaris = getUserEntityDao().query("select usuari from es.caib.seycon.ng.model.UsuariEntity as usuari where usuari.nomCurt=:nomCurt and usuari.dominiCorreu is null", new Parameter[]{new Parameter("nomCurt", list)});
+            usuaris = getUserEntityDao().query("select usuari "
+            		+ "from com.soffid.iam.model.UserEntity as usuari "
+            		+ "where usuari.shortName=:nomCurt and usuari.mailDomain is null", 
+            		new Parameter[]{new Parameter("nomCurt", list)});
         else
-            usuaris = getUserEntityDao().query("select usuari from es.caib.seycon.ng.model.UsuariEntity as usuari join usuari.dominiCorreu as domini with domini.codi=:domini where usuari.nomCurt=:nomCurt", new Parameter[]{new Parameter("domini", domain), new Parameter("nomCurt", list)});
+            usuaris = getUserEntityDao().query("select usuari "
+            		+ "from com.soffid.iam.model.UserEntity as usuari "
+            		+ "join usuari.mailDomain as domini with domini.name=:domini "
+            		+ "where usuari.shortName=:nomCurt", 
+            		new Parameter[]{new Parameter("domini", domain), 
+            				new Parameter("nomCurt", list)});
         if (usuaris == null || usuaris.isEmpty())
             throw new UnknownMailListException(list + "@" + domain); //$NON-NLS-1$
         UserEntity usuari = usuaris.get(0);
@@ -773,21 +781,27 @@ public class ServerServiceImpl extends ServerServiceBase {
         EntryPointEntityDao dao = getEntryPointEntityDao();
         // Punts d'entrada publics
         addPuntsEntrada(xmlPUE, duplicates, dao.query(
-                "select punt from es.caib.seycon.ng.model.PuntEntradaEntity as punt " //$NON-NLS-1$
-                        + "where punt.esPublic='S' and punt.xmlPUE is not null", //$NON-NLS-1$
+                "select punt from com.soffid.iam.model.EntryPointEntity as punt " //$NON-NLS-1$
+                        + "where punt.publicAccess='S' and punt.xmlEntryPoint is not null", //$NON-NLS-1$
                 new Parameter[0]));
 
         // Punts d'entrada associats a l'usuari
         addPuntsEntrada(xmlPUE, duplicates, dao.query(
-                "select punt from es.caib.seycon.ng.model.PuntEntradaEntity as punt " //$NON-NLS-1$
-                        + "join punt.autoritzaUsuari as autoritzacio " //$NON-NLS-1$
-                        + "where autoritzacio.idUsuari=:user and punt.xmlPUE is not null", //$NON-NLS-1$
+                "select punt from com.soffid.iam.model.EntryPointEntity as punt " //$NON-NLS-1$
+                        + "join punt.authorizedUsers as autoritzacio " //$NON-NLS-1$
+                        + "where autoritzacio.userId=:user and punt.xmlEntryPoint is not null", //$NON-NLS-1$
                 new Parameter[] { new Parameter("user", user.getId()) })); //$NON-NLS-1$
 
         // Punts d'entrada dels grups
         for (Iterator<Grup> it = getUserGroupsHierarchy(user.getUserName(), null).iterator(); it.hasNext(); ) {
             Grup grup = it.next();
-            addPuntsEntrada(xmlPUE, duplicates, dao.query("select punt from es.caib.seycon.ng.model.PuntEntradaEntity AS punt join punt.autoritzaGrup AS autGrup where autGrup.idGrup = :grup and punt.xmlPUE is not null", new Parameter[]{new Parameter("grup", grup.getId())}));
+            addPuntsEntrada(xmlPUE, duplicates, dao.query(
+            		"select punt from com.soffid.iam.model.EntryPointEntity AS punt "
+            		+ "join punt.authorizedGroups AS autGrup "
+            		+ "where autGrup.groupId = :grup and "
+            		+ "punt.xmlEntryPoint is not null", 
+            		new Parameter[]{
+            				new Parameter("grup", grup.getId())}));
         }
 
         // Punts d'entrada dels rols
@@ -795,9 +809,9 @@ public class ServerServiceImpl extends ServerServiceBase {
             RolGrant grant = it.next();
             addPuntsEntrada(xmlPUE, duplicates, dao.query(
                     "select punt " + //$NON-NLS-1$
-                    "from es.caib.seycon.ng.model.PuntEntradaEntity as punt " //$NON-NLS-1$
-                            + "join punt.autoritzaRol as autRol " //$NON-NLS-1$
-                            + "where autRol.idRol=:rol and punt.xmlPUE is not null", //$NON-NLS-1$
+                    "from com.soffid.iam.model.EntryPointEntity as punt " //$NON-NLS-1$
+                            + "join punt.authorizedRoles as autRol " //$NON-NLS-1$
+                            + "where autRol.roleId=:rol and punt.xmlEntryPoint is not null", //$NON-NLS-1$
                     new Parameter[] { new Parameter("rol", grant.getIdRol()) })); //$NON-NLS-1$
         }
 

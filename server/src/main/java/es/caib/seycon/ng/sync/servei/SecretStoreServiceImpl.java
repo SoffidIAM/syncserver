@@ -215,7 +215,9 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
     }
 
     protected Collection<Usuari> handleGetUsersWithSecrets() {
-        List<UserEntity> usuaris = getUserEntityDao().query("select distinct usuari from es.caib.seycon.ng.model.UsuariEntity as usuari join usuari.secrets as secret", null);
+        List<UserEntity> usuaris = getUserEntityDao().query(
+        		"select distinct usuari from com.soffid.iam.model.UserEntity as usuari "
+        		+ "join usuari.secrets as secret", null);
         return getUserEntityDao().toUsuariList(usuaris);
     }
 
@@ -292,7 +294,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 			throws Exception {
         List<AccountEntity> accounts = getAccountEntityDao().query(
                 "select distinct account " +
-                "from es.caib.seycon.ng.model.AccountEntity as account "
+                "from com.soffid.iam.model.AccountEntity as account "
                         + "where account.secrets is not null", null);
         return getAccountEntityDao().toAccountList(accounts);
 	}

@@ -91,15 +91,22 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         	{
                 log.info("Looking for new tasks to schedule");
                 if (firstRun) {
-                    tasks = getTaskEntityDao().query("select tasca from es.caib.seycon.ng.model.TasqueEntity tasca where tasca.server = :server order by tasca.id", new Parameter[]{new Parameter("server", config.getHostName())});
+                    tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
+                    		+ "where tasca.server = :server "
+                    		+ "order by tasca.id", 
+                    		new Parameter[]{new Parameter("server", config.getHostName())});
                 } else {
-                    tasks = getTaskEntityDao().query("select tasca from es.caib.seycon.ng.model.TasqueEntity tasca where tasca.server is null order by tasca.prioritat, tasca.id", new Parameter[0], csc);
+                    tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
+                    		+ "where tasca.server is null "
+                    		+ "order by tasca.priority, tasca.id", new Parameter[0], csc);
                 }
         	} else {
                 if (firstOfflineRun) {
                     log.info("Looking for offline tasks");
                     firstOfflineRun = false;
-                    tasks = getTaskEntityDao().query("select tasca from es.caib.seycon.ng.model.TasqueEntity tasca where tasca.server = :server order by tasca.id", new Parameter[]{new Parameter("server", config.getHostName())});
+                    tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
+                    		+ "where tasca.server = :server order by tasca.id", 
+                    		new Parameter[]{new Parameter("server", config.getHostName())});
                 } else {
                 	tasks = Collections.emptyList();
                 }

@@ -233,7 +233,12 @@ public class LogonServiceImpl extends LogonServiceBase {
             if (!ch.getCardNumber().equals("")) { //$NON-NLS-1$
                 String value = ""; //$NON-NLS-1$
                 // Localizar tarjeta y celda
-                List<CardCellEntity> contar = getCardCellEntityDao().query("from es.caib.seycon.ng.model.ScConTar contar join contar.targeta as targeta where targeta.codi=:codi and contar.filcol=:filcol", new Parameter[]{new Parameter("codi", ch.getCardNumber()), new Parameter("codi", ch.getCell())}); //$NON-NLS-1$
+                List<CardCellEntity> contar = getCardCellEntityDao().query(
+                		"from com.soffid.iam.model.CardCellEntity contar join "
+                		+ "contar.card as targeta "
+                		+ "where targeta.code=:codi and contar.cell=:filcol", 
+                		new Parameter[]{new Parameter("codi", ch.getCardNumber()), 
+                				new Parameter("codi", ch.getCell())}); //$NON-NLS-1$
                 if (contar.size() == 1 && contar.get(0).getValue().equals(challenge.getValue())) {
                     CardCellEntity contarEntity = contar.get(0);
                     contarEntity.setExpirationDate(new Date());
@@ -392,7 +397,15 @@ public class LogonServiceImpl extends LogonServiceBase {
             }
         }
         ch.setHost(findMaquina(hostIp));
-        List<CardEntity> targetes = getCardEntityDao().query("select targeta from es.caib.seycon.ng.model.UsuariEntity as usuari join usuari.targetesExtranet as targeta with targeta.actiu=\'S\' and targeta.dataCaducitat >= :now and targeta.dataEmissio < :now where usuari.codi = :codi order by targeta.dataEmissio desc", new Parameter[]{new Parameter("now", new Date()), new Parameter("codi", user)}); //$NON-NLS-1$
+        List<CardEntity> targetes = getCardEntityDao().query(
+        		"select targeta from com.soffid.iam.model.UserEntity as usuari "
+        		+ "join usuari.extranetCard as targeta "
+        		+ "with targeta.active=\'S\' and targeta.expirationDate >= :now and "
+        		+ "targeta.issueDate < :now where usuari.userName = :codi "
+        		+ "order by targeta.issueDate desc", 
+        		new Parameter[]{
+        				new Parameter("now", new Date()), 
+        				new Parameter("codi", user)}); //$NON-NLS-1$
 
         if (targetes.size() > 0) {
             CardEntity targeta = targetes.get(0);
@@ -400,13 +413,17 @@ public class LogonServiceImpl extends LogonServiceBase {
             java.util.Random r = new java.util.Random();
             ch.setCardNumber(targeta.getCode());
             CardCellEntityDao contarDao = getCardCellEntityDao();
-            List<CardCellEntity> cells = contarDao.query("from es.caib.seycon.ng.model.ScContar contar where contar.targeta=:targeta order by contar.dadaUs", new Parameter[]{new Parameter("targeta", targeta)}); //$NON-NLS-1$
+            List<CardCellEntity> cells = contarDao.query(
+            		"from com.soffid.iam.model.CardCellEntity contar "
+            		+ "where contar.card=:targeta "
+            		+ "order by contar.expirationDate", 
+            		new Parameter[]{new Parameter("targeta", targeta)}); //$NON-NLS-1$
 
             int l = r.nextInt() % 50;
             if (cells.size() < l)
                 throw new InternalErrorException(Messages.getString("LogonServiceImpl.ErrorReadCarMsg")); //$NON-NLS-1$
             else {
-                ch.setCell(cells.get(l).getFilcol());
+                ch.setCell(cells.get(l).getCell());
             }
         } else {
             ch.setCardNumber(""); //$NON-NLS-1$
