@@ -387,6 +387,52 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		if (domini != null)
 			handlePutSecret(user, "dompass/"+domini.getId(), p);
 	}
+
+	@Override
+	protected void handleSetPasswordAndUpdateAccount(long accountId,
+			Password value, boolean mustChange, Date expirationDate)
+			throws Exception {
+		handleSetPassword(accountId, value);
+		
+		Account acc = getAccountService().load(accountId);
+		if (acc == null)
+			throw new InternalErrorException ("Account "+accountId+" not found");
+        if (!mustChange)
+        {
+        	Long time = null;
+        	if (expirationDate != null)
+        	{
+	    		getAccountService().updateAccountPasswordDate2(acc, expirationDate);
+        	} else {
+        		Dispatcher dispatcher = getDispatcherService().findDispatcherByCodi(acc.getDispatcher());
+        		if (dispatcher == null)
+        			throw new InternalErrorException("Dispatcher "+acc.getDispatcher()+" not found");
+            	PoliticaContrasenya politica = getDominiUsuariService().findPoliticaByTipusAndDominiContrasenyas(
+            			acc.getPasswordPolicy(), dispatcher.getDominiContrasenyes());
+            	Long l = getPasswordTerm(politica);
+
+            	getAccountService().updateAccountPasswordDate(acc, l);
+        	}
+        }
+        else
+        {
+        	getAccountService().updateAccountPasswordDate(acc, new Long(0));
+        }
+	}
+	
+	private Long getPasswordTerm (PoliticaContrasenya politica)
+	{
+		Long l = null;
+		
+		if (politica != null && politica.getDuradaMaxima() != null && politica.getTipus().equals("M"))
+		    l = politica.getDuradaMaxima();
+		else if (politica != null && politica.getTempsRenovacio() != null && politica.getTipus().equals("A"))
+			l = politica.getTempsRenovacio();
+		else
+			l = new Long(3650);
+		return l;
+	}
+
 }
 
 class Decoder {

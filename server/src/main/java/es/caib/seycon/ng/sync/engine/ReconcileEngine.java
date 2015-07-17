@@ -81,48 +81,32 @@ public class ReconcileEngine
 				Usuari usuari = agent.getUserInfo(accountName);
 				if (usuari != null)
 				{
-					String desiredAccount = accountService.gessAccountName(accountName, dispatcher.getCodi());
-					if (desiredAccount != null && desiredAccount.equals(accountName))
+					acc = new Account ();
+					acc.setName(accountName);
+					acc.setDispatcher(dispatcher.getCodi());
+					if (usuari.getFullName() != null)
+						acc.setDescription(usuari.getFullName());
+					else if (usuari.getPrimerLlinatge() != null)
 					{
-						try {
-							Usuari existingUser = usuariService.findUsuariByCodiUsuari(accountName);
-							acc = accountService.createAccount(existingUser, dispatcher, accountName);
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						} catch (NeedsAccountNameException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
-						
+						if (usuari.getNom() == null)
+							acc.setDescription(usuari.getPrimerLlinatge());
+						else
+							acc.setDescription(usuari.getNom()+" "+usuari.getPrimerLlinatge());
 					}
 					else
-					{
-						acc = new Account ();
-						acc.setName(accountName);
-						acc.setDispatcher(dispatcher.getCodi());
-						if (usuari.getFullName() != null)
-							acc.setDescription(usuari.getFullName());
-						else if (usuari.getPrimerLlinatge() != null)
-						{
-							if (usuari.getNom() == null)
-								acc.setDescription(usuari.getPrimerLlinatge());
-							else
-								acc.setDescription(usuari.getNom()+" "+usuari.getPrimerLlinatge());
-						}
-						else
-							acc.setDescription("Autocreated account "+accountName);
-						
-						acc.setDisabled(false);
-						acc.setLastUpdated(Calendar.getInstance());
-						acc.setType(AccountType.IGNORED);
-						acc.setPasswordPolicy(passwordPolicy);
-						acc.setGrantedGroups(new LinkedList<Grup>());
-						acc.setGrantedRoles(new LinkedList<Rol>());
-						acc.setGrantedUsers(new LinkedList<Usuari>());
-						try {
-							acc = accountService.createAccount(acc);
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
+						acc.setDescription("Autocreated account "+accountName);
+					
+					acc.setDisabled(false);
+					acc.setLastUpdated(Calendar.getInstance());
+					acc.setType(AccountType.IGNORED);
+					acc.setPasswordPolicy(passwordPolicy);
+					acc.setGrantedGroups(new LinkedList<Grup>());
+					acc.setGrantedRoles(new LinkedList<Rol>());
+					acc.setGrantedUsers(new LinkedList<Usuari>());
+					try {
+						acc = accountService.createAccount(acc);
+					} catch (AccountAlreadyExistsException e) {
+						throw new InternalErrorException ("Unexpected exception", e);
 					}
 				}
 			}
@@ -176,7 +160,7 @@ public class ReconcileEngine
 	 */
 	private void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
-		Collection<RolGrant> grants = serverService.getAccountExplicitRoles(acc.getName(), acc.getDispatcher());
+		Collection<RolGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getDispatcher());
 		for (Rol role: agent.getAccountRoles(acc.getName()))
 		{
 			if (role.getBaseDeDades() == null)
@@ -218,14 +202,19 @@ public class ReconcileEngine
 		// Now remove not present roles
 		for (RolGrant grant: grants)
 		{
-			RolAccount ra = new RolAccount();
-			ra.setAccountId(acc.getId());
-			ra.setAccountDispatcher(acc.getDispatcher());
-			ra.setAccountName(acc.getName());
-			ra.setBaseDeDades(grant.getDispatcher());
-			ra.setNomRol(grant.getRolName());
-			ra.setId(grant.getId());
-			appService.delete(ra);
+			if (grant.getOwnerGroup() == null &&
+					grant.getOwnerRol() == null &&
+					grant.getId() != null)
+			{
+				RolAccount ra = new RolAccount();
+				ra.setAccountId(acc.getId());
+				ra.setAccountDispatcher(acc.getDispatcher());
+				ra.setAccountName(acc.getName());
+				ra.setBaseDeDades(grant.getDispatcher());
+				ra.setNomRol(grant.getRolName());
+				ra.setId(grant.getId());
+				appService.delete(ra);
+			}
 		}
 	}
 

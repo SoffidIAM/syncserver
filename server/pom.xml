@@ -18,7 +18,6 @@
   </properties>
   <scm>
         <connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
-    <tag>HEAD</tag>
   </scm>
   <licenses>
     <license>
@@ -229,6 +228,12 @@
 										target/install4j/SoffidIAMSync_unix.sh
 									</file>
                   <type>sh</type>
+                </artifact>
+                <artifact>
+                  <file>
+										target/install4j/SoffidIAMSync_unix_nojre.sh
+									</file>
+                  <type>nojre.sh</type>
                 </artifact>
                 <artifact>
                   <file>

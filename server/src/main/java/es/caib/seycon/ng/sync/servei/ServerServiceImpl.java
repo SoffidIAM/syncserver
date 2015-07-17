@@ -190,14 +190,14 @@ public class ServerServiceImpl extends ServerServiceBase {
         Collection<Usuari> result = new LinkedList<Usuari>();
         for (Iterator<UserEntity> it = daoUsuari.findByPrimaryGroup(entity.getName()).iterator(); it.hasNext(); ) {
             UserEntity usuariEntity = it.next();
-            if (!nomesUsuarisActius && "S".equals(usuariEntity.getActive())) {
+            if (!nomesUsuarisActius || "S".equals(usuariEntity.getActive())) {
                 if (dispatcher == null || getDispatcherService().isUserAllowed(dispatcher, usuariEntity.getUserName())) result.add(daoUsuari.toUsuari(usuariEntity));
             }
         }
 
         for (Iterator<UserGroupEntity> it = daoUsuariGrup.findByGroupName(entity.getName()).iterator(); it.hasNext(); ) {
             UserGroupEntity ugEntity = it.next();
-            if (!nomesUsuarisActius && "S".equals(ugEntity.getUser().getActive())) {
+            if (!nomesUsuarisActius || "S".equals(ugEntity.getUser().getActive())) {
                 if (dispatcher == null || getDispatcherService().isUserAllowed(dispatcher, ugEntity.getUser().getUserName())) result.add(daoUsuari.toUsuari(ugEntity.getUser()));
             }
         }

@@ -102,52 +102,26 @@ public class ReconcileEngine2
 				Account usuari = agent.getAccountInfo(accountName);
 				if (usuari != null)
 				{
-					String desiredAccount = accountService.gessAccountName(accountName, dispatcher.getCodi());
-					if (desiredAccount != null && desiredAccount.equals(accountName))
-					{
-						try {
-							Usuari existingUser = usuariService.findUsuariByCodiUsuari(accountName);
-							acc = accountService.createAccount(existingUser, dispatcher, accountName);
-							boolean anyChange = false;
-							if (usuari.getLastPasswordSet() != null || usuari.getLastUpdated() != null ||
-									usuari.getPasswordExpiration() != null)
-							{
-								acc.setLastPasswordSet(usuari.getLastPasswordSet());
-								acc.setLastUpdated(usuari.getLastUpdated());
-								acc.setPasswordExpiration(acc.getPasswordExpiration());
-								log.append ("Updating account ").append (accountName).append ('\n');
-								accountService.updateAccount(acc);
-							}
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						} catch (NeedsAccountNameException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
-						
-					}
+					acc = new Account ();
+					acc.setName(accountName);
+					acc.setDispatcher(dispatcher.getCodi());
+					if (usuari.getDescription() == null)
+						acc.setDescription(accountName+" "+accountName);
 					else
-					{
-						acc = new Account ();
-						acc.setName(accountName);
-						acc.setDispatcher(dispatcher.getCodi());
-						if (usuari.getDescription() == null)
-							acc.setDescription(accountName+" "+accountName);
-						else
-							acc.setDescription(usuari.getDescription());
-						
-						acc.setDisabled(false);
-						acc.setLastUpdated(Calendar.getInstance());
-						acc.setType(AccountType.IGNORED);
-						acc.setPasswordPolicy(passwordPolicy);
-						acc.setGrantedGroups(new LinkedList<Grup>());
-						acc.setGrantedRoles(new LinkedList<Rol>());
-						acc.setGrantedUsers(new LinkedList<Usuari>());
-						try {
-							log.append ("Creating account ").append (accountName).append ('\n');
-							acc = accountService.createAccount(acc);
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
+						acc.setDescription(usuari.getDescription());
+					
+					acc.setDisabled(false);
+					acc.setLastUpdated(Calendar.getInstance());
+					acc.setType(AccountType.IGNORED);
+					acc.setPasswordPolicy(passwordPolicy);
+					acc.setGrantedGroups(new LinkedList<Grup>());
+					acc.setGrantedRoles(new LinkedList<Rol>());
+					acc.setGrantedUsers(new LinkedList<Usuari>());
+					try {
+						log.append ("Creating account ").append (accountName).append ('\n');
+						acc = accountService.createAccount(acc);
+					} catch (AccountAlreadyExistsException e) {
+						throw new InternalErrorException ("Unexpected exception", e);
 					}
 				}
 			} else {
@@ -249,7 +223,7 @@ public class ReconcileEngine2
 	 */
 	private void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
-		Collection<RolGrant> grants = serverService.getAccountExplicitRoles(acc.getName(), acc.getDispatcher());
+		Collection<RolGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getDispatcher());
 		for (RolGrant existingGrant: agent.getAccountGrants(acc.getName()))
 		{
 			if (existingGrant.getDispatcher() == null)
@@ -305,23 +279,28 @@ public class ReconcileEngine2
 		// Now remove not present roles
 		for (RolGrant grant: grants)
 		{
-			RolAccount ra = new RolAccount();
-			ra.setAccountId(acc.getId());
-			ra.setAccountDispatcher(acc.getDispatcher());
-			ra.setAccountName(acc.getName());
-			ra.setBaseDeDades(grant.getDispatcher());
-			ra.setNomRol(grant.getRolName());
-			ra.setId(grant.getId());
-			if (grant.getDomainValue() != null)
+			if (grant.getOwnerGroup() == null &&
+					grant.getOwnerRol() == null &&
+					grant.getId() != null)
 			{
-				ra.setValorDomini(new ValorDomini());
-				ra.getValorDomini().setValor(grant.getDomainValue());
+				RolAccount ra = new RolAccount();
+				ra.setAccountId(acc.getId());
+				ra.setAccountDispatcher(acc.getDispatcher());
+				ra.setAccountName(acc.getName());
+				ra.setBaseDeDades(grant.getDispatcher());
+				ra.setNomRol(grant.getRolName());
+				ra.setId(grant.getId());
+				if (grant.getDomainValue() != null)
+				{
+					ra.setValorDomini(new ValorDomini());
+					ra.getValorDomini().setValor(grant.getDomainValue());
+				}
+				log.append ("Revoking ").append (grant.getRolName());
+				if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
+					log.append (" [").append (grant.getDomainValue()).append("]");
+				log.append (" from ").append(acc.getName()).append('\n');
+				appService.delete(ra);
 			}
-			log.append ("Revoking ").append (grant.getRolName());
-			if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
-				log.append (" [").append (grant.getDomainValue()).append("]");
-			log.append (" from ").append(acc.getName()).append('\n');
-			appService.delete(ra);
 		}
 	}
 
