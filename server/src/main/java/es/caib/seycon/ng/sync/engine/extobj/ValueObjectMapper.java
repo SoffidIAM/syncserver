@@ -355,7 +355,7 @@ public class ValueObjectMapper
 			rol.setDescripcio(toSingleString(object.getAttribute("description")));
 			rol.setGestionableWF(toBoolean(toSingleton(object.getAttribute("wfmanaged"))));
 			rol.setNom(toSingleString(object.getAttribute("name")));
-			rol.setCategory(toSingleString(object.getAttribute("category")))
+			rol.setCategory(toSingleString(object.getAttribute("category")));
 			String domain = toSingleString(object.getAttribute("domain"));
 			Domini d = new Domini ();
 			rol.setDomini(d);
