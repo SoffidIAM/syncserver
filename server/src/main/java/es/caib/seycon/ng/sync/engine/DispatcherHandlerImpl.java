@@ -1366,7 +1366,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            auditoria.setPasswordDomain(getDispatcher().getDominiContrasenyes());
 		            auditoria.setObjecte("SC_USUARI");
 		            auditoria.setBbdd(getDispatcher().getCodi());
-		            auditoria.setAccio(acc.getName());
+		            auditoria.setAccount(acc.getName());
 		            auditoriaDao.create(auditoria);
 
 					internalPasswordService.storePassword(ua.getUser(), getDispatcher().getDominiContrasenyes(), 
