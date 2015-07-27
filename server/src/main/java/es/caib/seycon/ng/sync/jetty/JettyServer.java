@@ -469,6 +469,7 @@ public class JettyServer implements PublisherInterface
 
     public void bindDiagnostics() {
         bindAdministrationServlet("/diag", null, DiagnosticServlet.class);
+//        bindAdministrationServlet("/log", null, PlainLogServlet.class);
     }
 
 
