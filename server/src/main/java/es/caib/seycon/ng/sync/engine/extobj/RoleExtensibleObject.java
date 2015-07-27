@@ -54,6 +54,8 @@ public class RoleExtensibleObject extends ExtensibleObject
     			obj = role.getBaseDeDades();
     		else if ("name".equals(attribute))
     			obj = role.getNom();
+    		else if ("category".equals(attribute))
+    			obj = role.getCategory();
     		else if ("application".equals(attribute))
     			obj = role.getCodiAplicacio();
     		else if ("passwordProtected".equals(attribute))

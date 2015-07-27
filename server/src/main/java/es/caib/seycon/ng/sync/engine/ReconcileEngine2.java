@@ -113,52 +113,26 @@ public class ReconcileEngine2
 				existingAccount = agent.getAccountInfo(accountName);
 				if (existingAccount != null)
 				{
-					String desiredAccount = accountService.gessAccountName(accountName, dispatcher.getCodi());
-					if (desiredAccount != null && desiredAccount.equals(accountName))
-					{
-						try {
-							Usuari existingUser = usuariService.findUsuariByCodiUsuari(accountName);
-							acc = accountService.createAccount(existingUser, dispatcher, accountName);
-							boolean anyChange = false;
-							if (existingAccount.getLastPasswordSet() != null || existingAccount.getLastUpdated() != null ||
-									existingAccount.getPasswordExpiration() != null)
-							{
-								acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
-								acc.setLastUpdated(existingAccount.getLastUpdated());
-								acc.setPasswordExpiration(acc.getPasswordExpiration());
-								log.append ("Updating account ").append (accountName).append ('\n');
-								accountService.updateAccount(acc);
-							}
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						} catch (NeedsAccountNameException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
-						
-					}
+					acc = new Account ();
+					acc.setName(accountName);
+					acc.setDispatcher(dispatcher.getCodi());
+					if (existingAccount.getDescription() == null)
+						acc.setDescription(accountName+" "+accountName);
 					else
-					{
-						acc = new Account ();
-						acc.setName(accountName);
-						acc.setDispatcher(dispatcher.getCodi());
-						if (existingAccount.getDescription() == null)
-							acc.setDescription(accountName+" "+accountName);
-						else
-							acc.setDescription(existingAccount.getDescription());
-						
-						acc.setDisabled(false);
-						acc.setLastUpdated(Calendar.getInstance());
-						acc.setType(AccountType.IGNORED);
-						acc.setPasswordPolicy(passwordPolicy);
-						acc.setGrantedGroups(new LinkedList<Grup>());
-						acc.setGrantedRoles(new LinkedList<Rol>());
-						acc.setGrantedUsers(new LinkedList<Usuari>());
-						try {
-							log.append ("Creating account ").append (accountName).append ('\n');
-							acc = accountService.createAccount(acc);
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
+						acc.setDescription(existingAccount.getDescription());
+					
+					acc.setDisabled(false);
+					acc.setLastUpdated(Calendar.getInstance());
+					acc.setType(AccountType.IGNORED);
+					acc.setPasswordPolicy(passwordPolicy);
+					acc.setGrantedGroups(new LinkedList<Grup>());
+					acc.setGrantedRoles(new LinkedList<Rol>());
+					acc.setGrantedUsers(new LinkedList<Usuari>());
+					try {
+						log.append ("Creating account ").append (accountName).append ('\n');
+						acc = accountService.createAccount(acc);
+					} catch (AccountAlreadyExistsException e) {
+						throw new InternalErrorException ("Unexpected exception", e);
 					}
 				}
 			} else {
@@ -173,6 +147,8 @@ public class ReconcileEngine2
 						acc.setLastUpdated(existingAccount.getLastUpdated());
 					if (existingAccount.getPasswordExpiration() != null)
 						acc.setPasswordExpiration(acc.getPasswordExpiration());
+					if (existingAccount.getAttributes() != null)
+						acc.getAttributes().putAll(existingAccount.getAttributes());
 					try {
 						log.append ("Updating account ").append (accountName).append ('\n');
 						accountService.updateAccount(acc);
