@@ -147,6 +147,8 @@ public class ReconcileEngine2
 						acc.setLastUpdated(existingAccount.getLastUpdated());
 					if (existingAccount.getPasswordExpiration() != null)
 						acc.setPasswordExpiration(acc.getPasswordExpiration());
+					if (existingAccount.getAttributes() != null)
+						acc.getAttributes().putAll(existingAccount.getAttributes());
 					try {
 						log.append ("Updating account ").append (accountName).append ('\n');
 						accountService.updateAccount(acc);
