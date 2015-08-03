@@ -116,10 +116,10 @@ public class ReconcileEngine2
 					acc = new Account ();
 					acc.setName(accountName);
 					acc.setDispatcher(dispatcher.getCodi());
-					if (usuari.getDescription() == null)
+					if (existingAccount.getDescription() == null)
 						acc.setDescription(accountName+" "+accountName);
 					else
-						acc.setDescription(usuari.getDescription());
+						acc.setDescription(existingAccount.getDescription());
 					
 					acc.setDisabled(false);
 					acc.setLastUpdated(Calendar.getInstance());

@@ -5,8 +5,10 @@ import com.soffid.iam.model.PasswordDomainEntity;
 import com.soffid.iam.model.SecretEntity;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntity;
+
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.PoliticaContrasenya;
 import es.caib.seycon.ng.comu.Server;
@@ -17,6 +19,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.InternalPasswordService;
 import es.caib.seycon.util.Base64;
+
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -31,10 +34,12 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+
 import org.bouncycastle.crypto.RuntimeCryptoException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
