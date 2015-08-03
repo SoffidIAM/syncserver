@@ -1,6 +1,7 @@
 package es.caib.seycon.ng.sync.engine;
 
 import bsh.EvalError;
+
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
 import com.soffid.iam.model.AuditEntity;
@@ -86,6 +87,7 @@ import es.caib.seycon.ng.sync.servei.LogCollectorService;
 import es.caib.seycon.ng.sync.servei.SecretStoreService;
 import es.caib.seycon.ng.sync.servei.ServerService;
 import es.caib.seycon.util.Syslogger;
+
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
@@ -110,14 +112,17 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Random;
 import java.util.Set;
 import java.util.Vector;
+
 import javax.ejb.ObjectNotFoundException;
 import javax.sql.DataSource;
+
 import org.hibernate.EntityMode;
 import org.hibernate.SessionFactory;
 import org.hibernate.classic.Session;
@@ -1079,19 +1084,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	}
 
 	static long unmanagedTypesTS = 0;
-	static HashSet<String> unmangedTypes = null;
+	static HashSet<String> unmanagedTypes = null;
 	private boolean isUnmanagedType(String passwordPolicy) throws InternalErrorException {
 		if (System.currentTimeMillis() > unmanagedTypesTS)
 		{
-			unmangedTypes = new HashSet<String>();
+			unmanagedTypes = new HashSet<String>();
 			for (TipusUsuari tu: ServiceLocator.instance().getDominiUsuariService().findAllTipusUsuari())
 			{
 				if (tu.isUnmanaged())
-					unmangedTypes.add(tu.getCodi());
+					unmanagedTypes.add(tu.getCodi());
 			}
 			unmanagedTypesTS = System.currentTimeMillis() + 60000; // Requery every minute 
 		}
-		return unmangedTypes.contains(passwordPolicy);
+		return unmanagedTypes.contains(passwordPolicy);
 	}
 
 	/**
