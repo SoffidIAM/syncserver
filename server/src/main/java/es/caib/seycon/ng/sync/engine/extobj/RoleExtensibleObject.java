@@ -124,7 +124,11 @@ public class RoleExtensibleObject extends ExtensibleObject
         			Collection<Account> userList = serverService.getRoleAccounts(role.getId(), role.getBaseDeDades());
         			for (Account acc: userList)
         			{
-        				Usuari usuari = serverService.getUserInfo(acc.getName(), acc.getDispatcher());
+        				Usuari usuari = null;
+        				try {
+        					usuari = serverService.getUserInfo(acc.getName(), acc.getDispatcher());
+        				} catch (UnknownUserException e) {
+        				}
         				if (usuari == null)
         					accounts.add (new AccountExtensibleObject(acc, serverService));
         				else
@@ -141,10 +145,6 @@ public class RoleExtensibleObject extends ExtensibleObject
 			
 		}
 		catch (InternalErrorException e)
-		{
-			throw new RuntimeException (e);
-		}
-		catch (UnknownUserException e)
 		{
 			throw new RuntimeException (e);
 		}

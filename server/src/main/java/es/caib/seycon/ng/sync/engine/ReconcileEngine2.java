@@ -159,11 +159,13 @@ public class ReconcileEngine2
 				
 			}
 
-			reconcileAccountAttributes (acc, existingAccount);
 			// Only reconcile grants on unmanaged accounts
 			// or read only dispatchers
 			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
+			{
+				reconcileAccountAttributes (acc, existingAccount);
 				reconcileRoles (acc);
+			}
 		}
 		
 		reconcileAllRoles ();
@@ -332,7 +334,7 @@ public class ReconcileEngine2
 					if (role2 == null)
 						throw new InternalErrorException("Unable to grab information about role "+existingGrant.getRolName());
 					role2.setBaseDeDades(dispatcher.getCodi());
-					if (role2.getDescripcio().length() > 150)
+					if (role2.getDescripcio() != null && role2.getDescripcio().length() > 150)
 						role2.setDescripcio(role2.getDescripcio().substring(0, 150));
 					role2 = createRole (role2);
 				}
