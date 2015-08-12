@@ -144,6 +144,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private AccountService accountService;
 	private DominiUsuariService dominiService;
 	
+	
 	private AuditoriaEntityDao auditoriaDao;
 	private static final int MAX_LENGTH = 150;
 	private static final int MAX_ROLE_CODE_LENGTH = 50;
@@ -471,6 +472,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		if (!actionStop && !abort && agent != null && taskgenerator.canGetLog(this)) {
 		    setStatus("Retrieving logs");
 		    try {
+		    	startTask(true);
 		        getLog();
 		    } catch (RemoteException e) {
 		        handleRMIError(e);
@@ -479,6 +481,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		    } catch (Throwable e) {
 		        log.warn("Cannot retrieve logs: {}", e);
 		    } finally {
+		    	endTask();
 		        taskgenerator.finishGetLog(this);
 		    }
 		}
@@ -490,7 +493,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     	ConnectionPool pool = ConnectionPool.getPool();
 		if (nextTask.isOfflineTask() && pool.isOfflineMode() ||
 			! nextTask.isOfflineTask() && ! pool.isOfflineMode())
-			nextTask = processAndLogTask(nextTask);
+		{
+			try {
+				startTask(false);
+				nextTask = processAndLogTask(nextTask);
+			} finally {
+				endTask();
+			}
+		}
 		else
 			nextTask = taskqueue.getNextPendingTask(this, nextTask);
 	}
@@ -1695,69 +1705,76 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             IllegalAccessException, InvocationTargetException, InternalErrorException, IOException {
         URLManager um = new URLManager(getDispatcher().getUrl());
         Object agent;
-        if ( mainAgent)
+        try 
         {
-            try {
-                targetHost = um.getServerURL().getHost();
-            } catch (Exception e) {
-                targetHost = "";
-            }
-            // Eliminar el dominio
-            if (targetHost.indexOf(".") > 0)
-                targetHost = targetHost.substring(0, targetHost.indexOf("."));
-    
-        }
-        
-        String phase = "connecting to";
-        if ("local".equals(getDispatcher().getUrl())) {
-            try {
-                AgentManager am = ServerServiceLocator.instance().getAgentManager();
-               	phase = "configuring";
-                agent = am.createLocalAgent(getDispatcher());
-            } catch (Exception e) {
-                throw new InternalErrorException(String.format("Error %s %s", phase,
-                        getDispatcher().getUrl()), e);
-            }
-            log.info("Instantiated in memory", null, null);
-        } else {
-            try {
-                RemoteServiceLocator rsl = new RemoteServiceLocator();
-                rsl.setServer(getDispatcher().getUrl().toString());
-                AgentManager am = rsl.getAgentManager();
-                phase = "configuring";
-                String agenturl = am.createAgent(getDispatcher());
-                agent = rsl.getRemoteService(agenturl);
-            } catch (Exception e) {
-                throw new InternalErrorException(String.format("Error %s agent", phase,
-                        getDispatcher().getUrl()), e);
-            }
-            log.info("Connected", null, null);
-        }
-        if (agent instanceof ExtensibleObjectMgr)
-        {
-        	((ExtensibleObjectMgr) agent).configureMappings(attributeTranslator.getObjects());
-        }
-        if (mainAgent)
-        {
-            if (agent instanceof AgentInterface)
-            	agentVersion = ((AgentInterface)agent).getAgentVersion();
-            else
-            	agentVersion = "Unknown";
-            objectClass = agent.getClass();
-            lastConnect = new java.util.Date().getTime();
-            if (agent instanceof KerberosAgent) {
-            	this.agent = agent;
-                String domain = ((KerberosAgent) agent).getRealmName();
-                KerberosManager m = new KerberosManager();
-                try {
-                    log.info("Using server principal {} for realm {}", m.getServerPrincipal(domain),
-                            domain);
-                } catch (Exception e) {
-                    log.warn("Unable to create Kerberos principal", e);
-                }
-            }
-        }
-        return agent;
+            startTask(true);
+        	
+	        if ( mainAgent)
+	        {
+	            try {
+	                targetHost = um.getServerURL().getHost();
+	            } catch (Exception e) {
+	                targetHost = "";
+	            }
+	            // Eliminar el dominio
+	            if (targetHost.indexOf(".") > 0)
+	                targetHost = targetHost.substring(0, targetHost.indexOf("."));
+	            
+	        }
+	        
+	        String phase = "connecting to";
+	        if ("local".equals(getDispatcher().getUrl())) {
+	            try {
+	                AgentManager am = ServerServiceLocator.instance().getAgentManager();
+	               	phase = "configuring";
+	                agent = am.createLocalAgent(getDispatcher());
+	            } catch (Exception e) {
+	                throw new InternalErrorException(String.format("Error %s %s", phase,
+	                        getDispatcher().getUrl()), e);
+	            }
+	            log.info("Instantiated in memory", null, null);
+	        } else {
+	            try {
+	                RemoteServiceLocator rsl = new RemoteServiceLocator();
+	                rsl.setServer(getDispatcher().getUrl().toString());
+	                AgentManager am = rsl.getAgentManager();
+	                phase = "configuring";
+	                String agenturl = am.createAgent(getDispatcher());
+	                agent = rsl.getRemoteService(agenturl);
+	            } catch (Exception e) {
+	                throw new InternalErrorException(String.format("Error %s agent", phase,
+	                        getDispatcher().getUrl()), e);
+	            }
+	            log.info("Connected", null, null);
+	        }
+	        if (agent instanceof ExtensibleObjectMgr)
+	        {
+	        	((ExtensibleObjectMgr) agent).configureMappings(attributeTranslator.getObjects());
+	        }
+	        if (mainAgent)
+	        {
+	            if (agent instanceof AgentInterface)
+	            	agentVersion = ((AgentInterface)agent).getAgentVersion();
+	            else
+	            	agentVersion = "Unknown";
+	            objectClass = agent.getClass();
+	            lastConnect = new java.util.Date().getTime();
+	            if (agent instanceof KerberosAgent) {
+	            	this.agent = agent;
+	                String domain = ((KerberosAgent) agent).getRealmName();
+	                KerberosManager m = new KerberosManager();
+	                try {
+	                    log.info("Using server principal {} for realm {}", m.getServerPrincipal(domain),
+	                            domain);
+	                } catch (Exception e) {
+	                    log.warn("Unable to create Kerberos principal", e);
+	                }
+	            }
+	        }
+	        return agent;
+        } finally {
+        	endTask();
+         }
     }
 
     /**
@@ -2343,4 +2360,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 		return done;
 	}
+
+	private void startTask (boolean longTask) {
+		if (longTask)
+			Watchdog.instance().interruptMe(getDispatcher().getLongTimeout());
+		else 
+			Watchdog.instance().interruptMe(getDispatcher().getTimeout());
+	}
+
+	private void endTask () {
+		Watchdog.instance().dontDisturb();
+	}
+
 }

@@ -623,6 +623,11 @@
     	<version>2.0.0</version>
     	<type>exe</type>
     </dependency>
+    <dependency>
+    	<groupId>commons-beanutils</groupId>
+    	<artifactId>commons-beanutils</artifactId>
+    	<version>1.7.0</version>
+    </dependency>
   </dependencies>
   <reporting>
     <plugins>
