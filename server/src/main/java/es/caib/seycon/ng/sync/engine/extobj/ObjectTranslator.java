@@ -307,7 +307,13 @@ public class ObjectTranslator
 								}
 								return result;
 							} catch (EvalError e) {
-								throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+e.getErrorText());
+								String msg;
+								try {
+									msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+								} catch (Exception e2) {
+									msg = e.getMessage();
+								}
+								throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
 							}
 						}
 					}
@@ -347,7 +353,13 @@ public class ObjectTranslator
 							}
 							return result;
 						} catch (EvalError e) {
-							throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+e.getErrorText());
+							String msg;
+							try {
+								msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+							} catch (Exception e2) {
+								msg = e.getMessage();
+							}
+							throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
 						}
 					}
 				}
@@ -378,7 +390,39 @@ public class ObjectTranslator
 			else
 				return true;
 		} catch (EvalError e) {
-			throw new InternalErrorException ("Error evaluating expression "+objectMapping.getCondition()+": "+e.getErrorText());
+			String msg;
+			try {
+				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+			} catch (Exception e2) {
+				msg = e.getMessage();
+			}
+			throw new InternalErrorException ("Error evaluating expression "+objectMapping.getCondition()+": "+msg);
+		}
+	}
+
+	public Object eval(String expr, ExtensibleObject eo) throws InternalErrorException {
+		Interpreter interpret = new Interpreter();
+		NameSpace ns = interpret.getNameSpace();
+
+		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+						"translator" + dispatcher.getCodi(), eo, serverService,
+						agentObject);
+
+		try {
+			Object result = interpret.eval(expr, newNs);
+			if (result instanceof Primitive)
+			{
+				result = ((Primitive)result).getValue();
+			}
+			return result;
+		} catch (EvalError e) {
+			String msg;
+			try {
+				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+			} catch (Exception e2) {
+				msg = e.getMessage();
+			}
+			throw new InternalErrorException ("Error evaluating attribute "+expr+": "+msg);
 		}
 	}
 }
