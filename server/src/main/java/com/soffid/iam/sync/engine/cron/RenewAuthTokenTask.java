@@ -10,10 +10,10 @@ import org.apache.commons.logging.LogFactory;
 
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.service.TaskHandler;
+import com.soffid.iam.sync.ServerServiceLocator;
+import com.soffid.iam.sync.engine.db.ConnectionPool;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.sync.ServerServiceLocator;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 
 /**
  * @author bubu
@@ -29,8 +29,7 @@ public class RenewAuthTokenTask implements Runnable
 	{
 		try
 		{
-			if (!ConnectionPool.isThreadOffline())
-				ServerServiceLocator.instance().getSecretConfigurationService().changeAuthToken();
+			ServerServiceLocator.instance().getSecretConfigurationService().changeAuthToken();
     	}
     	catch (Exception e)
     	{

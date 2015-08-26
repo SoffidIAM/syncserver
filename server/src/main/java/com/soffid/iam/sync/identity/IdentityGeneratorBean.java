@@ -7,11 +7,11 @@ import java.sql.SQLException;
 
 import org.hibernate.engine.SessionImplementor;
 
+import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.sync.engine.db.ConnectionPool.ThreadBound;
 import com.soffid.iam.sync.identity.IdentityGeneratorThread;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool.ThreadBound;
 
 /**
  * @author bubu
@@ -20,13 +20,12 @@ import es.caib.seycon.ng.sync.engine.db.ConnectionPool.ThreadBound;
 public class IdentityGeneratorBean extends com.soffid.iam.model.identity.IdentityGeneratorBean
 {
 	IdentityGeneratorThread onlineThread = null;
-	IdentityGeneratorThread offlineThread = null;
 
 	protected void initializeThread ()
 	{
 		if (onlineThread == null)
 		{
-			onlineThread = new IdentityGeneratorThread(ThreadBound.MASTER);
+			onlineThread = new IdentityGeneratorThread();
 			onlineThread.str1 = getStr1();
 			onlineThread.str2 = getStr2();
 			onlineThread.dataSource = getDataSource();
@@ -36,34 +35,12 @@ public class IdentityGeneratorBean extends com.soffid.iam.model.identity.Identit
 			onlineThread.setDaemon(true);
 			onlineThread.start();
 		}
-		if (offlineThread == null)
-		{
-			offlineThread = new IdentityGeneratorThread(ThreadBound.BACKUP);
-			offlineThread.str1 = getStr1();
-			offlineThread.str2 = getStr2();
-			offlineThread.dataSource = getDataSource();
-			offlineThread.tableName = getTableName();
-			offlineThread.createTable = isCreateTable();
-			offlineThread.setName("SoffidIdentityGenerator-BackupDB");
-			offlineThread.setDaemon(true);
-			offlineThread.start();
-		}
 		theBean = this;
 	}
 
 	public Long getNext (SessionImplementor session) throws SQLException, InterruptedException
 	{
-		try
-		{
-			if (ConnectionPool.isThreadOffline())
-				return offlineThread.getNext(session);
-			else
-				return onlineThread.getNext(session);
-		}
-		catch (InternalErrorException e)
-		{
-			throw new SQLException(e);
-		}
+		return onlineThread.getNext(session);
 	}
 
 

@@ -10,16 +10,13 @@ import java.io.IOException;
 
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
-import es.caib.seycon.ng.config.Config;
+import com.soffid.iam.config.Config;
 
 /**
  * Locates and provides all available application services.
  */
 public class ServerServiceLocator
 {
-    static private es.caib.seycon.ng.ServiceLocator baseServiceLocator = null;
-
-
     private ServerServiceLocator()
     {
     }
@@ -31,11 +28,7 @@ public class ServerServiceLocator
      */
     public static final es.caib.seycon.ng.ServiceLocator instance()
     {
-        if (baseServiceLocator == null) {
-            baseServiceLocator = es.caib.seycon.ng.ServiceLocator.instance();
-            baseServiceLocator.init("localBeanRefFactory.xml", "beanRefFactory");
-        }
-        return baseServiceLocator;
+        return es.caib.seycon.ng.ServiceLocator.instance();
     }
 
 }

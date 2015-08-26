@@ -1,10 +1,10 @@
 package bubu.test.seycon;
 
+import com.soffid.iam.remote.RemoteInvokerFactory;
+import com.soffid.iam.remote.URLManager;
+
 import es.caib.seycon.ng.comu.Usuari;
-import es.caib.seycon.ng.remote.RemoteInvokerFactory;
 import es.caib.seycon.ng.remote.RemoteServiceLocator;
-import es.caib.seycon.ng.remote.URLManager;
-import es.caib.seycon.ng.sync.intf.UserInfo;
 import es.caib.seycon.ng.sync.servei.LogonService;
 import es.caib.seycon.ng.sync.servei.ServerService;
 

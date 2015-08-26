@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import junit.framework.TestCase;
-import es.caib.seycon.ng.sync.engine.extobj.AttributeReferenceParser;
-import es.caib.seycon.ng.sync.intf.ExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.AttributeReferenceParser;
+import com.soffid.iam.sync.intf.ExtensibleObject;
 
 public class AttParserTest extends TestCase {
 

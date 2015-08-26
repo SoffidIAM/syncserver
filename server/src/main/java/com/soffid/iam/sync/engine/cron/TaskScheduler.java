@@ -19,16 +19,16 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.ScheduledTaskHandler;
+import com.soffid.iam.config.Config;
 import com.soffid.iam.service.ScheduledTaskService;
 import com.soffid.iam.service.TaskHandler;
+import com.soffid.iam.sync.engine.db.ConnectionPool;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Configuracio;
-import es.caib.seycon.ng.config.Config;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.servei.ConfiguracioService;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 import it.sauronsoftware.cron4j.Scheduler;
 
 /**
@@ -71,59 +71,56 @@ public class TaskScheduler
 		{
 			try {
 				Thread.currentThread().setName(task.getName());
-				if (!ConnectionPool.isThreadOffline())
-				{
-					boolean ignore = false;
+				boolean ignore = false;
 
-					try
+				try
+				{
+					synchronized (runningTasks) {
+						if (runningTasks.contains(task.getId()))
+							ignore = true;
+						else
+							runningTasks.add(task.getId());
+					}
+					if (!ignore) {
+						log.info("Executing task " + task.getName());
+						taskSvc.registerStartTask(task);
+						task.setError(false);
+						handler.setTask(task);
+						handler.run();
+						log.info("Task finished");
+					} else 
 					{
+						log.info("Not executing task "+task.getName()+" as a previous instance is already running");
+					}
+				} catch (Throwable e) 
+				{
+					if (! ignore)
+					{
+						task.setError(true);
+						task.getLastLog()
+							.append("\nError executing task: ")
+							.append(e.toString())
+							.append("\n\nStack trace:\n")
+							.append(SoffidStackTrace.getStackTrace(e));
+						log.info("Finished task " + task.getName()+" with error:", e);
+					}
+				} finally {
+					if (!ignore) {
 						synchronized (runningTasks) {
-							if (runningTasks.contains(task.getId()))
-								ignore = true;
-							else
-								runningTasks.add(task.getId());
+							runningTasks.remove(task.getId());
 						}
-						if (!ignore) {
-							log.info("Executing task " + task.getName());
-							taskSvc.registerStartTask(task);
-							task.setError(false);
-							handler.setTask(task);
-							handler.run();
-							log.info("Task finished");
-						} else 
-						{
-							log.info("Not executing task "+task.getName()+" as a previous instance is already running");
-						}
-					} catch (Throwable e) 
-					{
-						if (! ignore)
-						{
-							task.setError(true);
-							task.getLastLog()
-								.append("\nError executing task: ")
-								.append(e.toString())
-								.append("\n\nStack trace:\n")
-								.append(SoffidStackTrace.getStackTrace(e));
-							log.info("Finished task " + task.getName()+" with error:", e);
-						}
-					} finally {
-						if (!ignore) {
-							synchronized (runningTasks) {
-								runningTasks.remove(task.getId());
-							}
-						}
-	
 					}
-      
-					try
-					{
-						if (! ignore)
-							taskSvc.registerEndTask(task);
-					}
-					catch (InternalErrorException e)
-					{
-						log.warn("Error registering scheduled task result ",e);
-					}
+
+				}
+  
+				try
+				{
+					if (! ignore)
+						taskSvc.registerEndTask(task);
+				}
+				catch (InternalErrorException e)
+				{
+					log.warn("Error registering scheduled task result ",e);
 				}
 			} catch (Exception e) {}
 		}
@@ -252,7 +249,7 @@ public class TaskScheduler
 		}
 		
 		newCronScheduler.schedule("0,5,10,15,20,25,30,35,40,45,50,55 * * * *", new UpdateAgentsTask());
-		newCronScheduler.schedule("1,11,21,31,41,51 * * * *", new RenewAuthTokenTask());
+		newCronScheduler.schedule("1,6,11,16,21,26,31,36,41,46,51,56 * * * *", new RenewAuthTokenTask());
 
 		if (cronScheduler != null && cronScheduler.isStarted())
 			cronScheduler.stop();

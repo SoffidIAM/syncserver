@@ -5,16 +5,15 @@ package com.soffid.iam.sync.engine.cron;
 
 import java.sql.SQLException;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.service.TaskHandler;
+import com.soffid.iam.sync.engine.DispatcherHandler;
+import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.sync.service.TaskGenerator;
 
-import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.servei.InternalPasswordService;
-import es.caib.seycon.ng.sync.ServerServiceLocator;
-import es.caib.seycon.ng.sync.engine.DispatcherHandler;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
-import es.caib.seycon.ng.sync.servei.TaskGenerator;
 
 /**
  * @author bubu
@@ -35,7 +34,7 @@ public class ReconcileAgentTask implements TaskHandler
 		boolean found = false;
 		for (DispatcherHandler dispatcher: tg.getDispatchers())
 		{
-			if (dispatcher.getDispatcher().getId().toString().equals (task.getParams()))
+			if (dispatcher.getSystem().getId().toString().equals (task.getParams()))
 			{
 				found = true;
 				dispatcher.doReconcile(task);

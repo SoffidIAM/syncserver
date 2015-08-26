@@ -7,14 +7,14 @@ import java.sql.SQLException;
 
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.service.TaskHandler;
+import com.soffid.iam.sync.ServerServiceLocator;
+import com.soffid.iam.sync.engine.DispatcherHandler;
+import com.soffid.iam.sync.engine.db.ConnectionPool;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.servei.AplicacioService;
 import es.caib.seycon.ng.servei.InternalPasswordService;
-import es.caib.seycon.ng.sync.ServerServiceLocator;
-import es.caib.seycon.ng.sync.engine.DispatcherHandler;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 import es.caib.seycon.ng.sync.servei.TaskGenerator;
 
 /**

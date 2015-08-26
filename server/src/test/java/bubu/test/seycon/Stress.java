@@ -5,10 +5,11 @@ import java.rmi.Remote;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 
+import com.soffid.iam.config.Config;
+import com.soffid.iam.remote.RemoteInvokerFactory;
+
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.PasswordValidation;
-import es.caib.seycon.ng.config.Config;
-import es.caib.seycon.ng.remote.RemoteInvokerFactory;
 import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.sync.servei.LogonService;
 

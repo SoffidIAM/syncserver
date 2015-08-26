@@ -6,12 +6,12 @@ package com.soffid.iam.sync.engine.cron;
 import java.sql.SQLException;
 
 import com.soffid.iam.api.ScheduledTask;
+import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.service.TaskHandler;
+import com.soffid.iam.sync.ServerServiceLocator;
+import com.soffid.iam.sync.engine.db.ConnectionPool;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.servei.InternalPasswordService;
-import es.caib.seycon.ng.sync.ServerServiceLocator;
-import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 
 /**
  * @author bubu
@@ -30,8 +30,7 @@ public class DisableExpiredPasswordsTask implements TaskHandler
 	{
 	    InternalPasswordService ips = ServerServiceLocator.instance().getInternalPasswordService();
         
-//	    ips.disableUntrustedPasswords();
-	    ips.disableExpiredPasswords();
+	    ips.disableExpiredPassword();
 	}
 
 	/* (non-Javadoc)

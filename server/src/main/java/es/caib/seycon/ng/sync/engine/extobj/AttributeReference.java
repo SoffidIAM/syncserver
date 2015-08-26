@@ -1,24 +1,27 @@
 package es.caib.seycon.ng.sync.engine.extobj;
 
-import java.util.Map;
+public class AttributeReference {
+	com.soffid.iam.sync.engine.extobj.AttributeReference delegate ;
 
-public abstract class AttributeReference
-{
-	public AttributeReference getParentReference()
-	{
-		return parentReference;
+	public AttributeReference(
+			com.soffid.iam.sync.engine.extobj.AttributeReference delegate) {
+		super();
+		this.delegate = delegate;
 	}
 
-	public void setParentReference(AttributeReference parentReference)
-	{
-		this.parentReference = parentReference;
+	public void setValue(Object value) {
+		delegate.setValue(value);
 	}
 
-	AttributeReference parentReference;
-	
-	public abstract void setValue (Object value);
-	
-	public abstract Object getValue ();
-	
-	public abstract String getName();
+	public Object getValue() {
+		return delegate.getValue();
+	}
+
+	public String getName() {
+		return delegate.getName();
+	}
+
+	public String toString() {
+		return delegate.toString();
+	}
 }

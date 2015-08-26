@@ -12,6 +12,8 @@ import java.util.Iterator;
 
 import org.slf4j.LoggerFactory;
 
+import com.soffid.iam.sync.jetty.JettyServer;
+
 import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.Grup;
 import es.caib.seycon.ng.comu.RolGrant;
@@ -19,7 +21,6 @@ import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.sync.intf.AgentMgr;
-import es.caib.seycon.ng.sync.jetty.JettyServer;
 import es.caib.seycon.ng.sync.servei.ServerService;
 
 /**

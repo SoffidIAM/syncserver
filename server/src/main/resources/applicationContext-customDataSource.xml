@@ -7,7 +7,7 @@
     <!-- ========================= DATASOURCE DEFINITION ========================= -->
 
     <!-- JNDI DataSource for J2EE environments -->
-    <bean id="dataSource" class="es.caib.seycon.ng.sync.engine.db.DataSource">
+    <bean id="dataSource" class="com.soffid.iam.sync.engine.db.DataSource">
     </bean>
     
     <!-- ====================== End of DATASOURCE DEFINITION ====================== -->

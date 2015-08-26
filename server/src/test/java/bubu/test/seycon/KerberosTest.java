@@ -39,7 +39,8 @@ import org.ietf.jgss.GSSManager;
 import org.ietf.jgss.GSSName;
 import org.ietf.jgss.Oid;
 
-import es.caib.seycon.ssl.ConnectionFactory;
+import com.soffid.iam.ssl.ConnectionFactory;
+
 import es.caib.seycon.util.Base64;
 
 public class KerberosTest {

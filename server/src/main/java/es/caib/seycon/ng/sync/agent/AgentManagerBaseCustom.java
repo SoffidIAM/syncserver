@@ -167,6 +167,6 @@ public abstract class AgentManagerBaseCustom
      */
     protected java.security.Principal getPrincipal()
     {
-        return es.caib.seycon.ng.PrincipalStore.get();
+        return com.soffid.iam.PrincipalStore.get();
     }
 }
