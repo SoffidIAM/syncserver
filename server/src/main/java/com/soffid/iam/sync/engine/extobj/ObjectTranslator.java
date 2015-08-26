@@ -312,7 +312,13 @@ public class ObjectTranslator
 								}
 								return result;
 							} catch (EvalError e) {
-								throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+e.getErrorText());
+								String msg;
+								try {
+									msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+								} catch (Exception e2) {
+									msg = e.getMessage();
+								}
+								throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
 							}
 						}
 					}
@@ -352,7 +358,13 @@ public class ObjectTranslator
 							}
 							return result;
 						} catch (EvalError e) {
-							throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+e.getErrorText());
+							String msg;
+							try {
+								msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+							} catch (Exception e2) {
+								msg = e.getMessage();
+							}
+							throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
 						}
 					}
 				}
@@ -383,7 +395,13 @@ public class ObjectTranslator
 			else
 				return true;
 		} catch (EvalError e) {
-			throw new InternalErrorException ("Error evaluating expression "+objectMapping.getCondition()+": "+e.getErrorText());
+			String msg;
+			try {
+				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+			} catch (Exception e2) {
+				msg = e.getMessage();
+			}
+			throw new InternalErrorException ("Error evaluating expression "+objectMapping.getCondition()+": "+msg);
 		}
 	}
 	

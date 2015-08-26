@@ -56,12 +56,14 @@ public class SharedThreadPool implements Runnable {
 		for (int i = 0; i < threadNumber; i++)
 		{
 			Thread t = new Thread (this);
-			t.setName("SharedThreadPool"+ (i+1));
+			t.setName("SharedThread"+ (i+1));
 			t.start();
 		}
 	}
 
 	public void run() {
+		Thread currentThread = Thread.currentThread();
+		String originalName = currentThread.getName();
 		int ignores = 0;
 		long firstIgnore = System.currentTimeMillis() + delay;
 		while (true)
@@ -74,10 +76,12 @@ public class SharedThreadPool implements Runnable {
 				}
 				if (h == null)
 				{
+					currentThread.setName (originalName+ " - Idle");
 					Thread.sleep(delay);
 				}
 				else
 				{
+					currentThread.setName (originalName+ " ["+h.getDispatcher().getCodi()+"]");
 					if ( !h.runStep() )
 					{
 						if (ignores == 0)

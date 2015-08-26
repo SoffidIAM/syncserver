@@ -19,7 +19,7 @@ import bsh.Primitive;
 import bsh.UtilEvalError;
 import bsh.Variable;
 
-class ExtensibleObjectNamespace extends ExternalNameSpace2
+public class ExtensibleObjectNamespace extends ExternalNameSpace2
 {
 	private ExtensibleObject object;
 	private ServerService serverService;

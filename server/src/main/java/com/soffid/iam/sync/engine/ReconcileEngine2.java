@@ -12,7 +12,6 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
@@ -43,6 +42,7 @@ import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.NeedsAccountNameException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
+import es.caib.seycon.ng.sync.engine.Watchdog;
 
 /**
  * @author bubu
@@ -102,13 +102,26 @@ public class ReconcileEngine2
 	public void reconcile () throws RemoteException, InternalErrorException
 	{
 		String passwordPolicy = guessPasswordPolicy ();
-		for (String accountName: agent.getAccountsList())
+		reconcileAllRoles ();
+		List<String> accountsList;
+		try {
+			Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+			accountsList = agent.getAccountsList();
+		} finally {
+			Watchdog.instance().dontDisturb();
+		}
+		for (String accountName: accountsList)
 		{
 			Account acc = accountService.findAccount(accountName, dispatcher.getName());
 			Account existingAccount;
 			if (acc == null)
 			{
-				existingAccount = agent.getAccountInfo(accountName);
+				try {
+					Watchdog.instance().interruptMe(dispatcher.getTimeout());
+					existingAccount = agent.getAccountInfo(accountName);
+				} finally {
+					Watchdog.instance().dontDisturb();
+				}
 				if (existingAccount != null)
 				{
 					acc = new Account ();
@@ -134,7 +147,12 @@ public class ReconcileEngine2
 					}
 				}
 			} else {
-				existingAccount = agent.getAccountInfo(accountName);
+				Watchdog.instance().interruptMe(dispatcher.getTimeout());
+				try {
+					existingAccount = agent.getAccountInfo(accountName);
+				} finally {
+					Watchdog.instance().dontDisturb();
+				}
 				if (existingAccount != null)
 				{
 					if (existingAccount.getDescription() != null && existingAccount.getDescription().trim().length() > 0)
@@ -166,7 +184,6 @@ public class ReconcileEngine2
 			}
 		}
 		
-		reconcileAllRoles ();
 	}
 
 	private void reconcileAccountAttributes(Account soffidAccount, Account systemAccount) throws InternalErrorException {
@@ -191,7 +208,7 @@ public class ReconcileEngine2
 				{
 					if (soffidValue != null )
 					{
-						dadesAddicionalsService.delete(soffidValue);
+						accountService.removeAccountAttribute(soffidValue);
 					}
 				} else if (soffidValue == null) // Create value
 				{
@@ -216,12 +233,12 @@ public class ReconcileEngine2
 					soffidValue.setSystemName(soffidAccount.getSystem());
 					soffidValue.setAttribute(key);
 					setDadaValue(soffidValue, value);
-					dadesAddicionalsService.create(soffidValue);
+					accountService.createAccountAttribute(soffidValue);
 				}
 				else
 				{
 					setDadaValue(soffidValue, value);
-					dadesAddicionalsService.update(soffidValue);
+					accountService.updateAccountAttribute(soffidValue);
 				}
 			}
 		}
@@ -248,11 +265,18 @@ public class ReconcileEngine2
 	}
 
 	private void reconcileAllRoles() throws RemoteException, InternalErrorException {
-		List<String> roles = agent.getRolesList();
+		List<String> roles;
+		Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+		try
+		{
+			roles = agent.getRolesList();
+		} finally {
+			Watchdog.instance().dontDisturb();
+		}
 		if (roles == null)
 			return;
 		
-		for (String roleName: agent.getRolesList())
+		for (String roleName: roles)
 		{
 			if (roleName != null)
 			{
@@ -263,9 +287,29 @@ public class ReconcileEngine2
 				}
 				if (existingRole == null)
 				{
-					Role r = agent.getRoleFullInfo(roleName);
+					Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+					Role r = null;
+					try
+					{
+						r = agent.getRoleFullInfo(roleName);
+					} finally {
+						Watchdog.instance().dontDisturb();
+					}
 					if (r != null)
 						createRole(r);
+				} else {
+					Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+					Rol r;
+					try
+					{
+						r = agent.getRoleFullInfo(roleName);
+					} finally {
+						Watchdog.instance().dontDisturb();
+					}
+					if (r != null)
+					{
+						updateRole (existingRole, r);
+					}
 				}
 			}
 		}
@@ -316,7 +360,15 @@ public class ReconcileEngine2
 	private void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
 		Collection<RoleGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getSystem());
-		for (RoleGrant existingGrant: agent.getAccountGrants(acc.getName()))
+		List<RoleGrant> accountGrants;
+		Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+		try
+		{
+			accountGrants = agent.getAccountGrants(acc.getName());
+		} finally {
+			Watchdog.instance().dontDisturb();
+		}
+		for (RoleGrant existingGrant: accountGrants)
 		{
 			if (existingGrant.getSystem() == null)
 				existingGrant.setSystem(dispatcher.getName());
@@ -328,7 +380,13 @@ public class ReconcileEngine2
 				role2 = serverService.getRoleInfo(existingGrant.getRoleName(), existingGrant.getSystem());
 				if (role2 == null)
 				{
-					role2 = agent.getRoleFullInfo(existingGrant.getRoleName());
+					Watchdog.instance().interruptMe(dispatcher.getTimeout());
+					try
+					{
+						role2 = agent.getRoleFullInfo(existingGrant.getRoleName());
+					} finally {
+						Watchdog.instance().dontDisturb();
+					}
 					if (role2 == null)
 						throw new InternalErrorException("Unable to grab information about role "+existingGrant.getRoleName());
 					role2.setSystem(dispatcher.getName());
@@ -339,7 +397,13 @@ public class ReconcileEngine2
 			}
 			catch (UnknownRoleException e)
 			{
-				role2 = agent.getRoleFullInfo(existingGrant.getRoleName());
+				Watchdog.instance().interruptMe(dispatcher.getTimeout());
+				try
+				{
+					role2 = agent.getRoleFullInfo(existingGrant.getRoleName());
+				} finally {
+					Watchdog.instance().dontDisturb();
+				}
 				role2 = createRole (role2);
 			}
 			// Look if this role is already granted
@@ -442,9 +506,11 @@ public class ReconcileEngine2
 	private Role createRole (Role role) throws InternalErrorException
 	{
 		log.append ("Creating role "+role.getName());
+		role.setSystem(dispatcher.getName());
 		if (role.getInformationSystemName() == null)
 			role.setInformationSystemName(dispatcher.getName());
 		Application app = appService.findApplicationByApplicationName(role.getInformationSystemName());
+		
 		if (app == null)
 		{
 			app = new Application();
@@ -483,6 +549,46 @@ public class ReconcileEngine2
 			role.setDescription(role.getDescription().substring(0, 150));
 				
 		return appService.create(role);
+	}
+
+	private Rol updateRole (Rol soffidRole, Rol systemRole) throws InternalErrorException
+	{
+		log.append ("Updating role "+soffidRole.getNom()+"\n");
+		
+		if (systemRole.getCodiAplicacio() != null)
+			soffidRole.setCodiAplicacio(systemRole.getCodiAplicacio());
+
+		if (systemRole.getContrasenya() != null)
+			soffidRole.setContrasenya(systemRole.getContrasenya());
+		
+		if (systemRole.getDefecte() != null)
+			soffidRole.setDefecte(systemRole.getDefecte());
+		
+		if (systemRole.getGestionableWF() != null)
+			soffidRole.setGestionableWF(systemRole.getGestionableWF());
+
+		if (systemRole.getCategory() != null)
+			soffidRole.setCategory(systemRole.getCategory());
+
+		if (systemRole.getDomini() != null)
+			soffidRole.setDomini(systemRole.getDomini());
+
+		if (systemRole.getOwnedRoles() != null)
+			soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
+
+		if (systemRole.getOwnerRoles() != null)
+			soffidRole.setOwnerRoles(systemRole.getOwnerRoles());
+
+		if (systemRole.getOwnerGroups() != null)
+			soffidRole.setOwnerGroups(systemRole.getOwnerGroups());
+
+		if (systemRole.getDescripcio() != null)
+			soffidRole.setDescripcio(systemRole.getDescripcio());
+
+		if (soffidRole.getDescripcio().length() > 150)
+			soffidRole.setDescripcio(soffidRole.getDescripcio().substring(0, 150));
+				
+		return appService.update(soffidRole);
 	}
 
 }

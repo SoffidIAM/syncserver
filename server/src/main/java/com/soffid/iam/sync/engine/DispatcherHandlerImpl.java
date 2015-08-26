@@ -77,6 +77,7 @@ import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.servei.UsuariService;
+import es.caib.seycon.ng.sync.engine.Watchdog;
 import es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator;
 import es.caib.seycon.ng.sync.intf.LogEntry;
 
@@ -492,6 +493,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		if (!actionStop && !abort && agent != null && taskgenerator.canGetLog(this)) {
 		    setStatus("Retrieving logs");
 		    try {
+		    	startTask(true);
 		        getLog();
 		    } catch (RemoteException e) {
 		        handleRMIError(e);
@@ -500,6 +502,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		    } catch (Throwable e) {
 		        log.warn("Cannot retrieve logs: {}", e);
 		    } finally {
+		    	endTask();
 		        taskgenerator.finishGetLog(this);
 		    }
 		}
@@ -509,7 +512,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private void runLoopNext()
 			throws InternalErrorException {
     	ConnectionPool pool = ConnectionPool.getPool();
+	try {
+		startTask(false);
 		nextTask = processAndLogTask(nextTask);
+	} finally {
+		endTask();
+	}
 	}
 
 	private void runLoopStart() throws InternalErrorException {
@@ -1551,77 +1559,78 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             IllegalAccessException, InvocationTargetException, InternalErrorException, IOException {
         URLManager um = new URLManager(getSystem().getUrl());
         Object agent;
-        if ( mainAgent)
-        {
-            try {
-                targetHost = um.getServerURL().getHost();
-            } catch (Exception e) {
-                targetHost = "";
-            }
-            // Eliminar el dominio
-            if (targetHost.indexOf(".") > 0)
-                targetHost = targetHost.substring(0, targetHost.indexOf("."));
+ 	try {
+            startTask(true);
+            	try {
+                	targetHost = um.getServerURL().getHost();
+            	} catch (Exception e) {
+                	targetHost = "";
+            	}
+            	// Eliminar el dominio
+            	if (targetHost.indexOf(".") > 0)
+                	targetHost = targetHost.substring(0, targetHost.indexOf("."));
     
-        }
-        
-        String phase = "connecting to";
-        if ("local".equals(getSystem().getUrl())) {
-            try {
-                AgentManager am = ServerServiceLocator.instance().getAgentManager();
-               	phase = "configuring";
-                agent = am.createLocalAgent(getSystem());
-            } catch (Exception e) {
-                throw new InternalErrorException(String.format("Error %s %s", phase,
-                        getSystem().getUrl()), e);
-            }
-            log.info("Instantiated in memory", null, null);
-        } else {
-            try {
-                RemoteServiceLocator rsl = new RemoteServiceLocator();
-                rsl.setServer(getSystem().getUrl().toString());
-                AgentManager am = rsl.getAgentManager();
-                phase = "configuring";
-                String agenturl = am.createAgent(getSystem());
-                agent = rsl.getRemoteService(agenturl);
-            } catch (Exception e) {
-                throw new InternalErrorException(String.format("Error %s agent", phase,
-                        getSystem().getUrl()), e);
-            }
-            log.info("Connected", null, null);
-        }
-        if (agent instanceof ExtensibleObjectMgr)
-        {
-        	((ExtensibleObjectMgr) agent).configureMappings(attributeTranslatorV2.getObjects());
-        }
-        if (agent instanceof es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr)
-        {
-        	((es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr) agent).
-        		configureMappings(attributeTranslator.getObjects());
-        }
-        if (mainAgent)
-        {
-            if (agent instanceof AgentInterface)
-            	agentVersion = ((AgentInterface)agent).getAgentVersion();
-            else if (agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface)
-            	agentVersion = ((es.caib.seycon.ng.sync.agent.AgentInterface)agent).getAgentVersion();
-            else
-            	agentVersion = "Unknown";
-            objectClass = agent.getClass();
-            lastConnect = new java.util.Date().getTime();
-            KerberosAgent krb = InterfaceWrapper.getKerberosAgent (agent);
-            if (krb != null) {
-            	this.agent = agent;
-                String domain = krb.getRealmName();
-                KerberosManager m = new KerberosManager();
-                try {
-                    log.info("Using server principal {} for realm {}", m.getServerPrincipal(domain),
-                            domain);
-                } catch (Exception e) {
-                    log.warn("Unable to create Kerberos principal", e);
-                }
-            }
-        }
-        return agent;
+        	String phase = "connecting to";
+        	if ("local".equals(getSystem().getUrl())) {
+            	try {
+                	AgentManager am = ServerServiceLocator.instance().getAgentManager();
+               		phase = "configuring";
+                	agent = am.createLocalAgent(getSystem());
+            	} catch (Exception e) {
+                	throw new InternalErrorException(String.format("Error %s %s", phase,
+                        	getSystem().getUrl()), e);
+            	}
+            	log.info("Instantiated in memory", null, null);
+        	} else {
+            	try {
+                	RemoteServiceLocator rsl = new RemoteServiceLocator();
+                	rsl.setServer(getSystem().getUrl().toString());
+                	AgentManager am = rsl.getAgentManager();
+                	phase = "configuring";
+                	String agenturl = am.createAgent(getSystem());
+                	agent = rsl.getRemoteService(agenturl);
+            	} catch (Exception e) {
+                	throw new InternalErrorException(String.format("Error %s agent", phase,
+                        	getSystem().getUrl()), e);
+            	}
+            	log.info("Connected", null, null);
+        	}
+        	if (agent instanceof ExtensibleObjectMgr)
+        	{
+        		((ExtensibleObjectMgr) agent).configureMappings(attributeTranslatorV2.getObjects());
+        	}
+        	if (agent instanceof es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr)
+        	{
+        		((es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr) agent).
+        			configureMappings(attributeTranslator.getObjects());
+        	}
+        	if (mainAgent)
+        	{
+            	if (agent instanceof AgentInterface)
+            		agentVersion = ((AgentInterface)agent).getAgentVersion();
+            	else if (agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface)
+            		agentVersion = ((es.caib.seycon.ng.sync.agent.AgentInterface)agent).getAgentVersion();
+            	else
+            		agentVersion = "Unknown";
+            	objectClass = agent.getClass();
+            	lastConnect = new java.util.Date().getTime();
+            	KerberosAgent krb = InterfaceWrapper.getKerberosAgent (agent);
+            	if (krb != null) {
+            		this.agent = agent;
+                	String domain = krb.getRealmName();
+                	KerberosManager m = new KerberosManager();
+                	try {
+                    	log.info("Using server principal {} for realm {}", m.getServerPrincipal(domain),
+                            	domain);
+                	} catch (Exception e) {
+                    	log.warn("Unable to create Kerberos principal", e);
+                	}
+            	}
+        	}
+        	return agent;
+        } finally {
+        	endTask();
+         }
     }
 
     /**
@@ -2181,4 +2190,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		return done;
 	}
 	
+
+	private void startTask (boolean longTask) {
+		if (longTask)
+			Watchdog.instance().interruptMe(getSystem().getLongTimeout());
+		else 
+			Watchdog.instance().interruptMe(getSystem().getTimeout());
+	}
+
+	private void endTask () {
+		Watchdog.instance().dontDisturb();
+	}
+
 }
