@@ -110,7 +110,7 @@ public class MazingerMenuServlet extends HttpServlet {
                 generatePuntEntrada(child, buffer);
             }
             buffer.append("ENDMENU|");
-        } else {
+        } else if (!punt.getExecucions().isEmpty()) {
             buffer.append(punt.getId());
             buffer.append("|");
             buffer.append(punt.getNom());

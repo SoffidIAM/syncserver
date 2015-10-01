@@ -236,55 +236,53 @@ public class QueryServiceImpl extends QueryServiceBase {
             String format) throws SQLException, InternalErrorException, IOException {
         boolean xml = "text/xml".equals(format);
         @SuppressWarnings("unchecked")
+
+        
         ResultSet rset = stmt.executeQuery();
-        if (rset.next()) {
-            java.sql.ResultSetMetaData md = rset.getMetaData();
-            StringBuffer s = new StringBuffer();
-            if (!xml) {
-                s .append( Integer.toString(md.getColumnCount()) );
-                int i;
-                for (i = 1; i <= md.getColumnCount(); i++) {
-                    s .append( "|" );
-                    s .append(md.getColumnName(i));
-                }
+        java.sql.ResultSetMetaData md = rset.getMetaData();
+        StringBuffer s = new StringBuffer();
+        if (!xml) {
+            s .append( Integer.toString(md.getColumnCount()) );
+            int i;
+            for (i = 1; i <= md.getColumnCount(); i++) {
+                s .append( "|" );
+                s .append(md.getColumnName(i));
             }
-            if (writer != null) {
-                if (xml)
-                    writer.write("<data>");
-                else
-                    writer.write("OK|");
-            }
+        }
+        if (writer != null) {
+            if (xml)
+                writer.write("<data>");
+            else
+                writer.write("OK|");
+        }
+        writer.write(s.toString());
+        writer.flush();
 
-            do {
-                writer.write(s.toString());
-                writer.flush();
-                s = new StringBuffer();
-                if (xml) {
-                    s .append("<row>");
-                    for (int i = 1; i <= md.getColumnCount(); i++) {
-                        s.append( "<");
-                        s.append (md.getColumnName(i));
-                        s.append (">");
-                        s.append(rset.getString(i));
-                        s.append("</");
-                        s.append(md.getColumnName(i));
-                        s.append(">");
-                    }
-                    s.append( "</row>" );
-
-                } else {
-                    for (int i = 1; i <= md.getColumnCount(); i++) {
-                        s.append( "|");
-                        s.append( rset.getString(i) );
-                    }
+        while (rset.next()) {
+            s = new StringBuffer();
+            if (xml) {
+                s .append("<row>");
+                for (int i = 1; i <= md.getColumnCount(); i++) {
+                    s.append( "<");
+                    s.append (md.getColumnName(i));
+                    s.append (">");
+                    s.append(rset.getString(i));
+                    s.append("</");
+                    s.append(md.getColumnName(i));
+                    s.append(">");
                 }
-            } while (rset.next());
+                s.append( "</row>" );
+
+            } else {
+                for (int i = 1; i <= md.getColumnCount(); i++) {
+                    s.append( "|");
+                    s.append( rset.getString(i) );
+                }
+           } while (rset.next());
             writer.write(s.toString());
             if (xml)
                 writer.write("</data>");
             writer.flush();
-        } else {
-            throw new InternalErrorException("not found");
         }
     }
 
