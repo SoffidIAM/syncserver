@@ -24,8 +24,11 @@ import org.bouncycastle.crypto.RuntimeCryptoException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.model.AccountAttributeEntity;
+
 import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.PoliticaContrasenya;
 import es.caib.seycon.ng.comu.Server;
@@ -317,7 +320,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.servei.SecretStoreService#getAllSecrets(es.caib.seycon.ng.comu.Usuari)
 	 */
-	public List<Secret> handleGetAllSecrets (Usuari user) throws InternalErrorException
+	public List<Secret> handleGetAllSecrets (Usuari user) throws InternalErrorException, UnsupportedEncodingException
 	{
 		List<Secret> secrets = getSecrets(user);
 		for (Account account: getAccountService().getUserGrantedAccounts(user))
@@ -339,9 +342,11 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	}
 
 	private void generateAccountSecrets (Usuari user, List<Secret> secrets, Account account)
-					throws InternalErrorException
+					throws InternalErrorException, UnsupportedEncodingException
 	{
 		boolean visible = false;
+
+		AccountEntity acc = getAccountEntityDao().load(account.getId());
 
 		if (account.getType().equals(AccountType.USER) ||
 						account.getType().equals(AccountType.SHARED))
@@ -349,7 +354,6 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		else if (account.getType().equals(AccountType.PRIVILEGED))
 		{
 			Date now = new Date();
-			AccountEntity acc = getAccountEntityDao().load(account.getId());
 			for (UserAccountEntity ua: acc.getUsers())
 			{
 				if (ua.getUser().getId().equals(user.getId()) && 
@@ -389,6 +393,17 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 				secret.setValue(p);
 				secrets.add(secret);
 			}
+			for (AccountAttributeEntity data: acc.getAttributes())
+			{
+				if (data.getMetadata().getName().startsWith("SSO:") && 
+						data.getValue()!= null && data.getValue().length() > 0)
+				{
+					Secret secret = new Secret ();
+					secret.setName("sso."+account.getDispatcher()+"."+account.getName()+"."+data.getMetadata().getName().substring(4));
+					secret.setValue( new Password ( data.getValue() ) );
+					secrets.add (secret);
+				}
+			}
 		}
 	}
 
@@ -402,6 +417,52 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		if (domini != null)
 			handlePutSecret(user, "dompass/"+domini.getId(), p);
 	}
+
+	@Override
+	protected void handleSetPasswordAndUpdateAccount(long accountId,
+			Password value, boolean mustChange, Date expirationDate)
+			throws Exception {
+		handleSetPassword(accountId, value);
+		
+		Account acc = getAccountService().load(accountId);
+		if (acc == null)
+			throw new InternalErrorException ("Account "+accountId+" not found");
+        if (!mustChange)
+        {
+        	Long time = null;
+        	if (expirationDate != null)
+        	{
+	    		getAccountService().updateAccountPasswordDate2(acc, expirationDate);
+        	} else {
+        		Dispatcher dispatcher = getDispatcherService().findDispatcherByCodi(acc.getDispatcher());
+        		if (dispatcher == null)
+        			throw new InternalErrorException("Dispatcher "+acc.getDispatcher()+" not found");
+            	PoliticaContrasenya politica = getDominiUsuariService().findPoliticaByTipusAndDominiContrasenyas(
+            			acc.getPasswordPolicy(), dispatcher.getDominiContrasenyes());
+            	Long l = getPasswordTerm(politica);
+
+            	getAccountService().updateAccountPasswordDate(acc, l);
+        	}
+        }
+        else
+        {
+        	getAccountService().updateAccountPasswordDate(acc, new Long(0));
+        }
+	}
+	
+	private Long getPasswordTerm (PoliticaContrasenya politica)
+	{
+		Long l = null;
+		
+		if (politica != null && politica.getDuradaMaxima() != null && politica.getTipus().equals("M"))
+		    l = politica.getDuradaMaxima();
+		else if (politica != null && politica.getTempsRenovacio() != null && politica.getTipus().equals("A"))
+			l = politica.getTempsRenovacio();
+		else
+			l = new Long(3650);
+		return l;
+	}
+
 }
 
 class Decoder {

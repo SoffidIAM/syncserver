@@ -201,7 +201,7 @@ public class ServerServiceImpl extends ServerServiceBase {
         for (Iterator<UsuariEntity> it = daoUsuari.findByGrupPrimari(entity.getCodi()).iterator(); it
                 .hasNext();) {
             UsuariEntity usuariEntity = it.next();
-            if (!nomesUsuarisActius && "S".equals(usuariEntity.getActiu())) { //$NON-NLS-1$
+            if (!nomesUsuarisActius || "S".equals(usuariEntity.getActiu())) { //$NON-NLS-1$
                 if (dispatcher == null || 
                 	getDispatcherService().isUserAllowed(dispatcher, usuariEntity.getCodi()))
                 		result.add(daoUsuari.toUsuari(usuariEntity));
@@ -211,7 +211,7 @@ public class ServerServiceImpl extends ServerServiceBase {
         for (Iterator<UsuariGrupEntity> it = daoUsuariGrup.findByCodiGrup(entity.getCodi())
                 .iterator(); it.hasNext();) {
             UsuariGrupEntity ugEntity = it.next();
-            if (!nomesUsuarisActius && "S".equals(ugEntity.getUsuari().getActiu())) { //$NON-NLS-1$
+            if (!nomesUsuarisActius || "S".equals(ugEntity.getUsuari().getActiu())) { //$NON-NLS-1$
                 if (dispatcher == null || 
                     	getDispatcherService().isUserAllowed(dispatcher, ugEntity.getUsuari().getCodi()))
                     result.add(daoUsuari.toUsuari(ugEntity.getUsuari()));
@@ -361,7 +361,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 
     @Override
-    protected Collection<RolGrant> handleGetUserRoles(long userId, String dispatcherid)
+    protected Collection<RolGrant> handleGetUserExplicitRoles(long userId, String dispatcherid)
             throws Exception {
     	UsuariEntity user = getUsuariEntityDao().load(new Long(userId));
     	List<AccountEntity> accounts = null;
@@ -400,7 +400,7 @@ public class ServerServiceImpl extends ServerServiceBase {
     }
 
     @Override
-    protected Collection<RolGrant> handleGetUserExplicitRoles(long userId, String dispatcher)
+    protected Collection<RolGrant> handleGetUserRoles(long userId, String dispatcher)
             throws Exception {
     	Collection<RolGrant> rg = getAplicacioService().findEffectiveRolGrantByUser(userId);
     	if (dispatcher != null)
@@ -850,7 +850,7 @@ public class ServerServiceImpl extends ServerServiceBase {
         addPuntsEntrada(xmlPUE, duplicates, dao.query(
                 "select punt from es.caib.seycon.ng.model.PuntEntradaEntity as punt " //$NON-NLS-1$
                         + "join punt.autoritzaUsuari as autoritzacio " //$NON-NLS-1$
-                        + "where autoritzacio.idUsuari=:user and punt.xmlPUE is not null", //$NON-NLS-1$
+                        + "where autoritzacio.user.id=:user and punt.xmlPUE is not null", //$NON-NLS-1$
                 new Parameter[] { new Parameter("user", user.getId()) })); //$NON-NLS-1$
 
         // Punts d'entrada dels grups
@@ -861,7 +861,7 @@ public class ServerServiceImpl extends ServerServiceBase {
                     "select punt " + //$NON-NLS-1$
                     "from es.caib.seycon.ng.model.PuntEntradaEntity AS punt " //$NON-NLS-1$
                             + "join punt.autoritzaGrup AS autGrup " //$NON-NLS-1$
-                            + "where autGrup.idGrup = :grup and punt.xmlPUE is not null", //$NON-NLS-1$
+                            + "where autGrup.group.id = :grup and punt.xmlPUE is not null", //$NON-NLS-1$
                     new Parameter[] { new Parameter("grup", grup.getId()) })); //$NON-NLS-1$
         }
 
@@ -872,7 +872,7 @@ public class ServerServiceImpl extends ServerServiceBase {
                     "select punt " + //$NON-NLS-1$
                     "from es.caib.seycon.ng.model.PuntEntradaEntity as punt " //$NON-NLS-1$
                             + "join punt.autoritzaRol as autRol " //$NON-NLS-1$
-                            + "where autRol.idRol=:rol and punt.xmlPUE is not null", //$NON-NLS-1$
+                            + "where autRol.role.id=:rol and punt.xmlPUE is not null", //$NON-NLS-1$
                     new Parameter[] { new Parameter("rol", grant.getIdRol()) })); //$NON-NLS-1$
         }
 

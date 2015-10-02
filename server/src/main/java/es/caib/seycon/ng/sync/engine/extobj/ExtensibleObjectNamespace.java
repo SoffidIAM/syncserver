@@ -18,7 +18,7 @@ import bsh.Primitive;
 import bsh.UtilEvalError;
 import bsh.Variable;
 
-class ExtensibleObjectNamespace extends ExternalNameSpace2
+public class ExtensibleObjectNamespace extends ExternalNameSpace2
 {
 	private ExtensibleObject object;
 	private ServerService serverService;
@@ -56,13 +56,7 @@ class ExtensibleObjectNamespace extends ExternalNameSpace2
 				return super.getVariableImpl(name, recurse);
 
 			Object value = object.get(name);
-			if (object.containsKey(name)){
-				if (value == null)
-					externalMap.put(name,  Primitive.NULL);
-				else
-					externalMap.put(name,  value);				
-			}
-			else if ("serverService".equals (name))
+			if ("serverService".equals (name))
 				externalMap.put(name,  serverService);
 			else if ("remoteServiceLocator".equals (name))
 				externalMap.put(name,  new RemoteServiceLocator());
@@ -72,6 +66,12 @@ class ExtensibleObjectNamespace extends ExternalNameSpace2
 				externalMap.put(name,  agent);
 			else if ("this".equals (name))
 				externalMap.put(name,  object);
+			else if (object.containsKey(name)){
+				if (value == null)
+					externalMap.put(name,  Primitive.NULL);
+				else
+					externalMap.put(name,  value);				
+			}
 
 			return super.getVariableImpl(name, recurse);
 		}

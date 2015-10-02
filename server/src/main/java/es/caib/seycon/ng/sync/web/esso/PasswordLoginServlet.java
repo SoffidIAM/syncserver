@@ -3,6 +3,8 @@ package es.caib.seycon.ng.sync.web.esso;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.security.PrivilegedAction;
 
@@ -147,21 +149,37 @@ public class PasswordLoginServlet extends HttpServlet {
     }
 
     private String doSecretsAction(HttpServletRequest req, HttpServletResponse resp)
-            throws InternalErrorException {
+            throws InternalErrorException, UnsupportedEncodingException {
+    	boolean encode = "true".equals( req.getParameter("encode") );
         final Challenge challenge = getChallenge(req);
         if (challenge == null)
             return "ERROR|Unknown ticket";
         else {
             StringBuffer result = new StringBuffer("OK");
             
-            for (Secret secret: secretStoreService.getAllSecrets(challenge.getUser())) { 
-                result.append('|');
-                result.append(secret.getName());
-                result.append('|');
-                result.append(secret.getValue().getPassword());
+            for (Secret secret: secretStoreService.getAllSecrets(challenge.getUser())) {
+            	if (secret.getName() != null && secret.getName().length() > 0 &&
+            			secret.getValue() != null &&
+            			secret.getValue().getPassword() != null &&
+            			secret.getValue().getPassword().length() > 0 )
+            	{
+	                result.append('|');
+	                if (encode)
+	                	result.append( URLEncoder.encode(secret.getName(),"UTF-8"));
+	                else
+	                	result.append(secret.getName());
+	                result.append('|');
+	                if (encode)
+		                result.append( URLEncoder.encode(secret.getValue().getPassword(),"UTF-8"));
+	                else
+	                	result.append(secret.getValue().getPassword());
+            	}
             }
             result.append ("|sessionKey|").append(challenge.getChallengeId());
-            result.append ("|fullName|").append(challenge.getUser().getFullName());
+            if (encode)
+            	result.append ("|fullName|").append(URLEncoder.encode(challenge.getUser().getFullName(),"UTF-8"));
+            else
+            	result.append ("|fullName|").append(challenge.getUser().getFullName());
             challengeStore.removeChallenge(challenge);
             return result.toString();
         }

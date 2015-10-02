@@ -12,7 +12,6 @@ import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 
 import com.soffid.iam.api.AttributeVisibilityEnum;
 
@@ -93,6 +92,7 @@ public class ReconcileEngine2
 		dominiService = ServiceLocator.instance().getDominiUsuariService();
 		usuariService = ServiceLocator.instance().getUsuariService();
 		rolDomainService = ServiceLocator.instance().getDominiService();
+		dadesAddicionalsService = ServiceLocator.instance().getDadesAddicionalsService();
 		log = result;
 	}
 
@@ -104,65 +104,57 @@ public class ReconcileEngine2
 	public void reconcile () throws RemoteException, InternalErrorException
 	{
 		String passwordPolicy = guessPasswordPolicy ();
-		for (String accountName: agent.getAccountsList())
+		reconcileAllRoles ();
+		List<String> accountsList;
+		try {
+			Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+			accountsList = agent.getAccountsList();
+		} finally {
+			Watchdog.instance().dontDisturb();
+		}
+		for (String accountName: accountsList)
 		{
 			Account acc = accountService.findAccount(accountName, dispatcher.getCodi());
 			Account existingAccount;
 			if (acc == null)
 			{
-				existingAccount = agent.getAccountInfo(accountName);
+				try {
+					Watchdog.instance().interruptMe(dispatcher.getTimeout());
+					existingAccount = agent.getAccountInfo(accountName);
+				} finally {
+					Watchdog.instance().dontDisturb();
+				}
 				if (existingAccount != null)
 				{
-					String desiredAccount = accountService.gessAccountName(accountName, dispatcher.getCodi());
-					if (desiredAccount != null && desiredAccount.equals(accountName))
-					{
-						try {
-							Usuari existingUser = usuariService.findUsuariByCodiUsuari(accountName);
-							acc = accountService.createAccount(existingUser, dispatcher, accountName);
-							boolean anyChange = false;
-							if (existingAccount.getLastPasswordSet() != null || existingAccount.getLastUpdated() != null ||
-									existingAccount.getPasswordExpiration() != null)
-							{
-								acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
-								acc.setLastUpdated(existingAccount.getLastUpdated());
-								acc.setPasswordExpiration(acc.getPasswordExpiration());
-								log.append ("Updating account ").append (accountName).append ('\n');
-								accountService.updateAccount(acc);
-							}
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						} catch (NeedsAccountNameException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
-						
-					}
+					acc = new Account ();
+					acc.setName(accountName);
+					acc.setDispatcher(dispatcher.getCodi());
+					if (existingAccount.getDescription() == null)
+						acc.setDescription(accountName+" "+accountName);
 					else
-					{
-						acc = new Account ();
-						acc.setName(accountName);
-						acc.setDispatcher(dispatcher.getCodi());
-						if (existingAccount.getDescription() == null)
-							acc.setDescription(accountName+" "+accountName);
-						else
-							acc.setDescription(existingAccount.getDescription());
-						
-						acc.setDisabled(false);
-						acc.setLastUpdated(Calendar.getInstance());
-						acc.setType(AccountType.IGNORED);
-						acc.setPasswordPolicy(passwordPolicy);
-						acc.setGrantedGroups(new LinkedList<Grup>());
-						acc.setGrantedRoles(new LinkedList<Rol>());
-						acc.setGrantedUsers(new LinkedList<Usuari>());
-						try {
-							log.append ("Creating account ").append (accountName).append ('\n');
-							acc = accountService.createAccount(acc);
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
+						acc.setDescription(existingAccount.getDescription());
+					
+					acc.setDisabled(false);
+					acc.setLastUpdated(Calendar.getInstance());
+					acc.setType(AccountType.IGNORED);
+					acc.setPasswordPolicy(passwordPolicy);
+					acc.setGrantedGroups(new LinkedList<Grup>());
+					acc.setGrantedRoles(new LinkedList<Rol>());
+					acc.setGrantedUsers(new LinkedList<Usuari>());
+					try {
+						log.append ("Creating account ").append (accountName).append ('\n');
+						acc = accountService.createAccount(acc);
+					} catch (AccountAlreadyExistsException e) {
+						throw new InternalErrorException ("Unexpected exception", e);
 					}
 				}
 			} else {
-				existingAccount = agent.getAccountInfo(accountName);
+				Watchdog.instance().interruptMe(dispatcher.getTimeout());
+				try {
+					existingAccount = agent.getAccountInfo(accountName);
+				} finally {
+					Watchdog.instance().dontDisturb();
+				}
 				if (existingAccount != null)
 				{
 					if (existingAccount.getDescription() != null && existingAccount.getDescription().trim().length() > 0)
@@ -173,6 +165,8 @@ public class ReconcileEngine2
 						acc.setLastUpdated(existingAccount.getLastUpdated());
 					if (existingAccount.getPasswordExpiration() != null)
 						acc.setPasswordExpiration(acc.getPasswordExpiration());
+					if (existingAccount.getAttributes() != null)
+						acc.getAttributes().putAll(existingAccount.getAttributes());
 					try {
 						log.append ("Updating account ").append (accountName).append ('\n');
 						accountService.updateAccount(acc);
@@ -190,7 +184,6 @@ public class ReconcileEngine2
 				reconcileRoles (acc);
 		}
 		
-		reconcileAllRoles ();
 	}
 
 	private void reconcileAccountAttributes(Account soffidAccount, Account systemAccount) throws InternalErrorException {
@@ -215,7 +208,7 @@ public class ReconcileEngine2
 				{
 					if (soffidValue != null )
 					{
-						dadesAddicionalsService.delete(soffidValue);
+						accountService.removeAccountAttribute(soffidValue);
 					}
 				} else if (soffidValue == null) // Create value
 				{
@@ -240,12 +233,12 @@ public class ReconcileEngine2
 					soffidValue.setSystemName(soffidAccount.getDispatcher());
 					soffidValue.setCodiDada(key);
 					setDadaValue(soffidValue, value);
-					dadesAddicionalsService.create(soffidValue);
+					accountService.createAccountAttribute(soffidValue);
 				}
 				else
 				{
 					setDadaValue(soffidValue, value);
-					dadesAddicionalsService.update(soffidValue);
+					accountService.updateAccountAttribute(soffidValue);
 				}
 			}
 		}
@@ -272,11 +265,18 @@ public class ReconcileEngine2
 	}
 
 	private void reconcileAllRoles() throws RemoteException, InternalErrorException {
-		List<String> roles = agent.getRolesList();
+		List<String> roles;
+		Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+		try
+		{
+			roles = agent.getRolesList();
+		} finally {
+			Watchdog.instance().dontDisturb();
+		}
 		if (roles == null)
 			return;
 		
-		for (String roleName: agent.getRolesList())
+		for (String roleName: roles)
 		{
 			if (roleName != null)
 			{
@@ -287,9 +287,29 @@ public class ReconcileEngine2
 				}
 				if (existingRole == null)
 				{
-					Rol r = agent.getRoleFullInfo(roleName);
+					Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+					Rol r;
+					try
+					{
+						r = agent.getRoleFullInfo(roleName);
+					} finally {
+						Watchdog.instance().dontDisturb();
+					}
 					if (r != null)
 						createRole(r);
+				} else {
+					Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+					Rol r;
+					try
+					{
+						r = agent.getRoleFullInfo(roleName);
+					} finally {
+						Watchdog.instance().dontDisturb();
+					}
+					if (r != null)
+					{
+						updateRole (existingRole, r);
+					}
 				}
 			}
 		}
@@ -340,7 +360,15 @@ public class ReconcileEngine2
 	private void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
 		Collection<RolGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getDispatcher());
-		for (RolGrant existingGrant: agent.getAccountGrants(acc.getName()))
+		List<RolGrant> accountGrants;
+		Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
+		try
+		{
+			accountGrants = agent.getAccountGrants(acc.getName());
+		} finally {
+			Watchdog.instance().dontDisturb();
+		}
+		for (RolGrant existingGrant: accountGrants)
 		{
 			if (existingGrant.getDispatcher() == null)
 				existingGrant.setDispatcher(dispatcher.getCodi());
@@ -352,7 +380,13 @@ public class ReconcileEngine2
 				role2 = serverService.getRoleInfo(existingGrant.getRolName(), existingGrant.getDispatcher());
 				if (role2 == null)
 				{
-					role2 = agent.getRoleFullInfo(existingGrant.getRolName());
+					Watchdog.instance().interruptMe(dispatcher.getTimeout());
+					try
+					{
+						role2 = agent.getRoleFullInfo(existingGrant.getRolName());
+					} finally {
+						Watchdog.instance().dontDisturb();
+					}
 					if (role2 == null)
 						throw new InternalErrorException("Unable to grab information about role "+existingGrant.getRolName());
 					role2.setBaseDeDades(dispatcher.getCodi());
@@ -363,7 +397,13 @@ public class ReconcileEngine2
 			}
 			catch (UnknownRoleException e)
 			{
-				role2 = agent.getRoleFullInfo(existingGrant.getRolName());
+				Watchdog.instance().interruptMe(dispatcher.getTimeout());
+				try
+				{
+					role2 = agent.getRoleFullInfo(existingGrant.getRolName());
+				} finally {
+					Watchdog.instance().dontDisturb();
+				}
 				role2 = createRole (role2);
 			}
 			// Look if this role is already granted
@@ -465,7 +505,7 @@ public class ReconcileEngine2
 	 */
 	private Rol createRole (Rol role) throws InternalErrorException
 	{
-		log.append ("Creating role "+role.getNom());
+		log.append ("Creating role "+role.getNom()+"\n");
 		role.setBaseDeDades(dispatcher.getCodi());
 		
 		if (role.getCodiAplicacio() == null)
@@ -509,6 +549,46 @@ public class ReconcileEngine2
 			role.setDescripcio(role.getDescripcio().substring(0, 150));
 				
 		return appService.create(role);
+	}
+
+	private Rol updateRole (Rol soffidRole, Rol systemRole) throws InternalErrorException
+	{
+		log.append ("Updating role "+soffidRole.getNom()+"\n");
+		
+		if (systemRole.getCodiAplicacio() != null)
+			soffidRole.setCodiAplicacio(systemRole.getCodiAplicacio());
+
+		if (systemRole.getContrasenya() != null)
+			soffidRole.setContrasenya(systemRole.getContrasenya());
+		
+		if (systemRole.getDefecte() != null)
+			soffidRole.setDefecte(systemRole.getDefecte());
+		
+		if (systemRole.getGestionableWF() != null)
+			soffidRole.setGestionableWF(systemRole.getGestionableWF());
+
+		if (systemRole.getCategory() != null)
+			soffidRole.setCategory(systemRole.getCategory());
+
+		if (systemRole.getDomini() != null)
+			soffidRole.setDomini(systemRole.getDomini());
+
+		if (systemRole.getOwnedRoles() != null)
+			soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
+
+		if (systemRole.getOwnerRoles() != null)
+			soffidRole.setOwnerRoles(systemRole.getOwnerRoles());
+
+		if (systemRole.getOwnerGroups() != null)
+			soffidRole.setOwnerGroups(systemRole.getOwnerGroups());
+
+		if (systemRole.getDescripcio() != null)
+			soffidRole.setDescripcio(systemRole.getDescripcio());
+
+		if (soffidRole.getDescripcio().length() > 150)
+			soffidRole.setDescripcio(soffidRole.getDescripcio().substring(0, 150));
+				
+		return appService.update(soffidRole);
 	}
 
 }
