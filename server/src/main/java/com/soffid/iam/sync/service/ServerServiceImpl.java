@@ -312,7 +312,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 
     @Override
-    protected Collection<RoleGrant> handleGetUserRoles(long userId, String dispatcherid)
+    protected Collection<RoleGrant> handleGetUserExplicitRoles(long userId, String dispatcherid)
             throws Exception {
     	UserEntity user = getUserEntityDao().load(new Long(userId));
     	List<AccountEntity> accounts = null;
@@ -351,7 +351,7 @@ public class ServerServiceImpl extends ServerServiceBase {
     }
 
     @Override
-    protected Collection<RoleGrant> handleGetUserExplicitRoles(long userId, String dispatcher)
+    protected Collection<RoleGrant> handleGetUserRoles(long userId, String dispatcher)
             throws Exception {
     	Collection<RoleGrant> rg = getApplicationService().findEffectiveRoleGrantByUser(userId);
     	if (dispatcher != null)
@@ -427,7 +427,7 @@ public class ServerServiceImpl extends ServerServiceBase {
         if (entity == null)
             throw new UnknownGroupException(Long.toString(groupId));
         LinkedList<Group> grups = new LinkedList<Group>();
-        for (Iterator<GroupEntity> it = entity.getChildrens().iterator(); it.hasNext(); ) {
+        for (Iterator<GroupEntity> it = entity.getChildren().iterator(); it.hasNext(); ) {
             GroupEntity ge = it.next();
             if (dispatcher == null || disSvc.isGroupAllowed(dispatcher, ge.getName())) grups.add(dao.toGroup(ge));
         }

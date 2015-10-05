@@ -3,6 +3,8 @@ package com.soffid.iam.sync.web.esso;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.security.PrivilegedAction;
 import java.util.Iterator;
 import java.util.List;
@@ -42,9 +44,11 @@ import es.caib.seycon.util.Base64;
 
 public class KerberosLoginServlet extends HttpServlet {
     private LogonService logonService;
+	private SecretStoreService secretStoreService;
 
     public KerberosLoginServlet() {
         logonService = ServerServiceLocator.instance().getLogonService();
+        secretStoreService = ServerServiceLocator.instance().getSecretStoreService();
     }
 
     /**
@@ -128,23 +132,37 @@ public class KerberosLoginServlet extends HttpServlet {
     }
 
     private String doSecretsAction(HttpServletRequest req, HttpServletResponse resp)
-            throws InternalErrorException {
+            throws InternalErrorException, UnsupportedEncodingException {
+    	boolean encode = "true".equals( req.getParameter("encode") );
         final Challenge challenge = getChallenge(req);
         if (challenge == null)
             return "ERROR|Unknown ticket";
         else {
-            SecretStoreService ss = ServerServiceLocator.instance().getSecretStoreService();
             StringBuffer result = new StringBuffer("OK");
-            List<Secret> secrets = ss.getAllSecrets(challenge.getUser());
-            for (Iterator<Secret> it = secrets.iterator(); it.hasNext();) {
-                Secret s = it.next();
-                result.append('|');
-                result.append(s.getName());
-                result.append('|');
-                result.append(s.getValue().getPassword());
+            
+            for (Secret secret: secretStoreService.getAllSecrets(challenge.getUser())) {
+            	if (secret.getName() != null && secret.getName().length() > 0 &&
+            			secret.getValue() != null &&
+            			secret.getValue().getPassword() != null &&
+            			secret.getValue().getPassword().length() > 0 )
+            	{
+	                result.append('|');
+	                if (encode)
+	                	result.append( URLEncoder.encode(secret.getName(),"UTF-8"));
+	                else
+	                	result.append(secret.getName());
+	                result.append('|');
+	                if (encode)
+		                result.append( URLEncoder.encode(secret.getValue().getPassword(),"UTF-8"));
+	                else
+	                	result.append(secret.getValue().getPassword());
+            	}
             }
             result.append ("|sessionKey|").append(challenge.getChallengeId());
-            result.append ("|fullName|").append(challenge.getUser().getFullName());
+            if (encode)
+            	result.append ("|fullName|").append(URLEncoder.encode(challenge.getUser().getFullName(),"UTF-8"));
+            else
+            	result.append ("|fullName|").append(challenge.getUser().getFullName());
             challengeStore.removeChallenge(challenge);
             return result.toString();
         }

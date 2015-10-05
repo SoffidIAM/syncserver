@@ -3,6 +3,8 @@ package com.soffid.iam.sync.web.esso;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -33,10 +35,11 @@ public class GetSecretsServlet extends HttpServlet {
 
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
-
+    	boolean encode = "true".equals( req.getParameter("encode") );
         String user = req.getParameter("user");
         String key = req.getParameter("key");
         String key2 = req.getParameter("key2");
+        
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(),
                 "UTF-8"));
         SessionService ss = ServerServiceLocator.instance().getSessionService();
@@ -48,7 +51,7 @@ public class GetSecretsServlet extends HttpServlet {
 
             for (Session sessio : ss.getActiveSessions(usuari.getId())) {
                 if (sessio.getKey().equals(key) && sessio.getTemporaryKey().equals(key2)) {
-                    writer.write(doSecretsAction(usuari, key));
+                    writer.write(doSecretsAction(usuari, key, encode));
                     writer.close();
                     return;
                 }
@@ -63,19 +66,32 @@ public class GetSecretsServlet extends HttpServlet {
 
     }
 
-    private String doSecretsAction(User user, String sessionKey) throws InternalErrorException {
+    private String doSecretsAction(User user, String sessionKey, boolean encode) throws InternalErrorException, UnsupportedEncodingException {
         StringBuffer result = new StringBuffer("OK");
         SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
         for (Secret secret : sss.getAllSecrets(user)) {
-            result.append('|');
-            result.append(secret.getName());
-            result.append('|');
-            result.append(secret.getValue().getPassword());
-
+        	if (secret.getName() != null && secret.getName().length() > 0 &&
+        			secret.getValue() != null &&
+        			secret.getValue().getPassword() != null &&
+        			secret.getValue().getPassword().length() > 0 )
+        	{
+                result.append('|');
+                if (encode)
+                	result.append( URLEncoder.encode(secret.getName(),"UTF-8"));
+                else
+                	result.append(secret.getName());
+                result.append('|');
+                if (encode)
+	                result.append( URLEncoder.encode(secret.getValue().getPassword(),"UTF-8"));
+                else
+                	result.append(secret.getValue().getPassword());
+        	}
         }
         result.append ("|sessionKey|").append(sessionKey);
-        result.append ("|fullName|").append(user.getFullName());
-        
+        if (encode)
+        	result.append ("|fullName|").append(URLEncoder.encode(user.getFullName(),"UTF-8"));
+        else
+        	result.append ("|fullName|").append(user.getFullName());
         return result.toString();
     }
 

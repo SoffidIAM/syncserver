@@ -7,6 +7,7 @@ import com.soffid.iam.api.Server;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.sso.Secret;
+import com.soffid.iam.model.AccountAttributeEntity;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.PasswordDomainEntity;
 import com.soffid.iam.model.SecretEntity;
@@ -305,7 +306,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.servei.SecretStoreService#getAllSecrets(es.caib.seycon.ng.comu.User)
 	 */
-	public List<Secret> handleGetAllSecrets (User user) throws InternalErrorException
+	public List<Secret> handleGetAllSecrets (User user) throws InternalErrorException, UnsupportedEncodingException
 	{
 		List<Secret> secrets = getSecrets(user);
 		for (Account account: getAccountService().getUserGrantedAccounts(user))
@@ -327,9 +328,11 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	}
 
 	private void generateAccountSecrets (User user, List<Secret> secrets, Account account)
-					throws InternalErrorException
+					throws InternalErrorException, UnsupportedEncodingException
 	{
 		boolean visible = false;
+
+		AccountEntity acc = getAccountEntityDao().load(account.getId());
 
 		if (account.getType().equals(AccountType.USER) ||
 						account.getType().equals(AccountType.SHARED))
@@ -337,7 +340,6 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		else if (account.getType().equals(AccountType.PRIVILEGED))
 		{
 			Date now = new Date();
-			AccountEntity acc = getAccountEntityDao().load(account.getId());
 			for (UserAccountEntity ua: acc.getUsers())
 			{
 				if (ua.getUser().getId().equals(user.getId()) && 
@@ -376,6 +378,17 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 				secret.setName("pass."+account.getSystem()+"."+account.getName());
 				secret.setValue(p);
 				secrets.add(secret);
+			}
+			for (AccountAttributeEntity data: acc.getAttributes())
+			{
+				if (data.getMetadata().getName().startsWith("SSO:") && 
+						data.getValue()!= null && data.getValue().length() > 0)
+				{
+					Secret secret = new Secret ();
+					secret.setName("sso."+account.getSystem()+"."+account.getName()+"."+data.getMetadata().getName().substring(4));
+					secret.setValue( new Password ( data.getValue() ) );
+					secrets.add (secret);
+				}
 			}
 		}
 	}
