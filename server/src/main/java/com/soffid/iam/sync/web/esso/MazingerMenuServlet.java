@@ -24,11 +24,11 @@ import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.engine.session.SessionManager;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.utils.Security;
 
 public class MazingerMenuServlet extends HttpServlet {
     Logger log = Log.getLogger("MazingerMenuServlet");

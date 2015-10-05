@@ -42,7 +42,6 @@ import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.NeedsAccountNameException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
-import es.caib.seycon.ng.sync.engine.Watchdog;
 
 /**
  * @author bubu
@@ -299,7 +298,7 @@ public class ReconcileEngine2
 						createRole(r);
 				} else {
 					Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
-					Rol r;
+					Role r;
 					try
 					{
 						r = agent.getRoleFullInfo(roleName);
@@ -551,29 +550,29 @@ public class ReconcileEngine2
 		return appService.create(role);
 	}
 
-	private Rol updateRole (Rol soffidRole, Rol systemRole) throws InternalErrorException
+	private Role updateRole (Role soffidRole, Role systemRole) throws InternalErrorException
 	{
-		log.append ("Updating role "+soffidRole.getNom()+"\n");
+		log.append ("Updating role "+soffidRole.getName()+"\n");
 		
-		if (systemRole.getCodiAplicacio() != null)
-			soffidRole.setCodiAplicacio(systemRole.getCodiAplicacio());
+		if (systemRole.getInformationSystemName() != null)
+			soffidRole.setInformationSystemName(systemRole.getInformationSystemName());
 
-		if (systemRole.getContrasenya() != null)
-			soffidRole.setContrasenya(systemRole.getContrasenya());
+		if (systemRole.getPassword() != null)
+			soffidRole.setPassword(systemRole.getPassword());
 		
-		if (systemRole.getDefecte() != null)
-			soffidRole.setDefecte(systemRole.getDefecte());
+		if (systemRole.getEnableByDefault() != null)
+			soffidRole.setEnableByDefault(systemRole.getEnableByDefault());
 		
-		if (systemRole.getGestionableWF() != null)
-			soffidRole.setGestionableWF(systemRole.getGestionableWF());
+		if (systemRole.getBpmEnforced() != null)
+			soffidRole.setBpmEnforced(systemRole.getBpmEnforced());
 
 		if (systemRole.getCategory() != null)
 			soffidRole.setCategory(systemRole.getCategory());
 
-		if (systemRole.getDomini() != null)
-			soffidRole.setDomini(systemRole.getDomini());
+		if (systemRole.getDomain() != null)
+			soffidRole.setDomain(systemRole.getDomain());
 
-		if (systemRole.getOwnedRoles() != null)
+		if (systemRole.getDomain() != null)
 			soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
 
 		if (systemRole.getOwnerRoles() != null)
@@ -582,11 +581,11 @@ public class ReconcileEngine2
 		if (systemRole.getOwnerGroups() != null)
 			soffidRole.setOwnerGroups(systemRole.getOwnerGroups());
 
-		if (systemRole.getDescripcio() != null)
-			soffidRole.setDescripcio(systemRole.getDescripcio());
+		if (systemRole.getDescription() != null)
+			soffidRole.setDescription(systemRole.getDescription());
 
-		if (soffidRole.getDescripcio().length() > 150)
-			soffidRole.setDescripcio(soffidRole.getDescripcio().substring(0, 150));
+		if (soffidRole.getDescription().length() > 150)
+			soffidRole.setDescription(soffidRole.getDescription().substring(0, 150));
 				
 		return appService.update(soffidRole);
 	}

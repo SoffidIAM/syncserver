@@ -23,10 +23,10 @@ import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.web.internal.DownloadLibraryServlet;
 import com.soffid.iam.util.Syslogger;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.agent.AgentManager;
-import es.caib.seycon.ng.utils.Security;
 
 /**
  * Clase principal del servidor SEYCON

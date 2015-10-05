@@ -77,7 +77,6 @@ import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.servei.UsuariService;
-import es.caib.seycon.ng.sync.engine.Watchdog;
 import es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator;
 import es.caib.seycon.ng.sync.intf.LogEntry;
 
@@ -1590,8 +1589,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 	String agenturl = am.createAgent(getSystem());
                 	agent = rsl.getRemoteService(agenturl);
             	} catch (Exception e) {
-                	throw new InternalErrorException(String.format("Error %s agent", phase,
-                        	getSystem().getUrl()), e);
+                	throw new InternalErrorException(String.format("Error %s agent %s: %s", phase,
+                        	getSystem().getUrl(), e.toString()), e);
             	}
             	log.info("Connected", null, null);
         	}

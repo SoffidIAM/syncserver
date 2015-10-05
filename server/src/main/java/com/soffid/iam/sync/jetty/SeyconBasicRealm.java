@@ -19,8 +19,7 @@ import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.service.LogonService;
 import com.soffid.iam.sync.service.SecretConfigurationService;
 import com.soffid.iam.sync.service.ServerService;
-
-import es.caib.seycon.ng.utils.Security;
+import com.soffid.iam.utils.Security;
 
 
 public class SeyconBasicRealm implements UserRealm {

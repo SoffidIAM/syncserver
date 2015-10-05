@@ -50,6 +50,7 @@ import org.mortbay.log.Logger;
 import com.soffid.iam.api.Challenge;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.sso.Secret;
+import com.soffid.iam.service.impl.CertificateParser;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.engine.cert.CertificateManager;
@@ -62,7 +63,6 @@ import com.soffid.iam.util.NameParser;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.servei.CertificateParser;
 import es.caib.seycon.util.Base64;
 import es.caib.signatura.api.SignatureVerifyException;
 import es.caib.signatura.cliente.ValidadorCertificados;

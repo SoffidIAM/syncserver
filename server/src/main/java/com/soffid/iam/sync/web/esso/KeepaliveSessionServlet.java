@@ -25,9 +25,9 @@ import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.engine.session.SessionManager;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.utils.Security;
 
 public class KeepaliveSessionServlet extends HttpServlet {
 

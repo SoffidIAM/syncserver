@@ -3,7 +3,7 @@ package com.soffid.iam.sync.web.internal;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 
-import es.caib.seycon.ng.utils.Security;
+import com.soffid.iam.utils.Security;
 
 public class ServerInvokerServlet extends InvokerServlet {
 

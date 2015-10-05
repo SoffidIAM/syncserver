@@ -9,7 +9,7 @@ import java.util.ResourceBundle;
  */
 public class Messages
 {
-	private static final String BUNDLE_NAME = "es.caib.seycon.ng.sync.servei.messages"; //$NON-NLS-1$
+	private static final String BUNDLE_NAME = "com.soffid.iam.sync.service.messages"; //$NON-NLS-1$
 
 	private Messages ()
 	{

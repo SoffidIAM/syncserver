@@ -70,10 +70,12 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
                         print.close();
                         agent.setStatus(Messages.getString("SyncStatusServiceImpl.Disconnected")); //$NON-NLS-1$
                         // Afegim error
-                        agent.setStatusMessage(new String(out.toByteArray()));
+                        agent.setStatusMessage(taskDispatcher.getConnectException().toString());
+                        agent.setStackTrace(new String(out.toByteArray()));
                     }
                 } else {
                     agent.setStatus(Messages.getString("SyncStatusServiceImpl.Connected")); //$NON-NLS-1$
+                    agent.setStatusMessage("NULL");
                 }
 
                 agent.setClassName(taskDispatcher.getSystem().getClassName());

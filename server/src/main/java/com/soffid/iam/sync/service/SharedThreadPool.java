@@ -81,7 +81,7 @@ public class SharedThreadPool implements Runnable {
 				}
 				else
 				{
-					currentThread.setName (originalName+ " ["+h.getDispatcher().getCodi()+"]");
+					currentThread.setName (originalName+ " ["+h.getSystem().getName()+"]");
 					if ( !h.runStep() )
 					{
 						if (ignores == 0)

@@ -74,6 +74,7 @@ import com.soffid.iam.sync.service.ServerServiceBase;
 import com.soffid.iam.sync.service.server.Compile;
 import com.soffid.iam.sync.service.server.Compile2;
 import com.soffid.iam.sync.service.server.Compile3;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -84,7 +85,6 @@ import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownNetworkException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.utils.Security;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -783,7 +783,7 @@ public class ServerServiceImpl extends ServerServiceBase {
         addPuntsEntrada(xmlPUE, duplicates, dao.query(
                 "select punt from com.soffid.iam.model.EntryPointEntity as punt " //$NON-NLS-1$
                         + "join punt.authorizedUsers as autoritzacio " //$NON-NLS-1$
-                        + "where autoritzacio.userId=:user and punt.xmlEntryPoint is not null", //$NON-NLS-1$
+                        + "where autoritzacio.user.id=:user and punt.xmlEntryPoint is not null", //$NON-NLS-1$
                 new Parameter[] { new Parameter("user", user.getId()) })); //$NON-NLS-1$
 
         // Punts d'entrada dels grups
@@ -792,7 +792,7 @@ public class ServerServiceImpl extends ServerServiceBase {
             addPuntsEntrada(xmlPUE, duplicates, dao.query(
             		"select punt from com.soffid.iam.model.EntryPointEntity AS punt "
             		+ "join punt.authorizedGroups AS autGroup "
-            		+ "where autGroup.groupId = :grup and "
+            		+ "where autGroup.group.id = :grup and "
             		+ "punt.xmlEntryPoint is not null", 
             		new Parameter[]{
             				new Parameter("grup", grup.getId())}));
@@ -805,7 +805,7 @@ public class ServerServiceImpl extends ServerServiceBase {
                     "select punt " + //$NON-NLS-1$
                     "from com.soffid.iam.model.EntryPointEntity as punt " //$NON-NLS-1$
                             + "join punt.authorizedRoles as autRol " //$NON-NLS-1$
-                            + "where autRol.roleId=:rol and punt.xmlEntryPoint is not null", //$NON-NLS-1$
+                            + "where autRol.role.id=:rol and punt.xmlEntryPoint is not null", //$NON-NLS-1$
                     new Parameter[] { new Parameter("rol", grant.getRoleId()) })); //$NON-NLS-1$
         }
 

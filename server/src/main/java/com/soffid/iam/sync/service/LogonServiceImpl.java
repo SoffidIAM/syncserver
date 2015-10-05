@@ -33,6 +33,7 @@ import com.soffid.iam.sync.engine.session.SessionManager;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonServiceBase;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.BadPasswordException;
@@ -40,7 +41,6 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.LogonDeniedException;
 import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.utils.Security;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;

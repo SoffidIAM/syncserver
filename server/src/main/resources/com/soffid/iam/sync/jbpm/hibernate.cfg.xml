@@ -9,8 +9,8 @@
 
     <!-- jdbc connection properties -->
     
-    <property name="hibernate.dialect">es.caib.seycon.ng.model.CustomDialect</property>
-    <property name="hibernate.connection.provider_class">es.caib.seycon.ng.sync.engine.db.ConnectionProvider</property>
+    <property name="hibernate.dialect">com.soffid.iam.model.CustomDialect</property>
+    <property name="hibernate.connection.provider_class">com.soffid.iam.sync.engine.db.ConnectionProvider</property>
 	<property name="hibernate.jdbc.batch_size">0</property>
 
     <!-- property name="hibernate.cache.provider_class">org.hibernate.cache.HashtableCacheProvider</property>  -->
@@ -188,15 +188,13 @@
    <mapping resource="org/jbpm/taskmgmt/log/SwimlaneAssignLog.hbm.xml"/>
 
    <!-- BPM specific objects -->
-   <mapping resource="es/caib/bpm/entity/AuthenticationLog.hbm.xml"/>
-   <mapping resource="es/caib/bpm/entity/UserInterface.hbm.xml"/>
-   <mapping resource="es/caib/bpm/entity/ProcessDefinitionUserRole.hbm.xml"/>
-   <mapping resource="es/caib/bpm/entity/ProcessDefinitionProperty.hbm.xml"/>
-   <mapping resource="es/caib/bpm/entity/DBProperty.hbm.xml"/>
-   <mapping resource="es/caib/bpm/task/BPMTaskInstance.hbm.xml"/>
-<!-- 
-   <mapping resource="es/caib/bpm/entity/UserConfig.hbm.xml"/>
-    -->
+   <mapping resource="com/soffid/iam/bpm/model/AuthenticationLog.hbm.xml"/>
+   <mapping resource="com/soffid/iam/bpm/model/UserInterface.hbm.xml"/>
+   <mapping resource="com/soffid/iam/bpm/model/ProcessDefinitionUserRole.hbm.xml"/>
+   <mapping resource="com/soffid/iam/bpm/model/ProcessDefinitionProperty.hbm.xml"/>
+   <mapping resource="com/soffid/iam/bpm/model/DBProperty.hbm.xml"/>
+   <mapping resource="com/soffid/iam/bpm/task/BPMTaskInstance.hbm.xml"/>
+
    <!-- hql queries and type defs -->
    <mapping resource="default.queries.hbm.xml" />
 

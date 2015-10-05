@@ -11,11 +11,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.soffid.iam.sync.ServerServiceLocator;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.servei.UsuariService;
-import es.caib.seycon.ng.utils.Security;
 
 public class StressTest extends HttpServlet {
 

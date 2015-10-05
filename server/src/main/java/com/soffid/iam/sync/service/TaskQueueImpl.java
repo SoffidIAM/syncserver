@@ -863,7 +863,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		for (TaskHandler taskToRemove: tasksToRemove)
 		{
 			if (taskToRemove.getTimeout() != null)
-				taskToRemove.notify();
+			{
+				synchronized (taskToRemove)
+				{
+					taskToRemove.notify();
+				}
+			}
 		
 			taskToRemove.cancel();
 			pushTaskToPersist(taskToRemove);
