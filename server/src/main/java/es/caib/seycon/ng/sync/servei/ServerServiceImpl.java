@@ -876,6 +876,19 @@ public class ServerServiceImpl extends ServerServiceBase {
                     new Parameter[] { new Parameter("rol", grant.getIdRol()) })); //$NON-NLS-1$
         }
 
+
+        Usuari usuari = getUsuariEntityDao().toUsuari(user);
+		for (Account account: getAccountService().getUserGrantedAccounts(usuari))
+		{
+            addPuntsEntrada(xmlPUE, duplicates, dao.query(
+                    "select punt " + //$NON-NLS-1$
+                    "from es.caib.seycon.ng.model.PuntEntradaEntity as punt " //$NON-NLS-1$
+                            + "join punt.authorizedAccounts as auth " //$NON-NLS-1$
+                            + "where auth.account.id=:id and punt.xmlPUE is not null", //$NON-NLS-1$
+                    new Parameter[] { new Parameter("id", account.getId()) })); //$NON-NLS-1$
+        }
+
+
         xmlPUE.append("</Mazinger>");// finalitzem el document //$NON-NLS-1$
 
         return xmlPUE.toString();

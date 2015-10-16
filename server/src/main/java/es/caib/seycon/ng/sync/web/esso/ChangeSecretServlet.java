@@ -42,6 +42,7 @@ import es.caib.seycon.ng.servei.SessioService;
 import es.caib.seycon.ng.servei.UsuariService;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
 import es.caib.seycon.ng.sync.servei.SecretStoreService;
+import es.caib.seycon.ng.utils.Security;
 import es.caib.seycon.ng.comu.Password;
 
 public class ChangeSecretServlet extends HttpServlet {
@@ -115,120 +116,126 @@ public class ChangeSecretServlet extends HttpServlet {
 					String system, String ssoAttribute, String description, String value) throws InternalErrorException, RemoteException, AccountAlreadyExistsException, UnsupportedEncodingException
 	{
 
-        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
-        if (secret != null)
-        	sss.putSecret(usuari, secret, new Password(value));
-        else if (account == null || account.trim().length() == 0)
-        {
-    		if (canCreateAccount (usuari, system))
-    		{
-    			Account acc = createAccount (system, usuari, description);
-    			return "OK|"+acc.getName();
-           	}
-    		else
-    		{
-    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-    		}
-        }
-        else if (system != null && account != null && system.length() > 0 && account.length() > 0)
-        {
-        	Account acc = ServiceLocator.instance().getAccountService().findAccount(account, system);
-        	
-        	if (acc == null)
-        	{
-    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-        	}
-        	
-        	if (acc instanceof es.caib.seycon.ng.comu.UserAccount)
-        	{
-        		if (! ((es.caib.seycon.ng.comu.UserAccount) acc).getUser().equals(usuari.getCodi()))
-        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-        	}
-        	else
-        	{
-        		boolean found = false;
-        		for (Account acc2: ServiceLocator.instance().getAccountService().getUserGrantedAccounts(usuari))
-        		{
-        			if (acc2.getId().equals(acc.getId()))
-        			{
-        				found = true;
-        				break;
-        			}
-        		}
-        		if (! found)
-        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-        	}
-           	
-           	AccountService acs = ServiceLocator.instance().getAccountService();
-
-           	if (ssoAttribute == null || ssoAttribute.length() == 0)
-           	{
-               	sss.setPassword(acc.getId(), new Password(value));
-
-               	DominiUsuariService dominiService = ServiceLocator.instance().getDominiUsuariService();
-	           	DispatcherService dispatcherService = ServiceLocator.instance().getDispatcherService();
-	           	Dispatcher dispatcher = dispatcherService.findDispatcherByCodi(system);
-	        	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
-	        			acc.getPasswordPolicy(), dispatcher.getDominiContrasenyes());
-	    		Long l = null;
+		Security.nestedLogin(usuari.getCodi(), Security.getAuthorizations().toArray(new String [0]));
+		try
+		{
+	        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
+	        if (secret != null)
+	        	sss.putSecret(usuari, secret, new Password(value));
+	        else if (account == null || account.trim().length() == 0)
+	        {
+	    		if (canCreateAccount (usuari, system))
+	    		{
+	    			Account acc = createAccount (system, usuari, description);
+	    			return "OK|"+acc.getName();
+	           	}
+	    		else
+	    		{
+	    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	    		}
+	        }
+	        else if (system != null && account != null && system.length() > 0 && account.length() > 0)
+	        {
+	        	Account acc = ServiceLocator.instance().getAccountService().findAccount(account, system);
+	        	
+	        	if (acc == null)
+	        	{
+	    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        	}
+	        	
+	        	if (acc instanceof es.caib.seycon.ng.comu.UserAccount)
+	        	{
+	        		if (! ((es.caib.seycon.ng.comu.UserAccount) acc).getUser().equals(usuari.getCodi()))
+	        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        	}
+	        	else
+	        	{
+	        		boolean found = false;
+	        		for (Account acc2: ServiceLocator.instance().getAccountService().getUserGrantedAccounts(usuari))
+	        		{
+	        			if (acc2.getId().equals(acc.getId()))
+	        			{
+	        				found = true;
+	        				break;
+	        			}
+	        		}
+	        		if (! found)
+	        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        	}
+	           	
+	           	AccountService acs = ServiceLocator.instance().getAccountService();
+	
+	           	if (ssoAttribute == null || ssoAttribute.length() == 0)
+	           	{
+	               	sss.setPassword(acc.getId(), new Password(value));
+	
+	               	DominiUsuariService dominiService = ServiceLocator.instance().getDominiUsuariService();
+		           	DispatcherService dispatcherService = ServiceLocator.instance().getDispatcherService();
+		           	Dispatcher dispatcher = dispatcherService.findDispatcherByCodi(system);
+		        	PoliticaContrasenya politica = dominiService.findPoliticaByTipusAndDominiContrasenyas(
+		        			acc.getPasswordPolicy(), dispatcher.getDominiContrasenyes());
+		    		Long l = null;
+		    		
+		    		if (politica != null && politica.getDuradaMaxima() != null && politica.getTipus().equals("M")) //$NON-NLS-1$
+		    		    l = politica.getDuradaMaxima();
+		    		else if (politica != null && politica.getTempsRenovacio() != null && politica.getTipus().equals("A")) //$NON-NLS-1$
+		    			l = politica.getTempsRenovacio();
+		
+		           	acs.updateAccountPasswordDate(acc, l);
+		
+		           	ServiceLocator.instance().getLogonService().propagatePassword(account, system, value);
+	           	} else {
+	           		String actualAttribute = "SSO:"+ssoAttribute;
+	           		for ( DadaUsuari du: accountService.getAccountAttributes(acc))
+	           		{
+	           			if (du.getCodiDada().equals (actualAttribute) && du.getId() != null)
+	           			{
+	       					du.setValorDada(value);
+	       					accountService.updateAccountAttribute(du);
+	       					return "OK";
+	           			}
+	           		}
+	           		// Attribute not found
+	           		DadesAddicionalsService metadataService = ServiceLocator.instance().getDadesAddicionalsService();
+	           		TipusDada md = metadataService.findSystemDataType(system, actualAttribute);
+	           		if (md == null)
+	           		{
+	           			md = new TipusDada();
+	           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
+	           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
+	           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
+	           			md.setCodi(actualAttribute);
+	           			if (ssoAttribute.equals("Server") || ssoAttribute.equals("URL"))
+	           			{
+	               			md.setLabel("Server");
+	               			md.setType(TypeEnumeration.STRING_TYPE);
+	           			}
+	           			else
+	           			{
+	           				md.setLabel("Form data");
+	               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
+	           			}
+	           			md.setSize(1024);
+	           			md.setOrdre(0L);
+	           			md.setSystemName(system);
+	           			md.setRequired(false);
+	           			md = metadataService.create(md);
+	           		}
+	           		DadaUsuari du = new DadaUsuari();
+	           		du.setAccountName(account);
+	           		du.setSystemName(system);
+	           		du.setCodiDada(md.getCodi());
+					du.setValorDada(value);
+	           		acs.createAccountAttribute(du);
+	           	}
 	    		
-	    		if (politica != null && politica.getDuradaMaxima() != null && politica.getTipus().equals("M")) //$NON-NLS-1$
-	    		    l = politica.getDuradaMaxima();
-	    		else if (politica != null && politica.getTempsRenovacio() != null && politica.getTipus().equals("A")) //$NON-NLS-1$
-	    			l = politica.getTempsRenovacio();
-	
-	           	acs.updateAccountPasswordDate(acc, l);
-	
-	           	ServiceLocator.instance().getLogonService().propagatePassword(account, system, value);
-           	} else {
-           		String actualAttribute = "SSO:"+ssoAttribute;
-           		for ( DadaUsuari du: accountService.getAccountAttributes(acc))
-           		{
-           			if (du.getCodiDada().equals (actualAttribute) && du.getId() != null)
-           			{
-       					du.setValorDada(value);
-       					accountService.updateAccountAttribute(du);
-       					return "OK";
-           			}
-           		}
-           		// Attribute not found
-           		DadesAddicionalsService metadataService = ServiceLocator.instance().getDadesAddicionalsService();
-           		TipusDada md = metadataService.findSystemDataType(system, actualAttribute);
-           		if (md == null)
-           		{
-           			md = new TipusDada();
-           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
-           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
-           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
-           			md.setCodi(actualAttribute);
-           			if (ssoAttribute.equals("Server"))
-           			{
-               			md.setLabel("Server");
-               			md.setType(TypeEnumeration.STRING_TYPE);
-           			}
-           			else
-           			{
-           				md.setLabel("Form data");
-               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
-           			}
-           			md.setSize(1024);
-           			md.setOrdre(0L);
-           			md.setSystemName(system);
-           			md.setRequired(false);
-           			md = metadataService.create(md);
-           		}
-           		DadaUsuari du = new DadaUsuari();
-           		du.setAccountName(account);
-           		du.setSystemName(system);
-           		du.setCodiDada(md.getCodi());
-				du.setValorDada(value);
-           		acs.createAccountAttribute(du);
-           	}
-    		
-        } else {
-			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-        }
-        return "OK"; //$NON-NLS-1$
+	        } else {
+				return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        }
+	        return "OK"; //$NON-NLS-1$
+		} finally {
+			Security.nestedLogoff();
+		}
     }
 
 	/**
