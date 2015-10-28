@@ -207,7 +207,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	           			md.setCodi(actualAttribute);
 	           			if (ssoAttribute.equals("Server") || ssoAttribute.equals("URL"))
 	           			{
-	               			md.setLabel("Server");
+	               			md.setLabel(ssoAttribute);
 	               			md.setType(TypeEnumeration.STRING_TYPE);
 	           			}
 	           			else
