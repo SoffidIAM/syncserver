@@ -23,6 +23,7 @@ import com.soffid.iam.api.AttributeVisibilityEnum;
 import es.caib.seycon.ng.servei.DispatcherService;
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Account;
+import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.AutoritzacioRol;
 import es.caib.seycon.ng.comu.DadaUsuari;
@@ -151,7 +152,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	        	else
 	        	{
 	        		boolean found = false;
-	        		for (Account acc2: ServiceLocator.instance().getAccountService().getUserGrantedAccounts(usuari))
+	        		for (Account acc2: ServiceLocator.instance().getAccountService().getUserGrantedAccounts(usuari, AccountAccessLevelEnum.ACCESS_MANAGER))
 	        		{
 	        			if (acc2.getId().equals(acc.getId()))
 	        			{
@@ -207,7 +208,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	           			md.setCodi(actualAttribute);
 	           			if (ssoAttribute.equals("Server") || ssoAttribute.equals("URL"))
 	           			{
-	               			md.setLabel("Server");
+	               			md.setLabel(ssoAttribute);
 	               			md.setType(TypeEnumeration.STRING_TYPE);
 	           			}
 	           			else
