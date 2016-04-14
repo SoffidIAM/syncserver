@@ -208,7 +208,8 @@ public class SessionManager extends Thread {
             String identity = String.format("%s on %s ID=%s", sessio.getCodiUsuari(), //$NON-NLS-1$
                             sessio.getUrl(), sessio.getId());
             log.info("LOGOFF Session {}: unexpected exception {}", identity, e.toString()); //$NON-NLS-1$
-            return false;
+            // Simply assume web server is restarting and cannot answer your request
+            return true;
     	}
     }
     

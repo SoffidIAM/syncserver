@@ -80,7 +80,8 @@ public class KeepaliveSessionServlet extends HttpServlet {
                 else
                 {
                     Maquina maq = xarxaService.findMaquinaByNom(sessio.getNomMaquinaServidora());
-                    if (maq == null || !maq.getAdreca().equals(req.getRemoteAddr())) {
+                    if (maq == null || maq.getAdreca() == null || 
+                    		!maq.getAdreca().equals(req.getRemoteAddr())) {
                         writer.write("EXPIRED|Invalid host");
                     } else {
                     	sessioService.sessioKeepAlive(sessio);
