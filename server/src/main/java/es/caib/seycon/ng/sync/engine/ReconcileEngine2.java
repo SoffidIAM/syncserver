@@ -134,7 +134,6 @@ public class ReconcileEngine2
 					else
 						acc.setDescription(existingAccount.getDescription());
 					
-					acc.setDisabled(false);
 					acc.setLastUpdated(Calendar.getInstance());
 					acc.setType(AccountType.IGNORED);
 					acc.setPasswordPolicy(passwordPolicy);
@@ -142,7 +141,9 @@ public class ReconcileEngine2
 					acc.setGrantedRoles(new LinkedList<Rol>());
 					acc.setGrantedUsers(new LinkedList<Usuari>());
 					try {
-						log.append ("Creating account ").append (accountName).append ('\n');
+						log.append ("Creating account ");
+						log.append(acc.getName());
+						log.append ('\n');
 						acc = accountService.createAccount(acc);
 					} catch (AccountAlreadyExistsException e) {
 						throw new InternalErrorException ("Unexpected exception", e);
@@ -167,8 +168,10 @@ public class ReconcileEngine2
 						acc.setPasswordExpiration(acc.getPasswordExpiration());
 					if (existingAccount.getAttributes() != null)
 						acc.getAttributes().putAll(existingAccount.getAttributes());
+					acc.setDisabled(existingAccount.isDisabled());
 					try {
 						log.append ("Updating account ").append (accountName).append ('\n');
+//						log.append(acc.toString()).append('\n');
 						accountService.updateAccount(acc);
 					} catch (AccountAlreadyExistsException e) {
 						throw new InternalErrorException ("Unexpected exception", e);
@@ -177,11 +180,14 @@ public class ReconcileEngine2
 				
 			}
 
-			reconcileAccountAttributes (acc, existingAccount);
-			// Only reconcile grants on unmanaged accounts
-			// or read only dispatchers
-			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
-				reconcileRoles (acc);
+			if (existingAccount != null)
+			{
+				reconcileAccountAttributes (acc, existingAccount);
+				// Only reconcile grants on unmanaged accounts
+				// or read only dispatchers
+				if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
+					reconcileRoles (acc);
+			}
 		}
 		
 	}
@@ -365,6 +371,29 @@ public class ReconcileEngine2
 		try
 		{
 			accountGrants = agent.getAccountGrants(acc.getName());
+			// Remove duplicates
+			for ( int i = 0; i < accountGrants.size(); )
+			{	
+				RolGrant first = accountGrants.get(i);
+				boolean match = false;
+				for (int j = i + 1 ; !match && j < accountGrants.size(); j++)
+				{
+					RolGrant second = accountGrants.get(j);
+					if (first.getRolName().equals (second.getRolName()))
+					{
+						if (first.getDomainValue() == null || first.getDomainValue().trim().length() == 0 ||
+								second.getDomainValue() == null || second.getDomainValue().trim().length() == 0 ||
+								first.getDomainValue().equals(second.getDomainValue()))
+						{
+							match = true;
+						}
+					}
+				}
+				if (match)
+					accountGrants.remove(i);
+				else
+					i++;
+			}
 		} finally {
 			Watchdog.instance().dontDisturb();
 		}

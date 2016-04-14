@@ -322,6 +322,8 @@ public class SeyconApplication extends Object {
                 // Iniciar el Agente
                 agentManager = new AgentManagerImpl();
                 jetty.bind("/seycon/AgentManager", agentManager, "server");
+                // web d'administració
+                jetty.bindAdministrationWeb();
 
             }
             // Notificar el arranque

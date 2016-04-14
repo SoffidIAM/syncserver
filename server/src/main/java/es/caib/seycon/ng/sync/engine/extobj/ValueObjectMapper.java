@@ -310,6 +310,11 @@ public class ValueObjectMapper
 			account.setLastUpdated(toCalendar (object.getAttribute("lastUpdate")));
 			account.setLastPasswordSet(toCalendar (object.getAttribute("lastPasswordUpdate")));
 			account.setPasswordExpiration(toCalendar (object.getAttribute("passwordExpiration")));
+			if (object.getAttribute("accountDisabled") != null &&
+					object.getAttribute("accountDisabled").toString().equals("true"))
+				account.setDisabled(true);
+			else
+				account.setDisabled(false);
 			Object map = object.getAttribute("accountAttributes");
 			if (map != null && map instanceof Map)
 			{
