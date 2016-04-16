@@ -123,7 +123,7 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = dadesList;
     		}
     		else if ("attributes".equals(attribute) || "accountAttributes".equals(attribute))
-    			return account.getAttributes();
+    			obj = account.getAttributes();
     		else
     			return null;
     		
