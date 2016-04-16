@@ -180,7 +180,7 @@ public class ReconcileEngine2
 				
 			}
 
-			if (existingAccount != null)
+			if (acc != null && existingAccount != null)
 			{
 				reconcileAccountAttributes (acc, existingAccount);
 				// Only reconcile grants on unmanaged accounts
