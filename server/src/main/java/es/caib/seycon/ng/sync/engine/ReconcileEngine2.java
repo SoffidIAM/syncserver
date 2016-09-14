@@ -148,6 +148,7 @@ public class ReconcileEngine2
 					} catch (AccountAlreadyExistsException e) {
 						throw new InternalErrorException ("Unexpected exception", e);
 					}
+					reconcileRoles (acc);
 				}
 			} else {
 				Watchdog.instance().interruptMe(dispatcher.getTimeout());
@@ -158,6 +159,9 @@ public class ReconcileEngine2
 				}
 				if (existingAccount != null)
 				{
+					boolean isManaged = acc != null && acc.getId() != null && 
+							(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
+
 					if (existingAccount.getDescription() != null && existingAccount.getDescription().trim().length() > 0)
 						acc.setDescription(existingAccount.getDescription());
 					if (existingAccount.getLastPasswordSet() != null)
@@ -168,7 +172,8 @@ public class ReconcileEngine2
 						acc.setPasswordExpiration(acc.getPasswordExpiration());
 					if (existingAccount.getAttributes() != null)
 						acc.getAttributes().putAll(existingAccount.getAttributes());
-					acc.setDisabled(existingAccount.isDisabled());
+					if (isManaged)
+						acc.setDisabled(existingAccount.isDisabled());
 					try {
 						log.append ("Updating account ").append (accountName).append ('\n');
 //						log.append(acc.toString()).append('\n');
@@ -176,17 +181,13 @@ public class ReconcileEngine2
 					} catch (AccountAlreadyExistsException e) {
 						throw new InternalErrorException ("Unexpected exception", e);
 					}
+					reconcileAccountAttributes (acc, existingAccount);
+					// Only reconcile grants on unmanaged accounts
+					// or read only dispatchers
+					if (isManaged)
+						reconcileRoles (acc);
 				}
 				
-			}
-
-			if (acc != null && existingAccount != null)
-			{
-				reconcileAccountAttributes (acc, existingAccount);
-				// Only reconcile grants on unmanaged accounts
-				// or read only dispatchers
-				if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
-					reconcileRoles (acc);
 			}
 		}
 		
