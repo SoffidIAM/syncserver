@@ -19,6 +19,7 @@ import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 import com.soffid.iam.api.AttributeVisibilityEnum;
+import com.soffid.iam.api.VaultFolder;
 
 import es.caib.seycon.ng.servei.DispatcherService;
 import es.caib.seycon.ng.ServiceLocator;
@@ -284,6 +285,7 @@ public class ChangeSecretServlet extends HttpServlet {
 		long i = findLastAccount (system) + 1;
 		
 		
+		
 		Account acc = new Account();
 		acc.setName(""+i);
 		acc.setDescription(description);
@@ -295,6 +297,15 @@ public class ChangeSecretServlet extends HttpServlet {
 			throw new InternalErrorException (Messages.getString("ChangeSecretServlet.22")); //$NON-NLS-1$
 		acc.setType(AccountType.SHARED);
 		acc.setPasswordPolicy(ssoPolicy);
+		// Search for personal folder
+		VaultFolder vf = ServiceLocator.instance().getVaultService().getPersonalFolder();
+			
+		if (vf != null)
+		{
+			acc.setVaultFolder(vf.getName());
+			acc.setVaultFolderId(vf.getId());
+		}
+			
 		return ServiceLocator.instance().getAccountService().createAccount(acc);
 	}
 
