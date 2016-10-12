@@ -8,6 +8,7 @@ import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 import com.soffid.iam.api.Session;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.comu.Sessio;
 
@@ -74,7 +75,7 @@ public class LogoffThread extends Object implements Runnable {
         Session s = null;
         long sessionTimeout = 1200000; // 20 minutes
         try {
-        	sessionTimeout = Long.decode(System.getProperty("soffid.esso.session.timeout")) * 1000;
+        	sessionTimeout = Long.decode(ConfigurationCache.getMasterProperty("soffid.esso.session.timeout")) * 1000;
         } catch (Exception e) {}
         // es.caib.seycon.ServerApplication.out.println
         // (Thread.currentThread().getName () + ": started");

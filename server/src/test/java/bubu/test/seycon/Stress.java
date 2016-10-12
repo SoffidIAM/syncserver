@@ -7,6 +7,7 @@ import java.rmi.registry.Registry;
 
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteInvokerFactory;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.PasswordValidation;
@@ -47,8 +48,8 @@ class Validator implements Runnable {
         LogonService server = null;
         try {
             String serverHosts[] = null;
-            if (System.getProperty("seycon.server.url") != null)
-                serverHosts = System.getProperty("seycon.server.url").split("[, ]+");
+            if (ConfigurationCache.getProperty("seycon.server.url") != null)
+                serverHosts = ConfigurationCache.getProperty("seycon.server.url").split("[, ]+");
             else
                 serverHosts = Config.getConfig().getSeyconServerHostList();
 

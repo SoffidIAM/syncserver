@@ -8,8 +8,11 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 
+import org.apache.axis.components.threadpool.ThreadPool;
+import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 import org.slf4j.LoggerFactory;
@@ -29,6 +32,7 @@ import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGeneratorBase;
 import com.soffid.iam.sync.service.TaskQueue;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 
@@ -40,7 +44,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     boolean active;
     Config config;
     ArrayList<DispatcherHandlerImpl> dispatchers = new ArrayList<DispatcherHandlerImpl>();
-    Map<String,DispatcherHandlerImpl> dispatchersMap = new HashMap<String, DispatcherHandlerImpl>();
+    Map<String,Map<String,DispatcherHandlerImpl>> dispatchersMap = new HashMap<String, Map<String, DispatcherHandlerImpl>>();
     private boolean logCollectorEnabled;
     String status = null;
     private Object logCollectorLock;
@@ -68,7 +72,6 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     @Override
     protected void handleLoadTasks() throws Exception {
         Collection<TaskEntity> tasks;
-        Connection connection = ConnectionPool.getPool().getPoolConnection();
         Runtime runtime = Runtime.getRuntime();
         if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
         	runtime.gc();
@@ -77,36 +80,32 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         	log.warn("Free Memory too low. New tasks are not being scheduled");
         	return;
         }
-        try {
-        	CriteriaSearchConfiguration csc = new CriteriaSearchConfiguration();
-        	csc.setMaximumResultSize(5000);
-            log.info("Looking for new tasks to schedule");
-            if (firstRun) {
-                tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
-                		+ "where tasca.server = :server "
-                		+ "order by tasca.id", 
-                		new Parameter[]{new Parameter("server", config.getHostName())});
-            } else {
-                tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
-                		+ "where tasca.server is null "
-                		+ "order by tasca.priority, tasca.id", new Parameter[0], csc);
-            }
-            TaskQueue taskQueue = getTaskQueue();
-            int i = 0;
-            flushAndClearSession();
-            for (Iterator<TaskEntity> it = tasks.iterator(); active && it.hasNext(); ) {
-                TaskEntity tasca = it.next();
-                taskQueue.addTask(tasca);
-                flushAndClearSession();
-                if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
-                    runtime.gc();
-                    return;
-                }
-            }
-       		firstRun = false;
-        } finally {
-        	connection.close ();
+    	CriteriaSearchConfiguration csc = new CriteriaSearchConfiguration();
+    	csc.setMaximumResultSize(5000);
+        log.info("Looking for new tasks to schedule");
+        if (firstRun) {
+            tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
+            		+ "where tasca.server = :server "
+            		+ "order by tasca.id", 
+            		new Parameter[]{new Parameter("server", config.getHostName())});
+        } else {
+            tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
+            		+ "where tasca.server is null "
+            		+ "order by tasca.priority, tasca.id", new Parameter[0], csc);
         }
+        TaskQueue taskQueue = getTaskQueue();
+        int i = 0;
+        flushAndClearSession();
+        for (Iterator<TaskEntity> it = tasks.iterator(); active && it.hasNext(); ) {
+            TaskEntity tasca = it.next();
+            taskQueue.addTask(tasca);
+            flushAndClearSession();
+            if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
+                runtime.gc();
+                return;
+            }
+        }
+   		firstRun = false;
     }
 
     @Override
@@ -143,7 +142,20 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 
     @Override
     protected Collection<DispatcherHandler> handleGetDispatchers() throws Exception {
-        ArrayList<DispatcherHandler> list = new ArrayList<DispatcherHandler>();
+    	String currentTenant = Security.getCurrentTenantName();
+        LinkedList<DispatcherHandler> list = new LinkedList<DispatcherHandler>(dispatchers);
+        for (Iterator<DispatcherHandler> it = list.iterator(); it.hasNext();)
+        {
+        	DispatcherHandler d = it.next();
+        	if (! currentTenant.equals(d.getSystem().getTenant()))
+        		it.remove();
+        }
+        return list;
+    }
+
+    @Override
+    protected Collection<DispatcherHandler> handleGetAllTenantsDispatchers() throws Exception {
+        LinkedList<DispatcherHandler> list = new LinkedList<DispatcherHandler>();
         list.addAll(dispatchers);
         return list;
     }
@@ -155,7 +167,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         log.info("Looking for agent updates", null, null);
         ArrayList<DispatcherHandlerImpl> oldDispatchers = new ArrayList<DispatcherHandlerImpl>(
                 dispatchers);
-        Collection<SystemEntity> entities = getSystemEntityDao().loadAll();
+        Collection<SystemEntity> entities = getSystemEntityDao().findAllTenantSystems();
         // Reconfigurar dispatcher modificats
         for (Iterator<SystemEntity> it = entities.iterator(); it.hasNext(); ) {
             SystemEntity dispatcherEntity = it.next();
@@ -188,6 +200,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                                 handler.setInternalId(id);
                                 dispatchers.remove(oldHandler);
                                 dispatchers.add(handler);
+                                dm = getDispatchersMap ( newDispatcher.getTenant());
                                 dispatchersMap.put(newDispatcher.getName(), handler);
                                 if (newThread)
                                 	handler.start();
@@ -227,8 +240,26 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         }
 
         if (anySharedThreadChange)
+        {
         	threadPool.updateThreads(dispatchers);
+        }
     }
+
+    /**
+     * Returns de dispatchers for a tenenat
+     * 
+     * @param tenant
+     * @return dispatchers Map
+     */
+	private Map<String, DispatcherHandlerImpl> getDispatchersMap(String tenant) {
+		Map<String, DispatcherHandlerImpl> dm = dispatchersMap.get(tenant);
+		if (dm == null)
+		{
+			dm = new HashMap<String, DispatcherHandlerImpl>();
+			dispatchersMap.put(tenant, dm);
+		}
+		return dm;
+	}
 
 	private WeakReference<String> currentSchema = new WeakReference<String>(null);
 	private ApplicationContext applicationContext;
@@ -294,7 +325,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 		Session session = SessionFactoryUtils.getSession(getSessionFactory(), false) ;
 		session.flush();
 		session.clear();
-
+		SessionFactoryUtils.getSession(getSessionFactory(), true) ;
 	}
 	private SessionFactory getSessionFactory ()
 	{

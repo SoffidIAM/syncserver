@@ -66,6 +66,7 @@ import com.soffid.iam.sync.web.internal.PropagatePasswordServlet;
 import com.soffid.iam.sync.web.internal.PublicCertServlet;
 import com.soffid.iam.sync.web.internal.ServerInvokerServlet;
 import com.soffid.iam.sync.web.wsso.WebSessionServlet;
+import com.soffid.iam.utils.ConfigurationCache;
 
 public class JettyServer implements PublisherInterface 
 {
@@ -415,7 +416,7 @@ public class JettyServer implements PublisherInterface
             bindAdministrationServlet("/log", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"}, PlainLogServlet.class);
             bindAdministrationServlet("/reset", new String[]{"SEU_ADMINISTRADOR"}, ResetServlet.class);
             bindAdministrationServlet("/reencodesecrets", new String[]{"SEU_ADMINISTRADOR"}, ReencodeSecretsServlet.class);
-            if (System.getProperty("seycon.secret.debug") != null)
+            if (ConfigurationCache.getMasterProperty("seycon.secret.debug") != null)
                 bindAdministrationServlet("/testSecrets", new String[]{"SEU_ADMINISTRADOR"}, TestSecretsServlet.class);
             bindPublicWeb();
         }

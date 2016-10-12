@@ -199,7 +199,10 @@ public class AgentManagerImpl extends AgentManagerBase {
 	            if (sp == null || sp.getContent() == null) {
 	                throw new InternalErrorException("No plugin available for class " + agentClass);
 	            }
-	            File f = File.createTempFile("seycon-" + agentClass + "-"+ sp.getVersion(), ".jar");
+	            File home = Config.getConfig().getHomeDir();
+	            File plugins = new File (home, "plugins");
+	            plugins.mkdir();
+	            File f = new File(plugins, agentClass + "-"+ sp.getVersion()+".jar");
 	            OutputStream out = new FileOutputStream(f);
 	            out.write(sp.getContent());
 	            out.close();

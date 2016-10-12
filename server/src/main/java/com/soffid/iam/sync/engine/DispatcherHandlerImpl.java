@@ -17,10 +17,12 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserType;
 import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
+import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AuditEntity;
 import com.soffid.iam.model.AuditEntityDao;
 import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.TaskEntityDao;
+import com.soffid.iam.model.TenantEntityDao;
 import com.soffid.iam.reconcile.common.AccountProposedAction;
 import com.soffid.iam.reconcile.common.ProposedAction;
 import com.soffid.iam.reconcile.common.ReconcileAccount;
@@ -62,6 +64,7 @@ import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.util.Syslogger;
+import com.soffid.iam.utils.Security;
 import com.soffid.tools.db.schema.Column;
 import com.soffid.tools.db.schema.Table;
 
@@ -174,6 +177,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private InternalPasswordService internalPasswordService;
 	private AccountService accountService;
 	private com.soffid.iam.sync.engine.extobj.ObjectTranslator attributeTranslatorV2;
+	private TenantEntityDao tenantDao;
 
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
@@ -212,6 +216,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         userService = ServerServiceLocator.instance().getUserService();
         groupService = ServerServiceLocator.instance().getGroupService();
         auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditEntityDao");
+        tenantDao = (TenantEntityDao) ServerServiceLocator.instance().getService("tenantEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
         authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
         
@@ -440,6 +445,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     public void run() {
         try {
+        	Security.nestedLogin(getSystem().getTenant(), Config.getConfig().getHostName(), new String [] {
+        		Security.AUTO_AUTHORIZATION_ALL
+        	});
         	ConnectionPool pool = ConnectionPool.getPool();
         	
             currentThread = Thread.currentThread();
@@ -484,6 +492,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             active = false;
             setStatus("Stopped");
             log.info("Stopped", null, null);
+            Security.nestedLogoff();
         }
 
     }
@@ -1217,6 +1226,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            te.setPasswordsDomain(getSystem().getPasswordsDomain());
 		            te.setPassword(t.getPassword().toString());
 		            te.setUser(ua.getUser());
+		            te.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
 		            taskqueue.addTask(te);
 		            
 		            AuditEntity auditoria = auditoriaDao.newAuditEntity();
@@ -1744,6 +1754,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 taskEntity.setHost(taskHandler.getTask().getHost());
                 taskEntity.setUser(user);
                 taskEntity.setSystemName(getSystem().getName());
+	            taskEntity.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
                 taskqueue.addTask(taskEntity);
             }
         }
@@ -1754,6 +1765,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
 		taskEntity.setHost(taskHandler.getTask().getHost());
 		taskEntity.setSystemName(getSystem().getName());
+        taskEntity.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
 
 		taskqueue.addTask(taskEntity);
 	}
@@ -2003,6 +2015,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 taskEntity.setRole(role);
                 taskEntity.setDb(getSystem().getName());
                 taskEntity.setSystemName(getSystem().getName());
+	            taskEntity.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
                 taskqueue.addTask(taskEntity);
             }
         }
@@ -2013,6 +2026,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
 		taskEntity.setHost(taskHandler.getTask().getHost());
 		taskEntity.setSystemName(getSystem().getName());
+        taskEntity.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
 
 		taskqueue.addTask(taskEntity);
 	}

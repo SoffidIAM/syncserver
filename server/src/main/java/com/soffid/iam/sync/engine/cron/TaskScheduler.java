@@ -23,6 +23,7 @@ import com.soffid.iam.config.Config;
 import com.soffid.iam.service.ScheduledTaskService;
 import com.soffid.iam.service.TaskHandler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Configuracio;
@@ -69,6 +70,9 @@ public class TaskScheduler
 
 		public void run ()
 		{
+			Security.nestedLogin(task.getTenant(),
+					hostName,
+					Security.ALL_PERMISSIONS);
 			try {
 				Thread.currentThread().setName(task.getName());
 				boolean ignore = false;
@@ -122,13 +126,18 @@ public class TaskScheduler
 				{
 					log.warn("Error registering scheduled task result ",e);
 				}
-			} catch (Exception e) {}
+			} catch (Exception e) {
+				
+			} finally {
+				Security.nestedLogoff();
+			}
 		}
 	}
 
 	static TaskScheduler theScheduler = null ;
 	String configTimeStamp;
 	Log log = LogFactory.getLog(getClass());
+	String hostName;
 	
 	Scheduler cronScheduler = new Scheduler();
 	
@@ -188,6 +197,7 @@ public class TaskScheduler
 
 	public void reconfigure () throws InternalErrorException, FileNotFoundException, IOException
 	{
+		hostName = Config.getConfig().getHostName();
 		Scheduler newCronScheduler = new Scheduler();
 		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
 		final ConfiguracioService configSvc = ServiceLocator.instance().getConfiguracioService();

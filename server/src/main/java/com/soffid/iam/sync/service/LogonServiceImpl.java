@@ -12,9 +12,6 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.lang.MessageFactory;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AuditEntity;
-import com.soffid.iam.model.CardCellEntity;
-import com.soffid.iam.model.CardCellEntityDao;
-import com.soffid.iam.model.CardEntity;
 import com.soffid.iam.model.HostEntity;
 import com.soffid.iam.model.HostEntityDao;
 import com.soffid.iam.model.Parameter;
@@ -163,6 +160,7 @@ public class LogonServiceImpl extends LogonServiceBase {
         }
         
         tasque.setPassword(new Password(password).toString());
+        tasque.setTenant( getTenantEntityDao().load (Security.getCurrentTenantId()));
         getTaskQueue().addTask(tasque);
     }
 
@@ -231,25 +229,6 @@ public class LogonServiceImpl extends LogonServiceBase {
                 }
             }
 
-            if (!ch.getCardNumber().equals("")) { //$NON-NLS-1$
-                String value = ""; //$NON-NLS-1$
-                // Localizar tarjeta y celda
-                List<CardCellEntity> contar = getCardCellEntityDao().query(
-                		"from com.soffid.iam.model.CardCellEntity contar join "
-                		+ "contar.card as targeta "
-                		+ "where targeta.code=:codi and contar.cell=:filcol", 
-                		new Parameter[]{new Parameter("codi", ch.getCardNumber()), 
-                				new Parameter("codi", ch.getCell())}); //$NON-NLS-1$
-                if (contar.size() == 1 && contar.get(0).getValue().equals(challenge.getValue())) {
-                    CardCellEntity contarEntity = contar.get(0);
-                    contarEntity.setExpirationDate(new Date());
-                    getCardCellEntityDao().update(contarEntity);
-                } else {
-                    log.debug("Denied Challenge {} for user {}", challenge.getChallengeId(), //$NON-NLS-1$
-                            challenge.getUser());
-                    throw new LogonDeniedException(Messages.getString("LogonServiceImpl.IncorredCardMsg")); //$NON-NLS-1$
-                }
-            }
 
             Session sessio = null;
             if (ch.getCentinelPort() <= 0)
@@ -398,38 +377,8 @@ public class LogonServiceImpl extends LogonServiceBase {
             }
         }
         ch.setHost(findHost(hostIp));
-        List<CardEntity> targetes = getCardEntityDao().query(
-        		"select targeta from com.soffid.iam.model.UserEntity as usuari "
-        		+ "join usuari.extranetCard as targeta "
-        		+ "with targeta.active=\'S\' and targeta.expirationDate >= :now and "
-        		+ "targeta.issueDate < :now where usuari.userName = :codi "
-        		+ "order by targeta.issueDate desc", 
-        		new Parameter[]{
-        				new Parameter("now", new Date()), 
-        				new Parameter("codi", user)}); //$NON-NLS-1$
-
-        if (targetes.size() > 0) {
-            CardEntity targeta = targetes.get(0);
-            // Localizar una casilla al azar
-            java.util.Random r = new java.util.Random();
-            ch.setCardNumber(targeta.getCode());
-            CardCellEntityDao contarDao = getCardCellEntityDao();
-            List<CardCellEntity> cells = contarDao.query(
-            		"from com.soffid.iam.model.CardCellEntity contar "
-            		+ "where contar.card=:targeta "
-            		+ "order by contar.expirationDate", 
-            		new Parameter[]{new Parameter("targeta", targeta)}); //$NON-NLS-1$
-
-            int l = r.nextInt() % 50;
-            if (cells.size() < l)
-                throw new InternalErrorException(Messages.getString("LogonServiceImpl.ErrorReadCarMsg")); //$NON-NLS-1$
-            else {
-                ch.setCell(cells.get(l).getCell());
-            }
-        } else {
-            ch.setCardNumber(""); //$NON-NLS-1$
-            ch.setCell(""); //$NON-NLS-1$
-        } // end - if
+        ch.setCardNumber(""); //$NON-NLS-1$
+        ch.setCell(""); //$NON-NLS-1$
 
         able = !ch.getCardNumber().equals(""); //$NON-NLS-1$
         if (ch.getClientHost() != null && ch.getClientHost().getId() == null)

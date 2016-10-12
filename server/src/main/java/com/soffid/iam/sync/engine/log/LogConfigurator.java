@@ -23,7 +23,7 @@ public class LogConfigurator {
             if (logFile.canRead()) {
                 PropertyConfigurator.configure(logFile.toURI().toURL()); 
             } 
-            else 
+            else  
             {
                 PropertyConfigurator.configure(ClassLoader
                     .getSystemResource(PATH2));

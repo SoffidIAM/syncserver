@@ -13,6 +13,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.RemoteException;
+import java.security.Policy;
 import java.util.Properties;
 
 import javax.security.auth.login.Configuration;
@@ -29,6 +30,7 @@ import com.soffid.iam.sync.engine.kerberos.ChainConfiguration;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.jetty.SeyconLog;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.Server;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -268,11 +270,12 @@ public class SoffidApplication extends Object {
      * @throws RemoteException 
      */
     public static void main(String args[]) throws RemoteException, InternalErrorException {
-
-
     	LogConfigurator.configureLogging();
 
+    	Security.onSyncServer();
+    	
         log = LoggerFactory.getLogger("main");
+        
         
 //        new DiagThread().start();
         try {
@@ -294,6 +297,8 @@ public class SoffidApplication extends Object {
             log.info("*************************************************");
             if (config.isDebug())
                 SeyconLog.setDebug(true);
+            
+            configureSecurity ();
 
             // Establecemos el cacerts (copiamos el de JVM a conf si no existe)
             configureCerts(config);
@@ -337,7 +342,25 @@ public class SoffidApplication extends Object {
         }
     }
 
-    private static void configureCerts(Config config) {
+    private static void configureSecurity() throws FileNotFoundException, IOException {
+    	File homeDir = Config.getConfig().getHomeDir();
+    	File securityPolicy = new File (new File (homeDir, "conf"), "security.policy");
+    	if (! securityPolicy.canRead())
+    	{
+    		InputStream in = SoffidApplication.class.getResourceAsStream("security.policy");
+    		FileOutputStream out = new FileOutputStream(securityPolicy);
+    		int i;
+    		while ((i = in.read()) >= 0)
+    			out.write (i);
+    		out.close();
+    		in.close();
+    	}
+    	System.setProperty("syncserver.home", homeDir.getAbsolutePath());
+    	System.setProperty("java.security.policy",securityPolicy.toURI().toString());
+    	System.setSecurityManager(new SecurityManager());
+	}
+
+	private static void configureCerts(Config config) {
         try {
             // Directorio conf del seycon
             String configDir = config.getHomeDir().getAbsolutePath() + File.separatorChar

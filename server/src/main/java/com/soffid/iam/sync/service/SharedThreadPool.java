@@ -6,7 +6,10 @@ import java.util.LinkedList;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.config.Config;
 import com.soffid.iam.sync.engine.DispatcherHandler;
+import com.soffid.iam.utils.ConfigurationCache;
+import com.soffid.iam.utils.Security;
 
 public class SharedThreadPool implements Runnable {
 
@@ -40,8 +43,13 @@ public class SharedThreadPool implements Runnable {
 	}
 
 	private void initialize() {
+		String retry = ConfigurationCache.getMasterProperty("server.dispatcher.delay");
+		if (retry == null)
+		    delay = 10000;
+		else
+		    delay = Integer.decode(retry).intValue() * 1000;
 		
-		String threads = System.getProperty("soffid.server.sharedThreads");
+		String threads = ConfigurationCache.getMasterProperty("soffid.server.sharedThreads");
 		int threadNumber;
 		try {
 			threadNumber = Integer.parseInt(threads);
@@ -82,24 +90,31 @@ public class SharedThreadPool implements Runnable {
 				else
 				{
 					currentThread.setName (originalName+ " ["+h.getSystem().getName()+"]");
-					if ( !h.runStep() )
-					{
-						if (ignores == 0)
-							firstIgnore = System.currentTimeMillis() + delay;
-						ignores ++;
-						if (ignores >= handlersSize)
+		        	Security.nestedLogin(h.getSystem().getTenant(), Config.getConfig().getHostName(), new String [] {
+		        		Security.AUTO_AUTHORIZATION_ALL
+		        	});
+		        	try {
+						if ( !h.runStep() )
 						{
-							long now = System.currentTimeMillis();
-							if (now < firstIgnore)
+							if (ignores == 0)
+								firstIgnore = System.currentTimeMillis() + delay;
+							ignores ++;
+							if (ignores >= handlersSize)
 							{
-								try {
-									Thread.sleep( firstIgnore - now );
-								} catch (InterruptedException e ) {}
+								long now = System.currentTimeMillis();
+								if (now < firstIgnore)
+								{
+									try {
+										Thread.sleep( firstIgnore - now );
+									} catch (InterruptedException e ) {}
+								}
+								ignores = 0;
 							}
+						} else
 							ignores = 0;
-						}
-					} else
-						ignores = 0;
+		        	} finally {
+		        		Security.nestedLogoff();
+		        	}
 				}
 			} catch (Throwable t) {
 				log.warn("Unhandled error on SharedThreadPool", t);
@@ -118,10 +133,5 @@ public class SharedThreadPool implements Runnable {
 	
 	public SharedThreadPool ()
 	{
-		String retry = System.getProperty("server.dispatcher.delay");
-		if (retry == null)
-		    delay = 10000;
-		else
-		    delay = Integer.decode(retry).intValue() * 1000;
 	}
 }

@@ -2,6 +2,8 @@ package com.soffid.iam.sync.jetty;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.security.Principal;
 import java.util.Vector;
 
@@ -36,9 +38,17 @@ public class SeyconUserRealm implements UserRealm {
     }
 
     public Principal getPrincipal(String username) {
-        X509Name name = new X509Name (username);
-        Vector v = name.getValues(X509Name.CN);
-        return new SimplePrincipal (v.get(0).toString());
+        try {
+			X509Name name = new X509Name (username);
+			Vector v = name.getValues(X509Name.CN);
+			Vector v2 = name.getValues(X509Name.OU);
+			String userName = URLEncoder.encode(v.get(0).toString(), "UTF-8");
+			if (v2.size() > 0)
+				userName = URLEncoder.encode(v2.get(0).toString(), "UTF-8") + ":" + userName;
+			return new SimplePrincipal (userName);
+		} catch (UnsupportedEncodingException e) {
+			throw new RuntimeException(e);
+		}
     }
 
     public boolean isUserInRole(Principal user, String role) {

@@ -43,7 +43,7 @@ public class SeyconBasicRealm implements UserRealm {
         if (config.isDebug())
             return new SimplePrincipal(username);
         try {
-            if (username.equals ("-seu-")) {
+            if (username.startsWith("-seu-")) {
                 String token = (String) credentials;
                 if (sc.validateAuthToken(token))
                     return new TokenPrincipal();

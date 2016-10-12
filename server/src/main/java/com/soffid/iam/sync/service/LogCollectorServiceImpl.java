@@ -82,7 +82,7 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
 				{
 					String serial = server + ":"+ address.getHostAddress();
 					Host m = ServiceLocator.instance().getNetworkService().registerDynamicIP(server, address.getHostAddress(), serial);
-					maq = dao.findById(m.getId());
+					maq = dao.load(m.getId());
 				}
 			}
 			catch (java.net.UnknownHostException e)

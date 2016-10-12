@@ -20,17 +20,11 @@
   </application>
   <files keepModificationTimes="false" missingFilesStrategy="warn" globalExcludeSuffixes="" defaultOverwriteMode="4" defaultUninstallMode="0" launcherOverwriteMode="3" defaultFileMode="644" defaultDirMode="755">
     <filesets>
-      <fileset name="SAP Linux" id="32856" customizedId="" />
-      <fileset name="SAP Windows" id="32866" customizedId="" />
-      <fileset name="Postfix" id="33295" customizedId="" />
       <fileset name="Server components" id="33654" customizedId="" />
       <fileset name="PasswordSynchronizer for Windows 32 bits" id="33719" customizedId="" />
       <fileset name="PasswordSynchronizer for Windows 64 bits" id="33722" customizedId="" />
     </filesets>
     <roots>
-      <root id="32857" fileset="32856" location="" />
-      <root id="32867" fileset="32866" location="" />
-      <root id="33296" fileset="33295" location="" />
       <root id="33655" fileset="33654" location="" />
       <root id="33720" fileset="33719" location="" />
       <root id="33723" fileset="33722" location="" />
@@ -42,10 +36,6 @@
       <mountPoint id="33239" root="" location="tmp" mode="755" />
       <mountPoint id="33430" root="" location="system" mode="755" />
       <mountPoint id="33600" root="" location="log" mode="755" />
-      <mountPoint id="32860" root="32857" location="system" mode="755" />
-      <mountPoint id="32981" root="32867" location="system" mode="755" />
-      <mountPoint id="33297" root="33296" location="system" mode="755" />
-      <mountPoint id="33429" root="33296" location="lib" mode="755" />
       <mountPoint id="33656" root="33655" location="lib" mode="755" />
       <mountPoint id="33721" root="33720" location="eris" mode="755" />
       <mountPoint id="33826" root="33720" location="data" mode="755" />
@@ -56,22 +46,16 @@
         <exclude />
       </dirEntry>
       <fileEntry mountPoint="89" file="../../target/syncserver.jar" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
-      <fileEntry mountPoint="33537" file="./seycon3" overwriteMode="4" shared="false" fileMode="755" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33537" file="./soffid-sync" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33430" file="../../target/test-classes/javadisk.dll" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33430" file="../../target/test-classes/logonuser.exe" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33430" file="../../target/test-classes/rel.exe" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33430" file="../test/resources/setspn.exe" overwriteMode="3" shared="false" fileMode="644" uninstallMode="2" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <fileEntry mountPoint="33430" file="../../target/eris-32/usradm.exe" overwriteMode="1" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="false" overrideOverwriteMode="true" overrideUninstallMode="false" />
-      <fileEntry mountPoint="32860" file="../../target/test-classes/libsapjcorfc.so" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
-      <fileEntry mountPoint="32860" file="../../target/test-classes/librfccm.so" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
-      <fileEntry mountPoint="32981" file="../../target/test-classes/librfc32.dll" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
-      <fileEntry mountPoint="32981" file="../../target/test-classes/sapjcorfc.dll" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
-      <fileEntry mountPoint="33297" file="../test/resources/libdb-4.2.so" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
-      <fileEntry mountPoint="33297" file="../test/resources/libdb_java-4.2.so" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
-      <fileEntry mountPoint="33429" file="../test/resources/db.jar" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" />
       <dirEntry mountPoint="33656" file="../../target/server-only/lib" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" entryMode="direct" subDirectory="" excludeSuffixes="" dirMode="755" overrideDirMode="true">
-        <exclude />
+        <exclude>
+          <entry location="commons-beanutils-1.7.0.jar" fileType="regular" />
+        </exclude>
       </dirEntry>
       <dirEntry mountPoint="33721" file="../../target/eris-32" overwriteMode="4" shared="false" fileMode="644" uninstallMode="0" overrideFileMode="true" overrideOverwriteMode="true" overrideUninstallMode="true" entryMode="direct" subDirectory="" excludeSuffixes="*.inczip" dirMode="755" overrideDirMode="true">
         <exclude>
@@ -83,40 +67,13 @@
       </dirEntry>
     </entries>
     <components>
-      <component name="SAP" id="32872" customizedId="" displayDescription="false" hideHelpButton="false" selected="false" changeable="true" downloadable="false" hidden="false">
-        <description />
-        <include all="false">
-          <entry location=".i4j_fileset_32856" fileType="regular" />
-          <entry location=".i4j_fileset_32866" fileType="regular" />
-        </include>
-        <dependencies>
-          <component id="33486" />
-        </dependencies>
-      </component>
-      <component name="Postfix" id="33298" customizedId="" displayDescription="false" hideHelpButton="false" selected="false" changeable="true" downloadable="false" hidden="false">
-        <description />
-        <include all="false">
-          <entry location=".i4j_fileset_33295" fileType="regular" />
-        </include>
-        <dependencies>
-          <component id="33486" />
-        </dependencies>
-      </component>
-      <component name="Requiered components" id="33486" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="false" downloadable="false" hidden="false">
+      <component name="Required components" id="33486" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="false" downloadable="false" hidden="false">
         <description />
         <include all="false">
           <entry location=".i4j_fileset_" fileType="regular" />
-        </include>
-        <dependencies />
-      </component>
-      <component name="Server components" id="33658" customizedId="" displayDescription="false" hideHelpButton="false" selected="false" changeable="true" downloadable="false" hidden="false">
-        <description />
-        <include all="false">
           <entry location=".i4j_fileset_33654" fileType="regular" />
         </include>
-        <dependencies>
-          <component id="33486" />
-        </dependencies>
+        <dependencies />
       </component>
       <component name="Password Synchronizer for Windows" id="33726" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="true" downloadable="false" hidden="false">
         <description />
@@ -139,7 +96,7 @@
           <versionLine x="20" y="40" text="version ${compiler:sys.version}" font="Arial" fontSize="8" fontColor="0,0,0" fontWeight="500" />
         </text>
       </splashScreen>
-      <java mainClass="es.caib.seycon.ng.sync.bootstrap.SeyconLoader" vmParameters="&quot;-Djava.library.path=${launcher:sys.launcherDirectory}..\system&quot;" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
+      <java mainClass="com.soffid.iam.sync.bootstrap.SeyconLoader" vmParameters="&quot;-Djava.library.path=${launcher:sys.launcherDirectory}..\system&quot;" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
         <classPath>
           <scanDirectory location="lib" failOnError="false" />
         </classPath>
@@ -168,7 +125,7 @@
           <versionLine x="20" y="40" text="version ${compiler:sys.version}" font="Arial" fontSize="8" fontColor="0,0,0" fontWeight="500" />
         </text>
       </splashScreen>
-      <java mainClass="es.caib.seycon.ng.sync.bootstrap.SeyconLoader" vmParameters="&quot;-Djava.library.path=${launcher:sys.launcherDirectory}..\system&quot;" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
+      <java mainClass="com.soffid.iam.sync.bootstrap.SeyconLoader" vmParameters="&quot;-Djava.library.path=${launcher:sys.launcherDirectory}..\system&quot;" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
         <classPath>
           <scanDirectory location="lib" failOnError="false" />
         </classPath>
@@ -197,7 +154,7 @@
           <versionLine x="20" y="40" text="version ${compiler:sys.version}" font="Arial" fontSize="8" fontColor="0,0,0" fontWeight="500" />
         </text>
       </splashScreen>
-      <java mainClass="es.caib.seycon.ng.sync.bootstrap.Configure" vmParameters="" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
+      <java mainClass="com.soffid.iam.sync.bootstrap.Configure" vmParameters="" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
         <classPath>
           <scanDirectory location="lib" failOnError="false" />
         </classPath>

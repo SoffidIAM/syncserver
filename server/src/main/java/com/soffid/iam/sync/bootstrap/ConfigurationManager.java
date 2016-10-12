@@ -16,6 +16,7 @@ import java.util.Properties;
 
 import com.soffid.iam.config.Config;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.ServerRedirectException;
@@ -27,6 +28,8 @@ import es.caib.seycon.ng.remote.RemoteServiceLocator;
  */
 public class ConfigurationManager
 {
+	Long masterTenant;
+	
 	public Properties getProperties (String serverName) throws InternalErrorException, SQLException, IOException, ServerRedirectException
 	{
 		final Properties prop = new Properties ();
@@ -36,22 +39,29 @@ public class ConfigurationManager
 		final Collection<String> servers = new LinkedList<String>(); 
 		
     	try {
-    		qh.select("SELECT CON_VALOR FROM SC_CONFIG WHERE CON_IDXAR IS NULL AND CON_CODI='seycon.https.port'",
-    				new Object[0],
+    		qh.select("SELECT TEN_ID FROM SC_TENANT WHERE TEN_NAME='master'",
+    				new Object[] {},
+    				new QueryAction() {
+						public void perform(ResultSet rset) throws SQLException, IOException {
+							masterTenant = rset.getLong(1);
+						}
+					});
+    		qh.select("SELECT CON_VALOR FROM SC_CONFIG WHERE CON_IDXAR IS NULL AND CON_CODI='seycon.https.port' AND CON_TEN_ID=?",
+    				new Object[] {masterTenant},
     				new QueryAction() {
 						public void perform(ResultSet rset) throws SQLException, IOException {
 							prop.setProperty(Config.PORT_PROPERTY, rset.getString(1));
 						}
 					});
-    		qh.select("SELECT CON_VALOR FROM SC_CONFIG WHERE CON_IDXAR IS NULL AND CON_CODI='seycon.server.list'",
-    	    				new Object[0],
+    		qh.select("SELECT CON_VALOR FROM SC_CONFIG WHERE CON_IDXAR IS NULL AND CON_CODI='seycon.server.list' AND CON_TEN_ID=?",
+    	    				new Object[] {masterTenant},
     	    				new QueryAction() {
     							public void perform(ResultSet rset) throws SQLException, IOException {
     								prop.setProperty(Config.SERVERLIST_PROPERTY, rset.getString(1));
     							}
     						});
-    		qh.select("SELECT SRV_USEMDB, SRV_DBA_ID, SRV_TYPE FROM SC_SERVER WHERE SRV_NOM=?",
-					new Object[] {serverName},
+    		qh.select("SELECT SRV_USEMDB, SRV_TYPE, SRV_JVMOPT FROM SC_SERVER WHERE SRV_NOM=? AND SRV_TEN_ID=?",
+					new Object[] {serverName, masterTenant},
 					new QueryAction()
 					{
 						public void perform (ResultSet rset) throws SQLException, IOException
@@ -67,23 +77,9 @@ public class ConfigurationManager
 									prop.put(Config.DB_PROPERTY, config.getDB());
 								}
 							}
-							Long replicaId = rset.getLong(2);
-							if (replicaId != null)
-							{
-								qh.select("SELECT RPL_USER, RPL_PASSWD, RPL_URL FROM SC_REPLDB WHERE RPL_ID=?", 
-										new Object[] {replicaId},
-										new QueryAction()
-										{
-											
-											public void perform (ResultSet rset) throws SQLException, IOException
-											{
-												prop.setProperty(Config.BACKUPUSER_PROPERTY, rset.getString(1));
-												prop.setProperty(Config.BACKUP_PASSWORD_PROPERTY, rset.getString(2));
-												prop.setProperty(Config.BACKUPDB_PROPERTY, rset.getString(3));
-											}
-										});
-							}
-							prop.put(Config.ROL_PROPERTY, rset.getString(3));
+							prop.put(Config.ROL_PROPERTY, rset.getString(2));
+							if (rset.getString(3) != null)
+								prop.put(Config.JAVA_OPT_PROPERTY, rset.getString(3));
 						}
 
 					});

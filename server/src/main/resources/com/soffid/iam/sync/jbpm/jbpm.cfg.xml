@@ -1,12 +1,12 @@
 <jbpm-configuration>
   <jbpm-context>
     <service name="authentication" factory="org.jbpm.security.authentication.DefaultAuthenticationServiceFactory" />
-    <service name="logging" factory="com.soffid.iam.bpm.model.BPMLoggingServiceFactory" />
+    <service name="logging" factory="com.soffid.iam.bpm.service.impl.BPMLoggingServiceFactory" />
     <service name="message" factory="org.jbpm.msg.db.DbMessageServiceFactory" />
-    <service name="persistence" factory="org.jbpm.persistence.db.DbPersistenceServiceFactory" />
+    <service name="persistence" factory="com.soffid.iam.bpm.service.impl.DbPersistenceServiceFactory" />
     <service name="scheduler" factory="org.jbpm.scheduler.db.DbSchedulerServiceFactory" />
     <service name="tx" factory="org.jbpm.tx.TxServiceFactory" />
-    <service name="event" factory="com.soffid.iam.bpm.service.EventServiceFactory"/>
+    <service name="event" factory="com.soffid.iam.bpm.service.impl.EventServiceFactory"/>
   </jbpm-context>
 
   <!-- configuration property used by persistence service impl org.jbpm.persistence.db.DbPersistenceServiceFactory -->

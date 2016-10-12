@@ -25,10 +25,10 @@ import com.soffid.iam.sync.engine.PriorityTaskQueue;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.TaskQueueIterator;
-import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueueBase;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
@@ -54,6 +54,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
+import org.hibernate.Hibernate;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 import org.springframework.beans.BeansException;
@@ -67,14 +68,63 @@ import org.springframework.transaction.TransactionStatus;
 public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAware
 {
 	public static final int MAX_PRIORITY = 2;
-	/** lista de tareas pendientes */
-	ArrayList<LinkedList<TaskHandler>> taskList;
-	Map<String, TaskHandler> currentTasks;
-	ArrayList<PriorityTaskQueue> priorityQueues;
+	/**
+	 * Priorized tasks for any tenant
+	 */
+	Hashtable<Long,ArrayList<LinkedList<TaskHandler>>> globalTaskList;
+	/**
+	 * Current tasks for any tenant, indexed by task hash.
+	 * It's used to detect duplicated tasks
+	 */
+	Map<Long, Hashtable<String, TaskHandler>> globalCurrentTasks;
+	/**
+	 * New incoming tasks not yet included in current tasks
+	 */
+	Map<Long, ArrayList<PriorityTaskQueue>> globalPriorityQueues;
 
 	String hostname;
 	private final Logger log = Log.getLogger("TaskQueue");
 	private ApplicationContext applicationContext;
+
+	private Hashtable<String,TaskHandler> getCurrentTasks ()
+	{
+		Long l = Security.getCurrentTenantId();
+		Hashtable<String, TaskHandler> ht = globalCurrentTasks.get(l);
+		if (ht == null)
+		{
+			ht = new Hashtable<String, TaskHandler>();
+			globalCurrentTasks.put(l, ht);
+		}
+		return ht;
+	}
+	
+	private ArrayList<PriorityTaskQueue> getPriorityQueues ()
+	{
+		Long l = Security.getCurrentTenantId();
+		ArrayList<PriorityTaskQueue> ht = globalPriorityQueues.get(l);
+		if (ht == null)
+		{
+			ht = new ArrayList<PriorityTaskQueue>();
+			globalPriorityQueues.put(l, ht);
+		}
+		return ht;
+	}
+
+	private ArrayList<LinkedList<TaskHandler>> getTasksList ()
+	{
+		Long l = Security.getCurrentTenantId();
+		ArrayList<LinkedList<TaskHandler>> ht = globalTaskList.get(l);
+		if (ht == null)
+		{
+			ht = new ArrayList<LinkedList<TaskHandler>>();
+			for (int i = 0; i <= MAX_PRIORITY; i++)
+			{
+				ht.add(i, new LinkedList<TaskHandler>());
+			}
+			globalTaskList.put(l, ht);
+		}
+		return ht;
+	}
 
 	/***************************************************************************
 	 * Constructor
@@ -83,13 +133,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	 */
 	public TaskQueueImpl ()
 	{
-		currentTasks = new Hashtable<String, TaskHandler>();
-		taskList = new ArrayList<LinkedList<TaskHandler>>();
-		for (int i = 0; i <= MAX_PRIORITY; i++)
-		{
-			taskList.add(i, new LinkedList<TaskHandler>());
-		}
-		priorityQueues = new ArrayList<PriorityTaskQueue>();
+		globalCurrentTasks = new Hashtable<Long, Hashtable<String, TaskHandler>>();
+		globalTaskList = new Hashtable<Long,ArrayList<LinkedList<TaskHandler>>>();
+		globalPriorityQueues = new Hashtable<Long, ArrayList<PriorityTaskQueue>>();
 		try
 		{
 			hostname = Config.getConfig().getHostName();
@@ -111,82 +157,46 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	protected void handleAddTask (TaskHandler newTask) throws Exception
 	{
 		newTask.setOfflineTask(false);
-		
-		TaskEntity entity = getTaskEntityDao().load(newTask.getTask().getId());
-		// Actualizar la cache de passwords
-		TaskGenerator tg = getTaskGenerator();
-		if (entity == null ||
-			newTask.getTask().getServer() == null && !tg.isEnabled() ||
-			newTask.getTask().getServer() != null &&
-			!newTask.getTask().getServer().equals(hostname))
+	
+		Security.nestedLogin(newTask.getTenant(), Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
+		try
 		{
-			// Ignorar la transaccion
-		}
-		else if (newTask.getTask()
-				.getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD) &&
-			entity.getHash() == null)
-		{
-			if (newTask.getPassword() != null)
+			TaskEntity entity = getTaskEntityDao().load(newTask.getTask().getId());
+			// Actualizar la cache de passwords
+			TaskGenerator tg = getTaskGenerator();
+			if (entity == null ||
+				newTask.getTask().getServer() == null && !tg.isEnabled() ||
+				newTask.getTask().getServer() != null &&
+				!newTask.getTask().getServer().equals(hostname))
 			{
-				InternalPasswordService ps = getInternalPasswordService();
-				UserEntityDao usuariDao = getUserEntityDao();
-				UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
-				if (usuari == null) // Ignorar
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-					return;
-				}
-				PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
-				PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getPasswordDomain());
-				if (dc == null)
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-					return; // Ignorar
-				}
-
-				storeDomainPassword (newTask);
-				
-				addAndNotifyDispatchers(newTask, entity);
+				// Ignorar la transaccion
 			}
-			else
+			else if (newTask.getTask()
+					.getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD) &&
+				entity.getHash() == null)
 			{
-				newTask.cancel();
-				pushTaskToPersist(newTask);
-			}
-		}
-		else if (newTask.getTask().getTransaction()
-						.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD))
-		{
-			if (newTask.getPassword() != null)
-			{
-				InternalPasswordService ps = getInternalPasswordService();
-				UserEntityDao usuariDao = getUserEntityDao();
-				UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
-				if (usuari == null) // Ignorar
+				if (newTask.getPassword() != null)
 				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-					return;
-				}
-				
-				PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
-				PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getPasswordDomain());
-				if (dc == null)
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-					return; // Ignorar
-				}
-
-				if (ps.checkPassword(usuari, dc, newTask.getPassword(),
-						false, false) == PasswordValidation.PASSWORD_WRONG)
-				{
-					ps.storePassword(usuari, dc, newTask.getPassword(), false);
-
+					InternalPasswordService ps = getInternalPasswordService();
+					UserEntityDao usuariDao = getUserEntityDao();
+					UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
+					if (usuari == null) // Ignorar
+					{
+						newTask.cancel();
+						pushTaskToPersist(newTask);
+						return;
+					}
+					PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
+					PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getPasswordDomain());
+					if (dc == null)
+					{
+						newTask.cancel();
+						pushTaskToPersist(newTask);
+						return; // Ignorar
+					}
+	
 					storeDomainPassword (newTask);
-
+					
 					addAndNotifyDispatchers(newTask, entity);
 				}
 				else
@@ -195,39 +205,151 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					pushTaskToPersist(newTask);
 				}
 			}
-			else
+			else if (newTask.getTask().getTransaction()
+							.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD))
 			{
-				newTask.cancel();
-				pushTaskToPersist(newTask);
+				if (newTask.getPassword() != null)
+				{
+					InternalPasswordService ps = getInternalPasswordService();
+					UserEntityDao usuariDao = getUserEntityDao();
+					UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
+					if (usuari == null) // Ignorar
+					{
+						newTask.cancel();
+						pushTaskToPersist(newTask);
+						return;
+					}
+					
+					PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
+					PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getPasswordDomain());
+					if (dc == null)
+					{
+						newTask.cancel();
+						pushTaskToPersist(newTask);
+						return; // Ignorar
+					}
+	
+					if (ps.checkPassword(usuari, dc, newTask.getPassword(),
+							false, false) == PasswordValidation.PASSWORD_WRONG)
+					{
+						ps.storePassword(usuari, dc, newTask.getPassword(), false);
+	
+						storeDomainPassword (newTask);
+	
+						addAndNotifyDispatchers(newTask, entity);
+					}
+					else
+					{
+						newTask.cancel();
+						pushTaskToPersist(newTask);
+					}
+				}
+				else
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+				}
 			}
-		}
-		else if (newTask.getTask().getTransaction()
-						.equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD))
-		{
-			if (newTask.getPassword() != null)
+			else if (newTask.getTask().getTransaction()
+							.equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD))
+			{
+				if (newTask.getPassword() != null)
+				{
+					InternalPasswordService ps = getInternalPasswordService();
+					AccountEntityDao accDao = getAccountEntityDao();
+					AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
+					if (account == null)
+					{
+						newTask.cancel();
+						pushTaskToPersist(newTask);
+						return;
+					}
+	
+					if (ps.checkAccountPassword(account, newTask.getPassword(),
+							false, false) == PasswordValidation.PASSWORD_WRONG)
+					{
+						ps.storeAccountPassword(account, newTask.getPassword(),
+							"S".equalsIgnoreCase(newTask.getTask().getPasswordChange()),
+							null);
+					}
+					// Update for virtual dispatchers
+					DispatcherHandler dispatcher =
+						getTaskGenerator().getDispatcher(
+							newTask.getTask().getSystemName());
+					if (dispatcher != null && dispatcher.isActive()) 
+					{
+						addAndNotifyDispatchers(newTask, entity);
+					}
+					else
+					{
+						newTask.cancel();
+						pushTaskToPersist(newTask);
+						
+						storeAccountPassword(newTask, account);
+					}
+				}
+				else
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+				}
+			}
+			else if (newTask.getTask().getTransaction()
+							.equals(TaskHandler.UPDATE_ACCOUNT))
 			{
 				InternalPasswordService ps = getInternalPasswordService();
 				AccountEntityDao accDao = getAccountEntityDao();
 				AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
-				if (account == null)
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-					return;
-				}
-
-				if (ps.checkAccountPassword(account, newTask.getPassword(),
-						false, false) == PasswordValidation.PASSWORD_WRONG)
-				{
-					ps.storeAccountPassword(account, newTask.getPassword(),
-						"S".equalsIgnoreCase(newTask.getTask().getPasswordChange()),
-						null);
-				}
 				// Update for virtual dispatchers
 				DispatcherHandler dispatcher =
-					getTaskGenerator().getDispatcher(
-						newTask.getTask().getSystemName());
-				if (dispatcher != null && dispatcher.isActive()) 
+					getTaskGenerator().getDispatcher(newTask.getTask().getSystemName());
+				if (dispatcher == null || ! dispatcher.isActive()) 
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+				}
+				else
+					addAndNotifyDispatchers(newTask, entity);
+			}
+			else if (newTask.getTask().getTransaction()
+							.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD))
+			{
+				if (newTask.getPassword() != null)
+				{
+					InternalPasswordService ps = getInternalPasswordService();
+					AccountEntityDao accDao = getAccountEntityDao();
+					AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
+					if (account == null)
+					{
+						newTask.cancel();
+						pushTaskToPersist(newTask);
+						return;
+					}
+					if (ps.checkAccountPassword(account, newTask.getPassword(),
+							false, false) == PasswordValidation.PASSWORD_WRONG)
+					{
+						ps.storeAccountPassword(account, newTask.getPassword(),
+							false, null);
+	
+						storeDomainPassword(newTask);
+						
+						addAndNotifyDispatchers(newTask, entity);
+					}
+				}
+				else
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+				}
+			}
+			else if (newTask.getTask()
+						.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
+					newTask.getTask()
+						.getTransaction().equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
+					newTask.getTask()
+						.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD))
+			{
+				if (newTask.getPassword() != null)
 				{
 					addAndNotifyDispatchers(newTask, entity);
 				}
@@ -235,101 +357,31 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				{
 					newTask.cancel();
 					pushTaskToPersist(newTask);
-					
-					storeAccountPassword(newTask, account);
 				}
 			}
-			else
+			else if (newTask.getTask()
+						.getTransaction().equals(TaskHandler.UPDATE_USER) )
 			{
-				newTask.cancel();
-				pushTaskToPersist(newTask);
-			}
-		}
-		else if (newTask.getTask().getTransaction()
-						.equals(TaskHandler.UPDATE_ACCOUNT))
-		{
-			InternalPasswordService ps = getInternalPasswordService();
-			AccountEntityDao accDao = getAccountEntityDao();
-			AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
-			// Update for virtual dispatchers
-			DispatcherHandler dispatcher =
-				getTaskGenerator().getDispatcher(newTask.getTask().getSystemName());
-			if (dispatcher == null || ! dispatcher.isActive()) 
-			{
-				newTask.cancel();
-				pushTaskToPersist(newTask);
-			}
-			else
-				addAndNotifyDispatchers(newTask, entity);
-		}
-		else if (newTask.getTask().getTransaction()
-						.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD))
-		{
-			if (newTask.getPassword() != null)
-			{
-				InternalPasswordService ps = getInternalPasswordService();
-				AccountEntityDao accDao = getAccountEntityDao();
-				AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
-				if (account == null)
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-					return;
-				}
-				if (ps.checkAccountPassword(account, newTask.getPassword(),
-						false, false) == PasswordValidation.PASSWORD_WRONG)
-				{
-					ps.storeAccountPassword(account, newTask.getPassword(),
-						false, null);
-
-					storeDomainPassword(newTask);
-					
-					addAndNotifyDispatchers(newTask, entity);
-				}
-			}
-			else
-			{
-				newTask.cancel();
-				pushTaskToPersist(newTask);
-			}
-		}
-		else if (newTask.getTask()
-					.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
-				newTask.getTask()
-					.getTransaction().equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
-				newTask.getTask()
-					.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD))
-		{
-			if (newTask.getPassword() != null)
-			{
+				getAccountService()
+					.generateUserAccounts(newTask.getTask().getUser());
 				addAndNotifyDispatchers(newTask, entity);
 			}
-			else
-			{
-				newTask.cancel();
-				pushTaskToPersist(newTask);
-			}
-		}
-		else if (newTask.getTask()
-					.getTransaction().equals(TaskHandler.UPDATE_USER) )
-		{
-			getAccountService()
-				.generateUserAccounts(newTask.getTask().getUser());
-			addAndNotifyDispatchers(newTask, entity);
-		}
-		
-		else if (newTask.getTask().getTransaction()
-			.equals(TaskHandler.NOTIFY_PASSWORD_CHANGE))
-		{
-			newTask.cancel();
-			pushTaskToPersist(newTask);
-			notifyChangePassword(entity);
 			
-			return;
-		}
-		else
-		{
-			addAndNotifyDispatchers(newTask, entity);
+			else if (newTask.getTask().getTransaction()
+				.equals(TaskHandler.NOTIFY_PASSWORD_CHANGE))
+			{
+				newTask.cancel();
+				pushTaskToPersist(newTask);
+				notifyChangePassword(entity);
+				
+				return;
+			}
+			else
+			{
+				addAndNotifyDispatchers(newTask, entity);
+			}
+		} finally {
+			Security.nestedLogoff();
 		}
 	}
 
@@ -456,6 +508,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	private synchronized void addAndNotifyDispatchers(TaskHandler newTask, TaskEntity tasqueEntity) throws InternalErrorException {
+		Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 		String hash = tasqueEntity.getHash();
 		// Eliminar tareas similares
 		if (hash == null)
@@ -499,6 +552,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 		log.info("Added task {}", newTask.toString(), null);
 
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 		synchronized (taskList)
 		{
 			LinkedList<TaskHandler> list = taskList.get(newTask.getPriority());
@@ -509,6 +563,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 		if (newTask.getPriority() < MAX_PRIORITY)
 		{
+			ArrayList<PriorityTaskQueue> priorityQueues = getPriorityQueues();
 			synchronized (priorityQueues)
 			{
 				for (int i = 0; i < priorityQueues.size(); i++)
@@ -562,6 +617,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
 		TaskHandler th = new TaskHandler ();
 		th.setTask(getTaskEntityDao().toTask(task));
+		th.setTenant(Security.getCurrentTenantName());
 		th.cancel();
 		pushTaskToPersist(th);
 		
@@ -586,11 +642,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		throw new UnsupportedOperationException();
 	}
 
-	private void removeTask (Task task) throws InternalErrorException
-	{
-		throw new UnsupportedOperationException();
-	}
-
 	@Override
     protected TaskHandler handleAddTask(TaskEntity newTask) throws Exception {
 		if (newTask.getId() == null)
@@ -601,6 +652,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			getTaskEntityDao().create(newTask);
 		}
 		TaskHandler th = new TaskHandler();
+		Long id = newTask.getTenant().getId();
+		th.setTenant( Security.getTenantName ( id ) );
 		th.setTask(getTaskEntityDao().toTask(newTask));
 		th.setTimeout(null);
 		th.setValidated(false);
@@ -625,7 +678,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 		if (taskDispatcher != null)
 		{
-			synchronized (priorityQueues)
+			ArrayList<PriorityTaskQueue> priorityQueues = getPriorityQueues();
+			synchronized (priorityQueues )
 			{
 				while (priorityQueues.size() <= taskDispatcher.getInternalId())
 				{
@@ -650,6 +704,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		LinkedList<TaskHandler> tasksToRemove = new LinkedList<TaskHandler>();		 
 						
 		try {
+			ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
     		synchronized (taskList)
     		{
     			boolean retry;
@@ -718,6 +773,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
     		// First try with dispatcher priority task
     		if (taskDispatcher != null)
     		{
+    			ArrayList<PriorityTaskQueue> priorityQueues = getPriorityQueues();
     			PriorityTaskQueue priorityQueue;
     			synchronized (priorityQueues)
     			{
@@ -741,6 +797,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
     			}
     		}
     
+    		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
     		synchronized (taskList)
     		{
     			boolean retry;
@@ -878,6 +935,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected int handleCountTasks () throws Exception
 	{
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 		int contador = 0;
 		synchronized (taskList)
 		{
@@ -901,6 +959,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	protected int handleCountTasks (DispatcherHandler taskDispatcher) throws Exception
 	{
 		int contador = 0;
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 		synchronized (taskList)
 		{
 			for (int priority = 0; priority < taskList.size(); priority++)
@@ -924,6 +983,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		TaskHandler task;
 		Date now = new Date();
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
+		Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 		synchronized (taskList)
 		{
 			TaskQueueIterator it = new TaskQueueIterator(taskList);
@@ -1061,6 +1122,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		// //////////////// TASK COMPLETE
 		if (allOk)
 		{
+			ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
+			Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
+
 			task.cancel();
 			pushTaskToPersist(task);
 			currentTasks.remove(task.getHash());
@@ -1090,6 +1154,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 		else if (task.getTimeout() != null && task.getTimeout().before(new Date()))
 		{
+			ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
+			Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
+
 			pushTaskToPersist(task);
 			currentTasks.remove(task.getHash());
 			synchronized (taskList)
@@ -1164,6 +1231,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected boolean handleIsEmpty () throws Exception
 	{
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 		for (Iterator<LinkedList<TaskHandler>> it = taskList.iterator(); it.hasNext();)
 		{
 			if (!it.next().isEmpty())
@@ -1175,12 +1243,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected Iterator handleGetIterator () throws Exception
 	{
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 		return new TaskQueueIterator(taskList);
 	}
 
 	@Override
 	protected void handleCancelTask (long taskId) throws Exception
 	{
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 		Task taskToDelete = null;
 		synchronized (taskList)
 		{
@@ -1502,6 +1572,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected TaskHandler handleFindTaskHandlerById (long taskId) throws Exception
 	{
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 		synchronized (tasksToPersist)
 		{
 			for (TaskHandler t: tasksToPersist)

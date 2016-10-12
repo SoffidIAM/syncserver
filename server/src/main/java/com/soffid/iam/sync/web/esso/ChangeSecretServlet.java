@@ -38,6 +38,8 @@ import com.soffid.iam.service.UserDomainService;
 import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.service.SecretStoreService;
+import com.soffid.iam.utils.ConfigurationCache;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.TypeEnumeration;
@@ -78,6 +80,12 @@ public class ChangeSecretServlet extends HttpServlet {
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(),
                         "UTF-8")); //$NON-NLS-1$
         try {
+        	Security.nestedLogin(user, new String[] {
+        			Security.AUTO_USER_QUERY+Security.AUTO_ALL,
+        			Security.AUTO_ACCOUNT_QUERY+Security.AUTO_ALL,
+        			Security.AUTO_ACCOUNT_UPDATE+Security.AUTO_ALL,
+        			Security.AUTO_ACCOUNT_CREATE+Security.AUTO_ALL
+        	});
             User usuari = usuariService.findUserByUserName(user);
             if (usuari == null)
                 throw new UnknownUserException(user);
@@ -284,7 +292,7 @@ public class ChangeSecretServlet extends HttpServlet {
 		acc.setSystem(system);
 		acc.setOwnerUsers(new LinkedList<User>());
 		acc.getOwnerUsers().add(owner);
-		String ssoPolicy = java.lang.System.getProperty("AutoSSOPolicy"); //$NON-NLS-1$
+		String ssoPolicy = ConfigurationCache.getProperty("AutoSSOPolicy"); //$NON-NLS-1$
 		if (ssoPolicy == null)
 			throw new InternalErrorException (Messages.getString("ChangeSecretServlet.22")); //$NON-NLS-1$
 		acc.setType(AccountType.SHARED);
@@ -294,7 +302,7 @@ public class ChangeSecretServlet extends HttpServlet {
 
 	private boolean canCreateAccount(User usuari, 
 			String system) throws InternalErrorException {
-		String authSystem = java.lang.System.getProperty("AutoSSOSystem"); //$NON-NLS-1$
+		String authSystem = ConfigurationCache.getProperty("AutoSSOSystem"); //$NON-NLS-1$
 		if (authSystem != null && authSystem.equals(system))
 		{
 			Collection<AuthorizationRole> auts = ServiceLocator

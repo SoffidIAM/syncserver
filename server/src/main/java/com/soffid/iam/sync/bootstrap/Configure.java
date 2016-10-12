@@ -27,6 +27,7 @@ import com.soffid.iam.sync.engine.log.LogConfigurator;
 import com.soffid.iam.sync.jetty.SeyconLog;
 import com.soffid.iam.sync.service.CertificateEnrollService;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.ServerType;
 import es.caib.seycon.ng.exception.CertificateEnrollDenied;
@@ -40,6 +41,7 @@ public class Configure {
     public static void main(String args[]) throws Exception {
         LogConfigurator.configureMinimalLogging();
         org.apache.commons.logging.Log log  = LogFactory.getLog(Configure.class);
+        Security.onSyncServer();
 //        Log.setLog(new SeyconLog());
 
         if (args.length == 0) {
@@ -47,7 +49,7 @@ public class Configure {
             System.out
                     .println("  -main -hostname .. -dbuser .. -dbpass .. -dburl ..");
             System.out
-                    .println("  -hostname .. -server .. -user .. -pass ..");
+                    .println("  -hostname .. -server .. -tenant .. -user .. -pass ..");
             System.exit(0);
         }
 
@@ -77,6 +79,7 @@ public class Configure {
             KeyManagementException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied {
         Config config = Config.getConfig();
 
+        String adminTenant="";
         String adminUser = "";
         Password adminPassword = null;
         String serverUrl = "";
@@ -84,8 +87,10 @@ public class Configure {
 
         int i;
         for (i = 0; i < args.length - 1; i++) {
-            if ("-hostname".equals(args[i]))
+			if ("-hostname".equals(args[i]))
                 config.setHostName(args[++i]);
+            else if ("-tenant".equals(args[i]))
+            	adminTenant = args[++i];
             else if ("-user".equals(args[i]))
                 adminUser = (args[++i]);
 //            else if ("-domain".equals(args[i]))
@@ -121,7 +126,7 @@ public class Configure {
             config.setRole("agent");
             CertificateServer cs = new CertificateServer();
             if (!cs.hasServerKey())
-                cs.obtainCertificate(serverUrl, adminUser, adminPassword, null);
+                cs.obtainCertificate(serverUrl, adminTenant, adminUser, adminPassword, null);
             else
                 System.out.println ("This node is already configured. Remove conf directory to reconfigure.");
         } catch (NoClassDefFoundError e) {
@@ -130,7 +135,7 @@ public class Configure {
             System.out.println("Warning: JAVA 6 required");
         }
 
-        configureAgent(adminUser, adminPassword, adminDomain, serverUrl);
+        configureAgent(adminTenant, adminUser, adminPassword, adminDomain, serverUrl);
 
     }
     
@@ -167,6 +172,8 @@ public class Configure {
         	throw new RuntimeException ("Missing -dburl parameter");
         if (password == null)
         {
+        	if (System.console() == null)
+        		throw new RuntimeException ("Password required");
         	char pass [] = System.console().readPassword("%s's password: ", config.getDbUser());
         	password = new Password(new String(pass));
         }
@@ -207,7 +214,7 @@ public class Configure {
         s.createRoot();
     }
 
-    private static void configureAgent(String adminUser,
+    private static void configureAgent(String adminTenant, String adminUser,
             Password adminPassword, String adminDomain, String serverUrl)
             throws NoSuchAlgorithmException, NoSuchProviderException,
             KeyStoreException, FileNotFoundException, CertificateException,
@@ -219,7 +226,7 @@ public class Configure {
         CertificateServer cs = new CertificateServer();
         
         if (!cs.hasServerKey()) {
-            cs.obtainCertificate(serverUrl, adminUser,
+            cs.obtainCertificate(serverUrl, adminTenant, adminUser,
                     adminPassword, adminDomain);
         }
         RemoteServiceLocator rsl = new RemoteServiceLocator(serverUrl);

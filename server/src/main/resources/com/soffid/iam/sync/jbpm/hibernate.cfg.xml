@@ -50,8 +50,6 @@
    <!-- # jbpm mapping files # -->
    <!-- ###################### -->
 
-   <!-- hql queries and type defs -->
-   <mapping resource="org/jbpm/db/hibernate.queries.hbm.xml" />
    <!-- hql queries used in simulation for querying historical data
         uncomment if you want to use the GetSimulationInputCommand
         or maybe you also want to use the queries yourself
@@ -196,7 +194,13 @@
    <mapping resource="com/soffid/iam/bpm/task/BPMTaskInstance.hbm.xml"/>
 
    <!-- hql queries and type defs -->
+   <mapping resource="com/soffid/iam/bpm/model/hibernate.queries.hbm.xml" />
    <mapping resource="default.queries.hbm.xml" />
+
+   <!--  TENANAT MODULES -->
+   <!-- file.def mapping files -->
+   <mapping resource="com/soffid/iam/bpm/model/TenantModuleDefinition.hbm.xml"/>
+   <mapping resource="com/soffid/iam/bpm/model/TenantModule.hbm.xml"/>
 
   <!-- ################################### -->
   <!-- # cache settings                  # -->

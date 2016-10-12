@@ -43,6 +43,7 @@ import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.jetty.DupOutputStream;
 import com.soffid.iam.sync.jetty.SeyconLog;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.ServerRedirectException;
@@ -97,6 +98,7 @@ public class SeyconLoader extends Object {
      */
     public SeyconLoader() throws IOException, InternalErrorException {
         // Instancia las clases para evitar su pérdida en el proceso de descarga
+    	Security.onSyncServer();
         new LocalInputReader(System.in);
         new LocalOutputWriter(System.out);
         new LocalFinalizer();

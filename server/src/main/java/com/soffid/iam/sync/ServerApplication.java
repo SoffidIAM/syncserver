@@ -49,7 +49,6 @@ public class ServerApplication extends SoffidApplication {
     public static void start() throws InterruptedException, FileNotFoundException, IOException, InternalErrorException {
         Config config = Config.getConfig();
 
-        Security.disableAllSecurityForEver();
         // Ajustar el tamaño del pool
         String poolSize = server.getConfig("seycon.db.poolsize");
         if (poolSize == null)
