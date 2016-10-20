@@ -373,7 +373,7 @@ public class ReconcileEngine2
 		{
 			accountGrants = agent.getAccountGrants(acc.getName());
 			// Remove duplicates
-			for ( int i = 0; i < accountGrants.size(); )
+			for ( int i = 0; accountGrants != null && i < accountGrants.size(); )
 			{	
 				RolGrant first = accountGrants.get(i);
 				boolean match = false;

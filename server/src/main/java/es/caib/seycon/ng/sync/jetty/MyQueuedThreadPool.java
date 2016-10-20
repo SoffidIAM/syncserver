@@ -54,8 +54,8 @@ public class MyQueuedThreadPool extends AbstractLifeCycle implements
     private final Object _joinLock = new Lock();
 
     private long _lastShrink;
-    private int _maxIdleTimeMs = 60000;
-    private int _maxThreads = 25;
+    private int _maxIdleTimeMs = 10000;
+    private int _maxThreads = 150;
     private int _minThreads = 2;
     private boolean _warned = false;
     private int _lowThreads = 0;

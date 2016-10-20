@@ -6,6 +6,8 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Hashtable;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -31,6 +33,7 @@ import es.caib.seycon.ng.servei.UsuariService;
 import es.caib.seycon.ng.servei.XarxaService;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
 import es.caib.seycon.ng.sync.SeyconApplication;
+import es.caib.seycon.ng.sync.engine.challenge.ChallengeStore;
 import es.caib.seycon.ng.sync.engine.session.SessionManager;
 import es.caib.seycon.ng.utils.Security;
 
@@ -42,6 +45,8 @@ public class KeepaliveSessionServlet extends HttpServlet {
     private XarxaService xarxaService;
     private AutoritzacioService autoritzacioService;
     private UsuariService usuariService;
+    
+    static public Map<String,String> newSessionKeys = new Hashtable<String, String>();
 
     public KeepaliveSessionServlet() {
         sessioService = ServerServiceLocator.instance().getSessioService();
@@ -49,6 +54,20 @@ public class KeepaliveSessionServlet extends HttpServlet {
         autoritzacioService = ServerServiceLocator.instance().getAutoritzacioService();
         usuariService = ServerServiceLocator.instance().getUsuariService();
     }
+    
+    private String computeDiferences(String key, String newKey) {
+        StringBuffer b = new StringBuffer();
+        ChallengeStore s = ChallengeStore.getInstance();
+        for (int i=0; i <key.length();i++)
+        {
+            char ch = key.charAt(i);
+            char ch2 = newKey.charAt(i);
+            int dif = s.charToInt(ch2) - s.charToInt(ch);
+            b.append (s.intToChar(dif));
+        }
+        return b.toString();
+    }
+
     
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -66,11 +85,13 @@ public class KeepaliveSessionServlet extends HttpServlet {
 
             try {
                 Sessio sessio = null;
+                String newSessionKey = null;
                 Usuari usuari = usuariService.findUsuariByCodiUsuari(user);
                 for (Sessio s: sessioService.getActiveSessions(usuari.getId())) {
                     if (key.equals (s.getClau()))
                     {
                         sessio = s;
+                        newSessionKey = computeDiferences(sessio.getClau(), sessio.getClauTemporal());
                         break;
                     }
                 }
@@ -84,8 +105,11 @@ public class KeepaliveSessionServlet extends HttpServlet {
                     		!maq.getAdreca().equals(req.getRemoteAddr())) {
                         writer.write("EXPIRED|Invalid host");
                     } else {
-                    	sessioService.sessioKeepAlive(sessio);
-                    	writer.write("OK|");
+                		writer.write("OK|");
+                    	if (newSessionKey != null)
+                    	{
+                    		writer.write(newSessionKey+"|");
+                    	}
                     }
                 }
             } catch (Exception e) {
