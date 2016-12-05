@@ -201,6 +201,7 @@ public class SessionManager extends Thread {
         			buffer.append((char) i);
         	} while (true);
         	reader.close();
+//            log.info("Session {} is alive: result = {}", sessio.getUrl()+" ["+sessio.getId()+"]", buffer.toString()); //$NON-NLS-1$
         	return buffer.toString().startsWith("OK"); //$NON-NLS-1$
     	} 
     	catch (IOException e)
