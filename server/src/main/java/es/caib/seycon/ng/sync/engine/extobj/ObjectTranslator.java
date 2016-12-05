@@ -3,17 +3,11 @@
  */
 package es.caib.seycon.ng.sync.engine.extobj;
 
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-
-import org.apache.axis.InternalException;
 
 import bsh.EvalError;
 import bsh.Interpreter;
@@ -21,21 +15,14 @@ import bsh.NameSpace;
 import bsh.Primitive;
 import bsh.TargetError;
 import es.caib.seycon.ng.ServiceLocator;
-import es.caib.seycon.ng.comu.Account;
-import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.AttributeDirection;
 import es.caib.seycon.ng.comu.AttributeMapping;
 import es.caib.seycon.ng.comu.Dispatcher;
-import es.caib.seycon.ng.comu.Grup;
 import es.caib.seycon.ng.comu.ObjectMapping;
 import es.caib.seycon.ng.comu.ObjectMappingProperty;
-import es.caib.seycon.ng.comu.Rol;
-import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.SoffidObjectType;
-import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.servei.DispatcherService;
-import es.caib.seycon.ng.sync.intf.AuthoritativeChange;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMapping;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjects;
@@ -77,6 +64,7 @@ public class ObjectTranslator
 			}
 			object.setProperties(properties);
 			object.setAttributes(dispatcherService.findAttributeMappingsByObject(object.getId()));
+			object.setTriggers(dispatcherService.findObjectMappingTriggersByObject(object.getId()));
 		}
 		agentObject = new BSHAgentObject(null, this);
 	}
@@ -370,7 +358,13 @@ public class ObjectTranslator
 
 	public boolean evalCondition(ExtensibleObject sourceObject,
 			ExtensibleObjectMapping objectMapping) throws InternalErrorException {
-		if (objectMapping.getCondition() == null || objectMapping.getCondition().trim().length() == 0)
+		return evalExpression(sourceObject, objectMapping.getCondition());
+	}
+	
+	public boolean evalExpression(ExtensibleObject sourceObject, String expression) 
+		throws InternalErrorException {
+		
+		if (expression == null || expression.trim().length() == 0)
 			return true;
 		
 		Interpreter interpret = new Interpreter();
@@ -380,7 +374,7 @@ public class ObjectTranslator
 						"translator" + dispatcher.getCodi(), sourceObject, serverService,
 						agentObject);
 		try {
-			Object result = interpret.eval(objectMapping.getCondition(), newNs);
+			Object result = interpret.eval(expression, newNs);
 			if (result instanceof Primitive)
 			{
 				result = ((Primitive)result).getValue();
@@ -396,7 +390,7 @@ public class ObjectTranslator
 			} catch (Exception e2) {
 				msg = e.getMessage();
 			}
-			throw new InternalErrorException ("Error evaluating expression "+objectMapping.getCondition()+": "+msg);
+			throw new InternalErrorException ("Error evaluating expression "+expression+": "+msg);
 		}
 	}
 

@@ -189,6 +189,29 @@ public class TaskScheduler
 		return result;
 	}
 
+	public void init () throws InternalErrorException, FileNotFoundException, IOException
+	{
+		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
+		List<ScheduledTask> list = taskSvc.listTasks();
+		
+		String hostName = Config.getConfig().getHostName();
+		
+		for (final ScheduledTask task: list)
+		{
+			if (task.isActive() && task.getServerName().equals (hostName))
+			{
+				task.setActive(false);
+				task.setError(true);
+				StringBuffer sb = new StringBuffer();
+				sb.append ("Server restarted during execution");
+				task.setLastLog(sb);
+				task.setLastEnd(Calendar.getInstance());
+				taskSvc.registerEndTask(task);
+			}
+		}
+		reconfigure ();
+	}
+	
 	public void reconfigure () throws InternalErrorException, FileNotFoundException, IOException
 	{
 		Scheduler newCronScheduler = new Scheduler();
