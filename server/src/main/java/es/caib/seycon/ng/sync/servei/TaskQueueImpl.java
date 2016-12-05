@@ -244,6 +244,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					pushTaskToPersist(newTask);
 					
 					storeAccountPassword(newTask, account);
+					notifySSOUsers (account);
 				}
 			}
 			else
@@ -267,6 +268,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			{
 				newTask.cancel();
 				pushTaskToPersist(newTask);
+				notifySSOUsers(account);
 			}
 			else
 				addAndNotifyDispatchers(newTask, entity);
@@ -344,12 +346,19 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
+	private void notifySSOUsers(AccountEntity account) throws InternalErrorException {
+		Account acc = getAccountEntityDao().toAccount(account);
+        for (String user: getAccountService().getAccountUsers(acc))
+        {
+    	   getChangePasswordNotificationQueue().addNotification(user);
+        }
+	}
+
 	private void storeAccountPassword(TaskHandler newTask,
 			AccountEntity account) throws InternalErrorException {
 		
 		getSecretStoreService().setPassword(account.getId(),
 			newTask.getPassword());
-		Account acc = getAccountEntityDao().toAccount(account);
 //		getAccountService().updateAccountPasswordDate(acc, null);
 
 		for (String u :
@@ -1333,6 +1342,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (dispatcher == null || ! dispatcher.isActive()) 
 				{
 					storeAccountPassword(task, account);
+					notifySSOUsers(account);
    		            return m;
 				}
 			}
@@ -1344,7 +1354,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		
 		for (DispatcherHandler dispatcher: getTaskGenerator().getDispatchers())
 		{
-			if (dispatcher.isActive())
+			if (dispatcher.isActive() && (
+					task.getTask().getCoddis() == null || 
+					dispatcher.getDispatcher().getCodi().equals (task.getTask().getCoddis())))
 			{
 				if (dispatcher.isConnected())
 				{
