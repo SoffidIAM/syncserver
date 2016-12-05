@@ -56,6 +56,8 @@ public class KeepaliveSessionServlet extends HttpServlet {
     }
     
     private String computeDiferences(String key, String newKey) {
+    	if (newKey == null)
+    		return null;
         StringBuffer b = new StringBuffer();
         ChallengeStore s = ChallengeStore.getInstance();
         for (int i=0; i <key.length();i++)
