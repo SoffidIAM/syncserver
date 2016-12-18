@@ -320,8 +320,14 @@ public class ChangeSecretServlet extends HttpServlet {
 					.getUserAuthorization("sso:manageAccounts", usuari.getCodi());
 			return ! auts.isEmpty();
 		}
-		else
+		else 
+		{
+			if (authSystem == null)
+			{
+				log.info("Missing configuration property AutoSSOSystem. Please,  configure to enable ESSO clients", null, null);
+			}
 			return false;
+		}
 	}
 
 }
