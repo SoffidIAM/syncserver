@@ -1482,11 +1482,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		synchronized (tasksToPersist)
 		{
-			while (tasksToPersist.isEmpty())
+			if (tasksToPersist.isEmpty())
 			{
 				tasksToPersist.wait(5000);
 			}
-			return tasksToPersist.removeLast();
+			if (tasksToPersist.isEmpty())
+				return null;
+			else
+				return tasksToPersist.removeLast();
 		}
 	}
 

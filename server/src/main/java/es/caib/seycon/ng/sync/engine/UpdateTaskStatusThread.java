@@ -26,7 +26,8 @@ public class UpdateTaskStatusThread extends Thread
         	TaskHandler task = null;
         	try {
         		task = taskQueue.peekTaskToPersist();
-        		taskQueue.persistTask(task);
+        		if (task != null)
+        			taskQueue.persistTask(task);
         	} catch (Throwable e)
         	{
        			log.warn("Error on update tasks thread", e);
