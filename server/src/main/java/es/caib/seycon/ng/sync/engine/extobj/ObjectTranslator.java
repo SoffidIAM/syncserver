@@ -39,6 +39,7 @@ public class ObjectTranslator
 	ExtensibleObjectFinder objectFinder;
 	private Collection<ExtensibleObjectMapping> objects;
 	BSHAgentObject agentObject;
+	private Interpreter interpreter;
 	
 	/**
 	 * @throws InternalErrorException
@@ -67,6 +68,7 @@ public class ObjectTranslator
 			object.setTriggers(dispatcherService.findObjectMappingTriggersByObject(object.getId()));
 		}
 		agentObject = new BSHAgentObject(null, this);
+		interpreter = new Interpreter();
 	}
 
 	public ObjectTranslator (Dispatcher dispatcher, ServerService serverService, Collection<ExtensibleObjectMapping> objects) throws InternalErrorException
@@ -75,6 +77,7 @@ public class ObjectTranslator
 		this.dispatcher = dispatcher;
 		this.objects = objects;
 		agentObject = new BSHAgentObject(null, this);
+		interpreter = new Interpreter();
 	}
 
 	public ExtensibleObjectFinder getObjectFinder() {
@@ -204,15 +207,14 @@ public class ObjectTranslator
 			AttributeReference ar = AttributeReferenceParser.parse(sourceObject, attributeExpression);
 			AttributeReferenceParser.parse(targetObject, attribute).setValue( ar.getValue() );
 		} catch (Exception ear) {
-			Interpreter interpret = new Interpreter();
-			NameSpace ns = interpret.getNameSpace();
+			NameSpace ns = interpreter.getNameSpace();
 	
-			ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+			ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpreter.getClassManager(),
 							"translator" + dispatcher.getCodi(), sourceObject, serverService,
 							agentObject);
 			
 			try {
-				Object result = interpret.eval(attributeExpression, newNs);
+				Object result = interpreter.eval(attributeExpression, newNs);
 				if (result instanceof Primitive)
 				{
 					result = ((Primitive)result).getValue();
@@ -280,15 +282,14 @@ public class ObjectTranslator
 						try { 
 							return AttributeReferenceParser.parse(sourceObject, attribute.getSystemAttribute()).getValue();
 						} catch (Exception ear) {
-							Interpreter interpret = new Interpreter();
-							NameSpace ns = interpret.getNameSpace();
+							NameSpace ns = interpreter.getNameSpace();
 	
-							ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+							ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpreter.getClassManager(),
 											"translator" + dispatcher.getCodi(), sourceObject, serverService,
 											agentObject);
 	
 							try {
-								Object result = interpret.eval(attribute.getSystemAttribute(), newNs);
+								Object result = interpreter.eval(attribute.getSystemAttribute(), newNs);
 								if (result instanceof Primitive)
 								{
 									result = ((Primitive)result).getValue();
@@ -326,15 +327,14 @@ public class ObjectTranslator
 									|| attribute.getDirection().equals(
 													AttributeDirection.INPUTOUTPUT))
 					{
-						Interpreter interpret = new Interpreter();
-						NameSpace ns = interpret.getNameSpace();
+						NameSpace ns = interpreter.getNameSpace();
 
-						ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+						ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpreter.getClassManager(),
 										"translator" + dispatcher.getCodi(), sourceObject, serverService,
 										agentObject);
 
 						try {
-							Object result = interpret.eval(attribute.getSoffidAttribute(), newNs);
+							Object result = interpreter.eval(attribute.getSoffidAttribute(), newNs);
 							if (result instanceof Primitive)
 							{
 								result = ((Primitive)result).getValue();
@@ -367,14 +367,13 @@ public class ObjectTranslator
 		if (expression == null || expression.trim().length() == 0)
 			return true;
 		
-		Interpreter interpret = new Interpreter();
-		NameSpace ns = interpret.getNameSpace();
+		NameSpace ns = interpreter.getNameSpace();
 
-		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpreter.getClassManager(),
 						"translator" + dispatcher.getCodi(), sourceObject, serverService,
 						agentObject);
 		try {
-			Object result = interpret.eval(expression, newNs);
+			Object result = interpreter.eval(expression, newNs);
 			if (result instanceof Primitive)
 			{
 				result = ((Primitive)result).getValue();
@@ -395,15 +394,14 @@ public class ObjectTranslator
 	}
 
 	public Object eval(String expr, ExtensibleObject eo) throws InternalErrorException {
-		Interpreter interpret = new Interpreter();
-		NameSpace ns = interpret.getNameSpace();
+		NameSpace ns = interpreter.getNameSpace();
 
-		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpreter.getClassManager(),
 						"translator" + dispatcher.getCodi(), eo, serverService,
 						agentObject);
 
 		try {
-			Object result = interpret.eval(expr, newNs);
+			Object result = interpreter.eval(expr, newNs);
 			if (result instanceof Primitive)
 			{
 				result = ((Primitive)result).getValue();
