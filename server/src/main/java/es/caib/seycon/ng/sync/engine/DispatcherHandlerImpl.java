@@ -22,6 +22,7 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 import javax.sql.DataSource;
@@ -32,6 +33,7 @@ import org.jbpm.graph.exe.ProcessInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
 import com.soffid.iam.reconcile.common.AccountProposedAction;
@@ -56,6 +58,7 @@ import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.PoliticaContrasenya;
 import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.comu.RolGrant;
+import es.caib.seycon.ng.comu.SoffidObjectTrigger;
 import es.caib.seycon.ng.comu.SoffidObjectType;
 import es.caib.seycon.ng.comu.TipusDada;
 import es.caib.seycon.ng.comu.TipusUsuari;
@@ -78,6 +81,7 @@ import es.caib.seycon.ng.remote.URLManager;
 import es.caib.seycon.ng.servei.AccountService;
 import es.caib.seycon.ng.servei.ConfiguracioService;
 import es.caib.seycon.ng.servei.DadesAddicionalsService;
+import es.caib.seycon.ng.servei.DispatcherService;
 import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.GrupService;
 import es.caib.seycon.ng.servei.InternalPasswordService;
@@ -88,7 +92,10 @@ import es.caib.seycon.ng.sync.agent.AgentManager;
 import es.caib.seycon.ng.sync.bootstrap.QueryHelper;
 import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 import es.caib.seycon.ng.sync.engine.db.ConnectionPool.ThreadBound;
+import es.caib.seycon.ng.sync.engine.extobj.GroupExtensibleObject;
 import es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator;
+import es.caib.seycon.ng.sync.engine.extobj.UserExtensibleObject;
+import es.caib.seycon.ng.sync.engine.extobj.ValueObjectMapper;
 import es.caib.seycon.ng.sync.engine.kerberos.KerberosManager;
 import es.caib.seycon.ng.sync.intf.AccessControlMgr;
 import es.caib.seycon.ng.sync.intf.AccessLogMgr;
@@ -97,6 +104,7 @@ import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource2;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaMgr;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaOfflineChangeRetriever;
+import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr;
 import es.caib.seycon.ng.sync.intf.GroupMgr;
 import es.caib.seycon.ng.sync.intf.HostMgr;
@@ -143,6 +151,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private ReconcileService reconcileService;
 	private AccountService accountService;
 	private DominiUsuariService dominiService;
+	private DispatcherService dispatcherService;
 	
 	
 	private AuditoriaEntityDao auditoriaDao;
@@ -197,6 +206,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         		ServerServiceLocator.instance().getInternalPasswordService();
         accountService = ServerServiceLocator.instance().getAccountService();
         dominiService = ServerServiceLocator.instance().getDominiUsuariService();
+        dispatcherService = ServerServiceLocator.instance().getDispatcherService();
         usuariService = ServerServiceLocator.instance().getUsuariService();
         ServerServiceLocator.instance().getDadesAddicionalsService();
         grupService = ServerServiceLocator.instance().getGrupService();
@@ -416,6 +426,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     boolean abort = false;
 	private TaskHandler nextTask;
 	private long waitUntil;
+	private LinkedList<ReconcileTrigger> preInsertTrigger;
+	private LinkedList<ReconcileTrigger> postInsertTrigger;
+	private LinkedList<ReconcileTrigger> preUpdateTrigger;
+	private LinkedList<ReconcileTrigger> postUpdateTrigger;
 
 
     public void run() {
@@ -570,9 +584,31 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	 */
 	public void doAuthoritativeImport (ScheduledTask task) 
 	{
+
 		StringBuffer result = task.getLastLog();
 		try {
-    		Object agent = connect(false);
+			preInsertTrigger = new LinkedList<ReconcileTrigger>();
+			postInsertTrigger = new LinkedList<ReconcileTrigger>();
+			preUpdateTrigger = new LinkedList<ReconcileTrigger>();
+			postUpdateTrigger = new LinkedList<ReconcileTrigger>();
+			for (ReconcileTrigger trigger: dispatcherService.findReconcileTriggersByDispatcher(dispatcher.getId()))
+			{
+				if (trigger.getObjectType().equals(SoffidObjectType.OBJECT_USER))
+				{
+					if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_INSERT))
+						preInsertTrigger.add (trigger);
+					else if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_UPDATE))
+						preUpdateTrigger.add (trigger);
+					if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_INSERT))
+						postInsertTrigger.add (trigger);
+					if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_UPDATE))
+						postUpdateTrigger.add (trigger);
+				}
+			}
+			ObjectTranslator objectTranslator = new ObjectTranslator (dispatcher);
+			ValueObjectMapper vom = new ValueObjectMapper();
+
+			Object agent = connect(false);
     		if (agent instanceof AuthoritativeIdentitySource)
     		{
     			AuthoritativeIdentitySource source = (AuthoritativeIdentitySource) agent;
@@ -581,7 +617,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     			{
 	    	        for (AuthoritativeChange change: changes)
 	    	        {
-	    	        	processChange(change, source, result);
+	    	        	processChange(change, source, result, objectTranslator, vom);
 	    	        }
 	    			changes = source.getChanges();
     			}
@@ -602,7 +638,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 						break;
 	    	        for (AuthoritativeChange change: changes)
 	    	        {
-	    	        	if ( processChange(change, null, result) )
+	    	        	if ( processChange(change, null, result, objectTranslator, vom ) )
 	    	        		anyError = true;
 	    	        }
    				} while (source.hasMoreData());
@@ -637,24 +673,84 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		
 	}
 
+	
 	private boolean processChange(AuthoritativeChange change,
-			AuthoritativeIdentitySource source, StringBuffer result) {
+			AuthoritativeIdentitySource source, StringBuffer result, ObjectTranslator objectTranslator, ValueObjectMapper vom) {
 		boolean error = false;
 		change.setSourceSystem(getDispatcher().getCodi());
 		try {
-			if (authoritativeService
-					.startAuthoritativeChange(change))
-				result.append(
-						"Applied authoritative change for  ")
-						.append(change.getUser().getCodi())
-						.append("\n");
-			else
-				result.append(
-						"Prepared authoritative change for  ")
-						.append(change.getUser().getCodi())
-						.append("\n");
-			if (source != null)
-				source.commitChange(change.getId());
+			Usuari previousUser = change.getUser() == null ||
+					change.getUser().getCodi() == null ? null :
+						usuariService.findUsuariByCodiUsuari(change.getUser().getCodi());
+			boolean ok = true;
+			if (previousUser == null)
+			{
+				if (! preInsertTrigger.isEmpty())
+				{
+					UserExtensibleObject eo = buildExtensibleObject(change);
+					eo.setAttribute("attributes", change.getAttributes());
+					if (executeTriggers(preInsertTrigger, null, eo, objectTranslator))
+					{
+						change.setUser( vom.parseUsuari(eo));
+						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+					}
+					else
+					{
+						result.append("Change to user "+change.getUser().getCodi()+" is rejected by pre-insert trigger\n");
+						ok = false;
+					}
+				}
+			} else {
+				if (! preUpdateTrigger.isEmpty())
+				{
+					UserExtensibleObject eo = buildExtensibleObject(change);
+					if (executeTriggers(preUpdateTrigger, 
+							new UserExtensibleObject(new Account (), previousUser, server), 
+							eo, objectTranslator))
+					{
+						change.setUser( vom.parseUsuari(eo));
+						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+					}
+					else
+					{
+						result.append("Change to user "+change.getUser().getCodi()+" is rejected by pre-update trigger\n");
+						ok = false;
+					}
+				}
+			}
+			if (ok)
+			{
+				if (authoritativeService
+						.startAuthoritativeChange(change))
+					result.append(
+							"Applied authoritative change for  ")
+							.append(change.getUser().getCodi())
+							.append("\n");
+				else
+					result.append(
+							"Prepared authoritative change for  ")
+							.append(change.getUser().getCodi())
+							.append("\n");
+
+				if (previousUser == null)
+				{
+					if (! postInsertTrigger.isEmpty())
+					{
+						UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
+						executeTriggers(postInsertTrigger, null, eo, objectTranslator);
+					}
+				} else {
+					if (! postUpdateTrigger.isEmpty())
+					{
+						UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
+						executeTriggers(postUpdateTrigger, 
+								new UserExtensibleObject(new Account (), previousUser, server), 
+								eo, objectTranslator);
+					}
+				}
+				if (source != null)
+					source.commitChange(change.getId());
+			}
 		} catch ( Exception e) {
 			error = true;
 			result.append ("Error uploading change ")
@@ -669,6 +765,52 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		return true;
 	}
 
+	private UserExtensibleObject buildExtensibleObject(
+			AuthoritativeChange change) throws InternalErrorException {
+		UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
+		eo.setAttribute("attributes", change.getAttributes());
+		List<ExtensibleObject> l = new LinkedList<ExtensibleObject>();
+		if (change.getGroups() != null)
+		{
+			for (String s: change.getGroups())
+			{
+				Grup g = null;
+				
+				try {
+					g = server.getGroupInfo(s, getName());
+				} catch (UnknownGroupException e) {
+				}
+				
+				if (g == null)
+				{
+					ExtensibleObject eo2 = new ExtensibleObject();
+					eo2.setAttribute("name", s);
+					l.add(eo2);
+				}
+				else
+				{
+					l.add( new GroupExtensibleObject(g, getName(), server));
+				}
+			}
+		}
+		eo.setAttribute("secondaryGroups", l);
+		return eo;
+	}
+
+	private boolean executeTriggers (List<ReconcileTrigger> triggerList, ExtensibleObject old, ExtensibleObject newObject, ObjectTranslator objectTranslator) throws InternalErrorException
+	{
+		ExtensibleObject eo = new ExtensibleObject ();
+		eo.setAttribute("oldObject", old);
+		eo.setAttribute("newObject", newObject);
+		boolean ok = true;
+		for (ReconcileTrigger t: triggerList)
+		{
+			if (! objectTranslator.evalExpression(eo, t.getScript()))
+				ok = false;
+		}
+		
+		return ok;
+	}
 
 	private TaskHandler processAndLogTask (TaskHandler t) throws InternalErrorException
 	{

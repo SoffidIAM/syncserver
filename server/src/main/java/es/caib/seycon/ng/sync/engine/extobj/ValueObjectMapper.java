@@ -168,18 +168,29 @@ public class ValueObjectMapper
 	}
 	
 	
+	static String [] attributesToParse =
+			new String [] {
+		"active", "mailAlias", "userName", "primaryGroup",
+		"comments", "createdOn", "modifiedOn", "mailDomain", "fullName", 
+		"id", "multiSession", "firstName",
+		"shortName", "lastName",  "lastName2", "mailServer",  "homeServer",
+		"profileServer", "phone", "userType", "createdBy", "modifiedBy", 
+		"attributes" 
+	};
+
 	public Usuari parseUsuari (ExtensibleObject object) throws InternalErrorException
 	{
 		Usuari usuari = null;
 		if (object.getObjectType().equals(SoffidObjectType.OBJECT_USER.getValue()))
 		{
 			usuari = new Usuari();
-			for (String attribute: object.getAttributes())
+			for (String attribute:  attributesToParse)
 			{
 				try 
 				{
 					Object value = toSingleton(object.getAttribute(attribute));
-					if ("active".equals(attribute)) usuari.setActiu(value == null ? null: "true".equals(value.toString()));
+					if (value == null) ; // Ignore null values
+					else if ("active".equals(attribute)) usuari.setActiu(value == null ? null: "true".equals(value.toString()));
 					else if ("mailAlias".equals(attribute)) usuari.setAliesCorreu(toString (value));
 					else if ("userName".equals(attribute)) usuari.setCodi(toString( value) );
 					else if ("primaryGroup".equals(attribute)) usuari.setCodiGrupPrimari(toString( value));
@@ -200,7 +211,6 @@ public class ValueObjectMapper
 					else if ("phone".equals(attribute)) usuari.setTelefon(toString(value));
 					else if ("userType".equals(attribute)) usuari.setTipusUsuari(toString(value));
 					else if ("createdBy".equals(attribute)) usuari.setUsuariCreacio(toString(value));
-					else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
 					else if ("modifiedBy".equals(attribute)) usuari.setDataDarreraModificacioUsuari(toCalendar(value));
 					else if ("attributes".equals(attribute) || "userAttributes".equals(attribute))
 					{
@@ -315,6 +325,15 @@ public class ValueObjectMapper
 				account.setDisabled(true);
 			else
 				account.setDisabled(false);
+			if (object.getAttribute("type") != null )
+			{
+				if (object.getAttribute("type") instanceof AccountType)
+					account.setType((AccountType) object.getAttribute("type"));
+				else
+					account.setType(AccountType.fromString(object.getAttribute("type").toString()));
+			}
+			else
+				account.setType(AccountType.IGNORED);
 			Object map = object.getAttribute("accountAttributes");
 			if (map != null && map instanceof Map)
 			{
@@ -324,6 +343,7 @@ public class ValueObjectMapper
 				if (map != null && map instanceof Map)
 					account.setAttributes((Map<String, Object>) map);
 			}
+			
 		}
 		return account;
 	}
@@ -411,8 +431,8 @@ public class ValueObjectMapper
 				}
 				rol.setOwnerRoles(ownerRoles);
 			}
-			Collection ownerGroupsMap = (Collection) object.getAttribute("ownerGroupss");
-			if (ownerRolesMap != null)
+			Collection ownerGroupsMap = (Collection) object.getAttribute("ownerGroups");
+			if (ownerGroupsMap != null)
 			{
 				LinkedList<Grup> ownerGroups = new LinkedList<Grup>();
 				for (Object ownerGroupMap: ownerGroupsMap)

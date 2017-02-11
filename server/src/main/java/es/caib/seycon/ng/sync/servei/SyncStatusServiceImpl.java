@@ -712,7 +712,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_USER))
 		{
-			tasca.setTransa(TaskHandler.UPDATE_USER);
+			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUsuari(object1);
 			tasca.setBd(dispatcher);
 		}

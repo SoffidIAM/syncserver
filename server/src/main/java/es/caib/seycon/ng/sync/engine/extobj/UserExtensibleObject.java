@@ -18,6 +18,7 @@ import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.SoffidObjectType;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.servei.ServerService;
@@ -39,7 +40,8 @@ public class UserExtensibleObject extends ExtensibleObject
 		this.usuari = usuari;
 		this.serverService = serverService;
 		setObjectType(SoffidObjectType.OBJECT_USER.getValue());
-		if (account.getId() == null)
+		if (account.getId() == null && account.getName() != null && account.getName().trim().length() > 0 &&
+				account.getDispatcher() != null && account.getDispatcher().trim().length() > 0 )
 		{
 			try {
 				account = serverService.getAccountInfo(account.getName(), account.getDispatcher());
@@ -57,15 +59,15 @@ public class UserExtensibleObject extends ExtensibleObject
     		if (obj != null)
     			return obj;
     		
-    		if ("accountId".equals(attribute))
+    		if ("accountId".equals(attribute) && account != null)
     			obj = account.getId();
-    		else if ("accountName".equals(attribute))
+    		else if ("accountName".equals(attribute)  && account != null)
     			obj = account.getName();
-    		else if ("system".equals(attribute))
+    		else if ("system".equals(attribute)  && account != null)
     			obj = account.getDispatcher();
-    		else if ("accountDescription".equals(attribute))
+    		else if ("accountDescription".equals(attribute)  && account != null)
     			obj = account.getDescription();
-    		else if ("accountDisabled".equals(attribute))
+    		else if ("accountDisabled".equals(attribute)  && account != null)
     			obj = account.isDisabled();
     		else if ("active".equals(attribute))
     			obj = usuari.getActiu();
@@ -111,6 +113,18 @@ public class UserExtensibleObject extends ExtensibleObject
     			obj = usuari.getUsuariCreacio();
     		else if ("modifiedBy".equals(attribute))
     			obj = usuari.getUsuariDarreraModificacio();
+    		else if ("primaryGroupObject".equals(attribute))
+    		{
+    			Grup group = null;
+				try {
+					group = serverService.getGroupInfo(usuari.getCodiGrupPrimari(), account.getDispatcher());
+				} catch (UnknownGroupException e) {
+				}
+    			if (group == null)
+    				obj = null;
+    			else
+    				obj = new GroupExtensibleObject(group, account.getDispatcher(), serverService);
+    		}
     		else if ("secondaryGroups".equals(attribute))
     		{
     			Collection<Grup> groups;
@@ -143,7 +157,7 @@ public class UserExtensibleObject extends ExtensibleObject
     		{
     			Collection<DadaUsuari> dades = serverService.getUserData(usuari.getId());
     			Map<String, Object> dadesMap = new HashMap<String, Object>();
-   				if (account.getAttributes() != null)
+   				if ( account != null && account.getAttributes() != null )
     				dadesMap.putAll(account.getAttributes());
     			for (DadaUsuari dada: dades)
     			{
