@@ -186,7 +186,8 @@ public class KerberosLoginServlet extends HttpServlet {
         String user = principal.substring(0, split);
         String domain = principal.substring(split + 1).toUpperCase();
 
-        Dispatcher dispatcher = km.getDispatcherForRealm(domain); 
+        Dispatcher dispatcher = km.getDispatcherForRealm(domain);
+        
         LogonService logonService = ServerServiceLocator.instance().getLogonService();
         final Challenge challenge = logonService.requestChallenge(Challenge.TYPE_KERBEROS, 
         				user,
