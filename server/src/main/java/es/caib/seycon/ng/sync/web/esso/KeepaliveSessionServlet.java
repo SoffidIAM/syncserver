@@ -98,13 +98,15 @@ public class KeepaliveSessionServlet extends HttpServlet {
                     }
                 }
                 if (sessio == null) {
+                	log ("User "+user+" trying to keep alive an expired session from "+req.getRemoteAddr());
                 	writer.write("EXPIRED|Invalid session");
                 }
                 else
                 {
                     Maquina maq = xarxaService.findMaquinaByNom(sessio.getNomMaquinaServidora());
-                    if (maq == null || maq.getAdreca() == null || 
-                    		!maq.getAdreca().equals(req.getRemoteAddr())) {
+                    if (maq == null || (maq.getAdreca() != null && 
+                    		!maq.getAdreca().equals(req.getRemoteAddr()))) {
+                    	log ("User "+user+" trying to keep alive session created on "+maq.getAdreca()+" from host "+req.getRemoteAddr());
                         writer.write("EXPIRED|Invalid host");
                     } else {
                 		writer.write("OK|");
