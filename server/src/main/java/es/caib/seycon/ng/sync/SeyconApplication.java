@@ -304,11 +304,26 @@ public class SeyconApplication extends Object {
             }
 
             URLManager url = config.getURL();
+            String port = config.getPort();
+            
+            try {
+            	log.info("Checking local port");
+				File propsFile = new File(Config.getConfig().getHomeDir(), "conf/seycon.properties");
+				Properties prop = new Properties();
+				prop.load(new FileInputStream(propsFile));
+				String localPort = prop.getProperty("local_port");
+            	log.info("local port="+localPort);
+				if (localPort != null)
+					port = localPort;
+			} catch (Exception e) {
+				e.printStackTrace();
+			}
+            
             if (config.isBroadcastListen())
             {
-               	jetty = new JettyServer(null, Integer.parseInt(config.getPort()));
+               	jetty = new JettyServer(null, Integer.parseInt(port));
             } else {
-            	jetty = new JettyServer(config.getHostName(), Integer.parseInt(config.getPort()));
+            	jetty = new JettyServer(config.getHostName(), Integer.parseInt(port));
             }
             jetty.start();
 
