@@ -1130,8 +1130,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 			String dispatcherId) throws Exception {
         AccountEntity accountEntity = getAccountEntityDao().findByNameAndDispatcher(account, dispatcherId);
         		
-
-        return getAplicacioService().findEffectiveRolGrantByAccount(accountEntity.getId());
+        if (accountEntity == null)
+        	return Collections.emptyList();
+        else
+        	return getAplicacioService().findEffectiveRolGrantByAccount(accountEntity.getId());
 	}
 
 	@Override
@@ -1140,13 +1142,18 @@ public class ServerServiceImpl extends ServerServiceBase {
         AccountEntity accountEntity = getAccountEntityDao().findByNameAndDispatcher(account, dispatcherId);
 		
 
-        return getAplicacioService().findRolGrantByAccount(accountEntity.getId());
+        if (accountEntity == null)
+        	return Collections.emptyList();
+        else
+        	return getAplicacioService().findRolGrantByAccount(accountEntity.getId());
 	}
 
 	@Override
 	protected Collection<UserAccount> handleGetUserAccounts(long userId,
 			String dispatcherId) throws Exception {
 		UsuariEntity usuari = getUsuariEntityDao().load(new Long(userId));
+        if (usuari == null)
+        	return Collections.emptyList();
 		Collection<UserAccount> accounts = new LinkedList<UserAccount>();
 		List<AccountEntity> accountList = getAccountEntityDao().findByUsuariAndDispatcher(usuari.getCodi(), dispatcherId);
 		for (AccountEntity ae: accountList)
@@ -1167,6 +1174,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected Collection<Grup> handleGetUserGroups (Long userId) throws Exception
 	{
     	UsuariEntity user = getUsuariEntityDao().load(userId);
+        if (user == null)
+        	return Collections.emptyList();
 
     	HashMap<String, GrupEntity>grups = new HashMap<String, GrupEntity>();
     	
@@ -1189,6 +1198,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 					throws Exception
 	{
     	UsuariEntity user = getUsuariEntityDao().load(userId);
+        if (user == null)
+        	return Collections.emptyList();
 
     	HashMap<String, GrupEntity>grups = new HashMap<String, GrupEntity>();
     	
