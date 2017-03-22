@@ -13,6 +13,7 @@ import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Properties;
 import java.util.Random;
 
@@ -51,8 +52,9 @@ public class KerberosManager {
     }
     
 
-    private DispatcherHandler getDispatcherHandlerForRealm (String domain) throws InternalErrorException 
+    private Collection<DispatcherHandler> getDispatcherHandlerForRealm (String domain) throws InternalErrorException 
     {
+        Collection<DispatcherHandler> result = new LinkedList<DispatcherHandler>();
         Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
         for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
             DispatcherHandler handler = it.next();
@@ -60,29 +62,45 @@ public class KerberosManager {
                 KerberosAgent krb = handler.getKerberosAgent();
                 try {
                     if (krb != null && domain.equals(krb.getRealmName()))
-                        return handler;
+                        result.add(handler);
                 } catch (InternalErrorException e) {
                     log.warn("Error getting kerberos name", e);
                 }
             }
         }
-        return null;
+		return result;
     }
 
+
+    public Collection<Dispatcher> getDispatchersForRealm (String domain) throws InternalErrorException 
+    {
+        Collection<Dispatcher> result = new LinkedList<Dispatcher>();
+    	for (DispatcherHandler handler: getDispatcherHandlerForRealm(domain))
+    	{
+    		result.add(handler.getDispatcher());
+    	}
+        return result;
+    }
 
     public Dispatcher getDispatcherForRealm (String domain) throws InternalErrorException 
     {
-    	DispatcherHandler handler = getDispatcherHandlerForRealm(domain);
-    	if (handler != null)
-    		return handler.getDispatcher();
-        return null;
+        Dispatcher result = null;
+    	for (Dispatcher d: getDispatchersForRealm(domain))
+    	{
+    		if (result == null ||
+    				(d.isReadOnly() ? 1 : 0) < (result.isReadOnly() ? 1 : 0) ||
+    				(d.isAuthoritative() ? 1 : 0) > (result.isAuthoritative() ? 1 : 0) ||
+    				d.getId().compareTo(result.getId()) < 0)
+    			result = d;
+    	}
+        return result;
     }
 
-    private KerberosAgent getKerberosAgent(String domain) throws InternalErrorException {
-    	DispatcherHandler handler = getDispatcherHandlerForRealm(domain);
-    	if (handler != null)
-    		return handler.getKerberosAgent();
-        return null;
+    private Collection<KerberosAgent> getKerberosAgent(String domain) throws InternalErrorException {
+        Collection<KerberosAgent> result = new LinkedList<KerberosAgent>();
+    	for (DispatcherHandler handler: getDispatcherHandlerForRealm(domain))
+    		result.add(handler.getKerberosAgent());
+		return result;
     }
 
     private File getConfigFile() throws FileNotFoundException, IOException {
@@ -202,7 +220,7 @@ public class KerberosManager {
 
     private void kerberosLogin(String domain, KerberosCache kc) throws InternalErrorException,
             LoginException, FileNotFoundException, IOException {
-        KerberosAgent krb = getKerberosAgent(domain);
+        Collection<KerberosAgent> krbList = getKerberosAgent(domain);
         String user = null;
         String hostName = null;
         String principal = null;
@@ -228,33 +246,43 @@ public class KerberosManager {
         }
 
         if (lc == null || lc.getSubject() == null) {
-            if (krb == null)
+            if (krbList == null || krbList.isEmpty())
                 throw new InternalErrorException("Unknown kerberos realm " + domain);
             else {
-                try {
-                    hostName = Config.getConfig().getHostName();
-                    KerberosPrincipalInfo p = krb.createServerPrincipal(hostName);
-                    keytabFile = Config.getConfig().getHomeDir() + "/conf/" + domain + ".ktab";
-                    if (p.getKeytab() != null && p.getKeytab().length > 0) {
-                        File ktabFile = new File(keytabFile);
-                        FileOutputStream out = new FileOutputStream(ktabFile);
-                        out.write(p.getKeytab());
-                        out.close();
-                        principal = p.getPrincipalName();
-                        user = p.getPrincipalName();
-                    } else {
-                        principal = p.getPrincipalName();
-                        user = p.getUserName() + "@" + domain;
-                        new File(keytabFile).delete();
-                    }
-                    password = p.getPassword();
-                    lc = new LoginContext(domain, new KerberosCallbackHandler(user, password));
-                    lc.login();
-                } catch (Exception e) {
-                    log.warn("Unable to create kerberos principal for domain " + domain, e);
+            	boolean done = false;
+                for (KerberosAgent krb: krbList)
+                {
+	                try {
+	                    hostName = Config.getConfig().getHostName();
+	                    KerberosPrincipalInfo p = krb.createServerPrincipal(hostName);
+	                    if (p != null)
+	                    {
+		                    keytabFile = Config.getConfig().getHomeDir() + "/conf/" + domain + ".ktab";
+		                    if (p.getKeytab() != null && p.getKeytab().length > 0) {
+		                        File ktabFile = new File(keytabFile);
+		                        FileOutputStream out = new FileOutputStream(ktabFile);
+		                        out.write(p.getKeytab());
+		                        out.close();
+		                        principal = p.getPrincipalName();
+		                        user = p.getPrincipalName();
+		                    } else {
+		                        principal = p.getPrincipalName();
+		                        user = p.getUserName() + "@" + domain;
+		                        new File(keytabFile).delete();
+		                    }
+		                    password = p.getPassword();
+		                    lc = new LoginContext(domain, new KerberosCallbackHandler(user, password));
+		                    lc.login();
+		                    done = true;
+		                    break;
+	                    }
+	                } catch (Exception e) {
+	                    log.warn("Unable to create kerberos principal for domain " + domain, e);
+	                }
+                }
+                if (! done)
                     throw new InternalErrorException(
                             "Unable to create kerberos principal for domain " + domain);
-                }
             }
         }
 
