@@ -14,7 +14,7 @@
   <properties>
     <maven.compile.source>1.5</maven.compile.source>
     <maven.compile.target>1.5</maven.compile.target>
-    <iam.version>1.7.5</iam.version>
+    <iam.version>1.8.1</iam.version>
   </properties>
   <scm>
         <connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -46,6 +46,11 @@
         </includes>
         <filtering>true</filtering>
       </resource>
+                        <resource>
+                                <directory>src/main/docker</directory>
+                                <filtering>true</filtering>
+                                <targetPath>../docker</targetPath>
+                        </resource>
     </resources>
     <testResources>
       <testResource>
@@ -105,613 +110,632 @@
               <outputDirectory>
 								${project.build.directory}/eris-32
 							</outputDirectory>
-              <includeGroupIds>
+							<includeGroupIds>
 								com.soffid.iam.sync.w32
 							</includeGroupIds>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>true
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true
 							</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
-              <stripVersion>true</stripVersion>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-eris-w64</id>
-            <phase>package</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>
+							<overWriteIfNewer>true</overWriteIfNewer>
+							<stripVersion>true</stripVersion>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-eris-w64</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>
 								${project.build.directory}/eris-64
 							</outputDirectory>
-              <includeGroupIds>
+							<includeGroupIds>
 								com.soffid.iam.sync.w64
 							</includeGroupIds>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>true
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true
 							</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
-              <stripVersion>true</stripVersion>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-server-extra</id>
-            <phase>package</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>
+							<overWriteIfNewer>true</overWriteIfNewer>
+							<stripVersion>true</stripVersion>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-server-extra</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>
 								${project.build.directory}/server-only/lib
 							</outputDirectory>
-              <includeGroupIds>
+							<includeGroupIds>
 								com.oracle,mysql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,org.hibernate,javax.mail,net.sf.ehcache,asm,cglib,es.caib.signatura.api,es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j
 							</includeGroupIds>
-              <excludeArtifactIds>
+							<excludeArtifactIds>
 								iam-common,dbtools,signaturaapi,
 							</excludeArtifactIds>
-              <excludeTypes>
+							<excludeTypes>
 								ejb-client,
 							</excludeTypes>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>true
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true
 							</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
-              <stripVersion>false</stripVersion>
-            </configuration>
-          </execution>
-          <execution>
-            <id>copy-agent</id>
-            <phase>package</phase>
-            <goals>
-              <goal>copy-dependencies</goal>
-            </goals>
-            <configuration>
-              <outputDirectory>
+							<overWriteIfNewer>true</overWriteIfNewer>
+							<stripVersion>false</stripVersion>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-agent</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>
 								${project.build.directory}/agent-test/lib
 							</outputDirectory>
-              <overWriteReleases>false</overWriteReleases>
-              <overWriteSnapshots>
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>
 								true
 							</overWriteSnapshots>
-              <overWriteIfNewer>true</overWriteIfNewer>
-              <stripVersion>false</stripVersion>
-              <excludeScope>provided</excludeScope>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>1.7</version>
-        <executions>
-          <execution>
-            <phase>generate-sources</phase>
-            <goals>
-              <goal>add-source</goal>
-            </goals>
-            <configuration>
-              <sources>
-                <source>target/src</source>
-              </sources>
-            </configuration>
-          </execution>
-          <execution>
-            <id>attach-artifacts</id>
-            <phase>package</phase>
-            <goals>
-              <goal>attach-artifact</goal>
-            </goals>
-            <configuration>
-              <artifacts>
-                <artifact>
-                  <file>
+							<overWriteIfNewer>true</overWriteIfNewer>
+							<stripVersion>false</stripVersion>
+							<excludeScope>provided</excludeScope>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.codehaus.mojo</groupId>
+				<artifactId>build-helper-maven-plugin</artifactId>
+				<version>1.7</version>
+				<executions>
+					<execution>
+						<phase>generate-sources</phase>
+						<goals>
+							<goal>add-source</goal>
+						</goals>
+						<configuration>
+							<sources>
+								<source>target/src</source>
+							</sources>
+						</configuration>
+					</execution>
+					<execution>
+						<id>attach-artifacts</id>
+						<phase>package</phase>
+						<goals>
+							<goal>attach-artifact</goal>
+						</goals>
+						<configuration>
+							<artifacts>
+								<artifact>
+									<file>
 										target/install4j/SoffidIAMSync_linux.rpm
 									</file>
-                  <type>rpm</type>
-                </artifact>
-                <artifact>
-                  <file>
+									<type>rpm</type>
+								</artifact>
+								<artifact>
+									<file>
 										target/install4j/SoffidIAMSync_windows.exe
 									</file>
-                  <type>exe</type>
-                </artifact>
-                <artifact>
-                  <file>
+									<type>exe</type>
+								</artifact>
+								<artifact>
+									<file>
 										target/install4j/SoffidIAMSync_windows-x64.exe
 									</file>
-                  <type>x64.exe</type>
-                </artifact>
-                <artifact>
-                  <file>
+									<type>x64.exe</type>
+								</artifact>
+								<artifact>
+									<file>
 										target/install4j/SoffidIAMSync_unix.sh
 									</file>
-                  <type>sh</type>
-                </artifact>
-                <artifact>
-                  <file>
+									<type>sh</type>
+								</artifact>
+								<artifact>
+									<file>
 										target/install4j/SoffidIAMSync_unix_nojre.sh
 									</file>
-                  <type>nojre.sh</type>
-                </artifact>
-                <artifact>
-                  <file>
+									<type>nojre.sh</type>
+								</artifact>
+								<artifact>
+									<file>
 										target/install4j/SoffidIAMSync_linux.deb
 									</file>
-                  <type>deb</type>
-                </artifact>
-              </artifacts>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-jar-plugin</artifactId>
-        <configuration>
-          <archive>
-            <index>true</index>
-            <manifest>
-              <addClasspath>true</addClasspath>
-            </manifest>
-          </archive>
-        </configuration>
-      </plugin>
-    </plugins>
-    <pluginManagement>
-      <plugins>
-        <!--This plugin's configuration is used to store Eclipse m2e settings 
+									<type>deb</type>
+								</artifact>
+							</artifacts>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<index>true</index>
+						<manifest>
+							<addClasspath>true</addClasspath>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+		</plugins>
+		<pluginManagement>
+			<plugins>
+				<!--This plugin's configuration is used to store Eclipse m2e settings 
 					only. It has no influence on the Maven build itself. -->
-        <plugin>
-          <groupId>org.eclipse.m2e</groupId>
-          <artifactId>lifecycle-mapping</artifactId>
-          <version>1.0.0</version>
-          <configuration>
-            <lifecycleMappingMetadata>
-              <pluginExecutions>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
 											org.apache.maven.plugins
 										</groupId>
-                    <artifactId>
+										<artifactId>
 											maven-dependency-plugin
 										</artifactId>
-                    <versionRange>
+										<versionRange>
 											[2.0,)
 										</versionRange>
-                    <goals>
-                      <goal>
+										<goals>
+											<goal>
 												copy-dependencies
 											</goal>
-                      <goal>unpack</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
-                </pluginExecution>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>
+											<goal>unpack</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
 											org.andromda.maven.plugins
 										</groupId>
-                    <artifactId>
+										<artifactId>
 											andromda-multi-source-plugin
 										</artifactId>
-                    <versionRange>
+										<versionRange>
 											[3.2,)
 										</versionRange>
-                    <goals>
-                      <goal>add-source</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
-                </pluginExecution>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>
+										<goals>
+											<goal>add-source</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
 											es.caib.seycon
 										</groupId>
-                    <artifactId>
+										<artifactId>
 											caib-rmic-plugin
 										</artifactId>
-                    <versionRange>
+										<versionRange>
 											[1.0,)
 										</versionRange>
-                    <goals>
-                      <goal>rmic</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
-                </pluginExecution>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>
+										<goals>
+											<goal>rmic</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
 											com.soffid.tools
 										</groupId>
-                    <artifactId>
+										<artifactId>
 											mda-maven-plugin
 										</artifactId>
-                    <versionRange>
+										<versionRange>
 											[1.0.6,)
 										</versionRange>
-                    <goals>
-                      <goal>mda</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
-                </pluginExecution>
-                <pluginExecution>
-                  <pluginExecutionFilter>
-                    <groupId>
+										<goals>
+											<goal>mda</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>
 											org.codehaus.mojo
 										</groupId>
-                    <artifactId>
+										<artifactId>
 											build-helper-maven-plugin
 										</artifactId>
-                    <versionRange>
+										<versionRange>
 											[1.1,)
 										</versionRange>
-                    <goals>
-                      <goal>add-source</goal>
-                    </goals>
-                  </pluginExecutionFilter>
-                  <action>
-                    <ignore />
-                  </action>
-                </pluginExecution>
-              </pluginExecutions>
-            </lifecycleMappingMetadata>
-          </configuration>
-        </plugin>
-      </plugins>
-    </pluginManagement>
-  </build>
-  <dependencies>
-    <!--dependency> <groupId>mysql</groupId> <artifactId>mysql-connector-java</artifactId> 
+										<goals>
+											<goal>add-source</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
+	</build>
+	<dependencies>
+		<!--dependency> <groupId>mysql</groupId> <artifactId>mysql-connector-java</artifactId> 
 			<version>5.0.4</version> <scope>provided</scope> </dependency -->
-    <dependency>
-      <groupId>commons-fileupload</groupId>
-      <artifactId>commons-fileupload</artifactId>
-      <version>1.2.1</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-io</groupId>
-      <artifactId>commons-io</artifactId>
-      <version>1.2</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-collections</groupId>
-      <artifactId>commons-collections</artifactId>
-      <version>3.1</version>
-    </dependency>
-    <dependency>
-      <groupId>es.caib.signatura.api</groupId>
-      <artifactId>signaturaapi</artifactId>
-      <version>2.3</version>
-    </dependency>
-    <dependency>
-      <groupId>javax.servlet</groupId>
-      <artifactId>servlet-api</artifactId>
-      <version>2.4</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>jboss</groupId>
-      <artifactId>jboss-j2ee</artifactId>
-      <version>3.2.8-5</version>
-    </dependency>
-    <dependency>
-      <groupId>bouncycastle</groupId>
-      <artifactId>bcprov-jdk16</artifactId>
-      <version>140</version>
-    </dependency>
-    <dependency>
-      <groupId>bouncycastle</groupId>
-      <artifactId>bcmail-jdk16</artifactId>
-      <version>140</version>
-    </dependency>
-    <dependency>
-      <groupId>javax.mail</groupId>
-      <artifactId>mail</artifactId>
-      <version>1.4</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.oracle</groupId>
-      <artifactId>ojdbc14</artifactId>
-      <version>10.2.0.4.0</version>
-      <classifier>noseal</classifier>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.microsoft.sqlserver</groupId>
-      <artifactId>sqljdbc4</artifactId>
-      <version>3.0</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>mysql</groupId>
-      <artifactId>mysql-connector-java</artifactId>
-      <version>5.1.21</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>axis</groupId>
-      <artifactId>axis</artifactId>
-      <version>1.4</version>
-      <scope>compile</scope>
-    </dependency>
-    <dependency>
-      <groupId>java.sun.com</groupId>
-      <artifactId>plugin.jar</artifactId>
-      <version>1.5</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.mortbay.jetty</groupId>
-      <artifactId>jetty</artifactId>
-      <version>6.1.11</version>
-    </dependency>
-    <dependency>
-      <groupId>dom4j</groupId>
-      <artifactId>dom4j</artifactId>
-      <version>1.6.1</version>
-      <exclusions>
-        <exclusion>
-          <groupId>xml-apis</groupId>
-          <artifactId>xml-apis</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <!-- Validació de certificats -->
-    <dependency>
-      <groupId>es.caib.signatura.valcert</groupId>
-      <artifactId>valcert-client-axis</artifactId>
-      <version>1.6.1</version>
-      <type>jar</type>
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <groupId>bouncycastle</groupId>
-          <artifactId>bcprov-jdk14</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>bouncycastle</groupId>
-          <artifactId>bctsp-jdk14</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>bouncycastle</groupId>
-          <artifactId>bcmail-jdk14</artifactId>
-        </exclusion>
-        <exclusion>
-          <groupId>axis</groupId>
-          <artifactId>axis-wsdl4j</artifactId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <artifactId>iam-common</artifactId>
-      <groupId>com.soffid.iam.console</groupId>
-      <version>${iam.version}</version>
-    </dependency>
-    <dependency>
-      <artifactId>iam-core</artifactId>
-      <groupId>com.soffid.iam.console</groupId>
-      <version>${iam.version}</version>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <artifactId>iam-webservice</artifactId>
-      <groupId>com.soffid.iam.console</groupId>
-      <version>${iam.version}</version>
-      <type>war</type>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>org.apache.xerces</groupId>
-      <artifactId>xml-apis</artifactId>
-      <version>2.10.0</version>
-    </dependency>
-    <dependency>
-      <groupId>commons-logging</groupId>
-      <artifactId>commons-logging</artifactId>
-      <version>1.0.4</version>
-    </dependency>
-    <dependency>
-      <groupId>org.slf4j</groupId>
-      <artifactId>slf4j-log4j12</artifactId>
-      <version>1.6.4</version>
-    </dependency>
-    <dependency>
-      <groupId>log4j</groupId>
-      <artifactId>log4j</artifactId>
-      <version>1.2.14</version>
-    </dependency>
-    <dependency>
-      <groupId>org.jbpm.jbpm3</groupId>
-      <artifactId>jbpm-jpdl</artifactId>
-      <version>3.3.1.GA</version>
-      <scope>provided</scope>
-      <exclusions>
-        <exclusion>
-          <artifactId>jackrabbit-core</artifactId>
-          <groupId>org.apache.jackrabbit</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>commons-logging</artifactId>
-          <groupId>commons-logging</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>bsh</artifactId>
-          <groupId>bsh</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>junit</artifactId>
-          <groupId>junit</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>ant</artifactId>
-          <groupId>org.apache.ant</groupId>
-        </exclusion>
-        <exclusion>
-          <artifactId>dom4j</artifactId>
-          <groupId>dom4j</groupId>
-        </exclusion>
-      </exclusions>
-    </dependency>
-    <dependency>
-      <groupId>org.beanshell</groupId>
-      <artifactId>bsh</artifactId>
-      <version>2.0b4</version>
-    </dependency>
-    <dependency>
-      <groupId>com.soffid.iam.sync.w32</groupId>
-      <artifactId>eris-ad-filter</artifactId>
-      <version>1.1.0</version>
-      <type>dll</type>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.soffid.iam.sync.w64</groupId>
-      <artifactId>eris-ad-filter</artifactId>
-      <version>1.1.0</version>
-      <type>dll</type>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.soffid.iam.sync.w32</groupId>
-      <artifactId>eris-ad-service</artifactId>
-      <version>1.0.3</version>
-      <type>exe</type>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.soffid.iam.sync.w64</groupId>
-      <artifactId>eris-ad-service</artifactId>
-      <version>1.0.3</version>
-      <type>exe</type>
-      <scope>provided</scope>
-    </dependency>
-    <dependency>
-      <groupId>com.soffid.iam.console</groupId>
-      <artifactId>dbtools</artifactId>
-      <version>1.10</version>
-    </dependency>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <version>3.8.1</version>
-      <scope>test</scope>
-    </dependency>
-    <dependency>
-      <groupId>image4j.sf.net</groupId>
-      <artifactId>image4j</artifactId>
-      <version>0.7</version>
-    </dependency>
-    <dependency>
-    	<groupId>com.soffid.iam.sync.w32</groupId>
-    	<artifactId>usradm</artifactId>
-    	<version>2.0.1</version>
-    	<type>exe</type>
-    </dependency>
-    <dependency>
-    	<groupId>commons-beanutils</groupId>
-    	<artifactId>commons-beanutils</artifactId>
-    	<version>1.7.0</version>
-    </dependency>
-  </dependencies>
-  <reporting>
-    <plugins>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-javadoc-plugin</artifactId>
-        <configuration>
-          <skip>false</skip>
-          <additionalJOption>-J-Xmx128m</additionalJOption>
-        </configuration>
-      </plugin>
-    </plugins>
-  </reporting>
-  <profiles>
-    <profile>
-      <id>partial</id>
-      <activation>
-        <activeByDefault>false</activeByDefault>
-      </activation>
-    </profile>
-    <profile>
-      <id>full</id>
-      <activation>
-        <activeByDefault>true</activeByDefault>
-      </activation>
-      <build>
-        <plugins>
-          <plugin>
-            <artifactId>maven-antrun-plugin</artifactId>
-            <version>1.7</version>
-            <executions>
-              <execution>
-                <id>default-cli</id>
-                <phase>package</phase>
-                <configuration>
-                  <target>
-                    <taskdef name="install4j" classname="com.install4j.Install4JTask" classpath="${env.INSTALL4J_HOME}/bin/ant.jar" />
-                    <install4j projectfile="src/install-agent/seycon agent.install4j">
-                      <variable name="seycon.version" value="${pom.version}" />
-                    </install4j>
-                  </target>
-                </configuration>
-                <goals>
-                  <goal>run</goal>
-                </goals>
-              </execution>
-            </executions>
-          </plugin>
-        </plugins>
-      </build>
-    </profile>
-  </profiles>
-  <pluginRepositories>
-    <pluginRepository>
-      <id>soffid-open</id>
-      <url>http://www.soffid.com/maven</url>
-    </pluginRepository>
-  </pluginRepositories>
-  <repositories>
-    <repository>
-      <id>central</id>
-      <url>http://repo1.maven.org/maven2</url>
-    </repository>
-    <repository>
-      <id>soffid-open</id>
-      <url>http://www.soffid.com/maven</url>
-    </repository>
-    <repository>
-      <id>jboss</id>
-      <url>https://repository.jboss.org/nexus/content/repositories/releases</url>
-    </repository>
-  </repositories>
-  <distributionManagement>
-    <repository>
-      <uniqueVersion>true</uniqueVersion>
-      <id>soffid-open</id>
-      <name>Soffid Maven repository</name>
-      <url>${soffid.deploy.url}</url>
-    </repository>
-    <site>
-      <id>soffid-open</id>
-      <name>Soffid Maven site repository</name>
-      <url>${soffid.deploy.site.url}/syncserver</url>
-    </site>
-  </distributionManagement>
+		<dependency>
+			<groupId>commons-fileupload</groupId>
+			<artifactId>commons-fileupload</artifactId>
+			<version>1.2.1</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<version>1.2</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-collections</groupId>
+			<artifactId>commons-collections</artifactId>
+			<version>3.1</version>
+		</dependency>
+		<dependency>
+			<groupId>es.caib.signatura.api</groupId>
+			<artifactId>signaturaapi</artifactId>
+			<version>2.3</version>
+		</dependency>
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>servlet-api</artifactId>
+			<version>2.4</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>jboss</groupId>
+			<artifactId>jboss-j2ee</artifactId>
+			<version>3.2.8-5</version>
+		</dependency>
+		<dependency>
+			<groupId>bouncycastle</groupId>
+			<artifactId>bcprov-jdk16</artifactId>
+			<version>140</version>
+		</dependency>
+		<dependency>
+			<groupId>bouncycastle</groupId>
+			<artifactId>bcmail-jdk16</artifactId>
+			<version>140</version>
+		</dependency>
+		<dependency>
+			<groupId>javax.mail</groupId>
+			<artifactId>mail</artifactId>
+			<version>1.4</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.oracle</groupId>
+			<artifactId>ojdbc14</artifactId>
+			<version>10.2.0.4.0</version>
+			<classifier>noseal</classifier>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.microsoft.sqlserver</groupId>
+			<artifactId>sqljdbc4</artifactId>
+			<version>3.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.21</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>axis</groupId>
+			<artifactId>axis</artifactId>
+			<version>1.4</version>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>java.sun.com</groupId>
+			<artifactId>plugin.jar</artifactId>
+			<version>1.5</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mortbay.jetty</groupId>
+			<artifactId>jetty</artifactId>
+			<version>6.1.11</version>
+		</dependency>
+		<dependency>
+			<groupId>dom4j</groupId>
+			<artifactId>dom4j</artifactId>
+			<version>1.6.1</version>
+			<exclusions>
+				<exclusion>
+					<groupId>xml-apis</groupId>
+					<artifactId>xml-apis</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<!-- Validació de certificats -->
+		<dependency>
+			<groupId>es.caib.signatura.valcert</groupId>
+			<artifactId>valcert-client-axis</artifactId>
+			<version>1.6.1</version>
+			<type>jar</type>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<groupId>bouncycastle</groupId>
+					<artifactId>bcprov-jdk14</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>bouncycastle</groupId>
+					<artifactId>bctsp-jdk14</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>bouncycastle</groupId>
+					<artifactId>bcmail-jdk14</artifactId>
+				</exclusion>
+				<exclusion>
+					<groupId>axis</groupId>
+					<artifactId>axis-wsdl4j</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<artifactId>iam-common</artifactId>
+			<groupId>com.soffid.iam.console</groupId>
+			<version>${iam.version}</version>
+		</dependency>
+		<dependency>
+			<artifactId>iam-core</artifactId>
+			<groupId>com.soffid.iam.console</groupId>
+			<version>${iam.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<artifactId>iam-webservice</artifactId>
+			<groupId>com.soffid.iam.console</groupId>
+			<version>${iam.version}</version>
+			<type>war</type>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.xerces</groupId>
+			<artifactId>xml-apis</artifactId>
+			<version>2.10.0</version>
+		</dependency>
+		<dependency>
+			<groupId>commons-logging</groupId>
+			<artifactId>commons-logging</artifactId>
+			<version>1.0.4</version>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-log4j12</artifactId>
+			<version>1.6.4</version>
+		</dependency>
+		<dependency>
+			<groupId>log4j</groupId>
+			<artifactId>log4j</artifactId>
+			<version>1.2.14</version>
+		</dependency>
+		<dependency>
+			<groupId>org.jbpm.jbpm3</groupId>
+			<artifactId>jbpm-jpdl</artifactId>
+			<version>3.3.1.GA</version>
+			<scope>provided</scope>
+			<exclusions>
+				<exclusion>
+					<artifactId>jackrabbit-core</artifactId>
+					<groupId>org.apache.jackrabbit</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>commons-logging</artifactId>
+					<groupId>commons-logging</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>bsh</artifactId>
+					<groupId>bsh</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>junit</artifactId>
+					<groupId>junit</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>ant</artifactId>
+					<groupId>org.apache.ant</groupId>
+				</exclusion>
+				<exclusion>
+					<artifactId>dom4j</artifactId>
+					<groupId>dom4j</groupId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.beanshell</groupId>
+			<artifactId>bsh</artifactId>
+			<version>2.0b4</version>
+		</dependency>
+		<dependency>
+			<groupId>com.soffid.iam.sync.w32</groupId>
+			<artifactId>eris-ad-filter</artifactId>
+			<version>1.1.0</version>
+			<type>dll</type>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.soffid.iam.sync.w64</groupId>
+			<artifactId>eris-ad-filter</artifactId>
+			<version>1.1.0</version>
+			<type>dll</type>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.soffid.iam.sync.w32</groupId>
+			<artifactId>eris-ad-service</artifactId>
+			<version>1.0.3</version>
+			<type>exe</type>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.soffid.iam.sync.w64</groupId>
+			<artifactId>eris-ad-service</artifactId>
+			<version>1.0.3</version>
+			<type>exe</type>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.soffid.iam.console</groupId>
+			<artifactId>dbtools</artifactId>
+			<version>1.10</version>
+		</dependency>
+		<dependency>
+			<groupId>junit</groupId>
+			<artifactId>junit</artifactId>
+			<version>3.8.1</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>image4j.sf.net</groupId>
+			<artifactId>image4j</artifactId>
+			<version>0.7</version>
+		</dependency>
+		<dependency>
+			<groupId>com.soffid.iam.sync.w32</groupId>
+			<artifactId>usradm</artifactId>
+			<version>2.0.1</version>
+			<type>exe</type>
+		</dependency>
+		<dependency>
+			<groupId>commons-beanutils</groupId>
+			<artifactId>commons-beanutils</artifactId>
+			<version>1.7.0</version>
+		</dependency>
+	</dependencies>
+	<reporting>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-javadoc-plugin</artifactId>
+				<configuration>
+					<skip>false</skip>
+					<additionalJOption>-J-Xmx128m</additionalJOption>
+				</configuration>
+			</plugin>
+		</plugins>
+	</reporting>
+	<profiles>
+		<profile>
+			<id>partial</id>
+			<activation>
+				<activeByDefault>false</activeByDefault>
+			</activation>
+		</profile>
+		<profile>
+			<id>full</id>
+			<activation>
+				<activeByDefault>true</activeByDefault>
+			</activation>
+			<build>
+				<plugins>
+					<plugin>
+						<artifactId>maven-antrun-plugin</artifactId>
+						<version>1.7</version>
+						<executions>
+							<execution>
+								<id>default-cli</id>
+								<phase>package</phase>
+								<configuration>
+									<target>
+										<taskdef name="install4j" classname="com.install4j.Install4JTask"
+											classpath="${env.INSTALL4J_HOME}/bin/ant.jar" />
+										<install4j projectfile="src/install-agent/seycon agent.install4j">
+											<variable name="seycon.version" value="${pom.version}" />
+										</install4j>
+									</target>
+								</configuration>
+								<goals>
+									<goal>run</goal>
+								</goals>
+							</execution>
+							<execution>
+								<id>docker</id>
+								<configuration>
+									<tasks>
+										<exec failonerror="true" executable="docker" dir="${project.basedir}">
+											<arg value="build" />
+											<arg value="-f" />
+											<arg value="target/docker/Dockerfile" />
+											<arg value="-t" />
+											<arg value="soffid/iam-sync:${pom.version}" />
+											<arg value="." />
+										</exec>
+									</tasks>
+								</configuration>
+								<goals>
+									<goal>run</goal>
+								</goals>
+							</execution>
+						</executions>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
+	<pluginRepositories>
+		<pluginRepository>
+			<id>soffid-open</id>
+			<url>http://www.soffid.com/maven</url>
+		</pluginRepository>
+	</pluginRepositories>
+	<repositories>
+		<repository>
+			<id>central</id>
+			<url>http://repo1.maven.org/maven2</url>
+		</repository>
+		<repository>
+			<id>soffid-open</id>
+			<url>http://www.soffid.com/maven</url>
+		</repository>
+		<repository>
+			<id>jboss</id>
+			<url>https://repository.jboss.org/nexus/content/repositories/releases</url>
+		</repository>
+	</repositories>
+	<distributionManagement>
+		<repository>
+			<uniqueVersion>true</uniqueVersion>
+			<id>soffid-open</id>
+			<name>Soffid Maven repository</name>
+			<url>${soffid.deploy.url}</url>
+		</repository>
+		<site>
+			<id>soffid-open</id>
+			<name>Soffid Maven site repository</name>
+			<url>${soffid.deploy.site.url}/syncserver</url>
+		</site>
+	</distributionManagement>
 </project>

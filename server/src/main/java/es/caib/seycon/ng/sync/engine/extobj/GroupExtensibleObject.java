@@ -107,6 +107,8 @@ public class GroupExtensibleObject extends ExtensibleObject
     			}
     			obj = dadesList;
     		}
+    		else if ("attributes".equals(attribute))
+    			obj = grup.getAttributes();
     		else
     			return null;
    			put (attribute, obj);
