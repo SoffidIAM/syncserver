@@ -8,7 +8,7 @@
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.soffid.iam.sync</groupId>
   <artifactId>syncserver</artifactId>
-  <version>1.7.7-SNAPSHOT</version>
+  <version>1.8.1</version>
   <packaging>jar</packaging>
   <name>Soffid IAM Sync server</name>
   <properties>
@@ -18,7 +18,7 @@
   </properties>
   <scm>
         <connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
-    <tag>HEAD</tag>
+    <tag>syncserver-1.8.1</tag>
   </scm>
   <licenses>
     <license>
@@ -670,8 +670,7 @@
 								<phase>package</phase>
 								<configuration>
 									<target>
-										<taskdef name="install4j" classname="com.install4j.Install4JTask"
-											classpath="${env.INSTALL4J_HOME}/bin/ant.jar" />
+										<taskdef name="install4j" classname="com.install4j.Install4JTask" classpath="${env.INSTALL4J_HOME}/bin/ant.jar" />
 										<install4j projectfile="src/install-agent/seycon agent.install4j">
 											<variable name="seycon.version" value="${pom.version}" />
 										</install4j>
