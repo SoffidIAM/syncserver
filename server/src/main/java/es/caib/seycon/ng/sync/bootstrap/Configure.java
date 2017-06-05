@@ -47,7 +47,7 @@ public class Configure {
                     .println("  -main -hostname .. -dbuser .. -dbpass .. -dburl ..");
             System.out
                     .println("  -hostname .. -server .. -user .. -pass ..");
-            System.exit(0);
+            System.exit(1);
         }
 
         try {
@@ -58,6 +58,7 @@ public class Configure {
                 parseSecondParameters(args);
             }
             log.info("Configuration successfully done.");
+            System.exit(0);
         } catch (CertificateEnrollDenied e) {
             System.err.println ("Your certificate request has been denied.");
         } catch (CertificateEnrollWaitingForAproval e) {
@@ -65,6 +66,7 @@ public class Configure {
         } catch (InternalErrorException e) {
         	System.err.println ("Internal error: "+e.toString());
         }
+        System.exit(1);
 
     }
 

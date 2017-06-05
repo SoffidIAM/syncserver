@@ -62,6 +62,8 @@ public class RoleExtensibleObject extends ExtensibleObject
     			obj = role.getContrasenya();
     		else if ("description".equals(attribute))
     			obj = role.getDescripcio();
+    		else if ("wfmanaged".equals(attribute))
+    			obj = role.getGestionableWF();
     		else if ("ownedRoles".equals(attribute))
     		{
     			List<ExtensibleObject> ownedRoles = new LinkedList<ExtensibleObject>();
@@ -137,6 +139,8 @@ public class RoleExtensibleObject extends ExtensibleObject
     			}
     			obj = accounts;
     		}
+    		else if ("attributes".equals(attribute))
+    			obj = role.getAttributes();
     		else
     			return null;
 

@@ -18,6 +18,7 @@ import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -662,6 +663,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		} 
 		catch (Exception e)
 		{
+			log.info("Error performing authoritative data load process", e);
 			result.append ("*************\n");
 			result.append ("**  ERROR **\n");
 			result.append ("*************\n");
@@ -697,6 +699,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					else
 					{
 						result.append("Change to user "+change.getUser().getCodi()+" is rejected by pre-insert trigger\n");
+						log.info("Change to user "+change.getUser().getCodi()+" is rejected by pre-insert trigger");
 						ok = false;
 					}
 				}
@@ -714,6 +717,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					else
 					{
 						result.append("Change to user "+change.getUser().getCodi()+" is rejected by pre-update trigger\n");
+						log.info("Change to user "+change.getUser().getCodi()+" is rejected by pre-update trigger");
 						ok = false;
 					}
 				}
@@ -722,15 +726,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			{
 				if (authoritativeService
 						.startAuthoritativeChange(change))
+				{
 					result.append(
 							"Applied authoritative change for  ")
 							.append(change.getUser().getCodi())
 							.append("\n");
+					log.info(
+							"Applied authoritative change for  "+change.getUser().getCodi());
+				}
 				else
+				{
+					log.info("Prepared authoritative change for  "+change.getUser().getCodi());
 					result.append(
 							"Prepared authoritative change for  ")
 							.append(change.getUser().getCodi())
 							.append("\n");
+				}
 
 				if (previousUser == null)
 				{
@@ -753,6 +764,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			}
 		} catch ( Exception e) {
 			error = true;
+			log.info("Error uploading change "+change.getId().toString(), e);
+			log.info("User information: "+change.getUser().toString());
 			result.append ("Error uploading change ")
 				.append(change.getId().toString())
 				.append(":");
@@ -762,7 +775,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				.append ("\n");
 			result.append("User information: ").append(change.getUser()).append("\n");
 		}
-		return true;
+		return error;
 	}
 
 	private UserExtensibleObject buildExtensibleObject(
@@ -2244,11 +2257,54 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 								.getMaquin()));
 				reconcileAccount.setProposedAction(AccountProposedAction.CREATE_NEW_USER);
 				reconcileAccount.setDispatcher(getDispatcher().getCodi());
+				reconcileAccount.setAttributes(user.getAttributes());
+				reconcileAccount.setNewAccount(Boolean.TRUE);
+				reconcileAccount.setDeletedAccount(Boolean.FALSE);
+				reconcileAccount.setAttributes(new HashMap<String, Object>());
+				if (user.getAttributes() != null)
+					reconcileAccount.getAttributes().putAll(user.getAttributes());
 				reconcileService.addUser(reconcileAccount);
 			}
 		}
 		else
+		{
+			user = reconcileManager.getAccountInfo(taskHandler.getTask().getUsuari());
+			if (user == null)
+				return;
+			boolean anyChange = account.isDisabled() != user.isDisabled();
+			anyChange = anyChange || (user.getDescription() != null && ! account.getDescription().equals(user.getDescription()));
+			if (user.getAttributes() != null)
+			{
+				for (String att: user.getAttributes().keySet())
+				{
+					Object value = user.getAttributes().get(att);
+					if (value != null && ! value.equals(account.getAttributes().get(att)))
+						anyChange = true;
+				}
+			}
+			if (anyChange)
+			{
+				// Set user parameters
+				reconcileAccount = new ReconcileAccount();
+				reconcileAccount.setAccountName(user.getName());
+				if (user.getDescription() == null)
+					reconcileAccount.setDescription(account.getDescription());
+				else
+					reconcileAccount.setDescription(user.getDescription());
+				reconcileAccount.setProcessId(Long.parseLong(taskHandler.getTask()
+								.getMaquin()));
+				reconcileAccount.setProposedAction(AccountProposedAction.UPDATE_ACCOUNT);
+				reconcileAccount.setDispatcher(getDispatcher().getCodi());
+				reconcileAccount.setAttributes(user.getAttributes());
+				reconcileAccount.setNewAccount(Boolean.FALSE);
+				reconcileAccount.setDeletedAccount(Boolean.FALSE);
+				reconcileAccount.setAttributes(new HashMap<String, Object>());
+				if (user.getAttributes() != null)
+					reconcileAccount.getAttributes().putAll(user.getAttributes());
+				reconcileService.addUser(reconcileAccount);				
+			}
 			grants = server.getAccountRoles(accountName, getDispatcher().getCodi());
+		}
 		
 		for (RolGrant role : reconcileManager.getAccountGrants(taskHandler.getTask().getUsuari()))
 		{

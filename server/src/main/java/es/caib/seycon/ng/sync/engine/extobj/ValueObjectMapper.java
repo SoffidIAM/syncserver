@@ -372,6 +372,9 @@ public class ValueObjectMapper
 		grup.setSeccioPressupostaria(toSingleString(object.get("accountingGroup")));
 		grup.setTipus(toSingleString(object.get("type")));
 		grup.setUnitatOfimatica(toSingleString(object.get("driveLetter")));
+		Object map = object.get("attributes");
+		if (map != null && map instanceof Map)
+			grup.setAttributes((Map<String, Object>) map);
 		return grup;
 	}
 	
@@ -442,6 +445,9 @@ public class ValueObjectMapper
 				}
 				rol.setOwnerGroups(ownerGroups);
 			}
+			Object map = object.getAttribute("attributes");
+			if (map != null && map instanceof Map)
+				rol.setAttributes((Map<String, Object>) map);
 		}
 		return rol;
 	}
