@@ -227,6 +227,8 @@ public class JettyServer implements PublisherInterface
         log.info("Listening on https://{}:{}/", ip == null ? "0.0.0.0": ip, new Integer(port));
         connector.setKeystore(SeyconKeyStore.getKeyStoreFile()
                 .getAbsolutePath());
+        connector.setPassword(SeyconKeyStore.getKeyStorePassword()
+                .getPassword());
         connector.setKeyPassword(SeyconKeyStore.getKeyStorePassword()
                 .getPassword());
         connector.setKeystoreType(SeyconKeyStore.getKeyStoreType());
