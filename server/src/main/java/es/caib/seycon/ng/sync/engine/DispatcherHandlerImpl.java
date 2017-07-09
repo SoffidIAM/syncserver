@@ -670,6 +670,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			result.append (e.toString());
 			result.append("\n\nStack trace:\n")
 				.append(SoffidStackTrace.getStackTrace(e));
+			if (result.length() > 32000)
+			{
+				result.replace(0, result.length()-32000, "** TRUNCATED FILE ***\n...");
+			}
 			task.setError(true);
 		}
 		
@@ -2511,8 +2515,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			result.append (e.toString()).append ("\n");
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			try {
+				log.warn("Error during reconcile process", e);
 				SoffidStackTrace.printStackTrace(e, new PrintStream(out, true, "UTF-8"));
 				result.append (out.toString("UTF-8"));
+				if (result.length() > 32000)
+				{
+					result.replace(0, result.length()-32000, "** TRUNCATED FILE ***\n...");
+				}
 			} catch (Exception e2) {}
 		}
 	}
