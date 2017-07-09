@@ -227,6 +227,7 @@ public class ReconcileEngine2
 					existingAccount.setDispatcher(dispatcher.getCodi());
 					Account acc2 = new Account (acc);
 					
+					boolean anyChange = false;
 					boolean isUnmanaged = acc != null && acc.getId() != null && 
 							(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
 					
@@ -247,40 +248,75 @@ public class ReconcileEngine2
 
 					if (! isUnmanaged &&
 							existingAccount.getDescription() != null && 
-							existingAccount.getDescription().trim().length() > 0)
+							existingAccount.getDescription().trim().length() > 0 &&
+							!existingAccount.getDescription().equals(acc.getDescription()))
+					{
+						anyChange = true;
 						acc.setDescription(existingAccount.getDescription());
+					}
 					
-					if (existingAccount.getLastPasswordSet() != null)
+					if (existingAccount.getLastPasswordSet() != null &&
+							!existingAccount.getLastPasswordSet().equals(acc.getLastPasswordSet()))
+					{
+						anyChange = true;
 						acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
+					}
 					
-					if (existingAccount.getLastUpdated() != null)
+					if (existingAccount.getLastUpdated() != null &&
+							!existingAccount.getLastUpdated().equals(acc.getLastUpdated()))
+					{
 						acc.setLastUpdated(existingAccount.getLastUpdated());
+						anyChange = true;
+					}
 					
-					if (existingAccount.getPasswordExpiration() != null)
+					if (existingAccount.getPasswordExpiration() != null &&
+							!existingAccount.getPasswordExpiration().equals(acc.getPasswordExpiration()))
+					{
 						acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
+						anyChange = true;
+					}
+								
 					
 					if (isUnmanaged && existingAccount.getAttributes() != null)
-						acc.getAttributes().putAll(existingAccount.getAttributes());
-					
-					if (isUnmanaged)
-						acc.setDisabled(existingAccount.isDisabled());
-					
-					if (isUnmanaged)
-						log.append ("Updating account ").append (accountName).append ('\n');
-					else
-						log.append ("Fetching password attributes for ").append (accountName).append ('\n');
-					
-					try {
-						accountService.updateAccount(acc);
-
-						executeTriggers(postUpdate, 
-								new AccountExtensibleObject(acc2, serverService),
-								new AccountExtensibleObject(acc, serverService));
-					} catch (AccountAlreadyExistsException e) {
-						throw new InternalErrorException ("Unexpected exception", e);
+					{
+						for (String att: existingAccount.getAttributes().keySet())
+						{
+							Object v = existingAccount.getAttributes().get(att);
+							Object v2 = acc.getAttributes().get(att);
+							if (v != null &&
+									!v.equals(v2))
+							{
+								acc.getAttributes().put(att, v);
+								anyChange = true;
+							}
+						}
 					}
-					if (isUnmanaged)
-						reconcileAccountAttributes (acc, existingAccount);
+					
+					if (isUnmanaged && acc.isDisabled() != existingAccount.isDisabled())
+					{
+						acc.setDisabled(existingAccount.isDisabled());
+						anyChange = true;
+					}
+
+					if (anyChange)
+					{
+						if (isUnmanaged)
+							log.append ("Updating account ").append (accountName).append ('\n');
+						else
+							log.append ("Fetching password attributes for ").append (accountName).append ('\n');
+						
+						try {
+							accountService.updateAccount(acc);
+	
+							executeTriggers(postUpdate, 
+									new AccountExtensibleObject(acc2, serverService),
+									new AccountExtensibleObject(acc, serverService));
+						} catch (AccountAlreadyExistsException e) {
+							throw new InternalErrorException ("Unexpected exception", e);
+						}
+						if (isUnmanaged)
+							reconcileAccountAttributes (acc, existingAccount);
+					}
 					// Only reconcile grants on unmanaged accounts
 					// or read only dispatchers
 					if (isUnmanaged)
@@ -469,26 +505,7 @@ public class ReconcileEngine2
 					}
 					if (r != null)
 					{
-						boolean ok = true;
-						if (!preUpdateRole.isEmpty())
-						{
-							RoleExtensibleObject eo = new RoleExtensibleObject(r, serverService);
-							if (executeTriggers(preUpdateRole, new RoleExtensibleObject(existingRole, serverService), eo))
-								r = vom.parseRol(eo);
-							else
-							{
-								ok = false;
-								log.append ("Role "+r.getNom()+" is not loaded due to pre-update trigger failure\n");
-							}
-						}
-							
-						if (ok)
-						{
-							updateRole (existingRole, r);
-							executeTriggers(postUpdateRole, 
-									new RoleExtensibleObject(existingRole, serverService),
-									new RoleExtensibleObject(r, serverService));
-						}
+						updateRole (existingRole, r);
 					}
 				}
 			}
@@ -814,42 +831,113 @@ public class ReconcileEngine2
 
 	private Rol updateRole (Rol soffidRole, Rol systemRole) throws InternalErrorException
 	{
-		log.append ("Updating role "+soffidRole.getNom()+"\n");
-		
-		if (systemRole.getCodiAplicacio() != null)
+		Rol r = new Rol(soffidRole);
+		boolean anyChange = false;
+		if (systemRole.getCodiAplicacio() != null &&
+				!systemRole.getCodiAplicacio().equals(soffidRole.getCodiAplicacio()))
+		{
 			soffidRole.setCodiAplicacio(systemRole.getCodiAplicacio());
+			anyChange = true;
+		}
 
-		if (systemRole.getContrasenya() != null)
+		if (systemRole.getContrasenya() != null &&
+				! systemRole.getContrasenya().equals(soffidRole.getContrasenya()))
+		{
 			soffidRole.setContrasenya(systemRole.getContrasenya());
+			anyChange =true;
+		}
 		
-		if (systemRole.getDefecte() != null)
+		if (systemRole.getDefecte() != null && 
+				! systemRole.getDefecte().equals(soffidRole.getDefecte()))
+		{
+			anyChange = true;
 			soffidRole.setDefecte(systemRole.getDefecte());
-		
-		if (systemRole.getGestionableWF() != null)
+		}
+
+		if (systemRole.getGestionableWF() != null && 
+				! systemRole.getGestionableWF().equals(soffidRole.getGestionableWF()))
+		{
 			soffidRole.setGestionableWF(systemRole.getGestionableWF());
+			anyChange = true;
+		}
 
-		if (systemRole.getCategory() != null)
+		if (systemRole.getCategory() != null && !
+				systemRole.getCategory().equals(soffidRole.getCategory()))
+		{
 			soffidRole.setCategory(systemRole.getCategory());
+			anyChange = true;
+		}
 
-		if (systemRole.getDomini() != null)
+		if (systemRole.getDomini() != null &&
+				systemRole.getDomini().getNom() != null &&
+				!systemRole.getDomini().getNom().equals(soffidRole.getDomini().getNom()))
+		{
 			soffidRole.setDomini(systemRole.getDomini());
+			anyChange = true;
+		}
 
-		if (systemRole.getOwnedRoles() != null)
+		if (systemRole.getOwnedRoles() != null && !
+				systemRole.getOwnedRoles().equals(systemRole.getOwnedRoles()))
+		{
 			soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
-
-		if (systemRole.getOwnerRoles() != null)
+			anyChange = true;
+		}
+		
+		if (systemRole.getOwnerRoles() != null && !
+				systemRole.getOwnerRoles().equals(soffidRole.getOwnerRoles()))
+		{
 			soffidRole.setOwnerRoles(systemRole.getOwnerRoles());
+			anyChange = true;
+		}
 
-		if (systemRole.getOwnerGroups() != null)
+		if (systemRole.getOwnerGroups() != null && !
+				systemRole.getOwnerGroups().equals(soffidRole.getOwnerGroups()))
+		{
 			soffidRole.setOwnerGroups(systemRole.getOwnerGroups());
+			anyChange = true;
+		}
 
-		if (systemRole.getDescripcio() != null)
+		if (systemRole.getDescripcio() != null && 
+				!systemRole.getDescripcio().equals(soffidRole.getDescripcio()))
+		{
 			soffidRole.setDescripcio(systemRole.getDescripcio());
+			anyChange = true;
+			if (soffidRole.getDescripcio().length() > 150)
+				soffidRole.setDescripcio(soffidRole.getDescripcio().substring(0, 150));
+		}
 
-		if (soffidRole.getDescripcio().length() > 150)
-			soffidRole.setDescripcio(soffidRole.getDescripcio().substring(0, 150));
+		if (systemRole.getAttributes() != null && 
+				!systemRole.getAttributes().equals(soffidRole.getAttributes()))
+		{
+			soffidRole.setAttributes(systemRole.getAttributes());
+			anyChange = true;
+		}
 				
-		return appService.update(soffidRole);
+		if (anyChange)
+		{
+			boolean ok = true;
+			if (!preUpdateRole.isEmpty())
+			{
+				RoleExtensibleObject eo = new RoleExtensibleObject(soffidRole, serverService);
+				if (executeTriggers(preUpdateRole, new RoleExtensibleObject(r, serverService), eo))
+					soffidRole = vom.parseRol(eo);
+				else
+				{
+					ok = false;
+					log.append ("Role "+r.getNom()+" is not loaded due to pre-update trigger failure\n");
+				}
+			}
+				
+			if (ok)
+			{
+				log.append ("Updating role "+soffidRole.getNom()+"\n");
+				soffidRole = appService.update(soffidRole);
+				executeTriggers(postUpdateRole, 
+						new RoleExtensibleObject(r, serverService),
+						new RoleExtensibleObject(soffidRole, serverService));
+			}
+		}
+		return soffidRole;
 	}
 
 }
