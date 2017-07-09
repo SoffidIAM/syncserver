@@ -7,6 +7,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStreamWriter;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.security.Provider;
 import java.security.Security;
@@ -47,6 +49,7 @@ import org.bouncycastle.x509.util.StreamParsingException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Challenge;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.comu.sso.NameParser;
@@ -62,6 +65,7 @@ import es.caib.seycon.ng.sync.engine.challenge.ChallengeStore;
 import es.caib.seycon.ng.sync.intf.SecretStoreAgent;
 import es.caib.seycon.ng.sync.intf.UserInfo;
 import es.caib.seycon.ng.sync.servei.LogonService;
+import es.caib.seycon.ng.sync.servei.SecretStoreService;
 import es.caib.seycon.ng.sync.servei.ServerService;
 import es.caib.seycon.ng.sync.web.NameMismatchException;
 import es.caib.seycon.util.Base64;
@@ -238,14 +242,14 @@ public class CertificateLoginServlet extends HttpServlet {
         if (pkcs7 == null) {
             final String pkcs1 = req.getParameter("signature");
             final String cert = req.getParameter("cert");
-            return pkcs1Login(challenge, pkcs1, cert);
+            return pkcs1Login(req, challenge, pkcs1, cert);
         } else {
-            return pkcs7Login(challenge, pkcs7);
+            return pkcs7Login(req, challenge, pkcs7);
         }
 
     }
 
-    private String pkcs1Login(Challenge challenge, String pkcs1, String cert) throws StreamParsingException, InternalErrorException, CertificateEncodingException, ServiceException, UnknownUserException, IOException {
+    private String pkcs1Login(HttpServletRequest req, Challenge challenge, String pkcs1, String cert) throws StreamParsingException, InternalErrorException, CertificateEncodingException, ServiceException, UnknownUserException, IOException {
         byte certBytes[] = Base64.decode(cert);
         X509CertParser parser = new X509CertParser();
         Vector v = new Vector();
@@ -263,10 +267,10 @@ public class CertificateLoginServlet extends HttpServlet {
         CertificateManager mgr = new CertificateManager();
         if (!mgr.verifyCertificate(certificateChain))
             return "ERROR|Certificat incorrecte";
-        return getCredentials();
+        return getCredentials(req, challenge);
     }
 
-    private String pkcs7Login(final Challenge challenge, final String pkcs7)
+    private String pkcs7Login(HttpServletRequest req, final Challenge challenge, final String pkcs7)
             throws InternalErrorException, CertificateEncodingException,
             BitException, RemoteException, ServiceException,
             UnknownUserException, IOException {
@@ -275,31 +279,51 @@ public class CertificateLoginServlet extends HttpServlet {
         CertificateManager mgr = new CertificateManager();
         if (!mgr.verifyCertificate(certificateChain))
             return "ERROR|Certificat incorrecte";
-        return getCredentials();
+        return getCredentials(req, challenge);
     }
 
-    private String getCredentials() throws UnknownUserException,
-            InternalErrorException, CertificateEncodingException, IOException {
+    private String getCredentials(HttpServletRequest req, Challenge challenge)
+            throws InternalErrorException, CertificateEncodingException, UnknownUserException, IOException {
         try {
             Usuari user = validateUser();
+	    	boolean encode = "true".equals( req.getParameter("encode") );
             StringBuffer result = new StringBuffer("OK");
+            SecretStoreService secretStoreService = ServiceLocator.instance().getSecretStoreService();
             
-            List<Secret> secrets = ServerServiceLocator.instance().getSecretStoreService().getSecrets(user);
-            for (Iterator<Secret> it = secrets.iterator(); it.hasNext();) {
-                Secret s = it.next();
-                result.append('|');
-                result.append(s.getName());
-                result.append('|');
-                result.append(s.getValue()
-                        .getPassword());
+            for (Secret secret: secretStoreService.getAllSecrets(challenge.getUser())) {
+            	if (secret.getName() != null && secret.getName().length() > 0 &&
+            			secret.getValue() != null &&
+            			secret.getValue().getPassword() != null &&
+            			secret.getValue().getPassword().length() > 0 )
+            	{
+	                result.append('|');
+	                if (encode)
+	                	result.append( encodeSecret(secret.getName()));
+	                else
+	                	result.append(secret.getName());
+	                result.append('|');
+	                if (encode)
+		                result.append( encodeSecret(secret.getValue().getPassword()));
+	                else
+	                	result.append(secret.getValue().getPassword());
+            	}
             }
+            result.append ("|sessionKey|").append(challenge.getChallengeId());
+            if (encode)
+            	result.append ("|fullName|").append(encodeSecret(challenge.getUser().getFullName()));
+            else
+            	result.append ("|fullName|").append(challenge.getUser().getFullName());
             return result.toString();
-
-        } catch (NameMismatchException e) {
-            return "ERROR|El nom del certificat no coincideix: "
-                    + e.getMessage();
-        }
+	    } catch (NameMismatchException e) {
+	        return "ERROR|El nom del certificat no coincideix: "
+	                + e.getMessage();
+	    }
     }
+
+	private String encodeSecret(String secret)
+			throws UnsupportedEncodingException {
+		return URLEncoder.encode(secret,"UTF-8").replaceAll("|", "%7c"); 
+	}
 
     Usuari validateUser() throws UnknownUserException, InternalErrorException,
             CertificateEncodingException, IOException, NameMismatchException {

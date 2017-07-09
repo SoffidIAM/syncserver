@@ -68,6 +68,8 @@ public class GetSecretsServlet extends HttpServlet {
 
     }
 
+    
+    
     private String doSecretsAction(Usuari user, String sessionKey, boolean encode) throws InternalErrorException, UnsupportedEncodingException {
         StringBuffer result = new StringBuffer("OK");
         SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
@@ -79,22 +81,29 @@ public class GetSecretsServlet extends HttpServlet {
         	{
                 result.append('|');
                 if (encode)
-                	result.append( URLEncoder.encode(secret.getName(),"UTF-8"));
+                	result.append( encodeSecret(secret.getName()));
                 else
                 	result.append(secret.getName());
                 result.append('|');
                 if (encode)
-	                result.append( URLEncoder.encode(secret.getValue().getPassword(),"UTF-8"));
+	                result.append( encodeSecret(secret.getValue().getPassword()));
                 else
                 	result.append(secret.getValue().getPassword());
         	}
         }
         result.append ("|sessionKey|").append(sessionKey);
         if (encode)
-        	result.append ("|fullName|").append(URLEncoder.encode(user.getFullName(),"UTF-8"));
+        	result.append ("|fullName|").append(encodeSecret(user.getFullName()));
         else
         	result.append ("|fullName|").append(user.getFullName());
         return result.toString();
     }
+
+
+
+	private String encodeSecret(String secret)
+			throws UnsupportedEncodingException {
+		return URLEncoder.encode(secret,"UTF-8").replaceAll("|", "%7c"); 
+	}
 
 }
