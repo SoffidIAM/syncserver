@@ -173,9 +173,11 @@ public class ReconcileEngine2
 					else
 						acc.setDescription(existingAccount.getDescription());
 					
-					acc.setLastUpdated(Calendar.getInstance());
 					acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
-					acc.setLastUpdated(existingAccount.getLastUpdated());
+					acc.setLastUpdated(existingAccount.getLastUpdated() == null ?
+							Calendar.getInstance() :
+							existingAccount.getLastUpdated());
+					acc.setLastLogin(existingAccount.getLastLogin());
 					acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
 
 					if (existingAccount.getType() == null)
@@ -262,6 +264,13 @@ public class ReconcileEngine2
 						acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
 					}
 					
+					if (existingAccount.getLastLogin() != null &&
+							!existingAccount.getLastLogin().equals(acc.getLastLogin()))
+					{
+						anyChange = true;
+						acc.setLastLogin(existingAccount.getLastLogin());
+					}
+
 					if (existingAccount.getLastUpdated() != null &&
 							!existingAccount.getLastUpdated().equals(acc.getLastUpdated()))
 					{

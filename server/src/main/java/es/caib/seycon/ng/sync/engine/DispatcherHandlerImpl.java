@@ -770,6 +770,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			error = true;
 			log.info("Error uploading change "+change.getId().toString(), e);
 			log.info("User information: "+change.getUser().toString());
+			log.info("Exception: "+e.toString());
 			result.append ("Error uploading change ")
 				.append(change.getId().toString())
 				.append(":");
