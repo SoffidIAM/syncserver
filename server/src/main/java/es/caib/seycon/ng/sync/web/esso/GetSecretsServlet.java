@@ -103,7 +103,7 @@ public class GetSecretsServlet extends HttpServlet {
 
 	private String encodeSecret(String secret)
 			throws UnsupportedEncodingException {
-		return URLEncoder.encode(secret,"UTF-8").replaceAll("|", "%7c"); 
+		return URLEncoder.encode(secret,"UTF-8").replaceAll("\\|", "%7c"); 
 	}
 
 }
