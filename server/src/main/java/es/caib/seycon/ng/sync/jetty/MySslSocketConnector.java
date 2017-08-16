@@ -18,6 +18,7 @@ import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509KeyManager;
 
+import org.apache.commons.logging.LogFactory;
 import org.mortbay.jetty.security.SslSocketConnector;
 import org.mortbay.log.Log;
 import org.mortbay.resource.Resource;
@@ -72,7 +73,11 @@ public class MySslSocketConnector extends SslSocketConnector {
         	keystoreInputStream = Resource.newResource(getKeystore()).getInputStream();
         KeyStore keyStore = KeyStore.getInstance(getKeystoreType());
         keyStore.load(keystoreInputStream, _password==null?null:_password.toString().toCharArray());
-
+        try 
+        {
+        	keyStore.deleteEntry("secretskey");
+        } catch (Exception e) {
+        }
         KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(getSslKeyManagerFactoryAlgorithm());        
         keyManagerFactory.init(keyStore,_keyPassword==null?null:_keyPassword.toString().toCharArray());
         keyManagers = keyManagerFactory.getKeyManagers();
@@ -140,6 +145,8 @@ public class MySslSocketConnector extends SslSocketConnector {
 }
 
 class MyX509KeyManager implements X509KeyManager {
+	org.apache.commons.logging.Log log = LogFactory.getLog(getClass());
+	
 	private X509KeyManager parent;
 
 	public MyX509KeyManager(X509KeyManager parent) {
@@ -147,11 +154,15 @@ class MyX509KeyManager implements X509KeyManager {
 	}
 	
 	public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
-		return parent.chooseClientAlias(keyType, issuers, socket);
+		String s = parent.chooseClientAlias(keyType, issuers, socket);
+		log.info("Clave cliente propuesta: "+ s);
+		return s;
 	}
 
 	public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
-		return parent.chooseServerAlias(keyType, issuers, socket);
+		String s = parent.chooseServerAlias(keyType, issuers, socket);
+		log.info("Clave server propuesta: "+ s);
+		return s;
 	}
 
 	public X509Certificate[] getCertificateChain(String alias) {
@@ -159,14 +170,17 @@ class MyX509KeyManager implements X509KeyManager {
 	}
 
 	public String[] getClientAliases(String keyType, Principal[] issuers) {
-		return new String [] {SeyconKeyStore.MY_KEY};
+		return parent.getClientAliases(keyType, issuers);
+//		return new String [] {SeyconKeyStore.MY_KEY};
 	}
 
 	public PrivateKey getPrivateKey(String alias) {
+		log.info("Buscando clave "+alias);
 		return parent.getPrivateKey(alias);
 	}
 
 	public String[] getServerAliases(String keyType, Principal[] issuers) {
-		return new String [] {SeyconKeyStore.MY_KEY};
+		return parent.getServerAliases(keyType, issuers);
+//		return new String [] {SeyconKeyStore.MY_KEY};
 	}
 }
