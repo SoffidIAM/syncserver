@@ -318,6 +318,7 @@ public class ValueObjectMapper
 			else
 				account.setType(AccountType.USER);
 			account.setLastUpdated(toCalendar (object.getAttribute("lastUpdate")));
+			account.setLastLogin(toCalendar (object.getAttribute("lastLogin")));
 			account.setLastPasswordSet(toCalendar (object.getAttribute("lastPasswordUpdate")));
 			account.setPasswordExpiration(toCalendar (object.getAttribute("passwordExpiration")));
 			if (object.getAttribute("accountDisabled") != null &&
