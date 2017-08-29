@@ -30,7 +30,7 @@ public class ServerInvokerServlet extends InvokerServlet {
 		try {
 			if (userName == null)
 			{
-				tenant = "master";
+				tenant = Security.getMasterTenantName();
 				userName = "anonymous";
 			}
 			else if (userName.startsWith("-seu-"))
@@ -40,7 +40,7 @@ public class ServerInvokerServlet extends InvokerServlet {
 			}
 			else
 			{
-				int i = userName.indexOf(':');
+				int i = userName.indexOf('\\');
 				if ( i < 0 )
 				{
 					tenant = Security.getMasterTenantName();

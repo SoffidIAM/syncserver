@@ -259,7 +259,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 		if (rol == null)
 			throw new UnknownRoleException();
 
-		return rarDao.toRoleGrantList(rol.getContainedRole());
+		return rarDao.toRoleGrantList(rol.getContainedRoles());
 	}
 
 	@Override
@@ -382,7 +382,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 		GroupEntityDao grupDao = getGroupEntityDao();
 		GroupEntity grup = grupDao.load(groupId);
 		RoleGroupEntityDao rgDao = getRoleGroupEntityDao();
-		Collection<RoleGroupEntity> rols = grup.getAllowedRolesToGroup();
+		Collection<RoleGroupEntity> rols = grup.getGrantedRoles();
 		return rgDao.toRoleGrantList(rols);
 	}
 
@@ -707,7 +707,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected byte[] handleGetPluginJar(String classname) throws Exception {
 		AgentDescriptorEntity entity = getAgentDescriptorEntityDao()
-				.findByClass(classname);
+				.findByClass(Security.getCurrentTenantName(), classname);
+		if (entity == null)
+			entity = getAgentDescriptorEntityDao()
+				.findByClass(Security.getMasterTenantName(), classname);
 		if (entity == null)
 			throw new InternalErrorException(
 					Messages.getString("ServerServiceImpl.pluginNotFound") + classname); //$NON-NLS-1$
@@ -1265,7 +1268,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Plugin handleGetPlugin(String className) throws Exception {
 		AgentDescriptorEntity entity = getAgentDescriptorEntityDao()
-				.findByClass(className);
+				.findByClass(Security.getCurrentTenantName(), className);
+		if (entity == null)
+			entity = getAgentDescriptorEntityDao()
+				.findByClass(Security.getMasterTenantName(), className);
 		if (entity == null)
 			throw new InternalErrorException(
 					Messages.getString("ServerServiceImpl.pluginNotFound") + className); //$NON-NLS-1$

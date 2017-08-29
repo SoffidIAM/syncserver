@@ -167,7 +167,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         log.info("Looking for agent updates", null, null);
         ArrayList<DispatcherHandlerImpl> oldDispatchers = new ArrayList<DispatcherHandlerImpl>(
                 dispatchers);
-        Collection<SystemEntity> entities = getSystemEntityDao().findAllTenantSystems();
+        Collection<SystemEntity> entities = getSystemEntityDao().findServerTenants( config.getHostName());
         // Reconfigurar dispatcher modificats
         for (Iterator<SystemEntity> it = entities.iterator(); it.hasNext(); ) {
             SystemEntity dispatcherEntity = it.next();
@@ -200,8 +200,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                                 handler.setInternalId(id);
                                 dispatchers.remove(oldHandler);
                                 dispatchers.add(handler);
-                                dm = getDispatchersMap ( newDispatcher.getTenant());
-                                dispatchersMap.put(newDispatcher.getName(), handler);
+                                Map<String, DispatcherHandlerImpl> dm = getDispatchersMap ( newDispatcher.getTenant());
+                                dm.put(newDispatcher.getName(), handler);
                                 if (newThread)
                                 	handler.start();
                                 anySharedThreadChange = true;
@@ -232,7 +232,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             handler.setSystem(dis);
             handler.setInternalId(id);
             dispatchers.add(handler);
-            dispatchersMap.put(dis.getName(), handler);
+            Map<String, DispatcherHandlerImpl> dm = getDispatchersMap ( entity.getTenant().getName());
+            dm.put(dis.getName(), handler);
             if (dis.getSharedDispatcher() == null || ! dis.getSharedDispatcher().booleanValue())
             	handler.start();
             else
@@ -316,7 +317,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 
 	@Override
 	protected DispatcherHandler handleGetDispatcher(String id) throws Exception {
-		return dispatchersMap.get(id);
+		return dispatchersMap.get(Security.getCurrentTenantName()).get(id);
 	}
 	
 	
