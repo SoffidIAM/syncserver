@@ -44,7 +44,7 @@ public class SeyconUserRealm implements UserRealm {
 			Vector v2 = name.getValues(X509Name.OU);
 			String userName = URLEncoder.encode(v.get(0).toString(), "UTF-8");
 			if (v2.size() > 0)
-				userName = URLEncoder.encode(v2.get(0).toString(), "UTF-8") + ":" + userName;
+				userName = URLEncoder.encode(v2.get(0).toString(), "UTF-8") + "\\" + userName;
 			return new SimplePrincipal (userName);
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException(e);
