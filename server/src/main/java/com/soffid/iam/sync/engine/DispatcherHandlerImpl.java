@@ -22,6 +22,7 @@ import com.soffid.iam.model.AuditEntity;
 import com.soffid.iam.model.AuditEntityDao;
 import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.TaskEntityDao;
+import com.soffid.iam.model.TenantEntity;
 import com.soffid.iam.model.TenantEntityDao;
 import com.soffid.iam.reconcile.common.AccountProposedAction;
 import com.soffid.iam.reconcile.common.ProposedAction;
@@ -1226,7 +1227,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            te.setPasswordsDomain(getSystem().getPasswordsDomain());
 		            te.setPassword(t.getPassword().toString());
 		            te.setUser(ua.getUser());
-		            te.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
+		            te.setTenant( tenantDao.findByName( getSystem().getTenant() ));
 		            taskqueue.addTask(te);
 		            
 		            AuditEntity auditoria = auditoriaDao.newAuditEntity();
@@ -1744,6 +1745,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		TaskEntity taskEntity;				// Task entity
 		ReconcileMgr reconcileManager = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
 		ReconcileMgr2 reconcileManager2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
+		
+		TenantEntity tenant = tenantDao.findByName(getSystem().getTenant());
 
 		// Create reconcile user task for users
 		for (String user : (reconcileManager2 == null ? reconcileManager.getAccountsList() : reconcileManager2.getAccountsList())) {
@@ -1754,7 +1757,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 taskEntity.setHost(taskHandler.getTask().getHost());
                 taskEntity.setUser(user);
                 taskEntity.setSystemName(getSystem().getName());
-	            taskEntity.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
+	            taskEntity.setTenant( tenant );
                 taskqueue.addTask(taskEntity);
             }
         }
@@ -1765,7 +1768,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
 		taskEntity.setHost(taskHandler.getTask().getHost());
 		taskEntity.setSystemName(getSystem().getName());
-        taskEntity.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
+        taskEntity.setTenant( tenant );
 
 		taskqueue.addTask(taskEntity);
 	}
@@ -1998,6 +2001,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		throws InternalErrorException, RemoteException
 	{
 		TaskEntity taskEntity;		// Task entity
+		TenantEntity tenant = tenantDao.findByName(getSystem().getTenant());
+		
 		ReconcileMgr reconcileManager = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
 		ReconcileMgr2 reconcileManager2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
 
@@ -2015,7 +2020,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 taskEntity.setRole(role);
                 taskEntity.setDb(getSystem().getName());
                 taskEntity.setSystemName(getSystem().getName());
-	            taskEntity.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
+	            taskEntity.setTenant( tenant );
                 taskqueue.addTask(taskEntity);
             }
         }
@@ -2026,7 +2031,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
 		taskEntity.setHost(taskHandler.getTask().getHost());
 		taskEntity.setSystemName(getSystem().getName());
-        taskEntity.setTenant( tenantDao.load( Security.getTenantId( getSystem().getTenant() )));
+        taskEntity.setTenant( tenant );
 
 		taskqueue.addTask(taskEntity);
 	}
