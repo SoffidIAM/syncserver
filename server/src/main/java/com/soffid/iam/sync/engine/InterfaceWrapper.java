@@ -13,6 +13,7 @@ import java.util.Vector;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AttributeTranslation;
+import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.MailList;
@@ -33,6 +34,7 @@ import com.soffid.iam.sync.agent.Plugin;
 import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFinder;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
+import com.soffid.iam.sync.intf.CustomObjectMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.GroupMgr;
 import com.soffid.iam.sync.intf.HostMgr;
@@ -843,6 +845,10 @@ public class InterfaceWrapper {
 						UnknownUserException {
 					return PasswordValidation.valueOf( agent.validatePassword(account, dispatcherId, Password.toPassword(p)).toString());
 				}
+
+				public CustomObject getCustomObject(String type, String name) throws InternalErrorException {
+					return agent.getCustomObject(type, name);
+				}
 			};
 	}
 
@@ -855,5 +861,9 @@ public class InterfaceWrapper {
 				return agent.find( es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject(pattern));
 			}
 		};
+	}
+
+	public static CustomObjectMgr getCustomObjectMgr(Object agent) {
+		return (CustomObjectMgr) agent;
 	}
 }

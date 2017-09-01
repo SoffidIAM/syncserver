@@ -18,6 +18,7 @@ import com.soffid.iam.api.UserData;
 import com.soffid.iam.sync.service.ServerService;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 /**
@@ -109,6 +110,18 @@ public class UserExtensibleObject extends ExtensibleObject
     			obj = usuari.getCreatedByUser();
     		else if ("modifiedBy".equals(attribute))
     			obj = usuari.getModifiedByUser();
+    		else if ("primaryGroupObject".equals(attribute))
+    		{
+    			Group group = null;
+				try {
+					group = serverService.getGroupInfo(usuari.getPrimaryGroup(), account.getSystem());
+				} catch (UnknownGroupException e) {
+				}
+    			if (group == null)
+    				obj = null;
+    			else
+    				obj = new GroupExtensibleObject(group, account.getSystem(), serverService);
+    		}
     		else if ("secondaryGroups".equals(attribute))
     		{
     			Collection<Group> groups;

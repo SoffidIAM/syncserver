@@ -83,7 +83,7 @@ public class KerberosManager {
         return result;
     }
 
-    public System getDispatcherForRealm (String domain) throws InternalErrorException 
+    public System getSystemForRealm (String domain) throws InternalErrorException 
     {
         System result = null;
     	for (System d: getSystemsForRealm(domain))
@@ -117,9 +117,9 @@ public class KerberosManager {
     private void generateKrbConfig() throws IOException, InternalErrorException {
         File config = getConfigFile();
 
-        System.setProperty("java.security.krb5.conf", config.getAbsolutePath());
-        System.setProperty("sun.security.krb5.debug", "true");
-        System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+        java.lang.System.setProperty("java.security.krb5.conf", config.getAbsolutePath());
+        java.lang.System.setProperty("sun.security.krb5.debug", "true");
+        java.lang.System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
         StringBuffer realms = new StringBuffer();
         boolean reconfig = false;
         String defaultRealm = null;
@@ -201,7 +201,7 @@ public class KerberosManager {
                 log.warn("Unable to configure kerberos realm " + domain, e);
             }
         }
-        if (kc == null || kc.lastSet.getTime() - System.currentTimeMillis() > MAX_CACHE_TIME) {
+        if (kc == null || kc.lastSet.getTime() - java.lang.System.currentTimeMillis() > MAX_CACHE_TIME) {
             if (kc == null)
                 kc = new KerberosCache();
             kerberosLogin(domain, kc);

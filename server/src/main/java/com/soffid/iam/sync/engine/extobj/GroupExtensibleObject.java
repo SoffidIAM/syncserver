@@ -14,17 +14,17 @@ import com.soffid.iam.api.Group;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
+import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownGroupException;
-import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 
 /**
  * @author bubu
  *
  */
-public class GroupExtensibleObject extends ExtensibleObject
+public class GroupExtensibleObject extends es.caib.seycon.ng.sync.intf.ExtensibleObject
 {
 	Group grup;
 	ServerService serverService;
@@ -108,6 +108,8 @@ public class GroupExtensibleObject extends ExtensibleObject
     			}
     			obj = dadesList;
     		}
+    		else if ("attributes".equals(attribute))
+    			obj = grup.getAttributes();
     		else
     			return null;
    			put (attribute, obj);

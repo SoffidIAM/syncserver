@@ -2,8 +2,15 @@ package com.soffid.iam.sync.service;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AgentStatusInfo;
+import com.soffid.iam.api.Group;
+import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
+import com.soffid.iam.api.Role;
+import com.soffid.iam.api.RoleGrant;
+import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.SyncServerInfo;
+import com.soffid.iam.api.System;
+import com.soffid.iam.api.Task;
 import com.soffid.iam.api.User;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AccountEntity;
@@ -18,7 +25,17 @@ import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
+import com.soffid.iam.sync.engine.TaskHandler;
+import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.GrantExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.MailListExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.MembershipExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
+import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
+import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.SyncStatusServiceBase;
 import com.soffid.iam.sync.service.TaskQueue;
@@ -26,6 +43,9 @@ import com.soffid.iam.sync.service.TaskQueue;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
+import es.caib.seycon.ng.exception.UnknownGroupException;
+import es.caib.seycon.ng.exception.UnknownMailListException;
+import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 
 import java.io.ByteArrayOutputStream;
@@ -469,7 +489,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 
 		ExtensibleObject source = null;
 		source = generateSourceObject(dispatcher, type, object1, object2);
-		Dispatcher d = getServerService().getDispatcherInfo(dispatcher);
+		System d = getServerService().getDispatcherInfo(dispatcher);
 		Map<String, Object> result = new HashMap<String, Object>();
 
 		for (String att: sentences.keySet())
@@ -497,7 +517,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			{
 				acc = new Account();
 				acc.setName(object1);
-				acc.setDispatcher(dispatcher);
+				acc.setSystem(dispatcher);
 				acc.setDisabled(true);
 			}
 			source = new AccountExtensibleObject(acc, getServerService());
@@ -505,20 +525,20 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_GROUP) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_GROUP))
 		{
-			Grup g = null;
+			Group g = null;
 			try {
 				g = getServerService().getGroupInfo(object2, dispatcher);
 			} catch (UnknownGroupException e) {
-				g = new Grup();
-				g.setCodi(object2);
+				g = new Group();
+				g.setName(object2);
 			}
-			Usuari u;
+			User u;
 			try {
 				u = getServerService().getUserInfo(object1, dispatcher);
 			} catch (UnknownUserException e) {
-				u = new Usuari();
-				u.setCodi(object1);
-				u.setActiu(false);
+				u = new User();
+				u.setUserName(object1);
+				u.setActive(false);
 			}
 			Account acc = getServerService().getAccountInfo(object1, dispatcher);
 			source = new MembershipExtensibleObject(acc, u, g, getServerService());
@@ -528,89 +548,89 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 				type.equals(SoffidObjectType.OBJECT_GRANT))
 		{
 			Account acc = getServerService().getAccountInfo(object1, dispatcher);
-			RolGrant grant = null;
+			RoleGrant grant = null;
 			if (type.equals(SoffidObjectType.OBJECT_GRANT))
 			{
 				try {
-					for ( Grup group: getServerService().getUserGroups(object1, dispatcher))
+					for ( Group group: getServerService().getUserGroups(object1, dispatcher))
 					{
-						if (group.getCodi().equals (object2))
+						if (group.getName().equals (object2))
 						{
-							grant = new RolGrant();
-							grant.setDispatcher(dispatcher);
+							grant = new RoleGrant();
+							grant.setSystem(dispatcher);
 							grant.setEnabled(true);
-							grant.setOwnerDispatcher(dispatcher);
-							grant.setRolName(group.getCodi());
+							grant.setOwnerSystem(dispatcher);
+							grant.setRoleName(group.getName());
 							grant.setUser(null);
 						}
 					}
 				} catch (UnknownUserException e) {
 				}
 			}
-			Collection<RolGrant> list;
+			Collection<RoleGrant> list;
 			if (type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE))
 				list = getServerService().getAccountExplicitRoles(object1, dispatcher);
 			else
 				list = getServerService().getAccountRoles(object1, dispatcher);
-			for (RolGrant grant2: list)
+			for (RoleGrant grant2: list)
 			{
-				if (grant2.getRolName().equals (object2))
+				if (grant2.getRoleName().equals (object2))
 					grant = grant2;
 			}
 			if (grant == null)
 			{
-				grant = new RolGrant();
-				grant.setDispatcher(dispatcher);
+				grant = new RoleGrant();
+				grant.setSystem(dispatcher);
 				grant.setEnabled(true);
-				grant.setOwnerDispatcher(dispatcher);
-				grant.setRolName(object2);
+				grant.setOwnerSystem(dispatcher);
+				grant.setRoleName(object2);
 			}
 			source = new GrantExtensibleObject(grant, getServerService());
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_MAIL_LIST))
 		{
-			LlistaCorreu ml = null;
+			MailList ml = null;
 			try {
 				ml = getServerService().getMailList(object1, object2);
 			} catch (UnknownMailListException e) {
 			}
 			if (ml == null)
 			{
-				ml = new LlistaCorreu();
-				ml.setCodiDomini(object2);
-				ml.setNom(object1);
+				ml = new MailList();
+				ml.setDomainCode(object2);
+				ml.setName(object1);
 			}
 			source = new MailListExtensibleObject(ml, getServerService());
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ROLE))
 		{
-			Rol role = null;
+			Role role = null;
 			try {
 				role = getServerService().getRoleInfo(object1, dispatcher);
 			} catch (UnknownRoleException e) {
 			}
 			if (role == null)
 			{
-				role = new Rol();
+				role = new Role();
 			}
 			source = new RoleExtensibleObject(role, getServerService());
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_USER))
 		{
-			Usuari u;
+			User u;
 			try {
 				u = getServerService().getUserInfo(object1, dispatcher);
 			} catch (UnknownUserException e) {
-				u = new Usuari();
-				u.setCodi(object1);
-				u.setActiu(false);
+				u = new User();
+				u.setUserName(object1);
+				u.setActive(false);
 			}
 			Account acc = getServerService().getAccountInfo(object1, dispatcher);
 			if (acc == null)
 			{
 				acc = new Account();
 				acc.setName(object1);
-				acc.setDispatcher(dispatcher);
+				acc.setSystem(dispatcher);
 				acc.setDisabled(true);
 			}
 			source = new UserExtensibleObject(acc, u, getServerService());
@@ -632,9 +652,9 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 
 	private TaskHandler generateObjectTask(String dispatcher, SoffidObjectType type,
 			String object1, String object2) throws InternalErrorException {
-		Tasca tasca = new Tasca();
-		tasca.setDataTasca(Calendar.getInstance());
-		tasca.setCoddis(dispatcher);
+		Task tasca = new Task();
+		tasca.setTaskDate(Calendar.getInstance());
+		tasca.setServer(dispatcher);
 		tasca.setExpirationDate(Calendar.getInstance());
 		tasca.getExpirationDate().add(Calendar.MINUTE, 5);
 		
@@ -642,42 +662,42 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		th.setTask(tasca);
 		if (type.equals(SoffidObjectType.OBJECT_ACCOUNT))
 		{
-			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
-			tasca.setUsuari(object1);
-			tasca.setBd(dispatcher);
+			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
+			tasca.setUser(object1);
+			tasca.setSystemName(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_GROUP) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_GROUP))
 		{
-			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
-			tasca.setUsuari(object1);
-			tasca.setBd(dispatcher);
+			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
+			tasca.setUser(object1);
+			tasca.setSystemName(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE) ||
 				type.equals(SoffidObjectType.OBJECT_GRANT))
 		{
-			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
-			tasca.setUsuari(object1);
-			tasca.setBd(dispatcher);
+			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
+			tasca.setUser(object1);
+			tasca.setSystemName(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_MAIL_LIST))
 		{
-			tasca.setTransa(TaskHandler.UPDATE_LIST_ALIAS);
-			tasca.setAlies(object1);
-			tasca.setDomcor(object2);
+			tasca.setTransaction(TaskHandler.UPDATE_LIST_ALIAS);
+			tasca.setAlias(object1);
+			tasca.setMailDomain(object2);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ROLE))
 		{
-			tasca.setTransa(TaskHandler.UPDATE_ROLE);
+			tasca.setTransaction(TaskHandler.UPDATE_ROLE);
 			tasca.setRole(object1);
-			tasca.setBd(object2);
+			tasca.setSystemName(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_USER))
 		{
-			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
-			tasca.setUsuari(object1);
-			tasca.setBd(dispatcher);
+			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
+			tasca.setUser(object1);
+			tasca.setSystemName(dispatcher);
 		}
 		
 		return th;
@@ -690,10 +710,10 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			if (!log.isComplete())
 			{
-				log.setNext(System.currentTimeMillis());
+				log.setNext(java.lang.System.currentTimeMillis());
 			}
 		}
-		th.getTask().setDataTasca(Calendar.getInstance());
+		th.getTask().setTaskDate(Calendar.getInstance());
 	}
 
 	@Override

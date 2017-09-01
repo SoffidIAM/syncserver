@@ -15,7 +15,6 @@ import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.utils.Security;
 
-
 /**
  * @author bubu
  *
@@ -37,8 +36,9 @@ public class UpdateTaskStatusThread extends Thread
         TaskQueue taskQueue = ServerServiceLocator.instance().getTaskQueue();
         while (true)
         {
+    		TaskHandler task = null;
         	try {
-        		TaskHandler task = taskQueue.peekTaskToPersist();
+        		task = taskQueue.peekTaskToPersist();
         		Security.nestedLogin(task.getTenant(),
         				hostname,
         				permissions);
@@ -51,6 +51,32 @@ public class UpdateTaskStatusThread extends Thread
         	} catch (Throwable e)
         	{
         		log.warn("Error on update tasks thread", e);
+        		if (task != null && task.getTask() != null)
+        		{
+        			log.warn("Task details: "+task.getTask().toString());
+        			if (task.getLogs() != null)
+        			{
+        				for (TaskHandlerLog tl : task.getLogs())
+        				{
+        					StringBuffer sb = new StringBuffer();
+        					sb.append (">> ");
+        					if (tl.getDispatcher() != null && tl.getDispatcher().getSystem() != null)
+        						sb.append (tl.getDispatcher().getSystem().getName());
+        					else
+        						sb.append ("Unknown dispatcher");
+        					sb.append (": ");
+        					if (tl.isComplete())
+        						sb.append ("DONE");
+        					else 
+        					{
+        						sb.append ("ERROR ")
+        							.append (tl.getReason());
+        					}
+        							
+        					log.warn (sb.toString());
+        				}
+        			}
+        		}
         		try {
 					Thread.sleep(2000);
 				} catch (InterruptedException e1) {

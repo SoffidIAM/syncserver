@@ -110,7 +110,7 @@ public class MazingerMenuServlet extends HttpServlet {
 
         if ("S".equals(punt.getMenu())) {
             buffer.append("MENU|");
-            buffer.append(removeSlash(punt.getNom()));
+            buffer.append(removeSlash(punt.getName()));
             buffer.append("|");
             for (AccessTree child : puntEntradaService.findChildren(punt)) {
                 generatePuntEntrada(child, buffer);
@@ -119,7 +119,7 @@ public class MazingerMenuServlet extends HttpServlet {
         } else if (!punt.getExecutions().isEmpty()) {
             buffer.append(punt.getId());
             buffer.append("|");
-            buffer.append(removeSlash(punt.getNom()));
+            buffer.append(removeSlash(punt.getName()));
             buffer.append("|");
             buffer.append(punt.getId() == null ? "-1" : punt.getId().toString());
             buffer.append("|");

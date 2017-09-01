@@ -26,6 +26,7 @@ import com.soffid.iam.service.SessionService;
 import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.SoffidApplication;
+import com.soffid.iam.sync.engine.challenge.ChallengeStore;
 import com.soffid.iam.sync.engine.session.SessionManager;
 import com.soffid.iam.utils.Security;
 
@@ -98,9 +99,9 @@ public class KeepaliveSessionServlet extends HttpServlet {
                 else
                 {
                     Host maq = xarxaService.findHostByName(sessio.getServerHostName());
-                    if (maq == null || (maq.getAdreca() != null &&
+                    if (maq == null || (maq.getIp() != null &&
                     		!maq.getIp().equals(req.getRemoteAddr()))) {
-                    	log ("User "+user+" trying to keep alive session created on "+maq.getAdreca()+" from host "+req.getRemoteAddr());
+                    	log ("User "+user+" trying to keep alive session created on "+maq.getIp()+" from host "+req.getRemoteAddr());
                         writer.write("EXPIRED|Invalid host");
                     } else {
                     	sessioService.sessionKeepAlive(sessio);

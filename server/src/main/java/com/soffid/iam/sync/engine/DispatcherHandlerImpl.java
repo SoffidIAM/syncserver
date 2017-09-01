@@ -30,8 +30,10 @@ import org.jbpm.graph.exe.ProcessInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Configuration;
+import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.MailList;
@@ -64,6 +66,7 @@ import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.ConfigurationService;
+import com.soffid.iam.service.CustomObjectService;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.GroupService;
 import com.soffid.iam.service.InternalPasswordService;
@@ -73,6 +76,7 @@ import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
@@ -81,6 +85,7 @@ import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
 import com.soffid.iam.sync.intf.AuthoritativeChange;
+import com.soffid.iam.sync.intf.CustomObjectMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.intf.GroupMgr;
@@ -155,6 +160,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private UserDomainService domainService;
 	private UserService userService;
 	private GroupService groupService;
+	private CustomObjectService objectService;
 	private InternalPasswordService internalPasswordService;
 	private AccountService accountService;
 	private es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator attributeTranslator;
@@ -203,6 +209,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         reconcileService = ServerServiceLocator.instance().getReconcileService();
         authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
         dispatcherService = ServerServiceLocator.instance().getDispatcherService();
+        objectService = ServiceLocator.instance().getCustomObjectService();
         
         active = true;
     }
@@ -324,6 +331,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         } else if (trans.equals(TaskHandler.UPDATE_LIST_ALIAS)) {
             return !readOnly && (implemented(agent, es.caib.seycon.ng.sync.intf.MailAliasMgr.class) ||
             		implemented(agent,com.soffid.iam.sync.intf.MailAliasMgr.class));
+        } else if (trans.equals(TaskHandler.UPDATE_OBJECT)) {
+            return !readOnly && (implemented(agent, CustomObjectMgr.class));
         }
 		else if (trans.equals(TaskHandler.END_RECONCILE))
 		{
@@ -425,10 +434,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     boolean abort = false;
 	private TaskHandler nextTask;
 	private long waitUntil;
-	private LinkedList<ReconcileTrigger> preInsertTrigger;
-	private LinkedList<ReconcileTrigger> postInsertTrigger;
-	private LinkedList<ReconcileTrigger> preUpdateTrigger;
-	private LinkedList<ReconcileTrigger> postUpdateTrigger;
+	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> preInsertTrigger;
+	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> postInsertTrigger;
+	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> preUpdateTrigger;
+	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> postUpdateTrigger;
 
 
     public void run() {
@@ -571,252 +580,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	 */
 	public void doAuthoritativeImport (ScheduledTask task) 
 	{
-
-		StringBuffer result = task.getLastLog();
-		try {
-			preInsertTrigger = new LinkedList<ReconcileTrigger>();
-			postInsertTrigger = new LinkedList<ReconcileTrigger>();
-			preUpdateTrigger = new LinkedList<ReconcileTrigger>();
-			postUpdateTrigger = new LinkedList<ReconcileTrigger>();
-			for (ReconcileTrigger trigger: dispatcherService.findReconcileTriggersByDispatcher(system.getId()))
-			{
-				if (trigger.getObjectType().equals(SoffidObjectType.OBJECT_USER))
-				{
-					if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_INSERT))
-						preInsertTrigger.add (trigger);
-					else if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_UPDATE))
-						preUpdateTrigger.add (trigger);
-					if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_INSERT))
-						postInsertTrigger.add (trigger);
-					if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_UPDATE))
-						postUpdateTrigger.add (trigger);
-				}
-			}
-			ObjectTranslator objectTranslator = new ObjectTranslator (system);
-			ValueObjectMapper vom = new ValueObjectMapper();
-
-    		Object agent = connect(false);
-    	
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source = InterfaceWrapper.getAuthoritativeIdentitySource(agent);
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource2 source2 = InterfaceWrapper.getAuthoritativeIdentitySource2(agent);
-    		if (source != null)
-    		{
-    			Collection<com.soffid.iam.sync.intf.AuthoritativeChange> changes = source.getChanges();
-    			if ( changes != null && !changes.isEmpty())
-    			{
-	    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
-	    	        {
-	    	        	processChange(change, source, result, objectTranslator, vom);
-	    	        }
-	    			changes = source.getChanges();
-    			}
-    		} else if (source2 != null)
-    		{
-    			ConfigurationService cfgSvc = ServerServiceLocator.instance().getConfigurationService();
-    			String lastId = null;
-    			String cfgId = "soffid.sync.authoritative.change."+getSystem().getName();
-    			Configuration cfg = cfgSvc.findParameterByNameAndNetworkName(cfgId, null);
-    			if (cfg != null)
-    				lastId = cfg.getValue();
-				boolean anyError = false;
-				boolean moreData;
-				do
-				{
-					Collection<com.soffid.iam.sync.intf.AuthoritativeChange> changes;
-					changes = source2.getChanges(lastId);
-					if (changes == null || changes.isEmpty())
-						break;
-	    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
-	    	        {
-	    	        	if ( processChange(change, null, result, objectTranslator, vom) )
-	    	        		anyError = true;
-	    	        }
-   				} while (source2.hasMoreData());
-				String nextChange = source2.getNextChange() ;
-				if (! anyError && nextChange != null)
-				{
-					if (cfg == null) {
-						cfg = new Configuration();
-						cfg.setValue(nextChange);
-						cfg.setCode(cfgId);
-						cfg.setDescription("Last authoritative change id loaded");
-						cfgSvc.create(cfg);
-					} else {
-						cfg.setValue(nextChange);
-						cfgSvc.update(cfg);
-					}
-				}
-    		} else {
-    			result.append ("This agent does not support account reconciliation");
-    		}
-		} 
-		catch (Exception e)
-		{
-			log.info("Error performing authoritative data load process", e);
-			result.append ("*************\n");
-			result.append ("**  ERROR **\n");
-			result.append ("*************\n");
-			result.append (e.toString());
-			result.append("\n\nStack trace:\n")
-				.append(SoffidStackTrace.getStackTrace(e));
-			if (result.length() > 32000)
-			{
-				result.replace(0, result.length()-32000, "** TRUNCATED FILE ***\n...");
-			}
-			task.setError(true);
-		}
-		
-	}
-
-	private boolean processChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, StringBuffer result,
-			ObjectTranslator objectTranslator, ValueObjectMapper vom) {
-		boolean error = false;
-		change.setSourceSystem(getSystem().getName());
-		try {
-			User previousUser = change.getUser() == null ||
-					change.getUser().getUserName() == null ? null :
-						userService.findUserByUserName(change.getUser().getUserName());
-			boolean ok = true;
-			if (previousUser == null)
-			{
-				if (! preInsertTrigger.isEmpty())
-				{
-					UserExtensibleObject eo = buildExtensibleObject(change);
-					eo.setAttribute("attributes", change.getAttributes());
-					if (executeTriggers(preInsertTrigger, null, eo, objectTranslator))
-					{
-						change.setUser( vom.parseUser(eo));
-						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
-					}
-					else
-					{
-						result.append("Change to user "+change.getUser().getUserName()+" is rejected by pre-insert trigger\n");
-						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-insert trigger");
-						ok = false;
-					}
-				}
-			} else {
-				if (! preUpdateTrigger.isEmpty())
-				{
-					UserExtensibleObject eo = buildExtensibleObject(change);
-					if (executeTriggers(preUpdateTrigger, 
-							new UserExtensibleObject(new Account (), previousUser, server), 
-							eo, objectTranslator))
-					{
-						change.setUser( vom.parseUser(eo));
-						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
-					}
-					else
-					{
-						result.append("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger\n");
-						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger");
-						ok = false;
-					}
-				}
-			}
-			if (ok)
-			{
-				if (authoritativeService
-						.startAuthoritativeChange(change))
-				{
-					result.append(
-							"Applied authoritative change for  ")
-							.append(change.getUser().getUserName())
-							.append("\n");
-					log.info(
-							"Applied authoritative change for  "+change.getUser().getUserName());
-				}
-				else
-				{
-					log.info("Prepared authoritative change for  "+change.getUser().getUserName());
-					result.append(
-							"Prepared authoritative change for  ")
-							.append(change.getUser().getUserName())
-							.append("\n");
-				}
-
-				if (previousUser == null)
-				{
-					if (! postInsertTrigger.isEmpty())
-					{
-						UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
-						executeTriggers(postInsertTrigger, null, eo, objectTranslator);
-					}
-				} else {
-					if (! postUpdateTrigger.isEmpty())
-					{
-						UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
-						executeTriggers(postUpdateTrigger, 
-								new UserExtensibleObject(new Account (), previousUser, server), 
-								eo, objectTranslator);
-					}
-				}
-				if (source != null)
-					source.commitChange(change.getId());
-			}
-		} catch ( Exception e) {
-			error = true;
-			log.info("Error uploading change "+change.getId().toString(), e);
-			log.info("User information: "+change.getUser().toString());
-			log.info("Exception: "+e.toString());
-			result.append ("Error uploading change ")
-				.append(change.getId().toString())
-				.append(":");
-			StringWriter sw = new StringWriter();
-			e.printStackTrace (new PrintWriter(sw));
-			result.append(sw.getBuffer())
-				.append ("\n");
-			result.append("User information: ").append(change.getUser()).append("\n");
-		}
-		return error;
-	}
-
-	private UserExtensibleObject buildExtensibleObject(
-			AuthoritativeChange change) throws InternalErrorException {
-		UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
-		eo.setAttribute("attributes", change.getAttributes());
-		List<ExtensibleObject> l = new LinkedList<ExtensibleObject>();
-		if (change.getGroups() != null)
-		{
-			for (String s: change.getGroups())
-			{
-				Group g = null;
-				
-				try {
-					g = server.getGroupInfo(s, getName());
-				} catch (UnknownGroupException e) {
-				}
-				
-				if (g == null)
-				{
-					ExtensibleObject eo2 = new ExtensibleObject();
-					eo2.setAttribute("name", s);
-					l.add(eo2);
-				}
-				else
-				{
-					l.add( new GroupExtensibleObject(g, getName(), server));
-				}
-			}
-		}
-		eo.setAttribute("secondaryGroups", l);
-		return eo;
-	}
-
-	private boolean executeTriggers (List<ReconcileTrigger> triggerList, ExtensibleObject old, ExtensibleObject newObject, ObjectTranslator objectTranslator) throws InternalErrorException
-	{
-		ExtensibleObject eo = new ExtensibleObject ();
-		eo.setAttribute("oldObject", old);
-		eo.setAttribute("newObject", newObject);
-		boolean ok = true;
-		for (ReconcileTrigger t: triggerList)
-		{
-			if (! objectTranslator.evalExpression(eo, t.getScript()))
-				ok = false;
-		}
-		
-		return ok;
+		AuthoritativeLoaderEngine engine = new AuthoritativeLoaderEngine(this);
+		engine.doAuthoritativeImport(task);
 	}
 
 	private TaskHandler processAndLogTask (TaskHandler t) throws InternalErrorException
@@ -1022,6 +787,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		else if (trans.equals(TaskHandler.RECONCILE_ROLES))
 		{
 			reconcileRoles(agent, t);
+		}
+		else if (trans.equals(TaskHandler.UPDATE_OBJECT))
+		{
+			updateObject(agent, t);
 		}
 		else if (trans.equals(TaskHandler.UPDATE_PRINTER))
 		{
@@ -1281,7 +1050,27 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     	}
     }
 
-    // TODO: Fix
+    private void updateObject(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+        CustomObjectMgr objectMgr = InterfaceWrapper.getCustomObjectMgr (agent);
+        if (objectMgr == null)
+        	return;
+        
+    	if (t.getTask().getCustomObjectName() != null &&
+    			t.getTask().getCustomObjectType() != null)
+    	{
+        	CustomObject ot = server.getCustomObject(t.getTask().getCustomObjectType(), t.getTask().getCustomObjectName());
+        	if (ot != null)
+        	{
+        		objectMgr.updateCustomObject(ot);
+	        } else {
+	        	ot = new CustomObject();
+	        	ot.setName(t.getTask().getCustomObjectName());
+	        	ot.setType(t.getTask().getCustomObjectType());
+	            objectMgr.removeCustomObject(ot);
+	        }
+    	}
+    }
+
     private void createFolder(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
         SharedFolderMgr sharedFolderMgr = InterfaceWrapper.getSharedFolderMgr ( agent );
         if (sharedFolderMgr == null)
@@ -1697,7 +1486,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      * @throws IOException
      * @throws IOException
      */
-    private Object connect(boolean mainAgent) throws ClassNotFoundException, InstantiationException,
+    public Object connect(boolean mainAgent) throws ClassNotFoundException, InstantiationException,
             IllegalAccessException, InvocationTargetException, InternalErrorException, IOException {
         URLManager um = new URLManager(getSystem().getUrl());
         Object agent;

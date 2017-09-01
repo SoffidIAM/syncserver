@@ -49,6 +49,7 @@ import org.bouncycastle.x509.util.StreamParsingException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Challenge;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.sso.Secret;
@@ -59,6 +60,7 @@ import com.soffid.iam.sync.engine.cert.CertificateManager;
 import com.soffid.iam.sync.engine.cert.ValidadorFactory;
 import com.soffid.iam.sync.engine.challenge.ChallengeStore;
 import com.soffid.iam.sync.service.LogonService;
+import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.web.NameMismatchException;
 import com.soffid.iam.util.NameParser;
@@ -282,7 +284,7 @@ public class CertificateLoginServlet extends HttpServlet {
     private String getCredentials(HttpServletRequest req, Challenge challenge)
             throws InternalErrorException, CertificateEncodingException, UnknownUserException, IOException {
         try {
-            Usuari user = validateUser();
+            User user = validateUser();
 	    	boolean encode = "true".equals( req.getParameter("encode") );
             StringBuffer result = new StringBuffer("OK");
             SecretStoreService secretStoreService = ServiceLocator.instance().getSecretStoreService();

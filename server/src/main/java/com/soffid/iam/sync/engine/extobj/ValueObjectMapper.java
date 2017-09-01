@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Domain;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Role;
@@ -281,17 +282,32 @@ public class ValueObjectMapper
 			else
 				account.setType(AccountType.USER);
 			account.setLastUpdated(toCalendar (object.getAttribute("lastUpdate")));
+			account.setLastLogin(toCalendar (object.getAttribute("lastLogin")));
 			account.setLastPasswordSet(toCalendar (object.getAttribute("lastPasswordUpdate")));
 			account.setPasswordExpiration(toCalendar (object.getAttribute("passwordExpiration")));
+			if (object.getAttribute("accountDisabled") != null &&
+					object.getAttribute("accountDisabled").toString().equals("true"))
+				account.setDisabled(true);
+			else
+				account.setDisabled(false);
+			if (object.getAttribute("type") != null )
+			{
+				if (object.getAttribute("type") instanceof AccountType)
+					account.setType((AccountType) object.getAttribute("type"));
+				else
+					account.setType(AccountType.fromString(object.getAttribute("type").toString()));
+			}
+			else
+				account.setType(AccountType.IGNORED);
 			Object map = object.getAttribute("accountAttributes");
 			if (map != null && map instanceof Map)
 			{
 				account.setAttributes((Map<String, Object>) map);
-			} else {
-				map = object.getAttribute("attributes");
-				if (map != null && map instanceof Map)
-					account.setAttributes((Map<String, Object>) map);
-			}
+			} 
+			
+			map = object.getAttribute("attributes");
+			if (map != null && map instanceof Map && ! ((Map)map).isEmpty())
+				account.setAttributes((Map<String, Object>) map);
 		}
 		return account;
 	}
@@ -320,6 +336,9 @@ public class ValueObjectMapper
 		grup.setSection(toSingleString(object.get("accountingGroup")));
 		grup.setType(toSingleString(object.get("type")));
 		grup.setDriveLetter(toSingleString(object.get("driveLetter")));
+		Object map = object.get("attributes");
+		if (map != null && map instanceof Map)
+			grup.setAttributes((Map<String, Object>) map);
 		return grup;
 	}
 	
@@ -390,6 +409,9 @@ public class ValueObjectMapper
 				}
 				rol.setOwnerGroups(ownerGroups);
 			}
+			Object map = object.getAttribute("attributes");
+			if (map != null && map instanceof Map)
+				rol.setAttributes((Map<String, Object>) map);
 		}
 		return rol;
 	}
@@ -427,6 +449,22 @@ public class ValueObjectMapper
 		rg.setUser(toSingleString(map.get("ownerUser")));
 		rg.setHasDomain(rg.getDomainValue() != null);
 		return rg;
+	}
+	
+	public CustomObject parseCustomObject(CustomExtensibleObject object) {
+		CustomObject o = null;
+		if (object.getObjectType().equals( SoffidObjectType.OBJECT_CUSTOM))
+		{
+			o = new CustomObject();
+			o.setId(toLong(object.getAttribute("roleId")));
+			o.setType(toSingleString(object.getAttribute("type")));
+			o.setName(toSingleString(object.getAttribute("name")));
+			o.setDescription(toSingleString(object.getAttribute("description")));
+			Object map = object.getAttribute("attributes");
+			if (map != null && map instanceof Map)
+				o.setAttributes((Map<String, Object>) map);
+		}
+		return o;
 	}
 
 }

@@ -136,6 +136,8 @@ public class RoleExtensibleObject extends ExtensibleObject
     			}
     			obj = accounts;
     		}
+    		else if ("attributes".equals(attribute))
+    			obj = role.getAttributes();
     		else
     			return null;
 

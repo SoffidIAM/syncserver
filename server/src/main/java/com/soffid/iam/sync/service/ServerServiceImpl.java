@@ -2,6 +2,7 @@ package com.soffid.iam.sync.service;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AttributeTranslation;
+import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.MailList;
@@ -1163,7 +1164,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 		AccountEntity accountEntity = getAccountEntityDao()
 				.findByNameAndSystem(account, dispatcherId);
 
-		return getApplicationService().findEffectiveRoleGrantByAccount(
+		if (accountEntity == null)
+        	return Collections.emptyList();
+        else
+	 		return getApplicationService().findEffectiveRoleGrantByAccount(
 				accountEntity.getId());
 	}
 
@@ -1434,5 +1438,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected Account handleGetAccountInfo(String accountName,
 			String dispatcherId) throws Exception {
 		return getAccountService().findAccount(accountName, dispatcherId);
+	}
+
+	@Override
+	protected CustomObject handleGetCustomObject(String type, String name) throws Exception {
+		return getCustomObjectService().findCustomObjectByTypeAndName(type, name);
 	}
 }

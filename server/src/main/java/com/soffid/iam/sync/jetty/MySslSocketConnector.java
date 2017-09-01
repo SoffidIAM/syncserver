@@ -23,8 +23,6 @@ import org.mortbay.jetty.security.SslSocketConnector;
 import org.mortbay.log.Log;
 import org.mortbay.resource.Resource;
 
-import es.caib.seycon.ssl.SeyconKeyStore;
-
 public class MySslSocketConnector extends SslSocketConnector {
     private String _password;
 	private Object pass;

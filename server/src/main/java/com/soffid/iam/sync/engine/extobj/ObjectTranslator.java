@@ -71,6 +71,7 @@ public class ObjectTranslator
 			}
 			object.setProperties(properties);
 			object.setAttributes(dispatcherService.findAttributeMappingsByObject(object.getId()));
+			object.setTriggers(dispatcherService.findObjectMappingTriggersByObject(object.getId()));
 		}
 		agentObject = new BSHAgentObject(null, null, this);
 	}
@@ -375,7 +376,12 @@ public class ObjectTranslator
 
 	public boolean evalCondition(ExtensibleObject sourceObject,
 			ExtensibleObjectMapping objectMapping) throws InternalErrorException {
-		if (objectMapping.getCondition() == null || objectMapping.getCondition().trim().length() == 0)
+		String condition = objectMapping.getCondition();
+		return evalExpression(sourceObject, condition);
+	}
+
+	public boolean evalExpression(ExtensibleObject sourceObject, String condition) throws InternalErrorException {
+		if (condition == null || condition.trim().length() == 0)
 			return true;
 		
 		Interpreter interpret = new Interpreter();
@@ -385,7 +391,7 @@ public class ObjectTranslator
 						"translator" + dispatcher.getName(), sourceObject, serverService,
 						agentObject);
 		try {
-			Object result = interpret.eval(objectMapping.getCondition(), newNs);
+			Object result = interpret.eval(condition, newNs);
 			if (result instanceof Primitive)
 			{
 				result = ((Primitive)result).getValue();
@@ -401,7 +407,7 @@ public class ObjectTranslator
 			} catch (Exception e2) {
 				msg = e.getMessage();
 			}
-			throw new InternalErrorException ("Error evaluating expression "+objectMapping.getCondition()+": "+msg);
+			throw new InternalErrorException ("Error evaluating expression "+condition+": "+msg);
 		}
 	}
 	

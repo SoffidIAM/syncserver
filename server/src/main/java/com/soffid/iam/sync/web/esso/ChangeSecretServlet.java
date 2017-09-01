@@ -184,6 +184,12 @@ public class ChangeSecretServlet extends HttpServlet {
 		           	System dispatcher = dispatcherService.findDispatcherByName(system);
 		        	PasswordPolicy politica = dominiService.findPolicyByTypeAndPasswordDomain(
 		        			acc.getPasswordPolicy(), dispatcher.getPasswordsDomain());
+		    		Long l = null;
+		    		
+		    		if (politica != null && politica.getMaximumPeriod() != null && politica.getType().equals("M")) //$NON-NLS-1$
+		    		    l = politica.getMaximumPeriod();
+		    		else if (politica != null && politica.getRenewalTime() != null && politica.getType().equals("A")) //$NON-NLS-1$
+		    			l = politica.getRenewalTime();
 		           	acs.updateAccountPasswordDate(acc, l);
 		           	ServiceLocator.instance().getLogonService().propagatePassword(account, system, value);
 	           	} else {
