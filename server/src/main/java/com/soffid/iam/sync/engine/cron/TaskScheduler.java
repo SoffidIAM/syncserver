@@ -54,6 +54,7 @@ public class TaskScheduler
 		 * 
 		 */
 		private final ScheduledTask task;
+		private boolean spawnThread;
 
 		/**
 		 * @param handler
@@ -61,75 +62,88 @@ public class TaskScheduler
 		 * @param task
 		 */
 		private ScheduledTaskRunnable (TaskHandler handler,
-						ScheduledTaskService taskSvc, ScheduledTask task)
+						ScheduledTaskService taskSvc, ScheduledTask task,
+						boolean spawnThread)
 		{
 			this.handler = handler;
 			this.taskSvc = taskSvc;
 			this.task = task;
+			this.spawnThread = spawnThread;
 		}
 
 		public void run ()
 		{
-			Security.nestedLogin(task.getTenant(),
-					hostName,
-					Security.ALL_PERMISSIONS);
-			try {
-				Thread.currentThread().setName(task.getName());
-				boolean ignore = false;
-
-				try
-				{
-					synchronized (runningTasks) {
-						if (runningTasks.contains(task.getId()))
-							ignore = true;
-						else
-							runningTasks.add(task.getId());
-					}
-					if (!ignore) {
-						log.info("Executing task " + task.getName());
-						taskSvc.registerStartTask(task);
-						task.setError(false);
-						handler.setTask(task);
-						handler.run();
-						log.info("Task finished");
-					} else 
-					{
-						log.info("Not executing task "+task.getName()+" as a previous instance is already running");
-					}
-				} catch (Throwable e) 
-				{
-					if (! ignore)
-					{
-						task.setError(true);
-						task.getLastLog()
-							.append("\nError executing task: ")
-							.append(e.toString())
-							.append("\n\nStack trace:\n")
-							.append(SoffidStackTrace.getStackTrace(e));
-						log.info("Finished task " + task.getName()+" with error:", e);
-					}
-				} finally {
-					if (!ignore) {
-						synchronized (runningTasks) {
-							runningTasks.remove(task.getId());
+			Runnable runnable = new Runnable () {
+				public void run() {
+					Security.nestedLogin(task.getTenant(),
+							hostName,
+							Security.ALL_PERMISSIONS);
+					try {
+						boolean ignore = false;
+						try
+						{
+							synchronized (runningTasks) {
+								if (runningTasks.contains(task.getId()))
+									ignore = true;
+								else
+									runningTasks.add(task.getId());
+							}
+							if (!ignore) {
+								log.info("Executing task " + task.getName());
+								taskSvc.registerStartTask(task);
+								task.setError(false);
+								handler.setTask(task);
+								handler.run();
+								log.info("Task finished");
+							} else 
+							{
+								log.info("Not executing task "+task.getName()+" as a previous instance is already running");
+							}
+						} catch (Throwable e) 
+						{
+							if (! ignore)
+							{
+								task.setError(true);
+								task.getLastLog()
+									.append("\nError executing task: ")
+									.append(e.toString())
+									.append("\n\nStack trace:\n")
+									.append(SoffidStackTrace.getStackTrace(e));
+								log.info("Finished task " + task.getName()+" with error:", e);
+							}
+						} finally {
+							if (!ignore) {
+								synchronized (runningTasks) {
+									runningTasks.remove(task.getId());
+								}
+							}
+		
 						}
+	      
+						try
+						{
+							if (! ignore)
+								taskSvc.registerEndTask(task);
+						}
+						catch (InternalErrorException e)
+						{
+							log.warn("Error registering scheduled task result ",e);
+						}
+					} finally {
+						Security.nestedLogoff();
 					}
-
 				}
-  
-				try
-				{
-					if (! ignore)
-						taskSvc.registerEndTask(task);
-				}
-				catch (InternalErrorException e)
-				{
-					log.warn("Error registering scheduled task result ",e);
-				}
-			} catch (Exception e) {
-				
-			} finally {
-				Security.nestedLogoff();
+			};
+			if (spawnThread)
+			{
+				Thread nt = new Thread ( runnable);
+				nt.setName(task.getName());
+				nt.setDaemon(true);
+				nt.start();
+			}
+			else
+			{
+				runnable.run();
 			}
 		}
 	}
@@ -168,7 +182,7 @@ public class TaskScheduler
 					handlerObject = (TaskHandler) cl.newInstance();
 				}
 				final TaskHandler h = handlerObject;
-				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task);
+				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, false);
 				r.run();
 			}
 		}
@@ -195,10 +209,34 @@ public class TaskScheduler
 		return result;
 	}
 
+	public void init () throws InternalErrorException, FileNotFoundException, IOException
+	{
+		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
+		List<ScheduledTask> list = taskSvc.listTasks();
+		
+		String hostName = Config.getConfig().getHostName();
+		
+		for (final ScheduledTask task: list)
+		{
+			if (task.isActive() && task.getServerName().equals (hostName))
+			{
+				task.setActive(false);
+				task.setError(true);
+				StringBuffer sb = new StringBuffer();
+				sb.append ("Server restarted during execution");
+				task.setLastLog(sb);
+				task.setLastEnd(Calendar.getInstance());
+				taskSvc.registerEndTask(task);
+			}
+		}
+		reconfigure ();
+	}
+	
 	public void reconfigure () throws InternalErrorException, FileNotFoundException, IOException
 	{
 		hostName = Config.getConfig().getHostName();
 		Scheduler newCronScheduler = new Scheduler();
+		newCronScheduler.setDaemon(true);
 		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
 		final ConfiguracioService configSvc = ServiceLocator.instance().getConfiguracioService();
 		
@@ -242,7 +280,7 @@ public class TaskScheduler
     					handlerObject = (TaskHandler) cl.newInstance();
     				}
     				final TaskHandler h = handlerObject;
-    				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task);
+    				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, true);
     				newCronScheduler.schedule(task.getMinutesPattern()+" "+task.getHoursPattern()+
     								" "+task.getDayPattern()+" "+task.getMonthsPattern()+
     								" "+task.getDayOfWeekPattern(), r);

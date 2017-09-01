@@ -1,6 +1,34 @@
 package com.soffid.iam.sync.engine;
 
-import bsh.EvalError;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.security.SignatureException;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+import javax.sql.DataSource;
+
+import org.jbpm.JbpmConfiguration;
+import org.jbpm.JbpmContext;
+import org.jbpm.graph.exe.ProcessInstance;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Configuration;
@@ -10,9 +38,11 @@ import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.PasswordPolicy;
+import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.ScheduledTask;
+import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserType;
@@ -30,11 +60,11 @@ import com.soffid.iam.reconcile.common.ReconcileAccount;
 import com.soffid.iam.reconcile.common.ReconcileAssignment;
 import com.soffid.iam.reconcile.common.ReconcileRole;
 import com.soffid.iam.reconcile.service.ReconcileService;
-import com.soffid.iam.remote.RemoteInvokerFactory;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.ConfigurationService;
+import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.GroupService;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.service.UserDomainService;
@@ -42,16 +72,21 @@ import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
-import com.soffid.iam.sync.bootstrap.QueryHelper;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
-import com.soffid.iam.sync.engine.db.ConnectionPool.ThreadBound;
+import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
+import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
 import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
+import com.soffid.iam.sync.intf.AuthoritativeChange;
+import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.intf.GroupMgr;
 import com.soffid.iam.sync.intf.HostMgr;
 import com.soffid.iam.sync.intf.KerberosAgent;
+import com.soffid.iam.sync.intf.LogEntry;
 import com.soffid.iam.sync.intf.MailAliasMgr;
 import com.soffid.iam.sync.intf.NetworkMgr;
 import com.soffid.iam.sync.intf.ReconcileMgr;
@@ -66,12 +101,10 @@ import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.util.Syslogger;
 import com.soffid.iam.utils.Security;
-import com.soffid.tools.db.schema.Column;
-import com.soffid.tools.db.schema.Table;
 
-import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.Dispatcher;
+import es.caib.seycon.ng.comu.SoffidObjectTrigger;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
@@ -80,58 +113,6 @@ import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
-import es.caib.seycon.ng.servei.UsuariService;
-import es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator;
-import es.caib.seycon.ng.sync.intf.LogEntry;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.Serializable;
-import java.io.StringWriter;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.net.URL;
-import java.rmi.NotBoundException;
-import java.rmi.RemoteException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
-import java.security.SignatureException;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.sql.Types;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Random;
-import java.util.Set;
-import java.util.Vector;
-
-import javax.ejb.ObjectNotFoundException;
-import javax.sql.DataSource;
-
-import org.hibernate.EntityMode;
-import org.hibernate.SessionFactory;
-import org.hibernate.classic.Session;
-import org.hibernate.metadata.ClassMetadata;
-import org.hibernate.persister.entity.AbstractEntityPersister;
-import org.hibernate.type.OneToOneType;
-import org.hibernate.type.Type;
-import org.jbpm.JbpmConfiguration;
-import org.jbpm.JbpmContext;
-import org.jbpm.context.exe.ContextInstance;
-import org.jbpm.graph.exe.ProcessInstance;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable {
     private static JbpmConfiguration jbpmConfig;
@@ -155,12 +136,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     private ChangePasswordNotificationQueue changePasswordNotificationQueue;
     private TaskEntityDao tasqueEntityDao;
 	private ReconcileService reconcileService;
-	
+
 	private AuditEntityDao auditoriaDao;
 	private static final int MAX_LENGTH = 150;
 	private static final int MAX_ROLE_CODE_LENGTH = 50;
 	private PasswordDomain passwordDomain = null;
-	private ObjectTranslator attributeTranslator;
 	private AuthoritativeChangeService authoritativeService;
 
 	private enum DispatcherStatus {
@@ -177,8 +157,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private GroupService groupService;
 	private InternalPasswordService internalPasswordService;
 	private AccountService accountService;
+	private es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator attributeTranslator;
 	private com.soffid.iam.sync.engine.extobj.ObjectTranslator attributeTranslatorV2;
 	private TenantEntityDao tenantDao;
+	private DispatcherService dispatcherService;
 
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
@@ -220,6 +202,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         tenantDao = (TenantEntityDao) ServerServiceLocator.instance().getService("tenantEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
         authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
+        dispatcherService = ServerServiceLocator.instance().getDispatcherService();
         
         active = true;
     }
@@ -419,7 +402,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     public void setSystem(com.soffid.iam.api.System dispatcher) throws InternalErrorException {
         log = LoggerFactory.getLogger(dispatcher.getName());
         super.setSystem(dispatcher);
-    	attributeTranslator = new ObjectTranslator(Dispatcher.toDispatcher(dispatcher));
+    	attributeTranslator = new es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator(Dispatcher.toDispatcher(dispatcher));
     	attributeTranslatorV2 = new com.soffid.iam.sync.engine.extobj.ObjectTranslator(dispatcher);
     }
 
@@ -442,6 +425,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     boolean abort = false;
 	private TaskHandler nextTask;
 	private long waitUntil;
+	private LinkedList<ReconcileTrigger> preInsertTrigger;
+	private LinkedList<ReconcileTrigger> postInsertTrigger;
+	private LinkedList<ReconcileTrigger> preUpdateTrigger;
+	private LinkedList<ReconcileTrigger> postUpdateTrigger;
 
 
     public void run() {
@@ -584,8 +571,30 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	 */
 	public void doAuthoritativeImport (ScheduledTask task) 
 	{
+
 		StringBuffer result = task.getLastLog();
 		try {
+			preInsertTrigger = new LinkedList<ReconcileTrigger>();
+			postInsertTrigger = new LinkedList<ReconcileTrigger>();
+			preUpdateTrigger = new LinkedList<ReconcileTrigger>();
+			postUpdateTrigger = new LinkedList<ReconcileTrigger>();
+			for (ReconcileTrigger trigger: dispatcherService.findReconcileTriggersByDispatcher(system.getId()))
+			{
+				if (trigger.getObjectType().equals(SoffidObjectType.OBJECT_USER))
+				{
+					if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_INSERT))
+						preInsertTrigger.add (trigger);
+					else if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_UPDATE))
+						preUpdateTrigger.add (trigger);
+					if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_INSERT))
+						postInsertTrigger.add (trigger);
+					if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_UPDATE))
+						postUpdateTrigger.add (trigger);
+				}
+			}
+			ObjectTranslator objectTranslator = new ObjectTranslator (system);
+			ValueObjectMapper vom = new ValueObjectMapper();
+
     		Object agent = connect(false);
     	
 			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source = InterfaceWrapper.getAuthoritativeIdentitySource(agent);
@@ -597,7 +606,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     			{
 	    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
 	    	        {
-	    	        	processChange(change, source, result);
+	    	        	processChange(change, source, result, objectTranslator, vom);
 	    	        }
 	    			changes = source.getChanges();
     			}
@@ -619,7 +628,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 						break;
 	    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
 	    	        {
-	    	        	if ( processChange(change, null,  result) )
+	    	        	if ( processChange(change, null, result, objectTranslator, vom) )
 	    	        		anyError = true;
 	    	        }
    				} while (source2.hasMoreData());
@@ -643,37 +652,114 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		} 
 		catch (Exception e)
 		{
+			log.info("Error performing authoritative data load process", e);
 			result.append ("*************\n");
 			result.append ("**  ERROR **\n");
 			result.append ("*************\n");
 			result.append (e.toString());
 			result.append("\n\nStack trace:\n")
 				.append(SoffidStackTrace.getStackTrace(e));
+			if (result.length() > 32000)
+			{
+				result.replace(0, result.length()-32000, "** TRUNCATED FILE ***\n...");
+			}
 			task.setError(true);
 		}
 		
 	}
 
 	private boolean processChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source2, StringBuffer result) {
+			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, StringBuffer result,
+			ObjectTranslator objectTranslator, ValueObjectMapper vom) {
 		boolean error = false;
 		change.setSourceSystem(getSystem().getName());
 		try {
-			if (authoritativeService
-					.startAuthoritativeChange(change))
-				result.append(
-						"Applied authoritative change for  ")
-						.append(change.getUser().getUserName())
-						.append("\n");
-			else
-				result.append(
-						"Prepared authoritative change for  ")
-						.append(change.getUser().getUserName())
-						.append("\n");
-			if (source2 != null)
-				source2.commitChange(change.getId());
+			User previousUser = change.getUser() == null ||
+					change.getUser().getUserName() == null ? null :
+						userService.findUserByUserName(change.getUser().getUserName());
+			boolean ok = true;
+			if (previousUser == null)
+			{
+				if (! preInsertTrigger.isEmpty())
+				{
+					UserExtensibleObject eo = buildExtensibleObject(change);
+					eo.setAttribute("attributes", change.getAttributes());
+					if (executeTriggers(preInsertTrigger, null, eo, objectTranslator))
+					{
+						change.setUser( vom.parseUser(eo));
+						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+					}
+					else
+					{
+						result.append("Change to user "+change.getUser().getUserName()+" is rejected by pre-insert trigger\n");
+						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-insert trigger");
+						ok = false;
+					}
+				}
+			} else {
+				if (! preUpdateTrigger.isEmpty())
+				{
+					UserExtensibleObject eo = buildExtensibleObject(change);
+					if (executeTriggers(preUpdateTrigger, 
+							new UserExtensibleObject(new Account (), previousUser, server), 
+							eo, objectTranslator))
+					{
+						change.setUser( vom.parseUser(eo));
+						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+					}
+					else
+					{
+						result.append("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger\n");
+						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger");
+						ok = false;
+					}
+				}
+			}
+			if (ok)
+			{
+				if (authoritativeService
+						.startAuthoritativeChange(change))
+				{
+					result.append(
+							"Applied authoritative change for  ")
+							.append(change.getUser().getUserName())
+							.append("\n");
+					log.info(
+							"Applied authoritative change for  "+change.getUser().getUserName());
+				}
+				else
+				{
+					log.info("Prepared authoritative change for  "+change.getUser().getUserName());
+					result.append(
+							"Prepared authoritative change for  ")
+							.append(change.getUser().getUserName())
+							.append("\n");
+				}
+
+				if (previousUser == null)
+				{
+					if (! postInsertTrigger.isEmpty())
+					{
+						UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
+						executeTriggers(postInsertTrigger, null, eo, objectTranslator);
+					}
+				} else {
+					if (! postUpdateTrigger.isEmpty())
+					{
+						UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
+						executeTriggers(postUpdateTrigger, 
+								new UserExtensibleObject(new Account (), previousUser, server), 
+								eo, objectTranslator);
+					}
+				}
+				if (source != null)
+					source.commitChange(change.getId());
+			}
 		} catch ( Exception e) {
 			error = true;
+			log.info("Error uploading change "+change.getId().toString(), e);
+			log.info("User information: "+change.getUser().toString());
+			log.info("Exception: "+e.toString());
 			result.append ("Error uploading change ")
 				.append(change.getId().toString())
 				.append(":");
@@ -683,9 +769,55 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				.append ("\n");
 			result.append("User information: ").append(change.getUser()).append("\n");
 		}
-		return true;
+		return error;
 	}
 
+	private UserExtensibleObject buildExtensibleObject(
+			AuthoritativeChange change) throws InternalErrorException {
+		UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
+		eo.setAttribute("attributes", change.getAttributes());
+		List<ExtensibleObject> l = new LinkedList<ExtensibleObject>();
+		if (change.getGroups() != null)
+		{
+			for (String s: change.getGroups())
+			{
+				Group g = null;
+				
+				try {
+					g = server.getGroupInfo(s, getName());
+				} catch (UnknownGroupException e) {
+				}
+				
+				if (g == null)
+				{
+					ExtensibleObject eo2 = new ExtensibleObject();
+					eo2.setAttribute("name", s);
+					l.add(eo2);
+				}
+				else
+				{
+					l.add( new GroupExtensibleObject(g, getName(), server));
+				}
+			}
+		}
+		eo.setAttribute("secondaryGroups", l);
+		return eo;
+	}
+
+	private boolean executeTriggers (List<ReconcileTrigger> triggerList, ExtensibleObject old, ExtensibleObject newObject, ObjectTranslator objectTranslator) throws InternalErrorException
+	{
+		ExtensibleObject eo = new ExtensibleObject ();
+		eo.setAttribute("oldObject", old);
+		eo.setAttribute("newObject", newObject);
+		boolean ok = true;
+		for (ReconcileTrigger t: triggerList)
+		{
+			if (! objectTranslator.evalExpression(eo, t.getScript()))
+				ok = false;
+		}
+		
+		return ok;
+	}
 
 	private TaskHandler processAndLogTask (TaskHandler t) throws InternalErrorException
 	{
@@ -1948,11 +2080,54 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 								.getHost()));
 				reconcileAccount.setProposedAction(AccountProposedAction.CREATE_NEW_USER);
 				reconcileAccount.setDispatcher(getSystem().getName());
+				reconcileAccount.setAttributes(user.getAttributes());
+				reconcileAccount.setNewAccount(Boolean.TRUE);
+				reconcileAccount.setDeletedAccount(Boolean.FALSE);
+				reconcileAccount.setAttributes(new HashMap<String, Object>());
+				if (user.getAttributes() != null)
+					reconcileAccount.getAttributes().putAll(user.getAttributes());
 				reconcileService.addUser(reconcileAccount);
 			}
 		}
 		else
+		{
+			user = reconcileManager.getAccountInfo(taskHandler.getTask().getUser());
+			if (user == null)
+				return;
+			boolean anyChange = account.isDisabled() != user.isDisabled();
+			anyChange = anyChange || (user.getDescription() != null && ! account.getDescription().equals(user.getDescription()));
+			if (user.getAttributes() != null)
+			{
+				for (String att: user.getAttributes().keySet())
+				{
+					Object value = user.getAttributes().get(att);
+					if (value != null && ! value.equals(account.getAttributes().get(att)))
+						anyChange = true;
+				}
+			}
+			if (anyChange)
+			{
+				// Set user parameters
+				reconcileAccount = new ReconcileAccount();
+				reconcileAccount.setAccountName(user.getName());
+				if (user.getDescription() == null)
+					reconcileAccount.setDescription(account.getDescription());
+				else
+					reconcileAccount.setDescription(user.getDescription());
+				reconcileAccount.setProcessId(Long.parseLong(taskHandler.getTask()
+								.getHost()));
+				reconcileAccount.setProposedAction(AccountProposedAction.UPDATE_ACCOUNT);
+				reconcileAccount.setDispatcher(getSystem().getName());
+				reconcileAccount.setAttributes(user.getAttributes());
+				reconcileAccount.setNewAccount(Boolean.FALSE);
+				reconcileAccount.setDeletedAccount(Boolean.FALSE);
+				reconcileAccount.setAttributes(new HashMap<String, Object>());
+				if (user.getAttributes() != null)
+					reconcileAccount.getAttributes().putAll(user.getAttributes());
+				reconcileService.addUser(reconcileAccount);				
+			}
 			grants = server.getAccountRoles(accountName, getSystem().getName());
+		}
 		
 		for (RoleGrant role : reconcileManager.getAccountGrants(taskHandler.getTask().getUser()))
 		{
@@ -2160,8 +2335,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			result.append (e.toString()).append ("\n");
 			ByteArrayOutputStream out = new ByteArrayOutputStream();
 			try {
+				log.warn("Error during reconcile process", e);
 				SoffidStackTrace.printStackTrace(e, new PrintStream(out, true, "UTF-8"));
 				result.append (out.toString("UTF-8"));
+				if (result.length() > 32000)
+				{
+					result.replace(0, result.length()-32000, "** TRUNCATED FILE ***\n...");
+				}
 			} catch (Exception e2) {}
 		}
 	}

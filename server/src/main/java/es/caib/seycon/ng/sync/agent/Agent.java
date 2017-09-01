@@ -59,7 +59,6 @@ public abstract class Agent implements AgentInterface {
     }
 
     public void init () throws Exception {
-        
     }
     
         
@@ -88,6 +87,7 @@ public abstract class Agent implements AgentInterface {
 
     public void setDispatcher(Dispatcher dispatcher) {
         this.dispatcher = dispatcher;
+        log = LoggerFactory.getLogger(dispatcher.getCodi());
     }
 
 

@@ -84,10 +84,15 @@ public class Engine extends Thread {
             
    			loadMainDbTasks(config);
 
+			boolean firstSchedulerLoop = true;
             while (!shutDownPending) {
                 setStatus("Expiring tasks");
                 try {
-                    taskScheduler.reconfigure();
+					if (firstSchedulerLoop)
+                       taskScheduler.init();
+					else
+                       taskScheduler.reconfigure();
+					firstSchedulerLoop = false;
                 } catch (Throwable t) {
                     log.warn("Error scheduling tasks", t);
                     

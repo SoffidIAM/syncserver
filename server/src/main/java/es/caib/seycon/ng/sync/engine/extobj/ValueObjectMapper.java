@@ -52,6 +52,16 @@ public class ValueObjectMapper {
 
 	com.soffid.iam.sync.engine.extobj.ValueObjectMapper delegate = new com.soffid.iam.sync.engine.extobj.ValueObjectMapper();
 	
+	static String [] attributesToParse =
+			new String [] {
+		"active", "mailAlias", "userName", "primaryGroup",
+		"comments", "createdOn", "modifiedOn", "mailDomain", "fullName", 
+		"id", "multiSession", "firstName",
+		"shortName", "lastName",  "lastName2", "mailServer",  "homeServer",
+		"profileServer", "phone", "userType", "createdBy", "modifiedBy", 
+		"attributes" 
+	};
+
 	public Usuari parseUsuari (ExtensibleObject object) throws InternalErrorException
 	{
 		return Usuari.toUsuari(delegate.parseUser(object));
@@ -65,7 +75,6 @@ public class ValueObjectMapper {
 	public Account parseAccount (ExtensibleObject object) throws InternalErrorException
 	{
 		return Account.toAccount(delegate.parseAccount(object));
-		
 	}
 	
 	public Grup parseGroup (ExtensibleObject object) throws InternalErrorException

@@ -3,14 +3,10 @@
  */
 package es.caib.seycon.ng.sync.engine.extobj;
 
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.axis.InternalException;
@@ -24,21 +20,14 @@ import bsh.NameSpace;
 import bsh.Primitive;
 import bsh.TargetError;
 import es.caib.seycon.ng.ServiceLocator;
-import es.caib.seycon.ng.comu.Account;
-import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.AttributeDirection;
 import es.caib.seycon.ng.comu.AttributeMapping;
 import es.caib.seycon.ng.comu.Dispatcher;
-import es.caib.seycon.ng.comu.Grup;
 import es.caib.seycon.ng.comu.ObjectMapping;
 import es.caib.seycon.ng.comu.ObjectMappingProperty;
-import es.caib.seycon.ng.comu.Rol;
-import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.SoffidObjectType;
-import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.servei.DispatcherService;
-import es.caib.seycon.ng.sync.intf.AuthoritativeChange;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMapping;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjects;
@@ -131,8 +120,6 @@ public class ObjectTranslator {
 						ignoreErrors
 						));
 	}
-
-
 
 	public Collection<ExtensibleObjectMapping> getObjectsBySoffidType (SoffidObjectType type)
 	{

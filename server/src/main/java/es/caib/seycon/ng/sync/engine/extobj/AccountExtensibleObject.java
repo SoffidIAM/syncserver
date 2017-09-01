@@ -22,7 +22,6 @@ public class AccountExtensibleObject extends com.soffid.iam.sync.engine.extobj.A
 	public AccountExtensibleObject (Account account, ServerService serverService)
 	{
 		super( com.soffid.iam.api.Account.toAccount(account), InterfaceWrapper.getServerService (serverService));
-
 	}
 
 }

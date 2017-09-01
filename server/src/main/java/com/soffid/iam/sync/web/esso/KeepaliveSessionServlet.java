@@ -6,6 +6,8 @@ import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Hashtable;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -37,6 +39,8 @@ public class KeepaliveSessionServlet extends HttpServlet {
     private NetworkService xarxaService;
     private AuthorizationService autoritzacioService;
     private UserService usuariService;
+    
+    static public Map<String,String> newSessionKeys = new Hashtable<String, String>();
 
     public KeepaliveSessionServlet() {
         sessioService = ServerServiceLocator.instance().getSessionService();
@@ -44,6 +48,22 @@ public class KeepaliveSessionServlet extends HttpServlet {
         autoritzacioService = ServerServiceLocator.instance().getAuthorizationService();
         usuariService = ServerServiceLocator.instance().getUserService();
     }
+    
+    private String computeDiferences(String key, String newKey) {
+    	if (newKey == null)
+    		return null;
+        StringBuffer b = new StringBuffer();
+        ChallengeStore s = ChallengeStore.getInstance();
+        for (int i=0; i <key.length();i++)
+        {
+            char ch = key.charAt(i);
+            char ch2 = newKey.charAt(i);
+            int dif = s.charToInt(ch2) - s.charToInt(ch);
+            b.append (s.intToChar(dif));
+        }
+        return b.toString();
+    }
+
     
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
@@ -61,25 +81,34 @@ public class KeepaliveSessionServlet extends HttpServlet {
 
             try {
                 Session sessio = null;
+				String newSessionKey = null;
                 User usuari = usuariService.findUserByUserName(user);
                 for (Session s: sessioService.getActiveSessions(usuari.getId())) {
                     if (key.equals (s.getKey()))
                     {
                         sessio = s;
+                        newSessionKey = computeDiferences(sessio.getKey(), sessio.getTemporaryKey());
                         break;
                     }
                 }
                 if (sessio == null) {
+                	log ("User "+user+" trying to keep alive an expired session from "+req.getRemoteAddr());
                 	writer.write("EXPIRED|Invalid session");
                 }
                 else
                 {
                     Host maq = xarxaService.findHostByName(sessio.getServerHostName());
-                    if (maq == null || !maq.getIp().equals(req.getRemoteAddr())) {
+                    if (maq == null || (maq.getAdreca() != null &&
+                    		!maq.getIp().equals(req.getRemoteAddr()))) {
+                    	log ("User "+user+" trying to keep alive session created on "+maq.getAdreca()+" from host "+req.getRemoteAddr());
                         writer.write("EXPIRED|Invalid host");
                     } else {
                     	sessioService.sessionKeepAlive(sessio);
                     	writer.write("OK|");
+                    	if (newSessionKey != null)
+                    	{
+                    		writer.write(newSessionKey+"|");
+                    	}
                     }
                 }
             } catch (Exception e) {

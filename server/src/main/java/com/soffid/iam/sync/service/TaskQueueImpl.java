@@ -385,12 +385,19 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
+	private void notifySSOUsers(AccountEntity account) throws InternalErrorException {
+		Account acc = getAccountEntityDao().toAccount(account);
+        for (String user: getAccountService().getAccountUsers(acc))
+        {
+    	   getChangePasswordNotificationQueue().addNotification(user);
+        }
+	}
+
 	private void storeAccountPassword(TaskHandler newTask,
 			AccountEntity account) throws InternalErrorException {
 		
 		getSecretStoreService().setPassword(account.getId(),
 			newTask.getPassword());
-		Account acc = getAccountEntityDao().toAccount(account);
 //		getAccountService().updateAccountPasswordDate(acc, null);
 
 		for (String u :
@@ -1329,6 +1336,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (dispatcher == null || ! dispatcher.isActive()) 
 				{
 					storeAccountPassword(task, account);
+					notifySSOUsers(account);
    		            return m;
 				}
 			}
@@ -1340,7 +1348,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		
 		for (DispatcherHandler dispatcher: getTaskGenerator().getDispatchers())
 		{
-			if (dispatcher.isActive())
+			if (dispatcher.isActive() && (
+					task.getTask().getServer() == null || 
+					dispatcher.getSystem().getName().equals (task.getTask().getServer())))
 			{
 				if (dispatcher.isConnected())
 				{
@@ -1466,11 +1476,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		synchronized (tasksToPersist)
 		{
-			while (tasksToPersist.isEmpty())
+			if (tasksToPersist.isEmpty())
 			{
 				tasksToPersist.wait(5000);
 			}
-			return tasksToPersist.removeLast();
+			if (tasksToPersist.isEmpty())
+				return null;
+			else
+				return tasksToPersist.removeLast();
 		}
 	}
 

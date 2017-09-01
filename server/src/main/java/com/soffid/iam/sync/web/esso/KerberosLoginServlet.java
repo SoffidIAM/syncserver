@@ -148,25 +148,30 @@ public class KerberosLoginServlet extends HttpServlet {
             	{
 	                result.append('|');
 	                if (encode)
-	                	result.append( URLEncoder.encode(secret.getName(),"UTF-8"));
+	                	result.append( encodeSecret(secret.getName()));
 	                else
 	                	result.append(secret.getName());
 	                result.append('|');
 	                if (encode)
-		                result.append( URLEncoder.encode(secret.getValue().getPassword(),"UTF-8"));
+		                result.append( encodeSecret(secret.getValue().getPassword()));
 	                else
 	                	result.append(secret.getValue().getPassword());
             	}
             }
             result.append ("|sessionKey|").append(challenge.getChallengeId());
             if (encode)
-            	result.append ("|fullName|").append(URLEncoder.encode(challenge.getUser().getFullName(),"UTF-8"));
+            	result.append ("|fullName|").append(encodeSecret(challenge.getUser().getFullName()));
             else
             	result.append ("|fullName|").append(challenge.getUser().getFullName());
             challengeStore.removeChallenge(challenge);
             return result.toString();
         }
     }
+
+	private String encodeSecret(String secret)
+			throws UnsupportedEncodingException {
+		return URLEncoder.encode(secret,"UTF-8").replaceAll("\\|", "%7c"); 
+	}
 
     private static ChallengeStore challengeStore = ChallengeStore.getInstance();
 
@@ -185,6 +190,7 @@ public class KerberosLoginServlet extends HttpServlet {
         String domain = principal.substring(split + 1).toUpperCase();
 
         System dispatcher = km.getSystemForRealm(domain); 
+        
         LogonService logonService = ServerServiceLocator.instance().getLogonService();
         final Challenge challenge = logonService.requestChallenge(Challenge.TYPE_KERBEROS, 
         				user,

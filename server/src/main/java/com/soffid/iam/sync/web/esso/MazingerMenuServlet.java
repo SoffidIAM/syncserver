@@ -100,12 +100,17 @@ public class MazingerMenuServlet extends HttpServlet {
         }
         writer.close();
     }
+    
+    private String removeSlash(String s)
+    {
+    	return s.replace('/', ' ').replace('\\',' ').replace('|',' ');
+    }
 
     public void generatePuntEntrada(AccessTree punt, StringBuffer buffer) throws InternalErrorException {
 
         if ("S".equals(punt.getMenu())) {
             buffer.append("MENU|");
-            buffer.append(punt.getName());
+            buffer.append(removeSlash(punt.getNom()));
             buffer.append("|");
             for (AccessTree child : puntEntradaService.findChildren(punt)) {
                 generatePuntEntrada(child, buffer);
@@ -114,7 +119,7 @@ public class MazingerMenuServlet extends HttpServlet {
         } else if (!punt.getExecutions().isEmpty()) {
             buffer.append(punt.getId());
             buffer.append("|");
-            buffer.append(punt.getName());
+            buffer.append(removeSlash(punt.getNom()));
             buffer.append("|");
             buffer.append(punt.getId() == null ? "-1" : punt.getId().toString());
             buffer.append("|");

@@ -30,6 +30,7 @@ import com.soffid.iam.api.System;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
+import com.soffid.iam.api.VaultFolder;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.AdditionalDataService;
 import com.soffid.iam.service.DispatcherService;
@@ -125,119 +126,117 @@ public class ChangeSecretServlet extends HttpServlet {
 					AccountAlreadyExistsException, UnsupportedEncodingException
 	{
 
-        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
-        if (secret != null)
-        	sss.putSecret(usuari, secret, new Password(value));
-        else if (account == null || account.trim().length() == 0)
-        {
-    		if (canCreateAccount (usuari, system))
-    		{
-    			Account acc = createAccount (system, usuari, description);
-    			return "OK|"+acc.getName();
-           	}
-    		else
-    		{
-    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-    		}
-        }
-        else if (system != null && account != null && system.length() > 0 && account.length() > 0)
-        {
-        	Account acc = ServiceLocator.instance().getAccountService().findAccount(account, system);
-        	
-        	if (acc == null)
-        	{
-    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-        	}
-        	
-        	if (acc instanceof UserAccount)
-        	{
-        		if (! ((UserAccount) acc).getUser().equals(usuari.getUserName()))
-        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-        	}
-        	else
-        	{
-        		boolean found = false;
-        		for (Account acc2: ServiceLocator.instance().getAccountService().getUserGrantedAccounts(usuari))
-        		{
-        			if (acc2.getId().equals(acc.getId()))
-        			{
-        				found = true;
-        				break;
-        			}
-        		}
-        		if (! found)
-        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-        	}
-           	
-           	AccountService acs = ServiceLocator.instance().getAccountService();
-
-           	if (ssoAttribute == null || ssoAttribute.length() == 0)
-           	{
-               	sss.setPassword(acc.getId(), new Password(value));
-
-               	UserDomainService dominiService = ServiceLocator.instance().getUserDomainService();
-	           	DispatcherService dispatcherService = ServiceLocator.instance().getDispatcherService();
-	           	System dispatcher = dispatcherService.findDispatcherByName(system);
-	        	PasswordPolicy politica = dominiService.findPolicyByTypeAndPasswordDomain(
-	        			acc.getPasswordPolicy(), dispatcher.getPasswordsDomain());
-	    		Long l = null;
+		Security.nestedLogin(usuari.getUserName(), Security.getAuthorizations().toArray(new String [0]));
+		try
+		{
+	        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
+	        if (secret != null)
+	        	sss.putSecret(usuari, secret, new Password(value));
+	        else if (account == null || account.trim().length() == 0)
+	        {
+	    		if (canCreateAccount (usuari, system))
+	    		{
+	    			Account acc = createAccount (system, usuari, description);
+	    			return "OK|"+acc.getName();
+	           	}
+	    		else
+	    		{
+	    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	    		}
+	        }
+	        else if (system != null && account != null && system.length() > 0 && account.length() > 0)
+	        {
+	        	Account acc = ServiceLocator.instance().getAccountService().findAccount(account, system);
+	        	
+	        	if (acc == null)
+	        	{
+	    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        	}
+	        	
+	        	if (acc instanceof UserAccount)
+	        	{
+	        		if (! ((UserAccount) acc).getUser().equals(usuari.getUserName()))
+	        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        	}
+	        	else
+	        	{
+	        		boolean found = false;
+	        		for (Account acc2: ServiceLocator.instance().getAccountService().getUserGrantedAccounts(usuari))
+	        		{
+	        			if (acc2.getId().equals(acc.getId()))
+	        			{
+	        				found = true;
+	        				break;
+	        			}
+	        		}
+	        		if (! found)
+	        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        	}
+	           	
+	           	AccountService acs = ServiceLocator.instance().getAccountService();
+	
+	           	if (ssoAttribute == null || ssoAttribute.length() == 0)
+	           	{
+	               	sss.setPassword(acc.getId(), new Password(value));
+	
+	               	UserDomainService dominiService = ServiceLocator.instance().getUserDomainService();
+		           	DispatcherService dispatcherService = ServiceLocator.instance().getDispatcherService();
+		           	System dispatcher = dispatcherService.findDispatcherByName(system);
+		        	PasswordPolicy politica = dominiService.findPolicyByTypeAndPasswordDomain(
+		        			acc.getPasswordPolicy(), dispatcher.getPasswordsDomain());
+		           	acs.updateAccountPasswordDate(acc, l);
+		           	ServiceLocator.instance().getLogonService().propagatePassword(account, system, value);
+	           	} else {
+	           		String actualAttribute = "SSO:"+ssoAttribute;
+	           		for ( UserData du: accountSvc.getAccountAttributes(acc))
+	           		{
+	           			if (du.getAttribute().equals (actualAttribute) && du.getId() != null)
+	           			{
+	       					du.setValue(value);
+	       					accountSvc.updateAccountAttribute(du);
+	       					return "OK";
+	           			}
+	           		}
+	           		// Attribute not found
+	           		AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
+	           		DataType md = metadataService.findSystemDataType(system, actualAttribute);
+	           		if (md == null)
+	           		{
+	           			md = new DataType();
+	           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
+	           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
+	           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
+	           			md.setCode(actualAttribute);
+	           			if (ssoAttribute.equals("Server"))
+	           			{
+	               			md.setLabel("Server");
+	               			md.setType(TypeEnumeration.STRING_TYPE);
+	           			}
+	           			else
+	           			{
+	           				md.setLabel("Form data");
+	               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
+	           			}
+	           			md.setSize(1024);
+	           			md.setOrder(0L);
+	           			md.setSystemName(system);
+	           			md.setRequired(false);
+	           			md = metadataService.create(md);
+	           		}
+	           		UserData du = new UserData();
+	           		du.setAccountName(account);
+	           		du.setSystemName(system);
+	           		du.setAttribute(md.getCode());
+					du.setValue(value);
+	           		acs.createAccountAttribute(du);
+	           	}
 	    		
-	    		if (politica != null && politica.getMaximumPeriod() != null && politica.getType().equals("M")) //$NON-NLS-1$
-	    		    l = politica.getMaximumPeriod();
-	    		else if (politica != null && politica.getRenewalTime() != null && politica.getType().equals("A")) //$NON-NLS-1$
-	    			l = politica.getRenewalTime();
-	
-	           	acs.updateAccountPasswordDate(acc, l);
-	
-	           	ServiceLocator.instance().getLogonService().propagatePassword(account, system, value);
-           	} else {
-           		String actualAttribute = "SSO:"+ssoAttribute;
-           		for ( UserData du: accountSvc.getAccountAttributes(acc))
-           		{
-           			if (du.getAttribute().equals (actualAttribute) && du.getId() != null)
-           			{
-       					du.setValue(value);
-       					accountSvc.updateAccountAttribute(du);
-       					return "OK";
-           			}
-           		}
-           		// Attribute not found
-           		AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
-           		DataType md = metadataService.findSystemDataType(system, actualAttribute);
-           		if (md == null)
-           		{
-           			md = new DataType();
-           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
-           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
-           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
-           			md.setCode(actualAttribute);
-           			if (ssoAttribute.equals("Server"))
-           			{
-               			md.setLabel("Server");
-               			md.setType(TypeEnumeration.STRING_TYPE);
-           			}
-           			else
-           			{
-           				md.setLabel("Form data");
-               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
-           			}
-           			md.setSize(1024);
-           			md.setOrder(0L);
-           			md.setSystemName(system);
-           			md.setRequired(false);
-           			md = metadataService.create(md);
-           		}
-           		UserData du = new UserData();
-           		du.setAccountName(account);
-           		du.setSystemName(system);
-           		du.setAttribute(md.getCode());
-				du.setValue(value);
-           		acs.createAccountAttribute(du);
-           	}
-    		
-        } else {
-			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
-        }
+	        } else {
+				return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        }
+		} finally {
+			Security.nestedLogoff();
+		}
         return "OK"; //$NON-NLS-1$
     }
 
@@ -286,6 +285,7 @@ public class ChangeSecretServlet extends HttpServlet {
 		long i = findLastAccount (system) + 1;
 		
 		
+		
 		Account acc = new Account();
 		acc.setName(""+i);
 		acc.setDescription(description);
@@ -297,6 +297,15 @@ public class ChangeSecretServlet extends HttpServlet {
 			throw new InternalErrorException (Messages.getString("ChangeSecretServlet.22")); //$NON-NLS-1$
 		acc.setType(AccountType.SHARED);
 		acc.setPasswordPolicy(ssoPolicy);
+		// Search for personal folder
+		VaultFolder vf = ServiceLocator.instance().getVaultService().getPersonalFolder();
+			
+		if (vf != null)
+		{
+			acc.setVaultFolder(vf.getName());
+			acc.setVaultFolderId(vf.getId());
+		}
+			
 		return ServiceLocator.instance().getAccountService().createAccount(acc);
 	}
 
@@ -311,8 +320,14 @@ public class ChangeSecretServlet extends HttpServlet {
 					.getUserAuthorization("sso:manageAccounts", usuari.getUserName());
 			return ! auts.isEmpty();
 		}
-		else
+		else 
+		{
+			if (authSystem == null)
+			{
+				log.info("Missing configuration property AutoSSOSystem. Please,  configure to enable ESSO clients", null, null);
+			}
 			return false;
+		}
 	}
 
 }

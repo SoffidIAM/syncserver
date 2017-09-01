@@ -71,6 +71,8 @@ DWORD dwQuota = USER_MAXSTORAGE_UNLIMITED;
 DWORD dwUserId = NULL;
 DWORD dwPrimaryGroup = DOMAIN_GROUP_RID_USERS;
 BOOL bExpired = FALSE;
+BOOL bSetExpired = FALSE;
+BOOL bSetNoExpired = FALSE;
 int iAuthFlags = NULL;
 int iPriv = USER_PRIV_USER;
 int iFlags = UF_SCRIPT;
@@ -112,7 +114,7 @@ void FillUserInfo ( USER_INFO_3 &ui3)
     ui3.usri3_primary_group_id = dwPrimaryGroup;
     ui3.usri3_profile = lpszProfile;
     ui3.usri3_home_dir_drive = lpszHomeDrive;
-    ui3.usri3_password_expired = bExpired;
+    ui3.usri3_password_expired = bSetExpired ? TRUE : bSetNoExpired ? FALSE: bExpired;
 }
 
 void ExtractUserInfo ( USER_INFO_3 &ui3)
@@ -215,13 +217,15 @@ BOOL ProcessCommandLine (int iArgs, LPWSTR *lpArgs, BOOL bReparse)
 					return FALSE;
 				break;
 			case L'p':
+				if (! bSetExpired)
+					bSetNoExpired = TRUE;
 				i++;
 				if ( i < iArgs)
 					lpszPassword = lpArgs [i];
 				else
 					return FALSE;
 				break;
-			case 'F':
+			case L'F':
 			{
 				UINT j;
 				iFlags = UF_SCRIPT;
@@ -248,7 +252,8 @@ BOOL ProcessCommandLine (int iArgs, LPWSTR *lpArgs, BOOL bReparse)
 						iFlags = iFlags | UF_DONT_EXPIRE_PASSWD;
 						break;
 					case 'x':
-						bExpired = TRUE;
+						bSetExpired = TRUE;
+						bSetNoExpired = FALSE;
 						break;
 					default:
 						return FALSE;

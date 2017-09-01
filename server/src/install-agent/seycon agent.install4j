@@ -67,7 +67,7 @@
       </dirEntry>
     </entries>
     <components>
-      <component name="Required components" id="33486" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="false" downloadable="false" hidden="false">
+      <component name="Sync server" id="33486" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="false" downloadable="false" hidden="false">
         <description />
         <include all="false">
           <entry location=".i4j_fileset_" fileType="regular" />
@@ -953,6 +953,17 @@ fi;</content>
         <content />
       </installerScript>
     </unixInstaller>
+    <unixArchive name="Unix Archive" id="33998" customizedId="" mediaFileName="iam-sync" installDir="iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false">
+      <excludedLaunchers />
+      <excludedBeans />
+      <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
+      <exclude />
+      <variables />
+      <autoUpdate useMinUpdatableVersion="false" minUpdatableVersion="" useMaxUpdatableVersion="false" maxUpdatableVersion="">
+        <commentFiles />
+        <customAttributes />
+      </autoUpdate>
+    </unixArchive>
   </mediaSets>
   <buildIds buildAll="false">
     <mediaSet refId="33997" />

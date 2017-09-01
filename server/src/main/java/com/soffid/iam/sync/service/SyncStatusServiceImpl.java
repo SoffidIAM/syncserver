@@ -42,6 +42,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 import javax.servlet.ServletException;
@@ -460,4 +461,243 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		}.start();
 	}
 
+	@Override
+	protected Map<String, Object> handleTestObjectMapping(
+			Map<String, String> sentences, String dispatcher,
+			SoffidObjectType type, String object1, String object2)
+			throws Exception {
+
+		ExtensibleObject source = null;
+		source = generateSourceObject(dispatcher, type, object1, object2);
+		Dispatcher d = getServerService().getDispatcherInfo(dispatcher);
+		Map<String, Object> result = new HashMap<String, Object>();
+
+		for (String att: sentences.keySet())
+		{
+			String expr = sentences.get(att);
+			ObjectTranslator ot = new ObjectTranslator(d);
+			Object v;
+			try {
+				v = ot.eval(expr, source);
+			} catch (Exception e) {
+				v = e;
+			}
+			result.put(att, v);
+		}
+		return result;
+	}
+
+	private ExtensibleObject generateSourceObject(String dispatcher, SoffidObjectType type,
+			String object1, String object2) throws InternalErrorException {
+		ExtensibleObject source;
+		if (type.equals(SoffidObjectType.OBJECT_ACCOUNT))
+		{
+			Account acc = getServerService().getAccountInfo(object1, dispatcher);
+			if (acc == null)
+			{
+				acc = new Account();
+				acc.setName(object1);
+				acc.setDispatcher(dispatcher);
+				acc.setDisabled(true);
+			}
+			source = new AccountExtensibleObject(acc, getServerService());
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_GROUP) ||
+				type.equals(SoffidObjectType.OBJECT_GRANTED_GROUP))
+		{
+			Grup g = null;
+			try {
+				g = getServerService().getGroupInfo(object2, dispatcher);
+			} catch (UnknownGroupException e) {
+				g = new Grup();
+				g.setCodi(object2);
+			}
+			Usuari u;
+			try {
+				u = getServerService().getUserInfo(object1, dispatcher);
+			} catch (UnknownUserException e) {
+				u = new Usuari();
+				u.setCodi(object1);
+				u.setActiu(false);
+			}
+			Account acc = getServerService().getAccountInfo(object1, dispatcher);
+			source = new MembershipExtensibleObject(acc, u, g, getServerService());
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ||
+				type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE) ||
+				type.equals(SoffidObjectType.OBJECT_GRANT))
+		{
+			Account acc = getServerService().getAccountInfo(object1, dispatcher);
+			RolGrant grant = null;
+			if (type.equals(SoffidObjectType.OBJECT_GRANT))
+			{
+				try {
+					for ( Grup group: getServerService().getUserGroups(object1, dispatcher))
+					{
+						if (group.getCodi().equals (object2))
+						{
+							grant = new RolGrant();
+							grant.setDispatcher(dispatcher);
+							grant.setEnabled(true);
+							grant.setOwnerDispatcher(dispatcher);
+							grant.setRolName(group.getCodi());
+							grant.setUser(null);
+						}
+					}
+				} catch (UnknownUserException e) {
+				}
+			}
+			Collection<RolGrant> list;
+			if (type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE))
+				list = getServerService().getAccountExplicitRoles(object1, dispatcher);
+			else
+				list = getServerService().getAccountRoles(object1, dispatcher);
+			for (RolGrant grant2: list)
+			{
+				if (grant2.getRolName().equals (object2))
+					grant = grant2;
+			}
+			if (grant == null)
+			{
+				grant = new RolGrant();
+				grant.setDispatcher(dispatcher);
+				grant.setEnabled(true);
+				grant.setOwnerDispatcher(dispatcher);
+				grant.setRolName(object2);
+			}
+			source = new GrantExtensibleObject(grant, getServerService());
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_MAIL_LIST))
+		{
+			LlistaCorreu ml = null;
+			try {
+				ml = getServerService().getMailList(object1, object2);
+			} catch (UnknownMailListException e) {
+			}
+			if (ml == null)
+			{
+				ml = new LlistaCorreu();
+				ml.setCodiDomini(object2);
+				ml.setNom(object1);
+			}
+			source = new MailListExtensibleObject(ml, getServerService());
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_ROLE))
+		{
+			Rol role = null;
+			try {
+				role = getServerService().getRoleInfo(object1, dispatcher);
+			} catch (UnknownRoleException e) {
+			}
+			if (role == null)
+			{
+				role = new Rol();
+			}
+			source = new RoleExtensibleObject(role, getServerService());
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_USER))
+		{
+			Usuari u;
+			try {
+				u = getServerService().getUserInfo(object1, dispatcher);
+			} catch (UnknownUserException e) {
+				u = new Usuari();
+				u.setCodi(object1);
+				u.setActiu(false);
+			}
+			Account acc = getServerService().getAccountInfo(object1, dispatcher);
+			if (acc == null)
+			{
+				acc = new Account();
+				acc.setName(object1);
+				acc.setDispatcher(dispatcher);
+				acc.setDisabled(true);
+			}
+			source = new UserExtensibleObject(acc, u, getServerService());
+		} else {
+			source = new ExtensibleObject();
+		}
+		
+		return source;
+	}
+
+	@Override
+	public Exception handleTestPropagateObject(String dispatcher,
+			SoffidObjectType type, String object1, String object2)
+			throws InternalErrorException, InternalErrorException {
+		TaskHandler task = generateObjectTask(dispatcher, type, object1, object2);
+		Map map = getTaskQueue().processOBTask(task);
+		return (Exception) map.get(dispatcher);
+	}
+
+	private TaskHandler generateObjectTask(String dispatcher, SoffidObjectType type,
+			String object1, String object2) throws InternalErrorException {
+		Tasca tasca = new Tasca();
+		tasca.setDataTasca(Calendar.getInstance());
+		tasca.setCoddis(dispatcher);
+		tasca.setExpirationDate(Calendar.getInstance());
+		tasca.getExpirationDate().add(Calendar.MINUTE, 5);
+		
+		TaskHandler th = new TaskHandler();
+		th.setTask(tasca);
+		if (type.equals(SoffidObjectType.OBJECT_ACCOUNT))
+		{
+			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
+			tasca.setUsuari(object1);
+			tasca.setBd(dispatcher);
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_GROUP) ||
+				type.equals(SoffidObjectType.OBJECT_GRANTED_GROUP))
+		{
+			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
+			tasca.setUsuari(object1);
+			tasca.setBd(dispatcher);
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ||
+				type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE) ||
+				type.equals(SoffidObjectType.OBJECT_GRANT))
+		{
+			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
+			tasca.setUsuari(object1);
+			tasca.setBd(dispatcher);
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_MAIL_LIST))
+		{
+			tasca.setTransa(TaskHandler.UPDATE_LIST_ALIAS);
+			tasca.setAlies(object1);
+			tasca.setDomcor(object2);
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_ROLE))
+		{
+			tasca.setTransa(TaskHandler.UPDATE_ROLE);
+			tasca.setRole(object1);
+			tasca.setBd(object2);
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_USER))
+		{
+			tasca.setTransa(TaskHandler.UPDATE_ACCOUNT);
+			tasca.setUsuari(object1);
+			tasca.setBd(dispatcher);
+		}
+		
+		return th;
+	}
+
+	@Override
+	protected void handleBoostTask(long taskId) throws Exception {
+		TaskHandler th = getTaskQueue().findTaskHandlerById(taskId);
+		for ( TaskHandlerLog log: th.getLogs())
+		{
+			if (!log.isComplete())
+			{
+				log.setNext(System.currentTimeMillis());
+			}
+		}
+		th.getTask().setDataTasca(Calendar.getInstance());
+	}
+
+	@Override
+	protected void handleCancelTask(long taskId) throws Exception {
+		getTaskQueue().cancelTask(taskId);
+	}
 }

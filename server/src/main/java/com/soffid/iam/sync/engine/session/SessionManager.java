@@ -201,6 +201,7 @@ public class SessionManager extends Thread {
         			buffer.append((char) i);
         	} while (true);
         	reader.close();
+//            log.info("Session {} is alive: result = {}", sessio.getUrl()+" ["+sessio.getId()+"]", buffer.toString()); //$NON-NLS-1$
         	return buffer.toString().startsWith("OK"); //$NON-NLS-1$
     	} 
     	catch (IOException e)
@@ -208,7 +209,8 @@ public class SessionManager extends Thread {
             String identity = String.format("%s on %s ID=%s", sessio.getUserName(), //$NON-NLS-1$
                             sessio.getUrl(), sessio.getId());
             log.info("LOGOFF Session {}: unexpected exception {}", identity, e.toString()); //$NON-NLS-1$
-            return false;
+            // Simply assume web server is restarting and cannot answer your request
+            return true;
     	}
     }
     
