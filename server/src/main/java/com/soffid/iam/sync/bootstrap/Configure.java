@@ -15,12 +15,15 @@ import java.util.Properties;
 import org.apache.commons.logging.LogFactory;
 import org.mortbay.log.Log;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.Server;
+import com.soffid.iam.api.Tenant;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.DispatcherService;
+import com.soffid.iam.service.TenantService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
@@ -210,7 +213,11 @@ public class Configure {
         server.setUrl("https://"+config.getHostName()+":"+config.getPort()+"/");
         server.setType(ServerType.MASTERSERVER);
         server.setUseMasterDatabase(true);
-        dispatcherSvc.create(server);
+        server = dispatcherSvc.create(server);
+        
+        TenantService tenantSvc = ServiceLocator.instance().getTenantService();
+        Tenant t = tenantSvc.getMasterTenant();
+        tenantSvc.addTenantServer(t, server.getName());
 
         CertificateServer s = new CertificateServer();
         s.createRoot();

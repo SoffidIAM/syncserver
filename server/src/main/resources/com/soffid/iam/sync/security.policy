@@ -59,7 +59,6 @@ grant codeBase "file:${syncserver.home}/lib/-" {
         permission java.security.AllPermission;
 };
 
-
 // ========== WEB APPLICATION PERMISSIONS =====================================
 
 

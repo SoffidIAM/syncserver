@@ -60,8 +60,8 @@ public class ConfigurationManager
     								prop.setProperty(Config.SERVERLIST_PROPERTY, rset.getString(1));
     							}
     						});
-    		qh.select("SELECT SRV_USEMDB, SRV_TYPE, SRV_JVMOPT FROM SC_SERVER WHERE SRV_NOM=? AND SRV_TEN_ID=?",
-					new Object[] {serverName, masterTenant},
+    		qh.select("SELECT SRV_USEMDB, SRV_TYPE, SRV_JVMOPT FROM SC_SERVER WHERE SRV_NOM=?",
+					new Object[] {serverName},
 					new QueryAction()
 					{
 						public void perform (ResultSet rset) throws SQLException, IOException

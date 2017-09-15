@@ -12,10 +12,14 @@ import org.jbpm.context.exe.ContextInstance;
 import org.jbpm.graph.def.ProcessDefinition;
 import org.jbpm.graph.exe.ProcessInstance;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.Server;
+import com.soffid.iam.api.Tenant;
+import com.soffid.iam.api.TenantCriteria;
 import com.soffid.iam.api.User;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.service.TenantService;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.CertificateEnrollServiceBase;
@@ -43,9 +47,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     @Override
     protected long handleCreateRequest(String tenant, String user, String password, String domain,
             String hostName, PublicKey key) throws Exception {
-    	Security.nestedLogin(tenant, user, new String [] {
-    			Security.AUTO_AUTHORIZATION_ALL
-    	});
+    	Security.nestedLogin(tenant, user, Security.ALL_PERMISSIONS);
     	try
     	{
 	        PasswordValidation vs;
@@ -107,9 +109,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     @Override
     protected X509Certificate handleGetCertificate(String tenant, String user, String password, String domain,
             String hostName, Long request) throws Exception {
-    	Security.nestedLogin(tenant, user, new String [] {
-    			Security.AUTO_AUTHORIZATION_ALL
-    	});
+    	Security.nestedLogin(tenant, user, Security.ALL_PERMISSIONS);
     	try 
     	{
 	        LogonService logonService = getLogonService();
@@ -170,7 +170,17 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	                    server.setType(ServerType.PROXYSERVER);
 	                    server.setUrl("https://"+hostName+":"+Config.getConfig().getPort()+"/");
 	                    server.setUseMasterDatabase(Boolean.FALSE);
-	                    getDispatcherService().create(server);
+	                    server = getDispatcherService().create(server);
+	                    TenantService tenantSvc = ServiceLocator.instance().getTenantService();
+	                    TenantCriteria criteria = new TenantCriteria();
+	                    criteria.setName(tenant);
+						for (Tenant t: tenantSvc.find(criteria ))
+						{
+							if (t.getName().equals(tenant))
+							{
+			                    tenantSvc.addTenantServer(t, server.getName());
+							}
+						}
 	                }
 	                return cert;
 	            }
