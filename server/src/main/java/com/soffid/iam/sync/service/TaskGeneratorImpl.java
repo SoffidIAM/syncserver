@@ -7,9 +7,11 @@ import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Set;
 
 import org.apache.axis.components.threadpool.ThreadPool;
 import org.hibernate.Hibernate;
@@ -26,6 +28,7 @@ import com.soffid.iam.config.Config;
 import com.soffid.iam.model.Parameter;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.TaskEntity;
+import com.soffid.iam.model.TenantEntity;
 import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
@@ -43,7 +46,10 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     boolean firstOfflineRun;
     boolean active;
     Config config;
+    
     ArrayList<DispatcherHandlerImpl> dispatchers = new ArrayList<DispatcherHandlerImpl>();
+    HashSet<Long> activeTenants = new HashSet<Long>();
+    
     Map<String,Map<String,DispatcherHandlerImpl>> dispatchersMap = new HashMap<String, Map<String, DispatcherHandlerImpl>>();
     private boolean logCollectorEnabled;
     String status = null;
@@ -84,25 +90,42 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     	csc.setMaximumResultSize(5000);
         log.info("Looking for new tasks to schedule");
         if (firstRun) {
-            tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
+            tasks = getTaskEntityDao().query("select distinct tasca "
+            		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "where tasca.server = :server "
             		+ "order by tasca.id", 
             		new Parameter[]{new Parameter("server", config.getHostName())});
         } else {
-            tasks = getTaskEntityDao().query("select tasca from com.soffid.iam.model.TaskEntity tasca "
-            		+ "where tasca.server is null "
-            		+ "order by tasca.priority, tasca.id", new Parameter[0], csc);
+            tasks = getTaskEntityDao().query("select distinct tasca "
+            		+ "from com.soffid.iam.model.TaskEntity as tasca "
+            		+ "left join tasca.tenant as tenant "
+            		+ "left join tenant.servers as servers "
+            		+ "left join servers.tenantServer as server "
+            		+ "where tasca.server is null and server.name=:server "
+            		+ "and tasca.status='P' "
+            		+ "order by tasca.priority, tasca.id",
+            		new Parameter[]{new Parameter("server", config.getHostName())},
+            		csc);
         }
         TaskQueue taskQueue = getTaskQueue();
         int i = 0;
         flushAndClearSession();
         for (Iterator<TaskEntity> it = tasks.iterator(); active && it.hasNext(); ) {
             TaskEntity tasca = it.next();
-            taskQueue.addTask(tasca);
-            flushAndClearSession();
-            if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
-                runtime.gc();
-                return;
+            if ( activeTenants.contains( tasca.getTenant().getId()))
+            {
+	            taskQueue.addTask(tasca);
+	            flushAndClearSession();
+	            if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
+	                runtime.gc();
+	                return;
+	            }
+            } else {
+            	if (tasca.getServer() != null)
+            	{
+            		tasca.setServer(null);
+            		getTaskEntityDao().update(tasca);
+            	}
             }
         }
    		firstRun = false;
@@ -185,27 +208,37 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                         System oldDispatcher = current.getSystem();
                         if (!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) 
                         {// S'han produït canvis
-                        	boolean oldThread = oldDispatcher.getSharedDispatcher() != null && oldDispatcher.getSharedDispatcher().booleanValue();
-                        	boolean newThread = newDispatcher.getSharedDispatcher() != null && newDispatcher.getSharedDispatcher().booleanValue();
-                        	if (oldThread && newThread || ! oldThread && ! newThread)
-                        		current.reconfigure(newDispatcher);
-                        	else 
+                        	
+                        	Security.nestedLogin(current.getSystem().getTenant(), 
+                        			current.getSystem().getName(), 
+                        			Security.ALL_PERMISSIONS);
+                        	try
                         	{
-                        		
-                       			current.gracefullyStop();
-                                DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
-                                int id = current.getInternalId();
-                                checkNulls(newDispatcher);
-                                handler.setSystem(newDispatcher);
-                                handler.setInternalId(id);
-                                dispatchers.remove(oldHandler);
-                                dispatchers.add(handler);
-                                Map<String, DispatcherHandlerImpl> dm = getDispatchersMap ( newDispatcher.getTenant());
-                                dm.put(newDispatcher.getName(), handler);
-                                if (newThread)
-                                	handler.start();
-                                anySharedThreadChange = true;
-                        	}
+	                        	
+	                        	boolean oldThread = oldDispatcher.getSharedDispatcher() != null && oldDispatcher.getSharedDispatcher().booleanValue();
+	                        	boolean newThread = newDispatcher.getSharedDispatcher() != null && newDispatcher.getSharedDispatcher().booleanValue();
+	                        	if (oldThread && newThread || ! oldThread && ! newThread)
+	                        		current.reconfigure(newDispatcher);
+	                        	else 
+	                        	{
+	                        		
+	                       			current.gracefullyStop();
+	                                DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
+	                                int id = current.getInternalId();
+	                                checkNulls(newDispatcher);
+	                                handler.setSystem(newDispatcher);
+	                                handler.setInternalId(id);
+	                                dispatchers.remove(oldHandler);
+	                                dispatchers.add(handler);
+	                                Map<String, DispatcherHandlerImpl> dm = getDispatchersMap ( newDispatcher.getTenant());
+	                                dm.put(newDispatcher.getName(), handler);
+	                                if (newThread)
+	                                	handler.start();
+	                                anySharedThreadChange = true;
+	                        	}
+                            } finally {
+                            	Security.nestedLogoff();
+	                        }
                         }
                         break;
                     }
@@ -225,25 +258,41 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         // Instanciar nous dispatchers
         for (Iterator<SystemEntity> it = entities.iterator(); it.hasNext(); ) {
             SystemEntity entity = it.next();
-            DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
-            int id = dispatchers.size();
-            System dis = getSystemEntityDao().toSystem(entity);
-            checkNulls(dis);
-            handler.setSystem(dis);
-            handler.setInternalId(id);
-            dispatchers.add(handler);
-            Map<String, DispatcherHandlerImpl> dm = getDispatchersMap ( entity.getTenant().getName());
-            dm.put(dis.getName(), handler);
-            if (dis.getSharedDispatcher() == null || ! dis.getSharedDispatcher().booleanValue())
-            	handler.start();
-            else
-                anySharedThreadChange = true;
+        	Security.nestedLogin(entity.getTenant().getName(), 
+        			entity.getName(), 
+        			Security.ALL_PERMISSIONS);
+        	try
+        	{
+	            DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
+	            int id = dispatchers.size();
+	            System dis = getSystemEntityDao().toSystem(entity);
+	            checkNulls(dis);
+	            handler.setSystem(dis);
+	            handler.setInternalId(id);
+	            dispatchers.add(handler);
+	            Map<String, DispatcherHandlerImpl> dm = getDispatchersMap ( entity.getTenant().getName());
+	            dm.put(dis.getName(), handler);
+	            if (dis.getSharedDispatcher() == null || ! dis.getSharedDispatcher().booleanValue())
+	            	handler.start();
+	            else
+	                anySharedThreadChange = true;
+            } finally {
+            	Security.nestedLogoff();
+            }
         }
 
         if (anySharedThreadChange)
         {
         	threadPool.updateThreads(dispatchers);
         }
+        
+        // Now, update tenants list
+        HashSet<Long> tenants = new HashSet<Long>();
+        for (TenantEntity tenant: getTenantEntityDao().findByServer( Config.getConfig().getHostName() ))
+        {
+        	tenants.add(tenant.getId());
+        }
+        this.activeTenants = tenants;
     }
 
     /**
@@ -317,7 +366,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 
 	@Override
 	protected DispatcherHandler handleGetDispatcher(String id) throws Exception {
-		return dispatchersMap.get(Security.getCurrentTenantName()).get(id);
+		return getDispatchersMap(Security.getCurrentTenantName()).get(id);
 	}
 	
 	
@@ -342,5 +391,19 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 					throws BeansException
 	{
 		this.applicationContext = applicationContext; 
+	}
+
+	@Override
+	protected Set<Long> handleGetActiveTenants() throws Exception {
+		return activeTenants;
+	}
+
+	public void handleFinishVirtualSourceTransaction(String virtualTransactionId)
+			throws InternalErrorException, InternalErrorException {
+		getTaskEntityDao().finishVirtualSourceTransaction(virtualTransactionId);
+	}
+
+	public String handleStartVirtualSourceTransaction() throws InternalErrorException, InternalErrorException {
+		return getTaskEntityDao().startVirtualSourceTransaction();
 	}
 }

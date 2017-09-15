@@ -7,6 +7,7 @@ import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
+import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.SyncServerInfo;
 import com.soffid.iam.api.System;
@@ -25,8 +26,10 @@ import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
+import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
+import com.soffid.iam.sync.engine.cron.TaskScheduler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GrantExtensibleObject;
@@ -36,6 +39,7 @@ import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObject;
+import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.SyncStatusServiceBase;
 import com.soffid.iam.sync.service.TaskQueue;
@@ -47,11 +51,13 @@ import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
+import es.caib.seycon.ng.utils.Security;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.io.PrintWriter;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
@@ -71,87 +77,100 @@ import org.apache.commons.logging.LogFactory;
 
 public class SyncStatusServiceImpl extends SyncStatusServiceBase {
     @Override
-    protected Collection<AgentStatusInfo> handleGetSyncAgentsInfo() throws Exception {
-        List<AgentStatusInfo> agentsServer = new LinkedList<AgentStatusInfo>();
-        TaskQueue tq = getTaskQueue ();
-
-        for (DispatcherHandler taskDispatcher : getTaskGenerator().getDispatchers()) {
-            if (taskDispatcher.isActive()) {
-                AgentStatusInfo agent = new AgentStatusInfo();
-
-                agent.setUrl(taskDispatcher.getSystem().getUrl());
-                agent.setAgentName(taskDispatcher.getSystem().getName());
-                agent.setPendingTasks(tq.countTasks(taskDispatcher));
-                if (!taskDispatcher.isConnected()) {
-                    agent.setStatus(Messages.getString("SyncStatusServiceImpl.Disconnected")); //$NON-NLS-1$
-                    if (taskDispatcher.getConnectException() != null) {
-                        ByteArrayOutputStream out = new ByteArrayOutputStream();
-                        PrintStream print = new PrintStream(out);
-                        SoffidStackTrace.printStackTrace(taskDispatcher.getConnectException(), print);
-                        print.close();
-                        agent.setStatus(Messages.getString("SyncStatusServiceImpl.Disconnected")); //$NON-NLS-1$
-                        // Afegim error
-                        agent.setStatusMessage(taskDispatcher.getConnectException().toString());
-                        agent.setStackTrace(new String(out.toByteArray()));
-                    }
-                } else {
-                    agent.setStatus(Messages.getString("SyncStatusServiceImpl.Connected")); //$NON-NLS-1$
-                    agent.setStatusMessage("NULL");
-                }
-
-                agent.setClassName(taskDispatcher.getSystem().getClassName());
-                agent.setVersion(taskDispatcher.getAgentVersion());
-                // Obtenim la caducitat del certificat
-                /*
-                 * if (mostraCertificats) { if ( taskDispatcher.isConnected()) {
-                 * try { String s_notValidAfter = new SimpleDateFormat(
-                 * "dd-MMM-yyyy HH:mm:ss").format(taskDispatcher
-                 * .getCertificateNotValidAfter()); toReturn.append("<td>" +
-                 * s_notValidAfter + "</td>"); } catch (Throwable th)
-                 * {toReturn.append("<td> </td>");} } else
-                 * toReturn.append("<td> </td>"); }
-                 */
-                agentsServer.add(agent);
-            }
-        }
-
-        return agentsServer;
+    protected Collection<AgentStatusInfo> handleGetSyncAgentsInfo(String tenant) throws Exception {
+    	
+    	Security.nestedLogin(tenant, Security.getCurrentAccount(), Security.ALL_PERMISSIONS);
+    	try
+    	{
+	        List<AgentStatusInfo> agentsServer = new LinkedList<AgentStatusInfo>();
+	        TaskQueue tq = getTaskQueue ();
+	
+	        for (DispatcherHandler taskDispatcher : getTaskGenerator().getDispatchers()) {
+	            if (taskDispatcher.isActive()) {
+	                AgentStatusInfo agent = new AgentStatusInfo();
+	
+	                agent.setUrl(taskDispatcher.getSystem().getUrl());
+	                agent.setAgentName(taskDispatcher.getSystem().getName());
+	                agent.setPendingTasks(tq.countTasks(taskDispatcher));
+	                if (!taskDispatcher.isConnected()) {
+	                    agent.setStatus(Messages.getString("SyncStatusServiceImpl.Disconnected")); //$NON-NLS-1$
+	                    if (taskDispatcher.getConnectException() != null) {
+	                        ByteArrayOutputStream out = new ByteArrayOutputStream();
+	                        PrintStream print = new PrintStream(out);
+	                        SoffidStackTrace.printStackTrace(taskDispatcher.getConnectException(), print);
+	                        print.close();
+	                        agent.setStatus(Messages.getString("SyncStatusServiceImpl.Disconnected")); //$NON-NLS-1$
+	                        // Afegim error
+	                        agent.setStatusMessage(taskDispatcher.getConnectException().toString());
+	                        agent.setStackTrace(new String(out.toByteArray()));
+	                    }
+	                } else {
+	                    agent.setStatus(Messages.getString("SyncStatusServiceImpl.Connected")); //$NON-NLS-1$
+	                    agent.setStatusMessage("NULL");
+	                }
+	
+	                agent.setClassName(taskDispatcher.getSystem().getClassName());
+	                agent.setVersion(taskDispatcher.getAgentVersion());
+	                // Obtenim la caducitat del certificat
+	                /*
+	                 * if (mostraCertificats) { if ( taskDispatcher.isConnected()) {
+	                 * try { String s_notValidAfter = new SimpleDateFormat(
+	                 * "dd-MMM-yyyy HH:mm:ss").format(taskDispatcher
+	                 * .getCertificateNotValidAfter()); toReturn.append("<td>" +
+	                 * s_notValidAfter + "</td>"); } catch (Throwable th)
+	                 * {toReturn.append("<td> </td>");} } else
+	                 * toReturn.append("<td> </td>"); }
+	                 */
+	                agentsServer.add(agent);
+	            }
+	        }
+	
+	        return agentsServer;
+    	} finally {
+    		Security.nestedLogoff();
+    	}
     }
 
     @Override
-    protected SyncServerInfo handleGetSyncServerStatus() throws Exception {
-        // NOTA: Els canvis s'han de fer també a l'altre mètode
-
-        String url = Config.getConfig().getURL().getServerURL().toString();
-        String versio = Config.getConfig().getVersion();
-        Calendar dataActualServer = Calendar.getInstance();
-
-        String estatConnexioAgents = getAgentConnectionStatus();
-        String estat = (getTaskGenerator() == null || getTaskGenerator().getDispatchers() == null
-        		|| getTaskGenerator().getDispatchers().size() == 0) ? "Starting" //$NON-NLS-1$
-                : (!getAgentConnectionStatus().startsWith("OK")) ? "Qualque Agent desconnectat" //$NON-NLS-1$ //$NON-NLS-2$
-                        : "OK"; //$NON-NLS-1$
-
-        // Llevem la part d'ok del número d'agents
-        estatConnexioAgents = !estatConnexioAgents.startsWith("OK") ? estatConnexioAgents //$NON-NLS-1$
-                : estatConnexioAgents.substring(3);
-
-        // Si encara no s'ha iniciat posem starting al número d'agents
-        String numAgents = "Starting".equals(estat) ? "Starting" : estatConnexioAgents; // connectats //$NON-NLS-1$ //$NON-NLS-2$
-                                                                                        // /
-                                                                                        // desconnects
-        // i a les tasques pendents (es calculen al seu - bbdd)
-        String numTasquesPendents = "Starting".equals(estat) ? "Starting" : "";// + //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-                                                                               // getNumTasquesPendents();
-
-        // url, versio, estat,
-        // numAgents, numTasquesPendents, sso, jetty, ssoDaemon,
-        // taskGenerator, caducitatRootCertificate,
-        // caducitatMainCertificate, dataActualServer, databaseConnections)
-        SyncServerInfo info = new SyncServerInfo(url, "Sync server", versio, estat, numAgents, //$NON-NLS-1$
-                "" + numTasquesPendents, "", "", "", "", null, null, dataActualServer, ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$
-
-        return info;
+    protected SyncServerInfo handleGetSyncServerStatus(String tenant) throws Exception {
+    	Security.nestedLogin(tenant, Security.getCurrentAccount(), Security.ALL_PERMISSIONS);
+    	try
+    	{
+	        // NOTA: Els canvis s'han de fer també a l'altre mètode
+	
+	        String url = Config.getConfig().getURL().getServerURL().toString();
+	        String versio = Config.getConfig().getVersion();
+	        Calendar dataActualServer = Calendar.getInstance();
+	
+	        String estatConnexioAgents = getAgentConnectionStatus();
+	        String estat = (getTaskGenerator() == null || getTaskGenerator().getDispatchers() == null
+	        		|| getTaskGenerator().getDispatchers().size() == 0) ? "Starting" //$NON-NLS-1$
+	                : (!getAgentConnectionStatus().startsWith("OK")) ? "Qualque Agent desconnectat" //$NON-NLS-1$ //$NON-NLS-2$
+	                        : "OK"; //$NON-NLS-1$
+	
+	        // Llevem la part d'ok del número d'agents
+	        estatConnexioAgents = !estatConnexioAgents.startsWith("OK") ? estatConnexioAgents //$NON-NLS-1$
+	                : estatConnexioAgents.substring(3);
+	
+	        // Si encara no s'ha iniciat posem starting al número d'agents
+	        String numAgents = "Starting".equals(estat) ? "Starting" : estatConnexioAgents; // connectats //$NON-NLS-1$ //$NON-NLS-2$
+	                                                                                        // /
+	                                                                                        // desconnects
+	        // i a les tasques pendents (es calculen al seu - bbdd)
+	        String numTasquesPendents = "Starting".equals(estat) ? "Starting" : "";// + //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+	                                                                               // getNumTasquesPendents();
+	
+	        // url, versio, estat,
+	        // numAgents, numTasquesPendents, sso, jetty, ssoDaemon,
+	        // taskGenerator, caducitatRootCertificate,
+	        // caducitatMainCertificate, dataActualServer, databaseConnections)
+	        SyncServerInfo info = new SyncServerInfo(url, "Sync server", versio, estat, numAgents, //$NON-NLS-1$
+	                "" + numTasquesPendents, "", "", "", "", null, null, dataActualServer, ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$
+	
+	        return info;
+    	} finally {
+    		Security.nestedLogoff();
+    	}
     }
 
     private String getAgentConnectionStatus() throws IOException, InternalErrorException {
@@ -177,52 +196,58 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
     }
 
     @Override
-    protected SyncServerInfo handleGetSyncServerInfo() throws Exception {
-        // NOTA: Els canvis s'han de fer també a l'altre mètode
+    protected SyncServerInfo handleGetSyncServerInfo(String tenant) throws Exception {
 
-        String url = Config.getConfig().getURL().getServerURL().toString();
-        String versio = Config.getConfig().getVersion();
-        String sso = getSSOThreadStatus();
-        String jetty = getJettyThreadStatus();
-        String ssoDaemon = getSSODaemonThreadStatus();
-        String taskGenerator = getTaskGeneratorThreadStatus();
-        Calendar caducitatRootCertificate = Calendar.getInstance();
-        Date rootCertDate = getRootCertificateNotValidAfter();
-        if (rootCertDate != null)
-            caducitatRootCertificate.setTime(rootCertDate);
-        else
-            rootCertDate = null;
-        Calendar caducitatMainCertificate = Calendar.getInstance();
-        Date serverCertDate = getServerCertificateNotValidAfter();
-        if (serverCertDate != null)
-            caducitatMainCertificate.setTime(serverCertDate);
-        else
-            serverCertDate = null;
-        Calendar dataActualServer = Calendar.getInstance();
-        String databaseConnections = getDBConnectionStatus();
-
-        String estatConnexioAgents = getAgentConnectionStatus();
-        String estat = (getTaskGenerator() == null || getTaskGenerator().getDispatchers() == null) ? "Starting" //$NON-NLS-1$
-                : (!estatConnexioAgents.startsWith("OK")) ? "Qualque Agent desconnectat" : "OK"; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-
-        // Llevem la part d'ok del número d'agents
-        estatConnexioAgents = !estatConnexioAgents.startsWith("OK") ? estatConnexioAgents //$NON-NLS-1$
-                : estatConnexioAgents.substring(3);
-
-        // Si encara no s'ha iniciat posem starting al número d'agents
-        String numAgents = "Starting".equals(estat) ? "Starting" : estatConnexioAgents; // connectats //$NON-NLS-1$ //$NON-NLS-2$
-                                                                                        // /
-                                                                                        // desconnects
-        // i a les tasques pendents (es calculen al seu - bbdd)
-        String numTasquesPendents = "Starting".equals(estat) ? "Starting" : "";// + //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-                                                                               // getNumTasquesPendents();
-
-        SyncServerInfo info = new SyncServerInfo(url, "Sync server", versio, estat, numAgents, //$NON-NLS-1$
-                "" + numTasquesPendents, sso, jetty, ssoDaemon, taskGenerator, //$NON-NLS-1$
-                caducitatRootCertificate, caducitatMainCertificate, dataActualServer,
-                databaseConnections);
-
-        return info;
+    	Security.nestedLogin(tenant, Security.getCurrentAccount(), Security.ALL_PERMISSIONS);
+    	try
+    	{
+	
+	        String url = Config.getConfig().getURL().getServerURL().toString();
+	        String versio = Config.getConfig().getVersion();
+	        String sso = getSSOThreadStatus();
+	        String jetty = getJettyThreadStatus();
+	        String ssoDaemon = getSSODaemonThreadStatus();
+	        String taskGenerator = getTaskGeneratorThreadStatus();
+	        Calendar caducitatRootCertificate = Calendar.getInstance();
+	        Date rootCertDate = getRootCertificateNotValidAfter();
+	        if (rootCertDate != null)
+	            caducitatRootCertificate.setTime(rootCertDate);
+	        else
+	            rootCertDate = null;
+	        Calendar caducitatMainCertificate = Calendar.getInstance();
+	        Date serverCertDate = getServerCertificateNotValidAfter();
+	        if (serverCertDate != null)
+	            caducitatMainCertificate.setTime(serverCertDate);
+	        else
+	            serverCertDate = null;
+	        Calendar dataActualServer = Calendar.getInstance();
+	        String databaseConnections = getDBConnectionStatus();
+	
+	        String estatConnexioAgents = getAgentConnectionStatus();
+	        String estat = (getTaskGenerator() == null || getTaskGenerator().getDispatchers() == null) ? "Starting" //$NON-NLS-1$
+	                : (!estatConnexioAgents.startsWith("OK")) ? "Warnings" : "OK"; //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+	
+	        // Llevem la part d'ok del número d'agents
+	        estatConnexioAgents = !estatConnexioAgents.startsWith("OK") ? estatConnexioAgents //$NON-NLS-1$
+	                : estatConnexioAgents.substring(3);
+	
+	        // Si encara no s'ha iniciat posem starting al número d'agents
+	        String numAgents = "Starting".equals(estat) ? "Starting" : estatConnexioAgents; // connectats //$NON-NLS-1$ //$NON-NLS-2$
+	                                                                                        // /
+	                                                                                        // desconnects
+	        // i a les tasques pendents (es calculen al seu - bbdd)
+	        String numTasquesPendents = "Starting".equals(estat) ? "Starting" : "";// + //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
+	                                                                               // getNumTasquesPendents();
+	
+	        SyncServerInfo info = new SyncServerInfo(url, "Sync server", versio, estat, numAgents, //$NON-NLS-1$
+	                "" + numTasquesPendents, sso, jetty, ssoDaemon, taskGenerator, //$NON-NLS-1$
+	                caducitatRootCertificate, caducitatMainCertificate, dataActualServer,
+	                databaseConnections);
+	
+	        return info;
+    	} finally {
+    		Security.nestedLogoff();
+    	}
     }
 
     private boolean threadRunning(Thread thread) {
@@ -706,18 +731,66 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	@Override
 	protected void handleBoostTask(long taskId) throws Exception {
 		TaskHandler th = getTaskQueue().findTaskHandlerById(taskId);
-		for ( TaskHandlerLog log: th.getLogs())
+		if (th != null)
 		{
-			if (!log.isComplete())
+			for ( TaskHandlerLog log: th.getLogs())
 			{
-				log.setNext(java.lang.System.currentTimeMillis());
+				if (!log.isComplete())
+				{
+					log.setNext(java.lang.System.currentTimeMillis());
+				}
 			}
+			th.getTask().setTaskDate(Calendar.getInstance());
+			
 		}
-		th.getTask().setTaskDate(Calendar.getInstance());
 	}
 
 	@Override
 	protected void handleCancelTask(long taskId) throws Exception {
 		getTaskQueue().cancelTask(taskId);
 	}
+
+	@Override
+	protected void handleStartScheduledTask(ScheduledTask t) throws Exception {
+    	TaskScheduler ts = TaskScheduler.getScheduler();
+    	
+       	for (ScheduledTask task: ts.getTasks())
+       	{
+       		if (task.getId().equals(t.getId()) &&
+       				task.getTenant().equals(Security.getCurrentTenantName()))
+       		{
+       			ts.runNow(task, null, false);
+        	}
+        }
+	}
+
+	@Override
+	protected Map<String, Object> handleGetNativeObject(String systemName, SoffidObjectType type, String object1,
+			String object2) throws Exception {
+
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(systemName);
+		if (handler == null || !handler.isActive())
+			return null;
+
+		return handler.getNativeObject(systemName, type, object1, object2);
+	}
+
+	@Override
+	protected Map<String, Object> handleGetSoffidObject(String systemName, SoffidObjectType type, String object1,
+			String object2) throws Exception {
+
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(systemName);
+		if (handler == null || !handler.isActive())
+			return null;
+
+		Map<String,Object> r = new HashMap<String, Object>();
+		
+		Map<String, Object> eo = handler.getSoffidObject(systemName, type, object1, object2);
+		for (String key: eo.keySet())
+		{
+			r.put(key, eo.get(key));
+		}
+		return r;
+	}
+
 }

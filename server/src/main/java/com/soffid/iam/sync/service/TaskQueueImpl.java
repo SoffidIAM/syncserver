@@ -53,6 +53,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.hibernate.Hibernate;
 import org.mortbay.log.Log;
@@ -624,6 +625,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
 		TaskHandler th = new TaskHandler ();
 		th.setTask(getTaskEntityDao().toTask(task));
+		th.setTenantId(Security.getCurrentTenantId());
 		th.setTenant(Security.getCurrentTenantName());
 		th.cancel();
 		pushTaskToPersist(th);
@@ -660,6 +662,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 		TaskHandler th = new TaskHandler();
 		Long id = newTask.getTenant().getId();
+		th.setTenantId(id);
 		th.setTenant( Security.getTenantName ( id ) );
 		th.setTask(getTaskEntityDao().toTask(newTask));
 		th.setTimeout(null);
@@ -988,6 +991,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected void handleExpireTasks () throws Exception
 	{
+		Set<Long> currentTenants = getTaskGenerator().getActiveTenants();
 		TaskHandler task;
 		Date now = new Date();
 		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
@@ -1038,6 +1042,13 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					if (allOk)
 					{
 						task.cancel();
+						pushTaskToPersist(task);
+						currentTasks.remove(task.getHash());
+						log.debug("Removing task {} from queue", task, null);
+						it.remove();
+					} else if ( ! currentTenants.contains(  task.getTenantId() ) )
+					{
+						task.reject();
 						pushTaskToPersist(task);
 						currentTasks.remove(task.getHash());
 						log.debug("Removing task {} from queue", task, null);
@@ -1525,7 +1536,18 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected void handlePersistTask (TaskHandler newTask) throws Exception
 	{
-		if (newTask.isChanged())
+		if (newTask.isRejected())
+		{
+    		TaskEntityDao dao = getTaskEntityDao();
+    		newTask.setChanged(false);
+    		TaskEntity tasque = dao.load(newTask.getTask().getId());
+    		if (tasque != null)
+    		{
+    			tasque.setServer(null);
+    			dao.update(tasque);
+    		}
+		}
+		else if (newTask.isChanged())
 		{
 			try {
 	    		TaskEntityDao dao = getTaskEntityDao();

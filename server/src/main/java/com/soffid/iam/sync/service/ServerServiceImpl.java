@@ -14,6 +14,7 @@ import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.PrinterUser;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
+import com.soffid.iam.api.Server;
 import com.soffid.iam.api.SystemAccessControl;
 import com.soffid.iam.api.Task;
 import com.soffid.iam.api.User;
@@ -62,6 +63,7 @@ import com.soffid.iam.model.UserGroupEntityDao;
 import com.soffid.iam.model.UserPrinterEntityDao;
 import com.soffid.iam.service.CertificateValidationService;
 import com.soffid.iam.service.DispatcherService;
+import com.soffid.iam.service.TenantService;
 import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.Plugin;
@@ -78,6 +80,7 @@ import com.soffid.iam.sync.service.server.Compile3;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.comu.ServerType;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.ServerRedirectException;
 import es.caib.seycon.ng.exception.UnknownGroupException;
@@ -525,6 +528,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 	@Override
 	protected String handleGetConfig(String param) throws Exception {
+		if (param.equals("seycon.server.list"))
+		{
+			return getServerList();
+		}
 		Invoker invoker = Invoker.getInvoker();
 		NetworkEntity xarxa = null;
 
@@ -559,6 +566,19 @@ public class ServerServiceImpl extends ServerServiceBase {
 		else
 			return config.getValue();
 
+	}
+
+	private String getServerList() throws InternalErrorException {
+		StringBuffer sb = new StringBuffer();
+		for (Server server: getDispatcherService().findTenantServers()) {
+			if (server.getType() == ServerType.MASTERSERVER)
+			{
+				if (sb.length() > 0) 
+					sb.append(", ");
+				sb.append(server.getUrl());
+			}
+		}
+		return sb.toString();
 	}
 
 	@Override

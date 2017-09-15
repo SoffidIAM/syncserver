@@ -89,10 +89,8 @@ public class SharedThreadPool implements Runnable {
 				}
 				else
 				{
-					currentThread.setName (originalName+ " ["+h.getSystem().getName()+"]");
-		        	Security.nestedLogin(h.getSystem().getTenant(), Config.getConfig().getHostName(), new String [] {
-		        		Security.AUTO_AUTHORIZATION_ALL
-		        	});
+					currentThread.setName (originalName+ " ["+h.getSystem().getTenant()+"\\"+h.getSystem().getName()+"]");
+		        	Security.nestedLogin(h.getSystem().getTenant(), Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
 		        	try {
 						if ( !h.runStep() )
 						{

@@ -75,8 +75,7 @@ public class CertificateServer {
             CertificateException, FileNotFoundException, IOException, InternalErrorException {
         password = SeyconKeyStore.getKeyStorePassword();
         ks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getKeyStoreFile());
-        if (config.isMainServer())
-            rootks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getRootKeyStoreFile());
+        rootks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getRootKeyStoreFile());
     }
 
     public X509Certificate getRoot() throws KeyStoreException {

@@ -153,13 +153,11 @@ class MyX509KeyManager implements X509KeyManager {
 	
 	public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
 		String s = parent.chooseClientAlias(keyType, issuers, socket);
-		log.info("Clave cliente propuesta: "+ s);
 		return s;
 	}
 
 	public String chooseServerAlias(String keyType, Principal[] issuers, Socket socket) {
 		String s = parent.chooseServerAlias(keyType, issuers, socket);
-		log.info("Clave server propuesta: "+ s);
 		return s;
 	}
 
@@ -169,7 +167,6 @@ class MyX509KeyManager implements X509KeyManager {
 
 	public String[] getClientAliases(String keyType, Principal[] issuers) {
 		return parent.getClientAliases(keyType, issuers);
-//		return new String [] {SeyconKeyStore.MY_KEY};
 	}
 
 	public PrivateKey getPrivateKey(String alias) {
@@ -179,6 +176,5 @@ class MyX509KeyManager implements X509KeyManager {
 
 	public String[] getServerAliases(String keyType, Principal[] issuers) {
 		return parent.getServerAliases(keyType, issuers);
-//		return new String [] {SeyconKeyStore.MY_KEY};
 	}
 }
