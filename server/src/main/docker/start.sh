@@ -33,6 +33,8 @@ function configuremain {
     
     echo "Configuring as main server"
 	/opt/soffid/iam-sync/bin/configure -main -hostname "$SOFFID_HOSTNAME" -dbuser "$MARIADB_USER" -dbpass "$MARIADB_PASS" -dburl "jdbc:mysql://$MARIADB_HOST:$MARIADB_PORT/$MARIADB_DB"
+
+	touch /opt/soffid/iam-sync/conf/configured
 }
 
 
@@ -62,6 +64,8 @@ function configureproxy {
     
     echo "Configuring as secondary or proxy server"
 	/opt/soffid/iam-sync/bin/configure -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER"
+	
+	touch /opt/soffid/iam-sync/conf/configured
 }
 
 
@@ -82,7 +86,7 @@ function configure {
 	true
 }
 
-if [[ ! -f /opt/soffid/iam-sync/conf/cacerts ]]
+if [[ ! -f /opt/soffid/iam-sync/conf/configured ]]
 then
    configure || exit 1
 fi
