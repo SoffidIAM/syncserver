@@ -78,6 +78,8 @@ public class AgentManagerImpl extends AgentManagerBase {
             String url = "/seycon/Agent/" + agent.hashCode();
             SoffidApplication.getJetty().bind(url, agent, "server");
             String serverName = Invoker.getInvoker().getUser();
+            if (serverName.indexOf('\\') > 0)
+            	serverName = serverName.substring(serverName.indexOf('\\')+1);
             if (agent instanceof es.caib.seycon.ng.sync.agent.Agent)
             {
                 es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
@@ -173,7 +175,10 @@ public class AgentManagerImpl extends AgentManagerBase {
             } else {
                 Invoker invoker = Invoker.getInvoker();
                 try {
-    	            RemoteServiceLocator rsl = new RemoteServiceLocator(invoker.getUser());
+                	String serverName = invoker.getUser();
+                    if (serverName.indexOf('\\') > 0)
+                    	serverName = serverName.substring(serverName.indexOf('\\')+1);
+    	            RemoteServiceLocator rsl = new RemoteServiceLocator(serverName);
     	            v2Agent.setServer(rsl.getServerService());
                 } catch (Exception e) {
     	            RemoteServiceLocator rsl = new RemoteServiceLocator();

@@ -16,6 +16,9 @@ import org.mortbay.log.Logger;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.URLManager;
 
+import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.utils.Security;
+
 public class SeyconUserRealm implements UserRealm {
     Config config = null;
     Logger log = Log.getLogger("SeyconUserRealm");
@@ -52,25 +55,34 @@ public class SeyconUserRealm implements UserRealm {
     }
 
     public boolean isUserInRole(Principal user, String role) {
-        if ("agent".equals(role))
-            return true;
-        if ("server".equals(role))
-        {
-            try {
-                String serverList [] = config.getServerList().split("[, ]+");
-                for (int i = 0; i < serverList.length; i++)
-             
-                {
-                    URLManager m = new URLManager (serverList[i]);
-                    if (m.getServerURL().getHost().equals(user.getName()))
-                        return true;
-                }
-            } catch (Exception e) {
-                log.warn("Error checking for permissions", e);
-            }
-            return false;
-        }
+    	try {
+	        if ("agent".equals(role))
+	            return true;
+	        if ("server".equals(role))
+	        {
+	        	String name = user.getName();
+				if (!name.startsWith( Security.getMasterTenantName() + "\\"))
+					return false;
+	        	int p = name.indexOf('\\');
+	       		name = name.substring(p+1);
+	            try {
+	                String serverList [] = config.getServerList().split("[, ]+");
+	                for (int i = 0; i < serverList.length; i++)
+	             
+	                {
+	                    URLManager m = new URLManager (serverList[i]);
+	                    if (m.getServerURL().getHost().equals(name))
+	                        return true;
+	                }
+	            } catch (Exception e) {
+	                log.warn("Error checking for permissions", e);
+	            }
+	            return false;
+	        }
         
+		} catch (InternalErrorException e1) {
+			log.warn("Error authorizing user "+user.toString(), e1);
+		}
         return false;
     }
 

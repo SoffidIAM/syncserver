@@ -2,6 +2,7 @@ package com.soffid.iam.sync.jetty;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URLDecoder;
 import java.security.Principal;
 import java.util.Collection;
 
@@ -40,13 +41,12 @@ public class SeyconBasicRealm implements UserRealm {
 
     public Principal authenticate(String username, Object credentials,
             Request request) {
-        if (config.isDebug())
-            return new SimplePrincipal(username);
         try {
-            if (username.startsWith("-seu-")) {
-                String token = (String) credentials;
+            if (username.startsWith("-seu-")) 
+            {
+                String token = URLDecoder.decode((String) credentials, "UTF-8");
                 if (sc.validateAuthToken(token))
-                    return new TokenPrincipal();
+                    return new TokenPrincipal(username.substring(5));
             }
             String password = (String) credentials;
             if (logonService.validatePassword(username, null, password) != PasswordValidation.PASSWORD_GOOD) {

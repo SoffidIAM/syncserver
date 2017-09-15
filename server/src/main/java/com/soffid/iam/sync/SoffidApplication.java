@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.config.Config;
+import com.soffid.iam.remote.RemoteInvokerFactory;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.agent.AgentManagerImpl;
@@ -29,6 +30,7 @@ import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.kerberos.ChainConfiguration;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
 import com.soffid.iam.sync.jetty.JettyServer;
+import com.soffid.iam.sync.jetty.SecurityHeaderFactory;
 import com.soffid.iam.sync.jetty.SeyconLog;
 import com.soffid.iam.utils.Security;
 
@@ -298,6 +300,7 @@ public class SoffidApplication extends Object {
             if (config.isDebug())
                 SeyconLog.setDebug(true);
             
+            configureSecurityHeaders();
             configureSecurity ();
 
             // Establecemos el cacerts (copiamos el de JVM a conf si no existe)
@@ -342,7 +345,11 @@ public class SoffidApplication extends Object {
         }
     }
 
-    private static void configureSecurity() throws FileNotFoundException, IOException {
+    private static void configureSecurityHeaders() {
+    	RemoteInvokerFactory.addHeadersFactory(new SecurityHeaderFactory());
+	}
+
+	private static void configureSecurity() throws FileNotFoundException, IOException {
     	File homeDir = Config.getConfig().getHomeDir();
     	File securityPolicy = new File (new File (homeDir, "conf"), "security.policy");
     	if (! securityPolicy.canRead())

@@ -40,6 +40,7 @@ public class ServerInvokerServlet extends InvokerServlet {
 			}
 			else
 			{
+				userName = URLDecoder.decode(userName, "UTF-8");
 				int i = userName.indexOf('\\');
 				if ( i < 0 )
 				{
@@ -51,13 +52,19 @@ public class ServerInvokerServlet extends InvokerServlet {
 					tenant = URLDecoder.decode(userName.substring(0, i), "UTF-8");
 					userName = URLDecoder.decode(userName.substring(i+1), "UTF-8");
 				}
+				if (tenant.equals("master"))
+				{
+					String targetTenant = request.getHeader("Soffid-Tenant");
+					if (targetTenant != null)
+						tenant = targetTenant;
+				}
 			}
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException(e);
 		} catch (InternalErrorException e) {
 			throw new RuntimeException(e);
 		}
-		Security.nestedLogin(tenant, userName, new String [] {Security.AUTO_AUTHORIZATION_ALL});
+		Security.nestedLogin(tenant, userName, Security.ALL_PERMISSIONS);
 	}
 
 }
