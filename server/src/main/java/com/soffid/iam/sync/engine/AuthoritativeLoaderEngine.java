@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.engine;
 
+import java.io.BufferedWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collection;
@@ -82,10 +83,9 @@ public class AuthoritativeLoaderEngine {
 	 * @throws Exception 
 	 * 
 	 */
-	public void doAuthoritativeImport (ScheduledTask task) 
+	public void doAuthoritativeImport (ScheduledTask task, PrintWriter out) 
 	{
 
-		StringBuffer result = task.getLastLog();
 		try {
 			
 			preInsertTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
@@ -133,7 +133,7 @@ public class AuthoritativeLoaderEngine {
     			{
 	    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
 	    	        {
-	    	        	processChange(change, source, result, objectTranslator, vom);
+	    	        	processChange(change, source, out, objectTranslator, vom);
 	    	        }
 	    			changes = source.getChanges();
     			}
@@ -155,7 +155,7 @@ public class AuthoritativeLoaderEngine {
 						break;
 	    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
 	    	        {
-	    	        	if ( processChange(change, null, result, objectTranslator, vom) )
+	    	        	if ( processChange(change, null, out, objectTranslator, vom) )
 	    	        		anyError = true;
 	    	        }
    				} while (source2.hasMoreData());
@@ -174,42 +174,40 @@ public class AuthoritativeLoaderEngine {
 					}
 				}
     		} else {
-    			result.append ("This agent does not support account reconciliation");
+    			out.println("This agent does not support account reconciliation");
     		}
 		} 
 		catch (Exception e)
 		{
 			log.info("Error performing authoritative data load process", e);
-			result.append ("*************\n");
-			result.append ("**  ERROR **\n");
-			result.append ("*************\n");
-			result.append (e.toString());
-			result.append("\n\nStack trace:\n")
-				.append(SoffidStackTrace.getStackTrace(e));
-			if (result.length() > 32000)
-			{
-				result.replace(0, result.length()-32000, "** TRUNCATED FILE ***\n...");
-			}
+			out.println("*************");
+			out.println ("**  ERROR **");
+			out.println ("*************");
+			out.println (e.toString());
+			out.println();
+			out.println();
+			out.println("Stack trace:");
+			SoffidStackTrace.printStackTrace(e, out);
 			task.setError(true);
 		}
 		
 	}
 
 	private boolean processChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, StringBuffer result,
+			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, PrintWriter out,
 			ObjectTranslator objectTranslator, ValueObjectMapper vom) {
 		if (change.getUser() != null)
-			return processUserChange(change, source, result, objectTranslator, vom);
+			return processUserChange(change, source, out, objectTranslator, vom);
 		else if (change.getGroup() != null)
-			return processGroupChange(change, source, result, objectTranslator, vom);
+			return processGroupChange(change, source, out, objectTranslator, vom);
 		else if (change.getObject() != null)
-			return processObjectChange(change, source, result, objectTranslator, vom);
+			return processObjectChange(change, source, out, objectTranslator, vom);
 		else
 			return false;
 	}
 
 	private boolean processUserChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, StringBuffer result,
+			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, PrintWriter out,
 			ObjectTranslator objectTranslator, ValueObjectMapper vom) {
 		boolean error = false;
 		change.setSourceSystem(getSystem().getName());
@@ -231,7 +229,7 @@ public class AuthoritativeLoaderEngine {
 					}
 					else
 					{
-						result.append("Change to user "+change.getUser().getUserName()+" is rejected by pre-insert trigger\n");
+						out.append("Change to user "+change.getUser().getUserName()+" is rejected by pre-insert trigger\n");
 						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-insert trigger");
 						ok = false;
 					}
@@ -249,7 +247,7 @@ public class AuthoritativeLoaderEngine {
 					}
 					else
 					{
-						result.append("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger\n");
+						out.append("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger\n");
 						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger");
 						ok = false;
 					}
@@ -260,7 +258,7 @@ public class AuthoritativeLoaderEngine {
 				if (authoritativeService
 						.startAuthoritativeChange(change))
 				{
-					result.append(
+					out.append(
 							"Applied authoritative change for  ")
 							.append(change.getUser().getUserName())
 							.append("\n");
@@ -270,7 +268,7 @@ public class AuthoritativeLoaderEngine {
 				else
 				{
 					log.info("Prepared authoritative change for  "+change.getUser().getUserName());
-					result.append(
+					out.append(
 							"Prepared authoritative change for  ")
 							.append(change.getUser().getUserName())
 							.append("\n");
@@ -300,20 +298,18 @@ public class AuthoritativeLoaderEngine {
 			log.info("Error uploading change "+change.getId().toString(), e);
 			log.info("User information: "+change.getUser().toString());
 			log.info("Exception: "+e.toString());
-			result.append ("Error uploading change ")
-				.append(change.getId().toString())
-				.append(":");
-			StringWriter sw = new StringWriter();
-			e.printStackTrace (new PrintWriter(sw));
-			result.append(sw.getBuffer())
-				.append ("\n");
-			result.append("User information: ").append(change.getUser()).append("\n");
+			out.println ("Error uploading change ");
+			out.print(change.getId().toString());
+			out.print(":");
+			e.printStackTrace (out);
+			out.print("User information: ");
+			out.println(change.getUser());
 		}
 		return error;
 	}
 
 	private boolean processGroupChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, StringBuffer result,
+			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, PrintWriter out,
 			ObjectTranslator objectTranslator, ValueObjectMapper vom) {
 		boolean error = false;
 		change.setSourceSystem(getSystem().getName());
@@ -335,7 +331,7 @@ public class AuthoritativeLoaderEngine {
 					}
 					else
 					{
-						result.append("Change to group "+change.getGroup().getName()+" is rejected by pre-insert trigger\n");
+						out.append("Change to group "+change.getGroup().getName()+" is rejected by pre-insert trigger\n");
 						log.info("Change to group "+change.getGroup().getName()+" is rejected by pre-insert trigger");
 						ok = false;
 					}
@@ -354,7 +350,7 @@ public class AuthoritativeLoaderEngine {
 					}
 					else
 					{
-						result.append("Change to group "+change.getGroup().getName()+" is rejected by pre-update trigger\n");
+						out.append("Change to group "+change.getGroup().getName()+" is rejected by pre-update trigger\n");
 						log.info("Change to group "+change.getGroup().getName()+" is rejected by pre-update trigger");
 						ok = false;
 					}
@@ -365,7 +361,7 @@ public class AuthoritativeLoaderEngine {
 				if (authoritativeService
 						.startAuthoritativeChange(change))
 				{
-					result.append(
+					out.append(
 							"Applied authoritative change for  ")
 							.append(change.getGroup().getName())
 							.append("\n");
@@ -375,7 +371,7 @@ public class AuthoritativeLoaderEngine {
 				else
 				{
 					log.info("Prepared authoritative change for  "+change.getGroup().getName());
-					result.append(
+					out.append(
 							"Prepared authoritative change for  ")
 							.append(change.getGroup().getName())
 							.append("\n");
@@ -412,20 +408,20 @@ public class AuthoritativeLoaderEngine {
 			log.info("Error uploading change "+change.getId().toString(), e);
 			log.info("Group information: "+change.getGroup().toString());
 			log.info("Exception: "+e.toString());
-			result.append ("Error uploading change ")
+			out.append ("Error uploading change ")
 				.append(change.getId().toString())
 				.append(":");
 			StringWriter sw = new StringWriter();
 			e.printStackTrace (new PrintWriter(sw));
-			result.append(sw.getBuffer())
-				.append ("\n");
-			result.append("Group information: ").append(change.getGroup()).append("\n");
+			out.println(sw.getBuffer());
+			out.append("Group information: ");
+			out.println(change.getGroup());
 		}
 		return error;
 	}
 
 	private boolean processObjectChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, StringBuffer result,
+			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, PrintWriter out,
 			ObjectTranslator objectTranslator, ValueObjectMapper vom) {
 		boolean error = false;
 		change.setSourceSystem(getSystem().getName());
@@ -447,7 +443,7 @@ public class AuthoritativeLoaderEngine {
 					}
 					else
 					{
-						result.append("Change to object "+change.getObject().getType()+" "+
+						out.append("Change to object "+change.getObject().getType()+" "+
 								change.getObject().getName()+" is rejected by pre-insert trigger\n");
 						log.info("Change to object "+change.getObject().getType()+" "+
 								change.getObject().getName()+" is rejected by pre-insert trigger");
@@ -467,7 +463,7 @@ public class AuthoritativeLoaderEngine {
 					}
 					else
 					{
-						result.append("Change to object "+change.getObject().getType()+" "+
+						out.append("Change to object "+change.getObject().getType()+" "+
 								change.getObject().getName()+" is rejected by pre-update trigger\n");
 						log.info("Change to object "+change.getObject().getType()+" "+
 								change.getObject().getName()+" is rejected by pre-update trigger");
@@ -480,7 +476,7 @@ public class AuthoritativeLoaderEngine {
 				if (authoritativeService
 						.startAuthoritativeChange(change))
 				{
-					result.append(
+					out.append(
 							"Applied authoritative change for  ")
 							.append(change.getObject().getType())
 							.append(" ")
@@ -494,7 +490,7 @@ public class AuthoritativeLoaderEngine {
 				{
 					log.info("Prepared authoritative change for object "+change.getObject().getType()+" "+
 								change.getObject().getName());
-					result.append(
+					out.append(
 							"Prepared authoritative change for  ")
 							.append(change.getObject().getType())
 							.append(" ")
@@ -530,14 +526,15 @@ public class AuthoritativeLoaderEngine {
 			log.info("Error uploading change "+change.getId().toString(), e);
 			log.info("Group information: "+change.getObject().toString());
 			log.info("Exception: "+e.toString());
-			result.append ("Error uploading change ")
+			out.append ("Error uploading change ")
 				.append(change.getId().toString())
 				.append(":");
 			StringWriter sw = new StringWriter();
 			e.printStackTrace (new PrintWriter(sw));
-			result.append(sw.getBuffer())
+			out.append(sw.getBuffer())
 				.append ("\n");
-			result.append("Object information: ").append(change.getObject()).append("\n");
+			out.append("Object information: ");
+			out.println(change.getObject());
 		}
 		return error;
 	}

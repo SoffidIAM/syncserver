@@ -57,15 +57,14 @@ public class ScheduledTasksServlet extends HttpServlet {
             	{
             		if (task.getId().toString().equals(id))
             		{
-            			ts.runNow(task);
-            			printWriter.print ("<p>Executed "+task.getName()+"</p>");
+            			printWriter.print("<PRE>");
+            			ts.runNow(task, printWriter, true);
+               			printWriter.print("</PRE>");
+               			printWriter.print ("<p>Finished "+task.getName()+"</p>");
             			if (task.isError())
             				printWriter.print ("<p>Result: ERROR</p>");
             			else
             				printWriter.print ("<p>Result: SUCCESS</p>");
-            			printWriter.print("<PRE>");
-            			printWriter.print(task.getLastLog());
-            			printWriter.print("</PRE>");
             			printWriter.flush();
             		}
             	}

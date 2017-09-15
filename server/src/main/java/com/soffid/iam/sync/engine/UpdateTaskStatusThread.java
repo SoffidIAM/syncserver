@@ -31,7 +31,6 @@ public class UpdateTaskStatusThread extends Thread
 		} catch (IOException e2) {
 			hostname = "Syncserver";
 		}
-		String[] permissions = new String[] {Security.AUTO_AUTHORIZATION_ALL};
 		Log log = LogFactory.getLog(getClass());
         TaskQueue taskQueue = ServerServiceLocator.instance().getTaskQueue();
         while (true)
@@ -39,14 +38,17 @@ public class UpdateTaskStatusThread extends Thread
     		TaskHandler task = null;
         	try {
         		task = taskQueue.peekTaskToPersist();
-        		Security.nestedLogin(task.getTenant(),
-        				hostname,
-        				permissions);
-        		try {
-        			taskQueue.persistTask(task);
-        		} finally {
-        			Security.nestedLogoff();
-        			
+        		if (task != null)
+        		{
+	        		Security.nestedLogin(task.getTenant(),
+	        				hostname,
+	        				Security.ALL_PERMISSIONS);
+	        		try {
+	        			taskQueue.persistTask(task);
+	        		} finally {
+	        			Security.nestedLogoff();
+	        			
+	        		}
         		}
         	} catch (Throwable e)
         	{

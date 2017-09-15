@@ -3,6 +3,9 @@
  */
 package com.soffid.iam.sync.engine.cron;
 
+import java.io.BufferedWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 import java.sql.SQLException;
 
 import com.soffid.iam.ServiceLocator;
@@ -28,7 +31,7 @@ public class AuthoritativeImportTask implements TaskHandler
 	/* (non-Javadoc)
 	 * @see java.lang.Runnable#run()
 	 */
-	public void run () throws SQLException, InternalErrorException
+	public void run (PrintWriter out) throws SQLException, InternalErrorException, IOException
 	{
 		TaskGenerator tg = ServiceLocator.instance().getTaskGenerator();
 		boolean found = false;
@@ -37,11 +40,14 @@ public class AuthoritativeImportTask implements TaskHandler
 			if (dispatcher.getSystem().getId().toString().equals (task.getParams()))
 			{
 				found = true;
-				dispatcher.doAuthoritativeImport(task);
+				dispatcher.doAuthoritativeImport(task, out);
 			}
 		}
 		if (!found)
-			task.getLastLog(). append(String.format("Dispatcher with id %s not found", task.getParams()));
+		{
+			out.println(String.format("Dispatcher with id %s not found", task.getParams()));
+		}
+		
 	}
 
 	/* (non-Javadoc)

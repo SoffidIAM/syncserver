@@ -22,12 +22,15 @@ import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleAccount;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.User;
+import com.soffid.iam.model.AccountEntityDao;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.ApplicationService;
+import com.soffid.iam.service.SyncServerService;
 import com.soffid.iam.service.UserService;
 import com.soffid.iam.service.UserDomainService;
 import com.soffid.iam.sync.intf.ReconcileMgr;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.sync.service.TaskGenerator;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;

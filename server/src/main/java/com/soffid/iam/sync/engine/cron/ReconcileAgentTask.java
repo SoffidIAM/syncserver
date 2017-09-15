@@ -3,6 +3,7 @@
  */
 package com.soffid.iam.sync.engine.cron;
 
+import java.io.PrintWriter;
 import java.sql.SQLException;
 
 import com.soffid.iam.ServiceLocator;
@@ -28,7 +29,7 @@ public class ReconcileAgentTask implements TaskHandler
 	/* (non-Javadoc)
 	 * @see java.lang.Runnable#run()
 	 */
-	public void run () throws SQLException, InternalErrorException
+	public void run (PrintWriter out) throws SQLException, InternalErrorException
 	{
 		TaskGenerator tg = ServiceLocator.instance().getTaskGenerator();
 		boolean found = false;
@@ -37,11 +38,12 @@ public class ReconcileAgentTask implements TaskHandler
 			if (dispatcher.getSystem().getId().toString().equals (task.getParams()))
 			{
 				found = true;
-				dispatcher.doReconcile(task);
+				dispatcher.doReconcile(task, out);
+				break;
 			}
 		}
 		if (!found)
-			task.getLastLog(). append(String.format("Dispatcher with id %s not found", task.getParams()));
+			out.println(String.format("Dispatcher with id %s not found", task.getParams()));
 	}
 
 	/* (non-Javadoc)

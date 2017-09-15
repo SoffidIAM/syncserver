@@ -5,6 +5,7 @@ package com.soffid.iam.sync.engine.cron;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Calendar;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,6 +21,9 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.ScheduledTaskHandler;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.doc.api.DocumentOutputStream;
+import com.soffid.iam.doc.exception.DocumentBeanException;
+import com.soffid.iam.doc.service.DocumentService;
 import com.soffid.iam.service.ScheduledTaskService;
 import com.soffid.iam.service.TaskHandler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
@@ -55,33 +59,41 @@ public class TaskScheduler
 		 */
 		private final ScheduledTask task;
 		private boolean spawnThread;
+		private PrintWriter out;
 
 		/**
 		 * @param handler
 		 * @param taskSvc
 		 * @param task
+		 * @param printWriter 
 		 */
 		private ScheduledTaskRunnable (TaskHandler handler,
 						ScheduledTaskService taskSvc, ScheduledTask task,
-						boolean spawnThread)
+						boolean spawnThread, PrintWriter printWriter)
 		{
 			this.handler = handler;
 			this.taskSvc = taskSvc;
 			this.task = task;
 			this.spawnThread = spawnThread;
+			this.out = printWriter;
 		}
 
 		public void run ()
 		{
 			Runnable runnable = new Runnable () {
 				public void run() {
+					PrintWriter actualOut = null;
+					DocumentService ds = null;
 					Security.nestedLogin(task.getTenant(),
 							hostName,
 							Security.ALL_PERMISSIONS);
+
 					try {
 						boolean ignore = false;
+						String tx = null;
 						try
 						{
+							ServiceLocator.instance().getTaskGenerator().startVirtualSourceTransaction();
 							synchronized (runningTasks) {
 								if (runningTasks.contains(task.getId()))
 									ignore = true;
@@ -93,9 +105,19 @@ public class TaskScheduler
 								taskSvc.registerStartTask(task);
 								task.setError(false);
 								handler.setTask(task);
-								handler.run();
+
+								ds = ServiceLocator.instance().getDocumentService();
+								ds.createDocument("text/plain", task.getName(), "taskmgr");
+								actualOut = new PrintWriter(
+										new DocumentOutputStream(ds)
+										);
+								if (out != null)
+									actualOut = new SplitPrintWriter(actualOut, out);
+
+								handler.run(actualOut);
 								log.info("Task finished");
-							} else 
+							} 
+							else 
 							{
 								log.info("Not executing task "+task.getName()+" as a previous instance is already running");
 							}
@@ -104,11 +126,15 @@ public class TaskScheduler
 							if (! ignore)
 							{
 								task.setError(true);
-								task.getLastLog()
-									.append("\nError executing task: ")
-									.append(e.toString())
-									.append("\n\nStack trace:\n")
-									.append(SoffidStackTrace.getStackTrace(e));
+								if (actualOut != null)
+								{
+									actualOut.println();
+									actualOut.print("Error executing task: ");
+									actualOut.println(e.toString());
+									actualOut.println();
+									actualOut.println("Stack trace:");
+									SoffidStackTrace.printStackTrace(e, actualOut);
+								}
 								log.info("Finished task " + task.getName()+" with error:", e);
 							}
 						} finally {
@@ -122,6 +148,11 @@ public class TaskScheduler
 	      
 						try
 						{
+							if (actualOut != null)
+							{
+								actualOut.close();
+								task.setLogReferenceID( ds.getReference().toString() );
+							}
 							if (! ignore)
 								taskSvc.registerEndTask(task);
 						}
@@ -164,7 +195,7 @@ public class TaskScheduler
 		return theScheduler;
 	}
 	
-	public void runNow (ScheduledTask task) throws ClassNotFoundException, InstantiationException, IllegalAccessException, InternalErrorException
+	public void runNow (ScheduledTask task, PrintWriter printWriter, boolean sync) throws ClassNotFoundException, InstantiationException, IllegalAccessException, InternalErrorException
 	{
 		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
 		
@@ -182,7 +213,8 @@ public class TaskScheduler
 					handlerObject = (TaskHandler) cl.newInstance();
 				}
 				final TaskHandler h = handlerObject;
-				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, false);
+				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, ! sync,
+						printWriter);
 				r.run();
 			}
 		}
@@ -212,7 +244,7 @@ public class TaskScheduler
 	public void init () throws InternalErrorException, FileNotFoundException, IOException
 	{
 		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
-		List<ScheduledTask> list = taskSvc.listTasks();
+		List<ScheduledTask> list = taskSvc.listServerTasks(Config.getConfig().getHostName());
 		
 		String hostName = Config.getConfig().getHostName();
 		
@@ -220,13 +252,18 @@ public class TaskScheduler
 		{
 			if (task.isActive() && task.getServerName().equals (hostName))
 			{
-				task.setActive(false);
-				task.setError(true);
-				StringBuffer sb = new StringBuffer();
-				sb.append ("Server restarted during execution");
-				task.setLastLog(sb);
-				task.setLastEnd(Calendar.getInstance());
-				taskSvc.registerEndTask(task);
+				Security.nestedLogin(task.getTenant(), hostName, Security.ALL_PERMISSIONS);
+				try {
+					task.setActive(false);
+					task.setError(true);
+					StringBuffer sb = new StringBuffer();
+					sb.append ("Server restarted during execution");
+					task.setLogReferenceID(null);
+					task.setLastEnd(Calendar.getInstance());
+					taskSvc.registerEndTask(task);
+				} finally {
+					Security.nestedLogoff();
+				}
 			}
 		}
 		reconfigure ();
@@ -255,7 +292,7 @@ public class TaskScheduler
 			handlers.put(handler.getName(), handler);
 		}
 		
-		List<ScheduledTask> list = taskSvc.listTasks();
+		List<ScheduledTask> list = taskSvc.listServerTasks(hostName);
 		
 		String hostName = Config.getConfig().getHostName();
 		
@@ -266,6 +303,7 @@ public class TaskScheduler
 							task.getServerName().equals("*") || 
 							task.getServerName().equals (hostName)))
 			{
+				Security.nestedLogin(task.getTenant(), hostName, Security.ALL_PERMISSIONS);
     			try {
     				ScheduledTaskHandler handler = handlers.get(task.getHandlerName());
     				if (handler == null)
@@ -280,17 +318,35 @@ public class TaskScheduler
     					handlerObject = (TaskHandler) cl.newInstance();
     				}
     				final TaskHandler h = handlerObject;
-    				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, true);
+    				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, true, null);
     				newCronScheduler.schedule(task.getMinutesPattern()+" "+task.getHoursPattern()+
     								" "+task.getDayPattern()+" "+task.getMonthsPattern()+
     								" "+task.getDayOfWeekPattern(), r);
     			} 
     			catch (Exception e)
     			{
+    				task.setLogReferenceID(null);
+					try {
+						DocumentService ds = ServiceLocator.instance().getDocumentService();
+						ds.createDocument("text/plain", task.getName(), "taskmgr");
+						task.setLogReferenceID(ds.getReference().toString());
+						PrintWriter out;
+						out = new PrintWriter(
+								new DocumentOutputStream(ds)
+								);
+	    				out.println("Error creating handler: ");
+	    				SoffidStackTrace.printStackTrace(e, out);
+	    				out.close();
+	    				task.setLogReferenceID(ds.getReference().getId());
+					} catch (DocumentBeanException e1) {
+						log.warn("Error generating log file", e1);
+					}
+
     				task.setLastExecution(Calendar.getInstance());
     				task.setError(true);
-    				task.setLastLog(new StringBuffer("Error creating handler: "). append(e.toString()));
     				taskSvc.registerEndTask(task);
+    			} finally {
+    				Security.nestedLogoff();
     			}
 			}
 			

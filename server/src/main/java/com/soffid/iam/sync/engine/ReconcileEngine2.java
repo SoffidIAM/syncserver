@@ -3,6 +3,7 @@
  */
 package com.soffid.iam.sync.engine;
 
+import java.io.PrintWriter;
 import java.rmi.RemoteException;
 import java.util.Calendar;
 import java.util.Collection;
@@ -69,7 +70,7 @@ public class ReconcileEngine2
 	private UserDomainService dominiService;
 	private UserService usuariService;
 	private DomainService rolDomainService;
-	private StringBuffer log;
+	private PrintWriter log;
 	private Collection<ReconcileTrigger> triggers;
 	private DispatcherService dispatcherService;
 	private ObjectTranslator objectTranslator;
@@ -83,27 +84,8 @@ public class ReconcileEngine2
 	private List<ReconcileTrigger> preInsertRole;
 	private List<ReconcileTrigger> preUpdateRole;
 
-	/**
-	 * @param dispatcher 
-	 * @param agent
-	 */
-	public ReconcileEngine2 (com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent)
-	{
-		this.agent = agent;
-		this.dispatcher = dispatcher;
-		dispatcherService = ServiceLocator.instance().getDispatcherService();
-		accountService = ServiceLocator.instance().getAccountService();
-		appService = ServiceLocator.instance().getApplicationService();
-		serverService = ServiceLocator.instance().getServerService();
-		dominiService = ServiceLocator.instance().getUserDomainService();
-		usuariService = ServiceLocator.instance().getUserService();
-		rolDomainService = ServiceLocator.instance().getDomainService();
-		dadesAddicionalsService = ServiceLocator.instance().getAdditionalDataService();
-		log = new StringBuffer();
-	}
-
 	public ReconcileEngine2(com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent,
-			StringBuffer result) {
+			PrintWriter out) {
 		this.agent = agent;
 		this.dispatcher = dispatcher;
 		dispatcherService = ServiceLocator.instance().getDispatcherService();
@@ -114,7 +96,7 @@ public class ReconcileEngine2
 		usuariService = ServiceLocator.instance().getUserService();
 		rolDomainService = ServiceLocator.instance().getDomainService();
 		dadesAddicionalsService = ServiceLocator.instance().getAdditionalDataService();
-		log = result;
+		log = out;
 	}
 
 	/**
@@ -555,7 +537,7 @@ public class ReconcileEngine2
 			}			
 		});
 		
-		return policies.get(0).getType();
+		return policies.get(0).getUserType();
 	}
 
 	/**

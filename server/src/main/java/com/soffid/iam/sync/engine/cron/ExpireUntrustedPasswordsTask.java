@@ -3,6 +3,7 @@
  */
 package com.soffid.iam.sync.engine.cron;
 
+import java.io.PrintWriter;
 import java.sql.SQLException;
 
 import com.soffid.iam.api.ScheduledTask;
@@ -26,7 +27,7 @@ public class ExpireUntrustedPasswordsTask implements TaskHandler
 	/* (non-Javadoc)
 	 * @see java.lang.Runnable#run()
 	 */
-	public void run () throws SQLException, InternalErrorException
+	public void run (PrintWriter out) throws SQLException, InternalErrorException
 	{
 	    InternalPasswordService ips = ServerServiceLocator.instance().getInternalPasswordService();
         
