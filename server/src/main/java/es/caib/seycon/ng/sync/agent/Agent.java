@@ -12,6 +12,10 @@ import java.util.Iterator;
 
 import org.slf4j.LoggerFactory;
 
+import com.soffid.iam.api.SoffidObjectType;
+import com.soffid.iam.sync.engine.InterfaceWrapper;
+import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFatory;
+import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
 
 import es.caib.seycon.ng.comu.Dispatcher;
@@ -147,5 +151,14 @@ public abstract class Agent implements AgentInterface {
         }
         return concat;
     }
-    
+ 
+	public ExtensibleObject getExtensibleObject (SoffidObjectType type, String object1, String object2) throws InternalErrorException
+	{
+		ExtensibleObjectFatory eof = new ExtensibleObjectFatory();
+		eof.setAgentName(getDispatcher().getCodi());
+		eof.setServer( InterfaceWrapper.getServerService(server));
+		com.soffid.iam.sync.intf.ExtensibleObject eo = eof.getExtensibleObject(type, object1, object2);
+		return ExtensibleObject.toExtensibleObject(eo);
+	}
+
 }

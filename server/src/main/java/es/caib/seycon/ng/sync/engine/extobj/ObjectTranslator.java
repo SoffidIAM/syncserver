@@ -165,7 +165,7 @@ public class ObjectTranslator {
 				com.soffid.iam.sync.intf.ExtensibleObjectMapping.toExtensibleObjectMapping(objectMapping));
 	}
 
-	private boolean evalExpression(ExtensibleObject sourceObject, String condition) throws InternalErrorException {
+	public boolean evalExpression(ExtensibleObject sourceObject, String condition) throws InternalErrorException {
 		return delegate.evalExpression(sourceObject, condition);
 	}
 	public Object eval(String expr, ExtensibleObject eo)

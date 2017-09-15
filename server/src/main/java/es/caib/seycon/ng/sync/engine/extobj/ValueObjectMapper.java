@@ -5,6 +5,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Map;
 
+import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.RoleGrant;
 
 import es.caib.seycon.ng.comu.Account;
@@ -100,5 +101,9 @@ public class ValueObjectMapper {
 	{
 		return RolGrant.toRolGrant(
 				delegate.parseGrant(map));
+	}
+
+	public CustomObject parseCustomObject(ExtensibleObject object) {
+		return delegate.parseCustomObject(object);
 	}
 }

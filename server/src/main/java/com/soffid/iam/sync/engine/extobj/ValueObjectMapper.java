@@ -25,6 +25,7 @@ import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjects;
+import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.util.DateParser;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -451,7 +452,7 @@ public class ValueObjectMapper
 		return rg;
 	}
 	
-	public CustomObject parseCustomObject(CustomExtensibleObject object) {
+	public CustomObject parseCustomObject(ExtensibleObject object) {
 		CustomObject o = null;
 		if (object.getObjectType().equals( SoffidObjectType.OBJECT_CUSTOM))
 		{

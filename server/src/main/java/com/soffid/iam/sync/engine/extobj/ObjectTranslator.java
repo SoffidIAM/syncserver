@@ -142,6 +142,10 @@ public class ObjectTranslator
 					evaluate (source, obj, attribute.getSoffidAttribute(), attribute.getSystemAttribute());
 				}
 			}
+			if ( objectMapping.getSoffidObject() == SoffidObjectType.OBJECT_CUSTOM)
+			{
+				obj.setAttribute("type", objectMapping.getSoffidCustomObject());
+			}
 			return obj;
 		}
 		else

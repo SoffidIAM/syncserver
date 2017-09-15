@@ -24,6 +24,7 @@ import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.PrinterUser;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
+import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.SystemAccessControl;
 import com.soffid.iam.api.User;
@@ -36,6 +37,7 @@ import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
 import com.soffid.iam.sync.intf.CustomObjectMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
+import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.intf.GroupMgr;
 import com.soffid.iam.sync.intf.HostMgr;
 import com.soffid.iam.sync.intf.KerberosAgent;
@@ -68,6 +70,7 @@ import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.sync.intf.AuthoritativeChangeIdentifier;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource2;
+import es.caib.seycon.ng.sync.intf.ExtensibleObjectMapping;
 import es.caib.seycon.ng.sync.intf.UserMgr;
 
 public class InterfaceWrapper {
@@ -865,5 +868,36 @@ public class InterfaceWrapper {
 
 	public static CustomObjectMgr getCustomObjectMgr(Object agent) {
 		return (CustomObjectMgr) agent;
+	}
+
+	public static ExtensibleObjectMgr getExtensibleObjectMgr(Object obj) {
+		if (obj instanceof ExtensibleObjectMgr)
+			return (ExtensibleObjectMgr) obj;
+		else if ( obj instanceof es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr)
+		{
+			final es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr agent = 
+					(es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr) obj;
+			return new ExtensibleObjectMgr() {
+
+				public void configureMappings(Collection<com.soffid.iam.sync.intf.ExtensibleObjectMapping> objects)
+						throws RemoteException, InternalErrorException {
+					agent.configureMappings(ExtensibleObjectMapping.toExtensibleObjectMappingList(objects));
+					
+				}
+
+				public ExtensibleObject getNativeObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
+					es.caib.seycon.ng.sync.intf.ExtensibleObject o = agent.getNativeObject(type, object1, object2);
+					return ExtensibleObject.toExtensibleObject(o);
+				}
+
+				public ExtensibleObject getSoffidObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
+					es.caib.seycon.ng.sync.intf.ExtensibleObject o = agent.getSoffidObject(type, object1, object2);
+					return ExtensibleObject.toExtensibleObject(o);
+				}
+
+			};
+		}
+		else
+			return null;
 	}
 }

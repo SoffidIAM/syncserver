@@ -12,13 +12,27 @@ import java.util.Iterator;
 
 import org.slf4j.LoggerFactory;
 
+import com.soffid.iam.api.Account;
+import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
+import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
+import com.soffid.iam.sync.engine.InterfaceWrapper;
+import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFatory;
+import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
+import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.ServerService;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.UnknownGroupException;
+import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 
 public abstract class Agent implements AgentInterface {
@@ -130,4 +144,12 @@ public abstract class Agent implements AgentInterface {
         return concat;
     }
     
+	public ExtensibleObject getExtensibleObject (SoffidObjectType type, String object1, String object2) throws InternalErrorException
+	{
+		ExtensibleObjectFatory eof = new ExtensibleObjectFatory();
+		eof.setAgentName(getSystem().getName());
+		eof.setServer( server);
+		return eof.getExtensibleObject(type, object1, object2);
+	}
+
 }
