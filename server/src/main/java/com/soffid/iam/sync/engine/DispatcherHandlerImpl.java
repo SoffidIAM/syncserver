@@ -1,6 +1,7 @@
 package com.soffid.iam.sync.engine;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -357,6 +358,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class) ||
 					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class)||
             		implemented(agent,com.soffid.iam.sync.intf.ReconcileMgr2.class);
+	        ///////////////////////////////////////////////////////////////////////
         } else {
             return true;
         }
@@ -409,7 +411,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     
     @Override
     public void setSystem(com.soffid.iam.api.System dispatcher) throws InternalErrorException {
-        log = LoggerFactory.getLogger(dispatcher.getName());
+        log = LoggerFactory.getLogger(dispatcher.getTenant()+"\\"+dispatcher.getName());
         super.setSystem(dispatcher);
     	attributeTranslator = new es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator(Dispatcher.toDispatcher(dispatcher));
     	attributeTranslatorV2 = new com.soffid.iam.sync.engine.extobj.ObjectTranslator(dispatcher);
@@ -441,14 +443,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 
     public void run() {
+    	String hostName = null;
+		try {
+			hostName = Config.getConfig().getHostName();
+		} catch (IOException e1) {
+			// Unlikely error
+		}
+    	Security.nestedLogin(getSystem().getTenant(), hostName, 
+        		Security.ALL_PERMISSIONS
+        	);
         try {
-        	Security.nestedLogin(getSystem().getTenant(), Config.getConfig().getHostName(), new String [] {
-        		Security.AUTO_AUTHORIZATION_ALL
-        	});
         	ConnectionPool pool = ConnectionPool.getPool();
         	
             currentThread = Thread.currentThread();
-            Thread.currentThread().setName(getSystem().getName());
+            Thread.currentThread().setName(getSystem().getTenant()+"\\"+getSystem().getName());
             // boolean runTimedOutTasks = true;
             log.info("Registered dispatcher thread", null, null);
             runInit();
@@ -578,10 +586,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	 * @throws Exception 
 	 * 
 	 */
-	public void doAuthoritativeImport (ScheduledTask task) 
+	public void doAuthoritativeImport (ScheduledTask task, PrintWriter out) 
 	{
 		AuthoritativeLoaderEngine engine = new AuthoritativeLoaderEngine(this);
-		engine.doAuthoritativeImport(task);
+		engine.doAuthoritativeImport(task, out);
 	}
 
 	private TaskHandler processAndLogTask (TaskHandler t) throws InternalErrorException
@@ -1069,6 +1077,36 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	            objectMgr.removeCustomObject(ot);
 	        }
     	}
+    }
+
+	public  Map<String, Object>  getSoffidObject(String systemName, SoffidObjectType type, String object1,
+			String object2) throws Exception
+	{
+        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
+        if (objectMgr == null)
+        	return null;
+        
+        if (type == SoffidObjectType.OBJECT_ACCOUNT ||
+        		type == SoffidObjectType.OBJECT_ROLE)
+        	object2 = systemName;
+        
+   		ExtensibleObject r = objectMgr.getSoffidObject(type, object1, object2);
+   		return r;
+    }
+
+	public  Map<String, Object>  getNativeObject(String systemName, SoffidObjectType type, String object1,
+			String object2) throws Exception
+	{
+        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
+        if (objectMgr == null)
+        	return null;
+        
+        if (type == SoffidObjectType.OBJECT_ACCOUNT ||
+        		type == SoffidObjectType.OBJECT_ROLE)
+        	object2 = systemName;
+        
+   		ExtensibleObject r = objectMgr.getNativeObject(type, object1, object2);
+   		return r;
     }
 
     private void createFolder(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
@@ -2096,9 +2134,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	 * @see es.caib.seycon.ng.sync.engine.DispatcherHandler#doReconcile()
 	 */
 	@Override
-	public void doReconcile (ScheduledTask task)
+	public void doReconcile (ScheduledTask task, PrintWriter out)
 	{
-		StringBuffer result = task.getLastLog();
 		try {
     		Object agent = connect(false);
 			ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
@@ -2109,28 +2146,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		} 
     		else if (reconMgr2 != null)
         	{
-        		new ReconcileEngine2 (getSystem(), reconMgr2, result).reconcile();
+        		new ReconcileEngine2 (getSystem(), reconMgr2, out).reconcile();
     		} 
     		else {
-    			result.append ("This agent does not support account reconciliation");
+    			out.append ("This agent does not support account reconciliation");
     		}
 		} 
 		catch (Exception e)
 		{
 			task.setError(true);
-			result.append ("*************\n");
-			result.append ("**  ERROR **\n");
-			result.append ("*************\n");
-			result.append (e.toString()).append ("\n");
-			ByteArrayOutputStream out = new ByteArrayOutputStream();
+			out.println ("*************");
+			out.println ("**  ERROR **");
+			out.println ("*************");
+			out.println (e.toString());
 			try {
 				log.warn("Error during reconcile process", e);
-				SoffidStackTrace.printStackTrace(e, new PrintStream(out, true, "UTF-8"));
-				result.append (out.toString("UTF-8"));
-				if (result.length() > 32000)
-				{
-					result.replace(0, result.length()-32000, "** TRUNCATED FILE ***\n...");
-				}
+				SoffidStackTrace.printStackTrace(e, out);
 			} catch (Exception e2) {}
 		}
 	}
