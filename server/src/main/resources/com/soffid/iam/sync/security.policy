@@ -138,6 +138,8 @@ grant {
 
 // SOFFID
 	permission java.io.FilePermission "${syncserver.home}/lib/-", "read";
+	permission java.io.FilePermission "${syncserver.home}/tmp/-", "read,write,delete";
+	permission java.io.FilePermission "${syncserver.home}/system/-", "read,execute";
 };
 
 

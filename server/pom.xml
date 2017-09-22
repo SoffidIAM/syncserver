@@ -153,8 +153,10 @@
 								${project.build.directory}/server-only/lib
 							</outputDirectory>
 							<includeGroupIds>
-								com.oracle,mysql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,org.hibernate,javax.mail,net.sf.ehcache,asm,cglib,es.caib.signatura.api,es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
-								org.json
+								com.oracle,mysql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
+								org.hibernate,javax.mail,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
+								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
+								org.json,org.w3c
 							</includeGroupIds>
 							<excludeArtifactIds>
 								iam-tomee,iam-common,dbtools,signaturaapi,

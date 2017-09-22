@@ -158,7 +158,7 @@ public class ObjectTranslator
 		ExtensibleObjects targetObjects = new ExtensibleObjects();
 		for (ExtensibleObjectMapping mapping: objects)
 		{
-			if (mapping.getSoffidObject().getValue().equals(sourceObject.getObjectType()))
+			if (mapping.appliesToSoffidObject( sourceObject))
 			{
     			ExtensibleObject obj = generateObject(sourceObject, mapping);
     			if (obj != null)

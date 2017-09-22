@@ -365,31 +365,8 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 
     @Override
     protected String handleResetAllServer() throws Exception {
-        StringBuffer res = new StringBuffer();
-        Vector<String> v = new Vector<String>();
-        for (DispatcherHandler td : getTaskGenerator().getDispatchers()) {
-            if (td.isConnected()) {
-                URL url = new URLManager(td.getSystem().getUrl()).getAgentURL();
-                String host = url.getHost();
-                if (!v.contains(host) && !host.equals("local")) { //$NON-NLS-1$
-                    v.add(host);
-                    res.append(Messages.getString("SyncStatusServiceImpl.Restarting") + host + "...\n"); //$NON-NLS-1$ //$NON-NLS-2$
-                    if (!host.equals("local") && !host.equals(Config.getConfig().getHostName())) { //$NON-NLS-1$
-                        try {
-                            RemoteServiceLocator rsl = new RemoteServiceLocator(td.getSystem()
-                                    .getUrl());
-                            AgentManager agentMgr = rsl.getAgentManager();
-                            agentMgr.reset();
-                            res.append(Messages.getString("SyncStatusServiceImpl.Restarted")); //$NON-NLS-1$
-                        } catch (Exception e) {
-                            res.append(Messages.getString("SyncStatusServiceImpl.ErrorRestarting") + host + ": " + e.toString() + "\n\n"); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
-
-                        }
-                    }
-                }
-            }
-        }
-        return res.toString();
+        SoffidApplication.shutDown();
+        return null;
     }
 
     @Override

@@ -201,6 +201,7 @@ public class ValueObjectMapper
 		if (object.getObjectType().equals(SoffidObjectType.OBJECT_AUTHORITATIVE_CHANGE.getValue()))
 		{
 			change = new AuthoritativeChange ();
+			change.setObjectType(SoffidObjectType.OBJECT_USER);
 			User usuari = change.getUser();
 			if (usuari == null)
 			{
@@ -239,6 +240,7 @@ public class ValueObjectMapper
 					else if ("userType".equals(attribute)) usuari.setUserType(toSingleString(value));
 					else if ("createdBy".equals(attribute)) usuari.setCreatedByUser(toSingleString(value));
 					else if ("modifiedBy".equals(attribute)) usuari.setModifiedByUser(toSingleString(value));
+					else if ("attributes".equals(attribute)) change.setAttributes((Map<String, Object>) value);
 					// Ignore account attributes
 					else if ("accountDescription".equals(attribute)) ;
 					else if ("accountId".equals(attribute)) ;
@@ -263,6 +265,31 @@ public class ValueObjectMapper
 					throw new InternalErrorException ("Error parsing attribute "+attribute, e);
 				}
 			}
+		}
+		if (object.getObjectType().equals(SoffidObjectType.OBJECT_USER.getValue()))
+		{
+			change = new AuthoritativeChange ();
+			change.setObjectType(SoffidObjectType.OBJECT_USER);
+			change.setUser(parseUser(object));
+			Object att = object.getAttribute("attributes");
+			if (att != null)
+				change.setAttributes((Map<String, Object>) att);
+			Object gr = object.getAttribute("secondaryGroups");
+			if (gr != null)
+				change.setGroups(new HashSet<String>((Collection<? extends String>) gr ));
+			
+		}
+		if (object.getObjectType().equals(SoffidObjectType.OBJECT_GROUP.getValue()))
+		{
+			change.setObjectType(SoffidObjectType.OBJECT_GROUP);
+			change = new AuthoritativeChange ();
+			change.setGroup(parseGroup(object));
+		}
+		if (object.getObjectType().equals(SoffidObjectType.OBJECT_CUSTOM.getValue()))
+		{
+			change = new AuthoritativeChange ();
+			change.setObjectType(SoffidObjectType.OBJECT_CUSTOM);
+			change.setObject(parseCustomObject(object));
 		}
 		return change;
 	}
@@ -454,7 +481,7 @@ public class ValueObjectMapper
 	
 	public CustomObject parseCustomObject(ExtensibleObject object) {
 		CustomObject o = null;
-		if (object.getObjectType().equals( SoffidObjectType.OBJECT_CUSTOM))
+		if (object.getObjectType().equals( SoffidObjectType.OBJECT_CUSTOM.getValue()))
 		{
 			o = new CustomObject();
 			o.setId(toLong(object.getAttribute("roleId")));

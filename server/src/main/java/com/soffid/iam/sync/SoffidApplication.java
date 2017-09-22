@@ -290,6 +290,9 @@ public class SoffidApplication extends Object {
             java.text.SimpleDateFormat df = new java.text.SimpleDateFormat(
                     "dd/MM/yyyy HH:mm:ss, zzzz");
             Config config = Config.getConfig();
+            File tmp = new File (config.getHomeDir(), "tmp");
+            tmp.mkdir();
+            System.setProperty("user.dir", tmp.getPath());
             log.info("*************************************************");
             log.info("Soffid IAM Sync Server version {} starting", config.getVersion());
             if ("server".equals(config.getRole()))

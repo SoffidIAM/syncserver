@@ -38,7 +38,7 @@ public class UserExtensibleObject extends ExtensibleObject
 		this.usuari = usuari;
 		this.serverService = serverService;
 		setObjectType(SoffidObjectType.OBJECT_USER.getValue());
-		if (account.getId() == null)
+		if (account.getId() == null && account.getName() != null && account.getSystem() != null)
 		{
 			try {
 				account = serverService.getAccountInfo(account.getName(), account.getSystem());
