@@ -61,8 +61,6 @@ public class ServerInvokerServlet extends InvokerServlet {
 			}
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException(e);
-		} catch (InternalErrorException e) {
-			throw new RuntimeException(e);
 		}
 		Security.nestedLogin(tenant, userName, Security.ALL_PERMISSIONS);
 	}
