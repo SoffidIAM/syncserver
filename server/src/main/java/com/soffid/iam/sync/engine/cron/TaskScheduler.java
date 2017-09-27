@@ -21,6 +21,7 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.ScheduledTaskHandler;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.doc.api.CRLFPrintWriter;
 import com.soffid.iam.doc.api.DocumentOutputStream;
 import com.soffid.iam.doc.exception.DocumentBeanException;
 import com.soffid.iam.doc.service.DocumentService;
@@ -329,9 +330,8 @@ public class TaskScheduler
 					try {
 						DocumentService ds = ServiceLocator.instance().getDocumentService();
 						ds.createDocument("text/plain", task.getName(), "taskmgr");
-						task.setLogReferenceID(ds.getReference().toString());
 						PrintWriter out;
-						out = new PrintWriter(
+						out = new CRLFPrintWriter(
 								new DocumentOutputStream(ds)
 								);
 	    				out.println("Error creating handler: ");
