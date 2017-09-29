@@ -59,10 +59,12 @@ public class ExtensibleObjectNamespace extends ExternalNameSpace2
 			Object value = object.get(name);
 			if ("serverService".equals (name))
 				externalMap.put(name,  serverService);
+			else if ("serviceLocatorV1".equals (name))
+				externalMap.put(name,  ServiceLocator.instance());
+			else if ("serviceLocator".equals (name))
+				externalMap.put(name,  com.soffid.iam.ServiceLocator.instance());
 			else if ("remoteServiceLocator".equals (name))
 				externalMap.put(name,  new RemoteServiceLocator());
-			else if ("serviceLocator".equals (name))
-				externalMap.put(name,  ServiceLocator.instance());
 			else if ("dispatcherService".equals (name))
 				externalMap.put(name,  agent);
 			else if ("this".equals (name))
