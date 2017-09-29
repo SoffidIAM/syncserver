@@ -59,6 +59,11 @@ grant codeBase "file:${syncserver.home}/lib/-" {
         permission java.security.AllPermission;
 };
 
+// These permissions apply to the addons
+grant codeBase "file:${syncserver.home}/addons/-" {
+        permission java.security.AllPermission;
+};
+
 // ========== WEB APPLICATION PERMISSIONS =====================================
 
 
