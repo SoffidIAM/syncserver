@@ -886,12 +886,16 @@ public class InterfaceWrapper {
 				}
 
 				public ExtensibleObject getNativeObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
-					es.caib.seycon.ng.sync.intf.ExtensibleObject o = agent.getNativeObject(type, object1, object2);
+					es.caib.seycon.ng.sync.intf.ExtensibleObject o = agent.getNativeObject(
+							es.caib.seycon.ng.comu.SoffidObjectType.fromString(type.getValue()), 
+							object1, object2);
 					return ExtensibleObject.toExtensibleObject(o);
 				}
 
 				public ExtensibleObject getSoffidObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
-					es.caib.seycon.ng.sync.intf.ExtensibleObject o = agent.getSoffidObject(type, object1, object2);
+					es.caib.seycon.ng.sync.intf.ExtensibleObject o = agent.getSoffidObject(
+							es.caib.seycon.ng.comu.SoffidObjectType.fromString(type.getValue()), 
+							object1, object2);
 					return ExtensibleObject.toExtensibleObject(o);
 				}
 

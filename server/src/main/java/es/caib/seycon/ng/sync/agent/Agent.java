@@ -152,12 +152,14 @@ public abstract class Agent implements AgentInterface {
         return concat;
     }
  
-	public ExtensibleObject getExtensibleObject (SoffidObjectType type, String object1, String object2) throws InternalErrorException
+	public ExtensibleObject getExtensibleObject (es.caib.seycon.ng.comu.SoffidObjectType type, String object1, String object2) throws InternalErrorException
 	{
 		ExtensibleObjectFatory eof = new ExtensibleObjectFatory();
 		eof.setAgentName(getDispatcher().getCodi());
 		eof.setServer( InterfaceWrapper.getServerService(server));
-		com.soffid.iam.sync.intf.ExtensibleObject eo = eof.getExtensibleObject(type, object1, object2);
+		com.soffid.iam.sync.intf.ExtensibleObject eo = eof.getExtensibleObject(
+				SoffidObjectType.fromString(type.getValue()), 
+				object1, object2);
 		return ExtensibleObject.toExtensibleObject(eo);
 	}
 
