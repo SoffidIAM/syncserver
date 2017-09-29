@@ -142,7 +142,7 @@ public class AuthoritativeLoaderEngine {
 			ObjectTranslator objectTranslator = new ObjectTranslator (system);
 			ValueObjectMapper vom = new ValueObjectMapper();
 
-    		Object agent = handler.getRemoteAgent();
+    		Object agent = handler.connect(false);
     	
 			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source = InterfaceWrapper.getAuthoritativeIdentitySource(agent);
 			com.soffid.iam.sync.intf.AuthoritativeIdentitySource2 source2 = InterfaceWrapper.getAuthoritativeIdentitySource2(agent);
@@ -284,6 +284,8 @@ public class AuthoritativeLoaderEngine {
 					} catch (Exception e) {
 						out.println("Error: "+e.toString());
 					}
+				} else {
+					out.println("Pre-delete trigger rejected change for "+userName);
 				}
 			}
 		}
@@ -346,6 +348,8 @@ public class AuthoritativeLoaderEngine {
 					} catch (Exception e) {
 						out.println("Error: "+e.toString());
 					}
+				} else {
+					out.println("Pre-delete trigger rejected change for group "+groupName);
 				}
 			}
 		}
@@ -392,6 +396,8 @@ public class AuthoritativeLoaderEngine {
 					} catch (Exception e) {
 						out.println("Error: "+e.toString());
 					}
+				} else {
+					out.println("Pre-delete trigger rejected change for "+objectType+" "+objectName);
 				}
 			}
 		}
