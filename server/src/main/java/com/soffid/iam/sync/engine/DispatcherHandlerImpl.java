@@ -1031,6 +1031,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	return;
         String rol = t.getTask().getRole();
         String bd = t.getTask().getDatabase();
+        if (bd == null)
+        	bd = t.getTask().getSystemName();
         try {
             Role rolInfo = server.getRoleInfo(rol, bd);
             if(rolInfo == null)
