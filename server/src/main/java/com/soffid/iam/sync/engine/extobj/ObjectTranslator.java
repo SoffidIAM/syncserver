@@ -335,7 +335,7 @@ public class ObjectTranslator
 
 	public Object generateAttribute(String attributeName, ExtensibleObject sourceObject,
 			ExtensibleObjectMapping objectMapping) throws InternalErrorException {
-		if (objectMapping.getSystemObject().equals(sourceObject.getObjectType()))
+		if (objectMapping.getSoffidObject().toString().equals(sourceObject.getObjectType()))
 		{
 			ExtensibleObject obj = new ExtensibleObject();
 			obj.setObjectType(objectMapping.getSoffidObject().getValue());
