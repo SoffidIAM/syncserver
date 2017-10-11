@@ -192,7 +192,9 @@ public class ReconcileEngine2
 						{
 							AccountExtensibleObject eo = new AccountExtensibleObject(acc, serverService);
 							if (executeTriggers(preInsert, null, eo))
+							{
 								acc = vom.parseAccount(eo);
+							}
 							else
 							{
 								log.append ("Account "+acc.getName()+" not loaded due to pre-insert trigger failure\n");
@@ -209,6 +211,8 @@ public class ReconcileEngine2
 							log.append(acc.getName());
 							log.append ('\n');
 							acc = accountService.createAccount(acc);
+							reconcileAccountAttributes (acc, existingAccount);
+							
 							executeTriggers(postInsert, null, new AccountExtensibleObject(acc, serverService));
 						}
 					} catch (AccountAlreadyExistsException e) {
@@ -317,14 +321,15 @@ public class ReconcileEngine2
 						try {
 							accountService.updateAccount(acc);
 	
+							if (isUnmanaged)
+								reconcileAccountAttributes (acc, existingAccount);
+
 							executeTriggers(postUpdate, 
 									new AccountExtensibleObject(acc2, serverService),
 									new AccountExtensibleObject(acc, serverService));
 						} catch (AccountAlreadyExistsException e) {
 							throw new InternalErrorException ("Unexpected exception", e);
 						}
-						if (isUnmanaged)
-							reconcileAccountAttributes (acc, existingAccount);
 					}
 					// Only reconcile grants on unmanaged accounts
 					// or read only dispatchers

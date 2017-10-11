@@ -40,7 +40,9 @@ public class AccountExtensibleObject extends ExtensibleObject
 		if (account.getId() == null)
 		{
 			try {
-				account = serverService.getAccountInfo(account.getName(), account.getDispatcher());
+				Account acc2 = serverService.getAccountInfo(account.getName(), account.getDispatcher());
+				if (acc2 != null)
+					account = acc2;
 			} catch (InternalErrorException e) {
 			}
 		}

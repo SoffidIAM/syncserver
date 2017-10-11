@@ -34,6 +34,7 @@ import org.jbpm.graph.exe.ProcessInstance;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
@@ -1861,9 +1862,23 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      * @throws IOException
      * @throws IOException
      */
-    private Object connect(boolean mainAgent) throws ClassNotFoundException, InstantiationException,
-            IllegalAccessException, InvocationTargetException, InternalErrorException, IOException {
-        URLManager um = new URLManager(getDispatcher().getUrl());
+    private Object connect(boolean mainAgent) throws Exception {
+    	try {
+    		return connect (mainAgent, getDispatcher().getUrl());
+    	} catch (Exception e) {
+    		if (getDispatcher().getUrl2() != null && !getDispatcher().getUrl2().isEmpty())
+    		{
+    	   		return connect (mainAgent, getDispatcher().getUrl2());
+    		}
+    		else
+    			throw e;
+    	}
+    }
+    
+    private Object connect(boolean mainAgent, String url) throws ClassNotFoundException, InstantiationException,
+    	IllegalAccessException, InvocationTargetException, InternalErrorException, IOException {
+
+        URLManager um = new URLManager(url);
         Object agent;
         try 
         {
@@ -1883,7 +1898,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	        }
 	        
 	        String phase = "connecting to";
-	        if ("local".equals(getDispatcher().getUrl())) {
+	        if ("local".equals(url)) {
 	            try {
 	                AgentManager am = ServerServiceLocator.instance().getAgentManager();
 	               	phase = "configuring";
@@ -1896,7 +1911,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	        } else {
 	            try {
 	                RemoteServiceLocator rsl = new RemoteServiceLocator();
-	                rsl.setServer(getDispatcher().getUrl().toString());
+	                rsl.setServer(url);
 	                AgentManager am = rsl.getAgentManager();
 	                phase = "configuring";
 	                String agenturl = am.createAgent(getDispatcher());

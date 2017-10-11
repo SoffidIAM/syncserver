@@ -32,6 +32,7 @@ import javax.servlet.http.HttpServletRequest;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.AttributeTranslation;
 import com.soffid.iam.service.CertificateValidationService;
 
@@ -1377,6 +1378,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Account handleGetAccountInfo(String accountName,
 			String dispatcherId) throws Exception {
-		return getAccountService().findAccount(accountName, dispatcherId);
+		Account acc = getAccountService().findAccount(accountName, dispatcherId);
+		if ( acc == null || acc.getStatus() == AccountStatus.REMOVED)
+			return null;
+		else
+			return acc;
 	}
 }
