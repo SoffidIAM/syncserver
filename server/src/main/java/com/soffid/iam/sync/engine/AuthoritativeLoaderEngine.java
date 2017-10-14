@@ -157,6 +157,12 @@ public class AuthoritativeLoaderEngine {
 	    	        }
 	    			changes = source.getChanges();
     			}
+				if (system.isFullReconciliation())
+				{
+					removeUsers (out, objectTranslator, vom);
+					removeGroups(out, objectTranslator, vom);
+					removeCustomObjects(out, objectTranslator, vom);
+				}
     		} else if (source2 != null)
     		{
     			String lastId = null;
