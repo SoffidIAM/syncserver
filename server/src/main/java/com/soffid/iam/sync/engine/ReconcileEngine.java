@@ -252,7 +252,7 @@ public class ReconcileEngine
 		if (app == null)
 		{
 			app = new Application();
-			app.setName(dispatcher.getName());
+			app.setName(role.getInformationSystemName());
 			app.setDatabase(dispatcher.getName());
 			app.setBpmEnforced(Boolean.FALSE);
 			app.setDescription(dispatcher.getDescription());
