@@ -60,22 +60,25 @@ public class UpdateTaskStatusThread extends Thread
         			{
         				for (TaskHandlerLog tl : task.getLogs())
         				{
-        					StringBuffer sb = new StringBuffer();
-        					sb.append (">> ");
-        					if (tl.getDispatcher() != null && tl.getDispatcher().getSystem() != null)
-        						sb.append (tl.getDispatcher().getSystem().getName());
-        					else
-        						sb.append ("Unknown dispatcher");
-        					sb.append (": ");
-        					if (tl.isComplete())
-        						sb.append ("DONE");
-        					else 
+        					if (tl != null)
         					{
-        						sb.append ("ERROR ")
-        							.append (tl.getReason());
+	        					StringBuffer sb = new StringBuffer();
+	        					sb.append (">> ");
+	        					if (tl.getDispatcher() != null && tl.getDispatcher().getSystem() != null)
+	        						sb.append (tl.getDispatcher().getSystem().getName());
+	        					else
+	        						sb.append ("Unknown dispatcher");
+	        					sb.append (": ");
+	        					if (tl.isComplete())
+	        						sb.append ("DONE");
+	        					else 
+	        					{
+	        						sb.append ("ERROR ")
+	        							.append (tl.getReason());
+	        					}
+	        							
+	        					log.warn (sb.toString());
         					}
-        							
-        					log.warn (sb.toString());
         				}
         			}
         		}
