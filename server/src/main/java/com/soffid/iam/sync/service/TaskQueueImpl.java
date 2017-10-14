@@ -1030,7 +1030,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 							{
 								TaskHandlerLog tasklog = task.getLogs().get(
 												dh.getInternalId());
-								if (!tasklog.isComplete())
+								if (tasklog == null || !tasklog.isComplete())
 								{
 									allOk = false;
 									break;
@@ -1069,15 +1069,19 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		// Afegir (si cal) nous task logs
 		while (task.getLogs().size() <= taskDispatcher.getInternalId())
 		{
-			TaskHandlerLog log = new TaskHandlerLog();
-			log.setNumber(0);
-			log.setFirst(now);
-			log.setComplete(false);
-			task.getLogs().add(log);
+			task.getLogs().add(null);
 		}
 
 		// Actualitzar el tasklog
 		TaskHandlerLog thl = task.getLogs().get(taskDispatcher.getInternalId());
+		if (thl == null)
+		{
+			thl = new TaskHandlerLog();
+			thl.setNumber(0);
+			thl.setFirst(now);
+			thl.setComplete(true);
+			task.getLogs().set(taskDispatcher.getInternalId(), thl);
+		}
 		thl.setDispatcher(taskDispatcher);
 		thl.setComplete(bOK);
 		thl.setReason(sReason);
@@ -1118,7 +1122,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					else
 					{
 						TaskHandlerLog tasklog = task.getLogs().get(dh.getInternalId());
-						if (!tasklog.isComplete())
+						if (tasklog == null)
+						{
+							allOk = false;
+						}
+						else if (!tasklog.isComplete())
 						{
 							allOk = false;
 							if (tasklog.getNumber() >= 3)
@@ -1578,18 +1586,22 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			if (newTask.getLogs() != null)
 	    			{
 	        			for (TaskHandlerLog log : newTask.getLogs()) {
-                            boolean found = false;
-                            for (TaskLogEntity logEntity : daoEntities) {
-                                if (logEntity.getSystem().getId().equals(log.getDispatcher().getSystem().getId())) {
-                                    found = true;
-                                    persistLog(tasque, log, logEntity);
-                                    break;
-                                }
-                            }
-                            if (!found) {
-                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
-                                persistLog(tasque, log, logEntity);
-                            }
+	        				if (log != null)
+	        				{
+	                            boolean found = false;
+	                            for (TaskLogEntity logEntity : daoEntities) {
+	                                if (log.getDispatcher() != null &&
+	                                		logEntity.getSystem().getId().equals(log.getDispatcher().getSystem().getId())) {
+	                                    found = true;
+	                                    persistLog(tasque, log, logEntity);
+	                                    break;
+	                                }
+	                            }
+	                            if (!found) {
+	                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
+	                                persistLog(tasque, log, logEntity);
+	                            }
+	        				}
                         }
 	    			}
 	    		}

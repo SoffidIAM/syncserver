@@ -712,7 +712,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			for ( TaskHandlerLog log: th.getLogs())
 			{
-				if (!log.isComplete())
+				if (log != null && !log.isComplete())
 				{
 					log.setNext(java.lang.System.currentTimeMillis());
 				}
