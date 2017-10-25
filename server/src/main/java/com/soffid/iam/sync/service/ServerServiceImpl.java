@@ -11,6 +11,7 @@ import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.PasswordPolicy;
 import com.soffid.iam.api.PasswordValidation;
+import com.soffid.iam.api.PolicyCheckResult;
 import com.soffid.iam.api.PrinterUser;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
@@ -81,6 +82,7 @@ import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.ServerType;
+import es.caib.seycon.ng.exception.BadPasswordException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.ServerRedirectException;
 import es.caib.seycon.ng.exception.UnknownGroupException;
@@ -806,6 +808,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 			throw new InternalErrorException(String.format(
 					"Uknown user %s/%s", user, dispatcher)); //$NON-NLS-1$
 
+		PolicyCheckResult ppc = getPasswordService().checkPolicy(user, dispatcher, p);
+		if ( ! ppc.isValid())
+			throw new BadPasswordException(ppc.getReason());
+
 		if (acc.getType().equals(AccountType.USER)) {
 			for (UserAccountEntity uae : acc.getUsers()) {
 				getInternalPasswordService().storeAndForwardPassword(
@@ -831,6 +837,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 		if (acc == null)
 			throw new InternalErrorException(String.format(
 					"Uknown user %s/%s", user, dispatcher)); //$NON-NLS-1$
+
+		PolicyCheckResult ppc = getPasswordService().checkPolicy(user, dispatcher, p);
+		if ( ! ppc.isValid())
+			throw new BadPasswordException(ppc.getReason());
 
 		if (acc.getType().equals(AccountType.USER)) {
 			for (UserAccountEntity uae : acc.getUsers()) {
