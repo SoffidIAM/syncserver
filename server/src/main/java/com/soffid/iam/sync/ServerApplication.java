@@ -74,10 +74,10 @@ public class ServerApplication extends SoffidApplication {
 
         for ( Object service: 
         	ServerServiceLocator.instance().getContext().
-        		getBeansOfType(es.caib.seycon.ng.servei.ApplicationBootService.class).
+        		getBeansOfType(com.soffid.iam.service.ApplicationBootService.class).
         			values())
         {
-        	((es.caib.seycon.ng.servei.ApplicationBootService) service).syncServerBoot();
+        	((com.soffid.iam.service.ApplicationBootService) service).syncServerBoot();
         }
         
         // Iniciar el generador de tareas
