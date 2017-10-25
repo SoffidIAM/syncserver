@@ -11,6 +11,8 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 
+import com.soffid.iam.config.Config;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 
@@ -24,22 +26,44 @@ public class InvokerFilter implements Filter {
         Invoker oldInvoker = Invoker.getInvoker();
         try {
             Invoker.setInvoker(new Invoker((HttpServletRequest)request));
-            String user = URLDecoder.decode(Invoker.getInvoker().getUser(), "UTF-8");
-            int i = user.indexOf('\\');
-            if (i > 0)
+            String user = Invoker.getInvoker().getUser();
+            if (user == null)
             {
-            	Security.nestedLogin(user.substring(0, i), user.substring(i+1), Security.ALL_PERMISSIONS);
-            	try
-            	{
-                	chain.doFilter(request, response);
-            	}
-            	finally
-            	{
-            		Security.nestedLogoff();
-            	}
+            	String host = Config.getConfig().getHostName();
+            	String tenant = Security.getMasterTenantName();
+        		if (request.getServerName() != null &&
+        				request.getServerName().endsWith("."+host))
+        		{
+        			String server = request.getServerName();
+        			tenant = server.substring(0, server.length() - host.length() - 1);
+        		}
+        		Security.nestedLogin(tenant, "anonymous", Security.ALL_PERMISSIONS);
+        		try {
+        			chain.doFilter(request, response);
+        		} finally {
+        			Security.nestedLogoff();
+        		}
+            	
             }
             else
-            	chain.doFilter(request, response);
+            {
+	            user = URLDecoder.decode(user, "UTF-8");
+	            int i = user.indexOf('\\');
+	            if (i > 0)
+	            {
+	            	Security.nestedLogin(user.substring(0, i), user.substring(i+1), Security.ALL_PERMISSIONS);
+	            	try
+	            	{
+	                	chain.doFilter(request, response);
+	            	}
+	            	finally
+	            	{
+	            		Security.nestedLogoff();
+	            	}
+	            }
+	            else
+	            	chain.doFilter(request, response);
+            }
         } finally {
             Invoker.setInvoker(oldInvoker);
         }
