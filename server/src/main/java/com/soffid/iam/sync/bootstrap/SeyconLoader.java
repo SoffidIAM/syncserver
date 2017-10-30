@@ -363,7 +363,10 @@ public class SeyconLoader extends Object {
                 throw e;
             }
             in = connection.getInputStream();
-            out = new FileOutputStream(fileName);
+            File f = new File(fileName);
+            boolean replacing = f.exists();
+            
+            out = new FileOutputStream(replacing? fileName+".new.jar": fileName);
             byte buffer[] = new byte[1024];
             int size = in.read(buffer);
             while (size >= 0) {
@@ -374,6 +377,17 @@ public class SeyconLoader extends Object {
             out.close();
             in.close();
             connection.disconnect();
+            if (replacing)
+            {
+            	FileInputStream in2 = new FileInputStream(fileName+".new.jar");
+            	FileOutputStream out2 = new FileOutputStream(fileName);
+            	int read;
+            	while ( (read = in2.read()) >= 0)
+            		out2.write(read);
+            	in2.close();
+            	out2.close();
+            	f.delete();
+            }
         } catch (Exception e) {
             throw e;
         } finally {
