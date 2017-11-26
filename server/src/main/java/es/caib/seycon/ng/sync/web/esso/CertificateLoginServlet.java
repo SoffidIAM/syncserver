@@ -11,6 +11,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.security.Provider;
+import java.security.SecureRandom;
 import java.security.Security;
 import java.security.Signature;
 import java.security.cert.CertStore;
@@ -19,6 +20,7 @@ import java.security.cert.CertificateEncodingException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -51,10 +53,12 @@ import org.mortbay.log.Logger;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Challenge;
+import es.caib.seycon.ng.comu.UserAccount;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.comu.sso.NameParser;
 import es.caib.seycon.ng.comu.sso.Secret;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.LogonDeniedException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.servei.CertificateParser;
 import es.caib.seycon.ng.sync.ServerServiceLocator;
@@ -121,8 +125,6 @@ public class CertificateLoginServlet extends HttpServlet {
         writer.close();
 
     }
-
-    private static ChallengeStore challengeStore = ChallengeStore.getInstance();
 
     private String doStartTestAction(HttpServletRequest req,
             HttpServletResponse resp) throws Exception {
@@ -223,21 +225,22 @@ public class CertificateLoginServlet extends HttpServlet {
     private String doStartAction(HttpServletRequest req,
             HttpServletResponse resp) throws Exception {
         String hostIP = req.getRemoteAddr();
+        SecureRandom random = new SecureRandom();
         
-        ServerService ss = ServerServiceLocator.instance().getServerService();
-        LogonService ls = ServerServiceLocator.instance().getLogonService();
+        byte b[] = new byte[32];
+       	random.nextBytes(b); 
+       	
+       	String challenge = Base64.encodeBytes(b, Base64.DONT_BREAK_LINES);
+       	challenge = challenge.replace('+', '!');
+       	certChallenges.put(challenge, hostIP);
         
-        Usuari usuari = ss.getUserInfo(new X509Certificate[] {userCertificate});
-
-        final Challenge challenge = ls.requestChallenge(Challenge.TYPE_CERT,usuari.getCodi(), null, hostIP, null, Challenge.CARD_IFNEEDED);
-
-        return "OK|" + challenge.getChallengeId();
+        return "OK|" + challenge;
     }
 
     private String doContinueAction(HttpServletRequest req,
             HttpServletResponse resp) throws Exception {
-        final Challenge challenge = getChallenge(req);
-        challengeStore.removeChallenge(challenge);
+        final String challenge = getCertChallenge(req);
+        certChallenges.remove(challenge);
         final String pkcs7 = req.getParameter("pkcs7");
         if (pkcs7 == null) {
             final String pkcs1 = req.getParameter("signature");
@@ -249,7 +252,7 @@ public class CertificateLoginServlet extends HttpServlet {
 
     }
 
-    private String pkcs1Login(HttpServletRequest req, Challenge challenge, String pkcs1, String cert) throws StreamParsingException, InternalErrorException, CertificateEncodingException, ServiceException, UnknownUserException, IOException {
+    private String pkcs1Login(HttpServletRequest req, String challenge, String pkcs1, String cert) throws StreamParsingException, InternalErrorException, CertificateEncodingException, ServiceException, UnknownUserException, IOException {
         byte certBytes[] = Base64.decode(cert);
         X509CertParser parser = new X509CertParser();
         Vector v = new Vector();
@@ -262,7 +265,7 @@ public class CertificateLoginServlet extends HttpServlet {
         }
         certificateChain = (X509Certificate[]) v.toArray(new X509Certificate[v.size()]);
         userCertificate = certificateChain[0];
-        if (!verifySignaturePKCS1(challenge.getChallengeId(), pkcs1))
+        if (!verifySignaturePKCS1(challenge, pkcs1))
             return "ERROR|Signatura incorrecta";
         CertificateManager mgr = new CertificateManager();
         if (!mgr.verifyCertificate(certificateChain))
@@ -270,11 +273,11 @@ public class CertificateLoginServlet extends HttpServlet {
         return getCredentials(req, challenge);
     }
 
-    private String pkcs7Login(HttpServletRequest req, final Challenge challenge, final String pkcs7)
+    private String pkcs7Login(HttpServletRequest req, final String challenge, final String pkcs7)
             throws InternalErrorException, CertificateEncodingException,
             BitException, RemoteException, ServiceException,
             UnknownUserException, IOException {
-        if (!verifySignaturePKCS7(challenge.getChallengeId(), pkcs7))
+        if (!verifySignaturePKCS7(challenge, pkcs7))
             return "ERROR|Signatura incorrecta";
         CertificateManager mgr = new CertificateManager();
         if (!mgr.verifyCertificate(certificateChain))
@@ -282,7 +285,7 @@ public class CertificateLoginServlet extends HttpServlet {
         return getCredentials(req, challenge);
     }
 
-    private String getCredentials(HttpServletRequest req, Challenge challenge)
+    private String getCredentials(HttpServletRequest req, String challenge)
             throws InternalErrorException, CertificateEncodingException, UnknownUserException, IOException {
         try {
             Usuari user = validateUser();
@@ -290,7 +293,11 @@ public class CertificateLoginServlet extends HttpServlet {
             StringBuffer result = new StringBuffer("OK");
             SecretStoreService secretStoreService = ServiceLocator.instance().getSecretStoreService();
             
-            for (Secret secret: secretStoreService.getAllSecrets(challenge.getUser())) {
+            LogonService ls = ServiceLocator.instance().getLogonService();
+            Challenge ch = ls.requestChallenge(Challenge.TYPE_CERT, user.getCodi(), null, req.getRemoteAddr(), "", Challenge.CARD_DISABLED);
+            ls.responseChallenge(ch);
+            
+            for (Secret secret: secretStoreService.getAllSecrets(user)) {
             	if (secret.getName() != null && secret.getName().length() > 0 &&
             			secret.getValue() != null &&
             			secret.getValue().getPassword() != null &&
@@ -308,16 +315,23 @@ public class CertificateLoginServlet extends HttpServlet {
 	                	result.append(secret.getValue().getPassword());
             	}
             }
-            result.append ("|sessionKey|").append(challenge.getChallengeId());
+            for (UserAccount account: ServiceLocator.instance().getAccountService().findUserAccounts(user.getCodi(), "SOFFID"))
+            {
+	            result.append ("|password|").append(secretStoreService.getPassword( account.getId() ).getPassword());
+            }
+            result.append ("|sessionKey|").append(ch.getChallengeId());
             if (encode)
-            	result.append ("|fullName|").append(encodeSecret(challenge.getUser().getFullName()));
+            	result.append ("|fullName|").append(encodeSecret(ch.getUser().getFullName()));
             else
-            	result.append ("|fullName|").append(challenge.getUser().getFullName());
+            	result.append ("|fullName|").append(ch.getUser().getFullName());
             return result.toString();
 	    } catch (NameMismatchException e) {
-	        return "ERROR|El nom del certificat no coincideix: "
+	        return "ERROR|Certificate name does not match: "
 	                + e.getMessage();
-	    }
+	    } catch (LogonDeniedException e) {
+	        return "ERROR|Logon denied: "
+	                + e.getMessage();
+		}
     }
 
 	private String encodeSecret(String secret)
@@ -333,8 +347,6 @@ public class CertificateLoginServlet extends HttpServlet {
         String certNom = parser.getGivenName();
         String certLlinatge1 = parser.getFirstSurName();
         String certLlinatge2 = parser.getSecondSurName();
-        // Reparse de nom i llinatges
-        // Primer Intent
         
         NameParser p = new NameParser();
         String dbNom = p.normalizeName(ui.getNom());
@@ -465,20 +477,22 @@ public class CertificateLoginServlet extends HttpServlet {
             throw new InternalErrorException(e.toString());
         }
     }
+    
+    private static HashMap<String, String> certChallenges = new HashMap<String, String>();
 
-    private Challenge getChallenge(HttpServletRequest req)
+    private String getCertChallenge(HttpServletRequest req)
             throws InternalErrorException {
         String challengeId = req.getParameter("challengeId");
-        final Challenge challenge = challengeStore.getChallenge(challengeId);
+        String host = certChallenges.get(challengeId);
 
-        if (challenge == null)
+        if (host == null)
             throw new InternalErrorException("Invalid token " + challengeId);
-        if (!challenge.getHost().equals(req.getRemoteHost())) {
+        if (!host.equals(req.getRemoteHost())) {
             log.warn("Ticket spoofing detected from {}", req.getRemoteHost(),
                     null);
             throw new InternalErrorException("Invalid token " + challengeId);
         }
-        return challenge;
+        return challengeId;
     }
 
 }
