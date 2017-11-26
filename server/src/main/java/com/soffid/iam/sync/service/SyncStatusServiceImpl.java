@@ -33,6 +33,7 @@ import com.soffid.iam.sync.engine.cron.TaskScheduler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GrantExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.MailListExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.MembershipExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
@@ -636,6 +637,15 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 				acc.setDisabled(true);
 			}
 			source = new UserExtensibleObject(acc, u, getServerService());
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_GROUP))
+		{
+			try {
+				Group g = getServerService().getGroupInfo(object1, dispatcher);
+				source = new GroupExtensibleObject(g, dispatcher, getServerService());
+			} catch (UnknownGroupException e) {
+				source = new ExtensibleObject();
+			}
 		} else {
 			source = new ExtensibleObject();
 		}
@@ -659,9 +669,10 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		tasca.setServer(dispatcher);
 		tasca.setExpirationDate(Calendar.getInstance());
 		tasca.getExpirationDate().add(Calendar.MINUTE, 5);
-		
+
 		TaskHandler th = new TaskHandler();
 		th.setTask(tasca);
+		th.setTenant(Security.getCurrentTenantName());
 		if (type.equals(SoffidObjectType.OBJECT_ACCOUNT))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
@@ -688,17 +699,25 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			tasca.setTransaction(TaskHandler.UPDATE_LIST_ALIAS);
 			tasca.setAlias(object1);
 			tasca.setMailDomain(object2);
+			tasca.setSystemName(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ROLE))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ROLE);
 			tasca.setRole(object1);
+			tasca.setDatabase(dispatcher);
 			tasca.setSystemName(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_USER))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
+			tasca.setSystemName(dispatcher);
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_GROUP))
+		{
+			tasca.setTransaction(TaskHandler.UPDATE_GROUP);
+			tasca.setGroup(object1);
 			tasca.setSystemName(dispatcher);
 		}
 		

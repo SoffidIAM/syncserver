@@ -41,6 +41,7 @@ import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.PasswordPolicy;
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
@@ -1501,12 +1502,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      * Inicializar las conexiones RMI
      * 
      * @throws InternalErrorException
-     * @throws InvocationTargetException
-     * @throws IllegalAccessException
-     * @throws InstantiationException
-     * @throws ClassNotFoundException
-     * 
-     * @throws InternalErrorException
      *             error interno asociado a la lógica del agente. Posiblemente
      *             el agente no confia en la clave privada del servidor
      * @throws InterruptedException
@@ -1524,13 +1519,28 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      * @throws InstantiationException
      * @throws ClassNotFoundException
      * @throws IOException
-     * @throws IOException
+     * @throws Exception 
      */
-    public Object connect(boolean mainAgent) throws ClassNotFoundException, InstantiationException,
-            IllegalAccessException, InvocationTargetException, InternalErrorException, IOException {
+    public Object connect(boolean mainAgent) throws Exception {
         URLManager um = new URLManager(getSystem().getUrl());
+    	try {
+    		return connect (mainAgent, getSystem().getUrl());
+    	} catch (Exception e) {
+    		if (getSystem().getUrl2() != null && !getSystem().getUrl2().isEmpty())
+    		{
+    	   		return connect (mainAgent, getSystem().getUrl2());
+    		}
+    		else
+    			throw e;
+    	}
+    }
+    
+    private Object connect(boolean mainAgent, String url) throws ClassNotFoundException, InstantiationException,
+    	IllegalAccessException, InvocationTargetException, InternalErrorException, IOException {
+
+        URLManager um = new URLManager(url);
         Object agent;
- 	try {
+		try {
             startTask(true);
             	try {
                 	targetHost = um.getServerURL().getHost();
@@ -1599,6 +1609,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             	}
         	}
         	return agent;
+
         } finally {
         	endTask();
          }
@@ -1678,7 +1689,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         return agent;
     }
 
-	private static JbpmConfiguration getConfig ()
+	static JbpmConfiguration getConfig ()
 	{
 		if (jbpmConfig == null)
 		{

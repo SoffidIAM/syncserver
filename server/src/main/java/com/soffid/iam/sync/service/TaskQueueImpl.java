@@ -312,37 +312,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				else
 					addAndNotifyDispatchers(newTask, entity);
 			}
-			else if (newTask.getTask().getTransaction()
-							.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD))
-			{
-				if (newTask.getPassword() != null)
-				{
-					InternalPasswordService ps = getInternalPasswordService();
-					AccountEntityDao accDao = getAccountEntityDao();
-					AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
-					if (account == null)
-					{
-						newTask.cancel();
-						pushTaskToPersist(newTask);
-						return;
-					}
-					if (ps.checkAccountPassword(account, newTask.getPassword(),
-							false, false) == PasswordValidation.PASSWORD_WRONG)
-					{
-						ps.storeAccountPassword(account, newTask.getPassword(),
-							false, null);
-	
-						storeDomainPassword(newTask);
-						
-						addAndNotifyDispatchers(newTask, entity);
-					}
-				}
-				else
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-				}
-			}
 			else if (newTask.getTask()
 						.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
 					newTask.getTask()
