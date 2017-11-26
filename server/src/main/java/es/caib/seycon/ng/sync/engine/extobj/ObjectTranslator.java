@@ -382,6 +382,10 @@ public class ObjectTranslator
 				return false;
 			else
 				return true;
+		} catch (TargetError e) {
+			throw new InternalErrorException ("Error evaluating expression "+expression+": "+
+					e.getTarget().getMessage(),
+					e.getTarget());
 		} catch (EvalError e) {
 			String msg;
 			try {
