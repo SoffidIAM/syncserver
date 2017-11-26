@@ -104,6 +104,7 @@ import es.caib.seycon.ng.sync.intf.AccessLogMgr;
 import es.caib.seycon.ng.sync.intf.AuthoritativeChange;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource2;
+import es.caib.seycon.ng.sync.intf.CustomTaskMgr;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaMgr;
 import es.caib.seycon.ng.sync.intf.DatabaseReplicaOfflineChangeRetriever;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
@@ -338,6 +339,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class)||
 					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class);
 		}
+		else if (trans.equals(TaskHandler.RECONCILE_USERS))
+		{
+			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class)||
+					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class);
+		}
 		else if (trans.equals(TaskHandler.RECONCILE_ROLE))
 		{
 			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class) ||
@@ -353,7 +359,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		{
 			return implemented(agent, es.caib.seycon.ng.sync.intf.DatabaseReplicaMgr.class);
         } else {
-            return true;
+            return implemented(agent, es.caib.seycon.ng.sync.intf.CustomTaskMgr.class);
         }
     }
 
@@ -1059,9 +1065,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		{
 			// Nothing to do
         } else {
-            throw new InternalErrorException("Tipo de transacción no válida: " + trans);
+        	processCustomTask(agent, t);
         }
     }
+
+	private void processCustomTask(Object agent, TaskHandler t) throws RemoteException, InternalErrorException {
+		CustomTaskMgr mgr;
+		try {
+			mgr = (CustomTaskMgr) agent;
+			mgr.processTask(t.getTask());
+		} catch (ClassCastException e) {
+			return;
+		}
+	}
 
 	/**
 	 * @param agent2
@@ -2026,7 +2042,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         return agent;
     }
 
-	private static JbpmConfiguration getConfig ()
+	protected static JbpmConfiguration getConfig ()
 	{
 		if (jbpmConfig == null)
 		{
@@ -2070,31 +2086,72 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 
 		// Create reconcile user task for users
-		for (String user : (reconcileManager2 == null ? reconcileManager.getAccountsList() : reconcileManager2.getAccountsList()))
+		if (reconcileManager2 == null)
 		{
-			// Check user code length
-			if (user.length() <= MAX_LENGTH)
+			for (String user : (reconcileManager2 == null ? reconcileManager.getAccountsList() : reconcileManager2.getAccountsList()))
 			{
-				taskEntity = tasqueEntityDao.newTasqueEntity();
-				taskEntity.setTransa(TaskHandler.RECONCILE_USER);
-				taskEntity.setData(new Timestamp(System.currentTimeMillis()));
-				taskEntity.setMaquin(taskHandler.getTask().getMaquin());
-				taskEntity.setUsuari(user);
-				taskEntity.setCoddis(getDispatcher().getCodi());
-				
-				taskqueue.addTask(taskEntity);
+				// Check user code length
+				if (user.length() <= MAX_LENGTH)
+				{
+					taskEntity = tasqueEntityDao.newTasqueEntity();
+					taskEntity.setTransa(TaskHandler.RECONCILE_USER);
+					taskEntity.setData(new Timestamp(System.currentTimeMillis()));
+					taskEntity.setMaquin(taskHandler.getTask().getMaquin());
+					taskEntity.setUsuari(user);
+					taskEntity.setCoddis(getDispatcher().getCodi());
+					
+					taskqueue.addTask(taskEntity);
+				}
+			}
+	
+			// Create reconcile roles task
+			taskEntity = tasqueEntityDao.newTasqueEntity();
+			taskEntity.setTransa(TaskHandler.RECONCILE_ROLES);
+			taskEntity.setData(new Timestamp(System.currentTimeMillis()));
+			taskEntity.setMaquin(taskHandler.getTask().getMaquin());
+			taskEntity.setCoddis(getDispatcher().getCodi());
+	
+			taskqueue.addTask(taskEntity);
+		}
+		else
+		{
+			if (reconcileThread == null)
+			{
+				reconcileThread = new ReconcileThread();
+				reconcileThread.setName("Reconcile thread for "+getDispatcher().getCodi());
+				try {
+					ManualReconcileEngine engine = new ManualReconcileEngine(getDispatcher(), (ReconcileMgr2) connect(false));
+					engine.setReconcileProcessId(Long.decode(taskHandler.getTask().getMaquin()));
+					reconcileThread.setEngine(
+							engine);
+				} catch (Exception e) {
+					throw new InternalErrorException("Error connecting agent "+e);
+				}
+				reconcileThread.start();
+				throw new InternalErrorException("Reconcile started", new ReconcileInProgress("Reconcile started"));
+			}
+			else if (reconcileThread.isAlive())
+			{
+				throw new InternalErrorException("Reconcile in progress", new ReconcileInProgress("Reconcile in progress"));
+			}
+			else
+			{
+				ReconcileThread rt = reconcileThread;
+				reconcileThread = null;
+				if (rt.isFinished())
+				{
+					if (rt.getException() != null)
+						throw new InternalErrorException("Error during reconcile process", rt.getException());
+				}
+				else
+				{
+					throw new InternalErrorException("Reconcile process aborted");
+				}
 			}
 		}
-
-		// Create reconcile roles task
-		taskEntity = tasqueEntityDao.newTasqueEntity();
-		taskEntity.setTransa(TaskHandler.RECONCILE_ROLES);
-		taskEntity.setData(new Timestamp(System.currentTimeMillis()));
-		taskEntity.setMaquin(taskHandler.getTask().getMaquin());
-		taskEntity.setCoddis(getDispatcher().getCodi());
-
-		taskqueue.addTask(taskEntity);
 	}
+	
+	ReconcileThread reconcileThread = null;
 
 	/**
 	 * End reconcile process.
