@@ -4,17 +4,29 @@
 package es.caib.seycon.ng.sync.engine;
 
 import java.rmi.RemoteException;
+import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
+import org.jbpm.JbpmContext;
+import org.jbpm.graph.exe.ProcessInstance;
+
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.AttributeVisibilityEnum;
 import com.soffid.iam.api.ReconcileTrigger;
+import com.soffid.iam.reconcile.common.AccountProposedAction;
+import com.soffid.iam.reconcile.common.ProposedAction;
+import com.soffid.iam.reconcile.common.ReconcileAccount;
+import com.soffid.iam.reconcile.common.ReconcileAssignment;
+import com.soffid.iam.reconcile.common.ReconcileRole;
+import com.soffid.iam.reconcile.service.ReconcileService;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.Account;
@@ -39,6 +51,7 @@ import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.NeedsAccountNameException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
+import es.caib.seycon.ng.model.TasqueEntity;
 import es.caib.seycon.ng.servei.AccountService;
 import es.caib.seycon.ng.servei.AplicacioService;
 import es.caib.seycon.ng.servei.DadesAddicionalsService;
@@ -46,6 +59,7 @@ import es.caib.seycon.ng.servei.DispatcherService;
 import es.caib.seycon.ng.servei.DominiService;
 import es.caib.seycon.ng.servei.DominiUsuariService;
 import es.caib.seycon.ng.servei.UsuariService;
+import es.caib.seycon.ng.sync.ServerServiceLocator;
 import es.caib.seycon.ng.sync.engine.extobj.AccountExtensibleObject;
 import es.caib.seycon.ng.sync.engine.extobj.GrantExtensibleObject;
 import es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator;
@@ -67,12 +81,12 @@ public class ReconcileEngine2
 	private AccountService accountService;
 	private DadesAddicionalsService dadesAddicionalsService;
 	private AplicacioService appService;
-	private Dispatcher dispatcher;
+	protected Dispatcher dispatcher;
 	private ServerService serverService;
 	private DominiUsuariService dominiService;
 	private UsuariService usuariService;
 	private DominiService rolDomainService;
-	private StringBuffer log;
+	protected StringBuffer log;
 	private Collection<ReconcileTrigger> triggers;
 	private DispatcherService dispatcherService;
 	private ObjectTranslator objectTranslator;
@@ -85,6 +99,8 @@ public class ReconcileEngine2
 	private List<ReconcileTrigger> postInsertRole;
 	private List<ReconcileTrigger> preInsertRole;
 	private List<ReconcileTrigger> preUpdateRole;
+	Long reconcileProcessId;
+	protected ReconcileService reconcileService;
 
 	/**
 	 * @param dispatcher 
@@ -102,6 +118,7 @@ public class ReconcileEngine2
 		usuariService = ServiceLocator.instance().getUsuariService();
 		rolDomainService = ServiceLocator.instance().getDominiService();
 		dadesAddicionalsService = ServiceLocator.instance().getDadesAddicionalsService();
+		reconcileService = ServiceLocator.instance().getReconcileService();
 		log = new StringBuffer();
 	}
 
@@ -117,6 +134,7 @@ public class ReconcileEngine2
 		usuariService = ServiceLocator.instance().getUsuariService();
 		rolDomainService = ServiceLocator.instance().getDominiService();
 		dadesAddicionalsService = ServiceLocator.instance().getDadesAddicionalsService();
+		reconcileService = ServiceLocator.instance().getReconcileService();
 		log = result;
 	}
 
@@ -165,60 +183,7 @@ public class ReconcileEngine2
 				}
 				if (existingAccount != null)
 				{				
-					acc = new Account ();
-					acc.setName(accountName);
-					acc.setDispatcher(dispatcher.getCodi());
-					if (existingAccount.getDescription() == null)
-						acc.setDescription(accountName+" "+accountName);
-					else
-						acc.setDescription(existingAccount.getDescription());
-					
-					acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
-					acc.setLastUpdated(existingAccount.getLastUpdated() == null ?
-							Calendar.getInstance() :
-							existingAccount.getLastUpdated());
-					acc.setLastLogin(existingAccount.getLastLogin());
-					acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
-
-					if (existingAccount.getType() == null)
-						acc.setType(AccountType.IGNORED);
-					else
-						acc.setType(existingAccount.getType());
-					acc.setPasswordPolicy(passwordPolicy);
-					try {
-						boolean ok = true;
-						
-						if (! preInsert.isEmpty())
-						{
-							AccountExtensibleObject eo = new AccountExtensibleObject(acc, serverService);
-							if (executeTriggers(preInsert, null, eo))
-							{
-								acc = vom.parseAccount(eo);
-							}
-							else
-							{
-								log.append ("Account "+acc.getName()+" not loaded due to pre-insert trigger failure\n");
-								ok = false;
-							}
-						}
-						if (ok) 
-						{
-							acc.setGrantedGroups(new LinkedList<Grup>());
-							acc.setGrantedRoles(new LinkedList<Rol>());
-							acc.setGrantedUsers(new LinkedList<Usuari>());
-
-							log.append ("Creating account ");
-							log.append(acc.getName());
-							log.append ('\n');
-							acc = accountService.createAccount(acc);
-							reconcileAccountAttributes (acc, existingAccount);
-							
-							executeTriggers(postInsert, null, new AccountExtensibleObject(acc, serverService));
-						}
-					} catch (AccountAlreadyExistsException e) {
-						throw new InternalErrorException ("Unexpected exception", e);
-					}
-					reconcileRoles (acc);
+					loadAccount(passwordPolicy, preInsert, postInsert, accountName, existingAccount);
 				}
 			} else {
 				Watchdog.instance().interruptMe(dispatcher.getTimeout());
@@ -230,116 +195,191 @@ public class ReconcileEngine2
 				if (existingAccount != null && existingAccount.getName() != null && 
 						existingAccount.getName().trim().length() > 0)
 				{
-					existingAccount.setDispatcher(dispatcher.getCodi());
-					Account acc2 = new Account (acc);
-					
-					boolean anyChange = false;
-					boolean isUnmanaged = acc != null && acc.getId() != null && 
-							(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
-					
-					if (! preUpdate.isEmpty())
-					{
-						boolean isManaged2 = isUnmanaged;
-						AccountExtensibleObject eo = new AccountExtensibleObject(existingAccount, serverService);
-						isUnmanaged = executeTriggers(preUpdate, new AccountExtensibleObject(acc, serverService), eo);
-						if (isUnmanaged != isManaged2)
-						{
-							if (isUnmanaged)
-								log.append ("Account "+acc.getName()+" is loaded due to pre-update trigger success\n");
-							else
-								log.append ("Account "+acc.getName()+" is not loaded due to pre-update trigger failure\n");
-						}
-						existingAccount = vom.parseAccount(eo);
-					}
-
-					if (! isUnmanaged &&
-							existingAccount.getDescription() != null && 
-							existingAccount.getDescription().trim().length() > 0 &&
-							!existingAccount.getDescription().equals(acc.getDescription()))
-					{
-						anyChange = true;
-						acc.setDescription(existingAccount.getDescription());
-					}
-					
-					if (existingAccount.getLastPasswordSet() != null &&
-							!existingAccount.getLastPasswordSet().equals(acc.getLastPasswordSet()))
-					{
-						anyChange = true;
-						acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
-					}
-					
-					if (existingAccount.getLastLogin() != null &&
-							!existingAccount.getLastLogin().equals(acc.getLastLogin()))
-					{
-						anyChange = true;
-						acc.setLastLogin(existingAccount.getLastLogin());
-					}
-
-					if (existingAccount.getLastUpdated() != null &&
-							!existingAccount.getLastUpdated().equals(acc.getLastUpdated()))
-					{
-						acc.setLastUpdated(existingAccount.getLastUpdated());
-						anyChange = true;
-					}
-					
-					if (existingAccount.getPasswordExpiration() != null &&
-							!existingAccount.getPasswordExpiration().equals(acc.getPasswordExpiration()))
-					{
-						acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
-						anyChange = true;
-					}
-								
-					
-					if (isUnmanaged && existingAccount.getAttributes() != null)
-					{
-						for (String att: existingAccount.getAttributes().keySet())
-						{
-							Object v = existingAccount.getAttributes().get(att);
-							Object v2 = acc.getAttributes().get(att);
-							if (v != null &&
-									!v.equals(v2))
-							{
-								acc.getAttributes().put(att, v);
-								anyChange = true;
-							}
-						}
-					}
-					
-					if (isUnmanaged && acc.isDisabled() != existingAccount.isDisabled())
-					{
-						acc.setDisabled(existingAccount.isDisabled());
-						anyChange = true;
-					}
-
-					if (anyChange)
-					{
-						if (isUnmanaged)
-							log.append ("Updating account ").append (accountName).append ('\n');
-						else
-							log.append ("Fetching password attributes for ").append (accountName).append ('\n');
-						
-						try {
-							accountService.updateAccount(acc);
-	
-							if (isUnmanaged)
-								reconcileAccountAttributes (acc, existingAccount);
-
-							executeTriggers(postUpdate, 
-									new AccountExtensibleObject(acc2, serverService),
-									new AccountExtensibleObject(acc, serverService));
-						} catch (AccountAlreadyExistsException e) {
-							throw new InternalErrorException ("Unexpected exception", e);
-						}
-					}
-					// Only reconcile grants on unmanaged accounts
-					// or read only dispatchers
-					if (isUnmanaged)
-						reconcileRoles (acc);
+					updateAccount(preUpdate, postUpdate, accountName, acc, existingAccount);
 				}
 				
 			}
 		}
 		
+	}
+
+	protected void updateAccount(List<ReconcileTrigger> preUpdate, List<ReconcileTrigger> postUpdate,
+			String accountName, Account acc, Account existingAccount) throws InternalErrorException, RemoteException {
+		existingAccount.setDispatcher(dispatcher.getCodi());
+		Account acc2 = new Account (acc);
+		
+		boolean anyChange = false;
+		boolean isUnmanaged = acc != null && acc.getId() != null && 
+				(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
+		
+		if (! preUpdate.isEmpty())
+		{
+			boolean isManaged2 = isUnmanaged;
+			AccountExtensibleObject eo = new AccountExtensibleObject(existingAccount, serverService);
+			isUnmanaged = executeTriggers(preUpdate, new AccountExtensibleObject(acc, serverService), eo);
+			if (isUnmanaged != isManaged2)
+			{
+				if (isUnmanaged)
+					log.append ("Account "+acc.getName()+" is loaded due to pre-update trigger success\n");
+				else
+					log.append ("Account "+acc.getName()+" is not loaded due to pre-update trigger failure\n");
+			}
+			existingAccount = vom.parseAccount(eo);
+		}
+
+		if (isUnmanaged &&
+				existingAccount.getDescription() != null && 
+				existingAccount.getDescription().trim().length() > 0 &&
+				!existingAccount.getDescription().equals(acc.getDescription()))
+		{
+			anyChange = true;
+			acc.setDescription(existingAccount.getDescription());
+		}
+		
+		if (existingAccount.getType() != null &&
+				! existingAccount.getType().equals(AccountType.IGNORED) && 
+				!existingAccount.getType().equals(acc.getType()) )
+		{
+			anyChange = true;
+			acc.setType(existingAccount.getType());
+		}
+
+		if (existingAccount.getLastPasswordSet() != null &&
+				!existingAccount.getLastPasswordSet().equals(acc.getLastPasswordSet()))
+		{
+			anyChange = true;
+			acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
+		}
+		
+		if (existingAccount.getLastLogin() != null &&
+				!existingAccount.getLastLogin().equals(acc.getLastLogin()))
+		{
+			anyChange = true;
+			acc.setLastLogin(existingAccount.getLastLogin());
+		}
+
+		if (existingAccount.getLastUpdated() != null &&
+				!existingAccount.getLastUpdated().equals(acc.getLastUpdated()))
+		{
+			acc.setLastUpdated(existingAccount.getLastUpdated());
+			anyChange = true;
+		}
+		
+		if (existingAccount.getPasswordExpiration() != null &&
+				!existingAccount.getPasswordExpiration().equals(acc.getPasswordExpiration()))
+		{
+			acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
+			anyChange = true;
+		}
+					
+		
+		if (isUnmanaged && existingAccount.getAttributes() != null)
+		{
+			for (String att: existingAccount.getAttributes().keySet())
+			{
+				Object v = existingAccount.getAttributes().get(att);
+				Object v2 = acc.getAttributes().get(att);
+				if (v != null &&
+						!v.equals(v2))
+				{
+					acc.getAttributes().put(att, v);
+					anyChange = true;
+				}
+			}
+		}
+		
+		if (isUnmanaged && (AccountStatus.REMOVED.equals(acc.getStatus()) ||
+				acc.isDisabled() != existingAccount.isDisabled()))
+		{
+			acc.setDisabled(existingAccount.isDisabled());
+			acc.setStatus( acc.isDisabled()? AccountStatus.DISABLED : AccountStatus.ACTIVE);
+			anyChange = true;
+		}
+
+		if (anyChange)
+		{
+			if (isUnmanaged)
+				log.append ("Updating account ").append (accountName).append ('\n');
+			else
+				log.append ("Fetching password attributes for ").append (accountName).append ('\n');
+			
+			try {
+				accountService.updateAccount(acc);
+
+				if (isUnmanaged)
+					reconcileAccountAttributes (acc, existingAccount);
+
+				executeTriggers(postUpdate, 
+						new AccountExtensibleObject(acc2, serverService),
+						new AccountExtensibleObject(acc, serverService));
+			} catch (AccountAlreadyExistsException e) {
+				throw new InternalErrorException ("Unexpected exception", e);
+			}
+		}
+		// Only reconcile grants on unmanaged accounts
+		// or read only dispatchers
+		if (isUnmanaged)
+			reconcileRoles (acc);
+	}
+
+	protected void loadAccount(String passwordPolicy, List<ReconcileTrigger> preInsert,
+			List<ReconcileTrigger> postInsert, String accountName, Account existingAccount)
+			throws InternalErrorException, RemoteException {
+		Account acc;
+		acc = new Account ();
+		acc.setName(accountName);
+		acc.setDispatcher(dispatcher.getCodi());
+		if (existingAccount.getDescription() == null)
+			acc.setDescription(accountName+" "+accountName);
+		else
+			acc.setDescription(existingAccount.getDescription());
+		
+		acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
+		acc.setLastUpdated(existingAccount.getLastUpdated() == null ?
+				Calendar.getInstance() :
+				existingAccount.getLastUpdated());
+		acc.setLastLogin(existingAccount.getLastLogin());
+		acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
+
+		if (existingAccount.getType() == null)
+			acc.setType(AccountType.IGNORED);
+		else
+			acc.setType(existingAccount.getType());
+		acc.setPasswordPolicy(passwordPolicy);
+		try {
+			boolean ok = true;
+			
+			if (! preInsert.isEmpty())
+			{
+				AccountExtensibleObject eo = new AccountExtensibleObject(acc, serverService);
+				if (executeTriggers(preInsert, null, eo))
+				{
+					acc = vom.parseAccount(eo);
+				}
+				else
+				{
+					log.append ("Account "+acc.getName()+" not loaded due to pre-insert trigger failure\n");
+					ok = false;
+				}
+			}
+			if (ok) 
+			{
+				acc.setGrantedGroups(new LinkedList<Grup>());
+				acc.setGrantedRoles(new LinkedList<Rol>());
+				acc.setGrantedUsers(new LinkedList<Usuari>());
+
+				log.append ("Creating account ");
+				log.append(acc.getName());
+				log.append ('\n');
+				acc = accountService.createAccount(acc);
+				reconcileAccountAttributes (acc, existingAccount);
+				
+				executeTriggers(postInsert, null, new AccountExtensibleObject(acc, serverService));
+			}
+		} catch (AccountAlreadyExistsException e) {
+			throw new InternalErrorException ("Unexpected exception", e);
+		}
+		reconcileRoles (acc);
 	}
 
 	
@@ -489,24 +529,8 @@ public class ReconcileEngine2
 					}
 					if (r != null)
 					{
-						boolean ok = true;
-						if (!preInsertRole.isEmpty())
-						{
-							RoleExtensibleObject eo = new RoleExtensibleObject(r, serverService);
-							if (executeTriggers(preInsertRole, null, eo))
-								r = vom.parseRol(eo);
-							else
-							{
-								log.append ("Role "+r.getNom()+" is not loaded due to pre-insert trigger failure\n");
-								ok = false;
-							}
-						}
-							
-						if (ok)
-						{
-							r = createRole(r);
-							executeTriggers(postInsertRole, null, new RoleExtensibleObject(r, serverService));
-						}
+						r.setNom(roleName);
+						loadRole(r);
 					}
 				} else {
 					Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
@@ -523,6 +547,27 @@ public class ReconcileEngine2
 					}
 				}
 			}
+		}
+	}
+
+	protected void loadRole(Rol r) throws InternalErrorException {
+		boolean ok = true;
+		if (!preInsertRole.isEmpty())
+		{
+			RoleExtensibleObject eo = new RoleExtensibleObject(r, serverService);
+			if (executeTriggers(preInsertRole, null, eo))
+				r = vom.parseRol(eo);
+			else
+			{
+				log.append ("Role "+r.getNom()+" is not loaded due to pre-insert trigger failure\n");
+				ok = false;
+			}
+		}
+			
+		if (ok)
+		{
+			r = createRole(r);
+			executeTriggers(postInsertRole, null, new RoleExtensibleObject(r, serverService));
 		}
 	}
 
@@ -568,7 +613,7 @@ public class ReconcileEngine2
 	 * @throws InternalErrorException 
 	 * @throws RemoteException 
 	 */
-	private void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
+	protected void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
 		Collection<RolGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getDispatcher());
 		List<RolGrant> accountGrants;
@@ -610,53 +655,7 @@ public class ReconcileEngine2
 			if (existingGrant.getRolName() == null)
 				throw new InternalErrorException("Received grant to "+acc.getName()+" without role name");
 			
-			boolean ok = true;
-			if (!preInsertGrant.isEmpty())
-			{
-				GrantExtensibleObject eo = new GrantExtensibleObject(existingGrant, serverService);
-				if (executeTriggers(preInsertGrant, null, eo))
-					existingGrant = vom.parseGrant(eo);
-				else
-				{
-					ok = false;
-					log.append ("Grant of "+existingGrant.getRolName()+" to "+existingGrant.getOwnerAccountName()+" is not loaded due to pre-insert trigger failure\n");
-				}
-
-			}
-				
-			if (ok)
-			{
-			
-				Rol role2;
-				role2 = ensureRoleExist(existingGrant);
-				// Look if this role is already granted
-				if (role2 != null)
-				{
-					boolean found = false;
-					for (Iterator<RolGrant> it = grants.iterator(); 
-									! found && it.hasNext();)
-					{
-						RolGrant grant = it.next();
-						if (grant.getIdRol().equals (role2.getId()))
-						{
-							if (grant.getDomainValue() == null && existingGrant.getDomainValue() == null ||
-									grant.getDomainValue() != null && grant.getDomainValue().equals(existingGrant.getDomainValue()))
-							{
-								found = true;
-								it.remove ();
-							}
-						}
-					}
-					if (!found)
-					{
-						log.append ("Granting ").append (existingGrant.getRolName());
-						if (existingGrant.getDomainValue() != null && existingGrant.getDomainValue().trim().length() > 0)
-							log.append (" [").append (existingGrant.getDomainValue()).append("]");
-						log.append (" to ").append(acc.getName()).append('\n');
-						grant (acc, existingGrant, role2);
-					}
-				}
-			}
+			loadGrant(acc, existingGrant, grants);
 		}
 
 		// Now remove not present roles
@@ -666,38 +665,93 @@ public class ReconcileEngine2
 					grant.getOwnerRol() == null &&
 					grant.getId() != null)
 			{
-				boolean ok = true;
-				
-				if (!preDeleteGrant.isEmpty())
+				unloadGrant(acc, grant);
+			}
+		}
+	}
+
+	protected void unloadGrant(Account acc, RolGrant grant) throws InternalErrorException {
+		boolean ok = true;
+		
+		if (!preDeleteGrant.isEmpty())
+		{
+			GrantExtensibleObject eo = new GrantExtensibleObject(grant, serverService);
+			if (executeTriggers(preDeleteGrant, eo, null))
+				grant = vom.parseGrant(eo);
+			else
+			{
+				log.append ("Grant of "+grant.getRolName()+" to "+grant.getOwnerAccountName()+" is not removed due to pre-delete trigger failure\n");
+				ok = false;
+			}
+		}
+		if (ok)
+		{
+			RolAccount ra = new RolAccount();
+			ra.setAccountId(acc.getId());
+			ra.setAccountDispatcher(acc.getDispatcher());
+			ra.setAccountName(acc.getName());
+			ra.setBaseDeDades(grant.getDispatcher());
+			ra.setNomRol(grant.getRolName());
+			ra.setId(grant.getId());
+			if (grant.getDomainValue() != null)
+			{
+				ra.setValorDomini(new ValorDomini());
+				ra.getValorDomini().setValor(grant.getDomainValue());
+			}
+			log.append ("Revoking ").append (grant.getRolName());
+			if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
+				log.append (" [").append (grant.getDomainValue()).append("]");
+			log.append (" from ").append(acc.getName()).append('\n');
+			appService.delete(ra);
+		}
+	}
+
+	protected void loadGrant(Account acc, RolGrant existingGrant, Collection<RolGrant> grants)
+			throws InternalErrorException, RemoteException {
+		boolean ok = true;
+		if (!preInsertGrant.isEmpty())
+		{
+			GrantExtensibleObject eo = new GrantExtensibleObject(existingGrant, serverService);
+			if (executeTriggers(preInsertGrant, null, eo))
+				existingGrant = vom.parseGrant(eo);
+			else
+			{
+				ok = false;
+				log.append ("Grant of "+existingGrant.getRolName()+" to "+existingGrant.getOwnerAccountName()+" is not loaded due to pre-insert trigger failure\n");
+			}
+
+		}
+			
+		if (ok)
+		{
+		
+			Rol role2;
+			role2 = ensureRoleExist(existingGrant);
+			// Look if this role is already granted
+			if (role2 != null)
+			{
+				boolean found = false;
+				for (Iterator<RolGrant> it = grants.iterator(); 
+								! found && it.hasNext();)
 				{
-					GrantExtensibleObject eo = new GrantExtensibleObject(grant, serverService);
-					if (executeTriggers(preDeleteGrant, eo, null))
-						grant = vom.parseGrant(eo);
-					else
+					RolGrant grant = it.next();
+					if (grant.getIdRol().equals (role2.getId()))
 					{
-						log.append ("Grant of "+grant.getRolName()+" to "+grant.getOwnerAccountName()+" is not removed due to pre-delete trigger failure\n");
-						ok = false;
+						if (grant.getDomainValue() == null && existingGrant.getDomainValue() == null ||
+								grant.getDomainValue() != null && grant.getDomainValue().equals(existingGrant.getDomainValue()))
+						{
+							found = true;
+							it.remove ();
+						}
 					}
 				}
-				if (ok)
+				if (!found)
 				{
-					RolAccount ra = new RolAccount();
-					ra.setAccountId(acc.getId());
-					ra.setAccountDispatcher(acc.getDispatcher());
-					ra.setAccountName(acc.getName());
-					ra.setBaseDeDades(grant.getDispatcher());
-					ra.setNomRol(grant.getRolName());
-					ra.setId(grant.getId());
-					if (grant.getDomainValue() != null)
-					{
-						ra.setValorDomini(new ValorDomini());
-						ra.getValorDomini().setValor(grant.getDomainValue());
-					}
-					log.append ("Revoking ").append (grant.getRolName());
-					if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
-						log.append (" [").append (grant.getDomainValue()).append("]");
-					log.append (" from ").append(acc.getName()).append('\n');
-					appService.delete(ra);
+					log.append ("Granting ").append (existingGrant.getRolName());
+					if (existingGrant.getDomainValue() != null && existingGrant.getDomainValue().trim().length() > 0)
+						log.append (" [").append (existingGrant.getDomainValue()).append("]");
+					log.append (" to ").append(acc.getName()).append('\n');
+					grant (acc, existingGrant, role2);
 				}
 			}
 		}
@@ -758,7 +812,7 @@ public class ReconcileEngine2
 	 * @param role 
 	 * @throws InternalErrorException 
 	 */
-	private void grant (Account acc, RolGrant grant, Rol role) throws InternalErrorException
+	protected void grant (Account acc, RolGrant grant, Rol role) throws InternalErrorException
 	{
 		if (grant.getDomainValue() != null && role.getDomini() != null && role.getDomini().getCodiExtern() != null)
 		{
@@ -821,6 +875,8 @@ public class ReconcileEngine2
 		if (role.getDescripcio() == null || role.getDescripcio().trim().length() == 0)
 			role.setDescripcio("Autogenerated role "+role.getNom());
 		
+		boolean containsOwendRoles = role.getOwnedRoles() != null;
+		
 		if (role.getOwnedRoles() == null)
 			role.setOwnedRoles(new LinkedList<RolGrant> ());
 		
@@ -839,11 +895,14 @@ public class ReconcileEngine2
 		
 		if (role.getDescripcio().length() > 150)
 			role.setDescripcio(role.getDescripcio().substring(0, 150));
-				
-		return appService.create(role);
+		
+		if (containsOwendRoles)
+			return appService.create2(role);
+		else
+			return appService.create(role);
 	}
 
-	private Rol updateRole (Rol soffidRole, Rol systemRole) throws InternalErrorException
+	protected Rol updateRole (Rol soffidRole, Rol systemRole) throws InternalErrorException
 	{
 		Rol r = new Rol(soffidRole);
 		boolean anyChange = false;
@@ -897,6 +956,7 @@ public class ReconcileEngine2
 			anyChange = true;
 		}
 		
+		boolean containsOwnedRoles = systemRole.getOwnedRoles() != null;
 		if (systemRole.getOwnerRoles() != null && !
 				systemRole.getOwnerRoles().equals(soffidRole.getOwnerRoles()))
 		{
@@ -945,7 +1005,10 @@ public class ReconcileEngine2
 			if (ok)
 			{
 				log.append ("Updating role "+soffidRole.getNom()+"\n");
-				soffidRole = appService.update(soffidRole);
+				if (containsOwnedRoles)
+					soffidRole = appService.update2(soffidRole);
+				else
+					soffidRole = appService.update(soffidRole);
 				executeTriggers(postUpdateRole, 
 						new RoleExtensibleObject(r, serverService),
 						new RoleExtensibleObject(soffidRole, serverService));
@@ -953,5 +1016,7 @@ public class ReconcileEngine2
 		}
 		return soffidRole;
 	}
+
+
 
 }
