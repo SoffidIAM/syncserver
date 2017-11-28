@@ -1,6 +1,7 @@
 package com.soffid.iam.sync.service;
 
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.AttributeTranslation;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
@@ -1467,7 +1468,11 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Account handleGetAccountInfo(String accountName,
 			String dispatcherId) throws Exception {
-		return getAccountService().findAccount(accountName, dispatcherId);
+		Account acc = getAccountService().findAccount(accountName, dispatcherId);
+		if ( acc == null || acc.getStatus() == AccountStatus.REMOVED)
+			return null;
+		else
+			return acc;
 	}
 
 	@Override

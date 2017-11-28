@@ -551,23 +551,23 @@
 		<dependency>
 			<artifactId>iam-common</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0-M1</version>
+			<version>2.0.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<artifactId>iam-tomee</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0-M1</version>
+			<version>2.0.0-SNAPSHOT</version>
 		</dependency>
 		<dependency>
 			<artifactId>iam-core</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0-M1</version>
+			<version>2.0.0-SNAPSHOT</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<artifactId>iam-webservice</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0-M1</version>
+			<version>2.0.0-SNAPSHOT</version>
 			<type>war</type>
 			<scope>provided</scope>
 		</dependency>

@@ -327,6 +327,7 @@ public class ValueObjectMapper
 			}
 			else
 				account.setType(AccountType.IGNORED);
+			account.setPasswordPolicy( toSingleString(object.getAttribute("passwordPolicy")));
 			Object map = object.getAttribute("accountAttributes");
 			if (map != null && map instanceof Map)
 			{

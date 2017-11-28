@@ -62,8 +62,13 @@ function configureproxy {
 		SOFFID_HOSTNAME=$(hostname)
 	fi
     
+	if [[ "$SOFFID_TENANT" == "" ]]
+	then
+		SOFFID_TENANT=master
+	fi
+    
     echo "Configuring as secondary or proxy server"
-	/opt/soffid/iam-sync/bin/configure -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER"
+	/opt/soffid/iam-sync/bin/configure -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"
 	
 	touch /opt/soffid/iam-sync/conf/configured
 }
