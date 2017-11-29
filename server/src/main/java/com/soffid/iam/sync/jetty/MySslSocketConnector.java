@@ -8,6 +8,9 @@ import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.SecureRandom;
 import java.security.cert.X509Certificate;
+import java.util.Enumeration;
+import java.util.LinkedList;
+import java.util.List;
 
 import javax.net.ssl.KeyManager;
 import javax.net.ssl.KeyManagerFactory;
@@ -22,6 +25,8 @@ import org.apache.commons.logging.LogFactory;
 import org.mortbay.jetty.security.SslSocketConnector;
 import org.mortbay.log.Log;
 import org.mortbay.resource.Resource;
+
+import com.soffid.iam.ssl.SeyconKeyStore;
 
 public class MySslSocketConnector extends SslSocketConnector {
     private String _password;
@@ -73,7 +78,15 @@ public class MySslSocketConnector extends SslSocketConnector {
         keyStore.load(keystoreInputStream, _password==null?null:_password.toString().toCharArray());
         try 
         {
-        	keyStore.deleteEntry("secretskey");
+        	List<String> keys = new LinkedList<String>();
+        	for (Enumeration<String> e = keyStore.aliases(); e.hasMoreElements();)
+        	{
+        		String alias = e.nextElement();
+        		if ( keyStore.isKeyEntry(alias) && ! alias.equalsIgnoreCase(SeyconKeyStore.MY_KEY))
+        			keys.add(alias);
+        	}
+        	for (String key: keys)
+        		keyStore.deleteEntry(key);
         } catch (Exception e) {
         }
         KeyManagerFactory keyManagerFactory = KeyManagerFactory.getInstance(getSslKeyManagerFactoryAlgorithm());        
