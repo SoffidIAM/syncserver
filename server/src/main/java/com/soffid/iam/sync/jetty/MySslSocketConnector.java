@@ -84,6 +84,8 @@ public class MySslSocketConnector extends SslSocketConnector {
         		String alias = e.nextElement();
         		if ( keyStore.isKeyEntry(alias) && ! alias.equalsIgnoreCase(SeyconKeyStore.MY_KEY))
         			keys.add(alias);
+        		if ( keyStore.isCertificateEntry(alias) && ! alias.equalsIgnoreCase(SeyconKeyStore.ROOT_CERT))
+        			keys.add(alias);
         	}
         	for (String key: keys)
         		keyStore.deleteEntry(key);
@@ -101,7 +103,7 @@ public class MySslSocketConnector extends SslSocketConnector {
         trustStore.load(truststoreInputStream, _trustPassword==null?null:_trustPassword.toString().toCharArray());
         
         TrustManagerFactory trustManagerFactory = TrustManagerFactory.getInstance(getSslTrustManagerFactoryAlgorithm());
-        trustManagerFactory.init(trustStore);
+        trustManagerFactory.init(keyStore);
         trustManagers = trustManagerFactory.getTrustManagers();
         
 
