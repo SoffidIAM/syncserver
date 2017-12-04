@@ -233,8 +233,8 @@ public class JettyServer implements PublisherInterface
         connector.setWantClientAuth(true);
         connector.setAcceptors(2);
         connector.setAcceptQueueSize(10);
-        connector.setMaxIdleTime(40000);
-        connector.setLowResourceMaxIdleTime(2000);
+        connector.setMaxIdleTime(1500);
+        connector.setLowResourceMaxIdleTime(200);
 
         server.addConnector(connector);
 	}
