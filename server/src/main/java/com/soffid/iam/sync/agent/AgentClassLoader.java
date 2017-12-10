@@ -1,8 +1,13 @@
 package com.soffid.iam.sync.agent;
 
+import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLStreamHandlerFactory;
+import java.util.Enumeration;
+import java.util.LinkedList;
+
+import sun.misc.CompoundEnumeration;
 
 public class AgentClassLoader extends URLClassLoader {
 
@@ -46,4 +51,29 @@ public class AgentClassLoader extends URLClassLoader {
         }
         return c;
     }
+
+	@Override
+	public URL getResource(String name) {
+        URL url;
+        url = findResource(name);
+        if (url == null)
+        {
+        	url = super.getResource(name);
+        }
+        return url;
+	}
+
+	@Override
+	public Enumeration<URL> getResources(String name) throws IOException {
+        Enumeration[] tmp = new Enumeration[2];
+        tmp[0] = findResources(name);
+        if (getParent() != null) {
+            tmp[1] = getParent().getResources(name);
+        } else {
+            tmp[1] = ClassLoader.getSystemClassLoader().getResources(name);
+        }
+
+        return new CompoundEnumeration<URL>(tmp);
+	}
+
 }
