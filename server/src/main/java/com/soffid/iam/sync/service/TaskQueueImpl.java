@@ -488,7 +488,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 		String hash = tasqueEntity.getHash();
 		// Eliminar tareas similares
-		if (hash == null)
+		if (hash == null || tasqueEntity.getServer() == null)
 		{
 			hash = newTask.getHash();
 			// Cancel local tasks
