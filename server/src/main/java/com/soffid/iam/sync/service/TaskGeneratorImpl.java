@@ -206,7 +206,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                         System newDispatcher = getSystemEntityDao().toSystem(dispatcherEntity);
                         checkNulls(newDispatcher);
                         System oldDispatcher = current.getSystem();
-                        if (!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) 
+                        if (oldDispatcher.getTimeStamp() == null && newDispatcher.getTimeStamp() != null ||
+                        	!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) 
                         {// S'han produït canvis
                         	
                         	Security.nestedLogin(current.getSystem().getTenant(), 
