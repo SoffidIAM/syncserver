@@ -42,9 +42,11 @@ import org.bouncycastle.cms.CMSSignedDataParser;
 import org.bouncycastle.cms.CMSTypedStream;
 import org.bouncycastle.cms.SignerInformation;
 import org.bouncycastle.cms.SignerInformationStore;
-import org.bouncycastle.jce.PKCS7SignedData;
+import org.bouncycastle.cms.jcajce.JcaSimpleSignerInfoVerifierBuilder;
 import org.bouncycastle.jce.provider.BouncyCastleProvider;
 import org.bouncycastle.jce.provider.X509CertParser;
+import org.bouncycastle.operator.bc.BcDigestCalculatorProvider;
+import org.bouncycastle.util.Store;
 import org.bouncycastle.x509.util.StreamParsingException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
@@ -370,12 +372,13 @@ public class CertificateLoginServlet extends HttpServlet {
             // Verificación de la firma del documento
             CMSTypedStream typedIn = new CMSTypedStream(content);
 
-            CMSSignedDataParser parser = new CMSSignedDataParser(typedIn, pkcs7);
+            
+            CMSSignedDataParser parser = new CMSSignedDataParser(new BcDigestCalculatorProvider(), typedIn, pkcs7);
             CMSTypedStream in = parser.getSignedContent();
             in.drain();
 
             // Obenir els certificats del PKCS7
-            CertStore certs = parser.getCertificatesAndCRLs("Collection", "BC");
+            Store certs = parser.getCertificates();
 
             // Obtenir les dades del primer (i únic) signant
             SignerInformationStore signersStore = parser.getSignerInfos();
@@ -385,7 +388,7 @@ public class CertificateLoginServlet extends HttpServlet {
             if (it.hasNext()) {
                 SignerInformation signer = (SignerInformation) it.next();
                 // Obtenir el certificat del signatari
-                Collection certCollection = certs.getCertificates(signer
+                Collection certCollection = certs.getMatches(signer
                         .getSID());
                 Iterator certIt = certCollection.iterator();
                 if (certIt.hasNext()) {
@@ -394,7 +397,7 @@ public class CertificateLoginServlet extends HttpServlet {
                 /*
                  * Se recuperan todos los certificados
                  */
-                certCollection = certs.getCertificates(null);
+                certCollection = certs.getMatches(null);
                 certIt = certCollection.iterator();
                 LinkedList allCertificates = new LinkedList();
                 while (certIt.hasNext()) {
@@ -431,7 +434,8 @@ public class CertificateLoginServlet extends HttpServlet {
                         .toArray(new X509Certificate[certificateChainList
                                 .size()]);
 
-                verified = verified && signer.verify(userCertificate, "BC");
+                verified = verified &&
+                		signer.verify(new JcaSimpleSignerInfoVerifierBuilder().setProvider("BC").build(userCertificate));
             } else {
                 throw new SignatureVerifyException(new Exception("No signer"));
             }

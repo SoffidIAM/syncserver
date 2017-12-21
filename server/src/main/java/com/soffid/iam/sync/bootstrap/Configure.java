@@ -208,6 +208,8 @@ public class Configure {
         	throw new InternalErrorException ("This server cannot be configured as the main server as long as there are some servers created at Soffid console.\nPlease remove them to proceed.");
         }
         
+        CertificateServer s = new CertificateServer();
+
         Server server = new Server();
         server.setName(config.getHostName());
         server.setUrl("https://"+config.getHostName()+":"+config.getPort()+"/");
@@ -219,7 +221,6 @@ public class Configure {
         Tenant t = tenantSvc.getMasterTenant();
         tenantSvc.addTenantServer(t, server.getName());
 
-        CertificateServer s = new CertificateServer();
         s.createRoot();
     }
 

@@ -1,13 +1,9 @@
 package com.soffid.iam.sync.engine.cert;
 
-import java.io.ByteArrayInputStream;
 import java.io.File;
-import java.io.FileInputStream;
 import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
-import java.net.InetAddress;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.KeyManagementException;
@@ -20,10 +16,8 @@ import java.security.NoSuchProviderException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
 import java.security.SecureRandom;
-import java.security.Security;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
-import java.security.KeyStore.Entry;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
@@ -31,29 +25,15 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.Hashtable;
-import java.util.Properties;
-import java.util.Random;
 import java.util.Vector;
 
-import javax.net.ssl.KeyManager;
-import javax.net.ssl.KeyManagerFactory;
-
-import org.bouncycastle.asn1.ASN1Encodable;
-import org.bouncycastle.asn1.ASN1Sequence;
-import org.bouncycastle.asn1.BERSequence;
-import org.bouncycastle.asn1.DERObject;
-import org.bouncycastle.asn1.DERObjectIdentifier;
-import org.bouncycastle.asn1.DERSequence;
+import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.x500.style.RFC4519Style;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.GeneralName;
 import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
-import org.bouncycastle.crypto.AsymmetricCipherKeyPair;
-import org.bouncycastle.crypto.generators.RSAKeyPairGenerator;
-import org.bouncycastle.jce.provider.BouncyCastleProvider;
-import org.bouncycastle.jce.provider.JDKPKCS12KeyStore.BCPKCS12KeyStore;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
@@ -62,7 +42,6 @@ import com.soffid.iam.api.Password;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteInvokerFactory;
 import com.soffid.iam.remote.RemoteServiceLocator;
-import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.service.CertificateEnrollService;
 
@@ -148,11 +127,11 @@ public class CertificateServer {
             IllegalStateException, NoSuchProviderException, NoSuchAlgorithmException,
             SignatureException {
         X509V3CertificateGenerator generator = getX509Generator();
-        Vector<DERObjectIdentifier> tags = new Vector<DERObjectIdentifier>();
+        Vector<ASN1ObjectIdentifier> tags = new Vector<ASN1ObjectIdentifier>();
         Vector<String> values = new Vector<String>();
-        tags.add (X509Name.CN); values.add (hostName);
-        tags.add (X509Name.OU); values.add (tenant);
-        tags.add (X509Name.O); values.add ("Soffid");
+        tags.add (RFC4519Style.cn); values.add (hostName);
+        tags.add (RFC4519Style.ou); values.add (tenant);
+        tags.add (RFC4519Style.o); values.add ("Soffid");
         X509Name name = new X509Name(tags, values);
         generator.setSubjectDN(name);
         generator.setPublicKey(certificateKey);
@@ -169,11 +148,11 @@ public class CertificateServer {
         }
         else
         {
-        	ASN1Sequence seq = new DERSequence(new ASN1Encodable[]{
-        			new GeneralName(GeneralName.dNSName, hostName),
-        			new GeneralName(GeneralName.dNSName, "*." + hostName)
-        	});
-	        GeneralNames subjectAltName = new GeneralNames(seq);
+	        GeneralNames subjectAltName = new GeneralNames(
+	        		new GeneralName[] {
+	            			new GeneralName(GeneralName.dNSName, hostName),
+	            			new GeneralName(GeneralName.dNSName, "*." + hostName)
+	        		});
 	        generator.addExtension(X509Extensions.SubjectAlternativeName, false, subjectAltName);
         }
 

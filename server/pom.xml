@@ -460,16 +460,6 @@
 			<version>3.2.8-5</version>
 		</dependency>
 		<dependency>
-			<groupId>bouncycastle</groupId>
-			<artifactId>bcprov-jdk16</artifactId>
-			<version>140</version>
-		</dependency>
-		<dependency>
-			<groupId>bouncycastle</groupId>
-			<artifactId>bcmail-jdk16</artifactId>
-			<version>140</version>
-		</dependency>
-		<dependency>
 			<groupId>javax.mail</groupId>
 			<artifactId>mail</artifactId>
 			<version>1.4</version>
@@ -551,23 +541,23 @@
 		<dependency>
 			<artifactId>iam-common</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0</version>
+			<version>${iam.version}</version>
 		</dependency>
 		<dependency>
 			<artifactId>iam-tomee</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0</version>
+			<version>${iam.version}</version>
 		</dependency>
 		<dependency>
 			<artifactId>iam-core</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0</version>
+			<version>${iam.version}</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<artifactId>iam-webservice</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0</version>
+			<version>${iam.version}</version>
 			<type>war</type>
 			<scope>provided</scope>
 		</dependency>
@@ -688,6 +678,11 @@
 			<groupId>commons-beanutils</groupId>
 			<artifactId>commons-beanutils</artifactId>
 			<version>1.7.0</version>
+		</dependency>
+		<dependency>
+    		<groupId>org.bouncycastle</groupId>
+    		<artifactId>bcpkix-jdk15on</artifactId>
+    		<version>1.51</version>
 		</dependency>
 	</dependencies>
 	<reporting>

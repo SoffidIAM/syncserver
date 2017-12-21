@@ -298,7 +298,11 @@ public class SoffidApplication extends Object {
             if ("server".equals(config.getRole()))
             	log.info("Running as a SYNC SERVER");
             else
+            {
             	log.info("Running as a PROXY SERVER");
+            	Security.onSyncProxy();
+            }
+            
             log.info("*************************************************");
             if (config.isDebug())
                 SeyconLog.setDebug(true);
