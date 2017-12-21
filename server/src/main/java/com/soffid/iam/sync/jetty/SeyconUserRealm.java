@@ -51,7 +51,7 @@ public class SeyconUserRealm implements UserRealm {
 			for ( RDN rdn: name.getRDNs())
 			{
 				if (rdn.getFirst() != null &&
-						rdn.getFirst().getType().equals( RFC4519Style.o))
+						rdn.getFirst().getType().equals( RFC4519Style.ou))
 					domain = rdn.getFirst().getValue().toString();
 				if (rdn.getFirst() != null &&
 						rdn.getFirst().getType().equals( RFC4519Style.cn))
