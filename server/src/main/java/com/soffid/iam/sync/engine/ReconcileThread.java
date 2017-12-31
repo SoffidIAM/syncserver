@@ -1,14 +1,5 @@
 package com.soffid.iam.sync.engine;
 
-import org.jbpm.JbpmContext;
-import org.jbpm.graph.exe.ProcessInstance;
-
-import com.soffid.iam.reconcile.service.ReconcileService;
-
-import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.sync.ServerServiceLocator;
-import es.caib.seycon.ng.sync.engine.ReconcileEngine2;
-
 public class ReconcileThread extends Thread {
 	ManualReconcileEngine engine;
 	
