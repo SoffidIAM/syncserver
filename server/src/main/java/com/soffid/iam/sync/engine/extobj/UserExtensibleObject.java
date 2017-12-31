@@ -135,7 +135,7 @@ public class UserExtensibleObject extends ExtensibleObject
     		} 
     		else if ("accountAttributes".equals(attribute))
     		{
-    			return account.getAttributes();
+    			obj = account.getAttributes();
     		}
     		else if ("userAttributes".equals(attribute))
     		{

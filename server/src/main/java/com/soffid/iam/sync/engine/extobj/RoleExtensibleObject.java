@@ -99,7 +99,9 @@ public class RoleExtensibleObject extends ExtensibleObject
     		}
     		else if ("domain".equals(attribute))
     		{
-    			if (role.getDomain().getExternalCode() == null)
+    			if (role.getDomain() == null)
+    				return null;
+    			else if (role.getDomain().getExternalCode() == null)
     				return role.getDomain().getName();
     			else
     				return role.getDomain().getExternalCode();

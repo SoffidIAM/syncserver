@@ -27,6 +27,7 @@ import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.SystemAccessControl;
+import com.soffid.iam.api.Task;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
@@ -36,6 +37,7 @@ import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFinder;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
 import com.soffid.iam.sync.intf.CustomObjectMgr;
+import com.soffid.iam.sync.intf.CustomTaskMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.intf.GroupMgr;
@@ -56,6 +58,7 @@ import es.caib.seycon.ng.comu.LlistaCorreu;
 import es.caib.seycon.ng.comu.Maquina;
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.Rol;
+import es.caib.seycon.ng.comu.Tasca;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.BadPasswordException;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -903,5 +906,25 @@ public class InterfaceWrapper {
 		}
 		else
 			return null;
+	}
+	
+	public static CustomTaskMgr getCustomTaskMgr (Object obj) {
+		if (obj instanceof CustomTaskMgr)
+			return (CustomTaskMgr) obj;
+		else if ( obj instanceof es.caib.seycon.ng.sync.intf.CustomTaskMgr)
+		{
+			final es.caib.seycon.ng.sync.intf.CustomTaskMgr agent = 
+					(es.caib.seycon.ng.sync.intf.CustomTaskMgr) obj;
+			return new CustomTaskMgr() {
+
+				public void processTask(Task task) throws RemoteException, InternalErrorException {
+					agent.processTask( Tasca.toTasca(task));
+				}
+
+			};
+		}
+		else
+			return null;
+		
 	}
 }
