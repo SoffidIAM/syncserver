@@ -242,13 +242,8 @@ public class ObjectTranslator
 				AttributeReferenceParser.parse(targetObject, attribute)
 					.setValue(result);
 			} catch (TargetError e) {
-				String msg;
-				try {
-					msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
-				} catch (Exception e2) {
-					msg = e.getMessage();
-				}
-				throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg,
+				throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+
+						e.getTarget().getMessage(),
 						e.getTarget());
 			} catch (EvalError e) {
 				String msg;
@@ -316,6 +311,10 @@ public class ObjectTranslator
 									result = ((Primitive)result).getValue();
 								}
 								return result;
+							} catch (TargetError e) {
+								throw new InternalErrorException ("Error evaluating attribute "+attribute.getSystemAttribute()+": "+
+										e.getTarget().getMessage(),
+										e.getTarget());
 							} catch (EvalError e) {
 								String msg;
 								try {
@@ -362,6 +361,10 @@ public class ObjectTranslator
 								result = ((Primitive)result).getValue();
 							}
 							return result;
+						} catch (TargetError e) {
+							throw new InternalErrorException ("Error evaluating attribute "+attribute.getSoffidAttribute()+": "+
+									e.getTarget().getMessage(),
+									e.getTarget());
 						} catch (EvalError e) {
 							String msg;
 							try {
@@ -404,6 +407,10 @@ public class ObjectTranslator
 				return false;
 			else
 				return true;
+		} catch (TargetError e) {
+			throw new InternalErrorException ("Error evaluating expression "+condition+": "+
+					e.getTarget().getMessage(),
+					e.getTarget());
 		} catch (EvalError e) {
 			String msg;
 			try {
@@ -430,6 +437,10 @@ public class ObjectTranslator
 				result = ((Primitive)result).getValue();
 			}
 			return result;
+		} catch (TargetError e) {
+			throw new InternalErrorException ("Error evaluating expression "+expr+": "+
+					e.getTarget().getMessage(),
+					e.getTarget());
 		} catch (EvalError e) {
 			String msg;
 			try {

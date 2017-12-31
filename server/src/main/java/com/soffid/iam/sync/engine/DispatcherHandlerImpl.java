@@ -23,8 +23,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import javax.sql.DataSource;
-
 import org.jbpm.JbpmConfiguration;
 import org.jbpm.JbpmContext;
 import org.jbpm.graph.exe.ProcessInstance;
@@ -88,6 +86,7 @@ import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
 import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.CustomObjectMgr;
+import com.soffid.iam.sync.intf.CustomTaskMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.intf.GroupMgr;
@@ -348,6 +347,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class)||
             		implemented(agent,com.soffid.iam.sync.intf.ReconcileMgr2.class);
 		}
+		else if (trans.equals(TaskHandler.RECONCILE_USERS))
+		{
+			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class)||
+					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class);
+		}
 		else if (trans.equals(TaskHandler.RECONCILE_ROLE))
 		{
 			return implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr.class) ||
@@ -361,7 +365,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             		implemented(agent,com.soffid.iam.sync.intf.ReconcileMgr2.class);
 	        ///////////////////////////////////////////////////////////////////////
         } else {
-            return true;
+            return implemented(agent, es.caib.seycon.ng.sync.intf.CustomTaskMgr.class) ||
+            		implemented(agent,CustomTaskMgr.class);
         }
     }
 
@@ -805,16 +810,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		{
 			// Nothing to do
         } else {
-            throw new InternalErrorException("Tipo de transacción no válida: " + trans);
+        	processCustomTask(agent, t);
         }
     }
 
-	DataSource dataSource;
-	private DataSource getDataSource ()
-	{
-		if (dataSource == null)
-			dataSource = (DataSource) ServerServiceLocator.instance().getService("dataSource");
-		return dataSource;
+	private void processCustomTask(Object agent, TaskHandler t) throws RemoteException, InternalErrorException {
+		com.soffid.iam.sync.intf.CustomTaskMgr mgr = InterfaceWrapper.getCustomTaskMgr(agent);
+		if (mgr != null)
+		{
+			mgr.processTask(t.getTask());
+		}
 	}
 
 	/**
@@ -1689,7 +1694,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         return agent;
     }
 
-	static JbpmConfiguration getConfig ()
+	protected static JbpmConfiguration getConfig ()
 	{
 		if (jbpmConfig == null)
 		{
@@ -1721,29 +1726,72 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		TenantEntity tenant = tenantDao.findByName(getSystem().getTenant());
 
 		// Create reconcile user task for users
-		for (String user : (reconcileManager2 == null ? reconcileManager.getAccountsList() : reconcileManager2.getAccountsList())) {
-            if (user.length() <= MAX_LENGTH) {
-                taskEntity = tasqueEntityDao.newTaskEntity();
-                taskEntity.setTransaction(TaskHandler.RECONCILE_USER);
-                taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
-                taskEntity.setHost(taskHandler.getTask().getHost());
-                taskEntity.setUser(user);
-                taskEntity.setSystemName(getSystem().getName());
-	            taskEntity.setTenant( tenant );
-                taskqueue.addTask(taskEntity);
-            }
-        }
-
-		// Create reconcile roles task
-		taskEntity = tasqueEntityDao.newTaskEntity();
-		taskEntity.setTransaction(TaskHandler.RECONCILE_ROLES);
-		taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
-		taskEntity.setHost(taskHandler.getTask().getHost());
-		taskEntity.setSystemName(getSystem().getName());
-        taskEntity.setTenant( tenant );
-
-		taskqueue.addTask(taskEntity);
+		if (reconcileManager2 == null)
+		{
+			for (String user : (reconcileManager2 == null ? reconcileManager.getAccountsList() : reconcileManager2.getAccountsList()))
+			{
+				// Check user code length
+				if (user.length() <= MAX_LENGTH)
+				{
+					taskEntity = tasqueEntityDao.newTaskEntity();
+					taskEntity.setTransaction(TaskHandler.RECONCILE_USER);
+					taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
+					taskEntity.setHost(taskHandler.getTask().getHost());
+					taskEntity.setUser(user);
+					taskEntity.setSystemName(getSystem().getName());
+					
+					taskqueue.addTask(taskEntity);
+				}
+			}
+	
+			// Create reconcile roles task
+			taskEntity = tasqueEntityDao.newTaskEntity();
+			taskEntity.setTransaction(TaskHandler.RECONCILE_ROLES);
+			taskEntity.setDate(new Timestamp(System.currentTimeMillis()));
+			taskEntity.setHost(taskHandler.getTask().getHost());
+			taskEntity.setSystemName(getSystem().getName());
+	
+			taskqueue.addTask(taskEntity);
+		}
+		else
+		{
+			if (reconcileThread == null)
+			{
+				reconcileThread = new ReconcileThread();
+				reconcileThread.setName("Reconcile thread for "+getSystem().getName());
+				try {
+					ManualReconcileEngine engine = new ManualReconcileEngine(getSystem(), (ReconcileMgr2) connect(false), null);
+					engine.setReconcileProcessId(Long.decode(taskHandler.getTask().getHost()));
+					reconcileThread.setEngine(
+							engine);
+				} catch (Exception e) {
+					throw new InternalErrorException("Error connecting agent "+e);
+				}
+				reconcileThread.start();
+				throw new InternalErrorException("Reconcile started", new ReconcileInProgress("Reconcile started"));
+			}
+			else if (reconcileThread.isAlive())
+			{
+				throw new InternalErrorException("Reconcile in progress", new ReconcileInProgress("Reconcile in progress"));
+			}
+			else
+			{
+				ReconcileThread rt = reconcileThread;
+				reconcileThread = null;
+				if (rt.isFinished())
+				{
+					if (rt.getException() != null)
+						throw new InternalErrorException("Error during reconcile process", rt.getException());
+				}
+				else
+				{
+					throw new InternalErrorException("Reconcile process aborted");
+				}
+			}
+		}
 	}
+	
+	ReconcileThread reconcileThread = null;
 
 	/**
 	 * End reconcile process.
