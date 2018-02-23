@@ -242,7 +242,7 @@ public class TaskScheduler
 		return result;
 	}
 
-	public void init () throws InternalErrorException, FileNotFoundException, IOException
+	public void init () throws InternalErrorException, FileNotFoundException, IOException, DocumentBeanException
 	{
 		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
 		List<ScheduledTask> list = taskSvc.listServerTasks(Config.getConfig().getHostName());
@@ -257,9 +257,12 @@ public class TaskScheduler
 				try {
 					task.setActive(false);
 					task.setError(true);
-					StringBuffer sb = new StringBuffer();
-					sb.append ("Server restarted during execution");
-					task.setLogReferenceID(null);
+					DocumentService ds = ServiceLocator.instance().getDocumentService();
+					ds.createDocument("text/plain", task.getName(), "taskmgr");
+					byte[] sb = ("Server restarted during execution").getBytes();
+					ds.nextUploadPackage(sb, sb.length);
+					ds.endUploadTransfer();
+					task.setLogReferenceID( ds.getReference().toString() );
 					task.setLastEnd(Calendar.getInstance());
 					taskSvc.registerEndTask(task);
 				} finally {
