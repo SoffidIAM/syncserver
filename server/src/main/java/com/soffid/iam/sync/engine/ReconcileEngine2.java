@@ -273,7 +273,7 @@ public class ReconcileEngine2
 			existingAccount = vom.parseAccount(eo);
 		}
 
-		if (! isUnmanaged &&
+		if (isUnmanaged &&
 				existingAccount.getDescription() != null && 
 				existingAccount.getDescription().trim().length() > 0 &&
 				!existingAccount.getDescription().equals(acc.getDescription()))
