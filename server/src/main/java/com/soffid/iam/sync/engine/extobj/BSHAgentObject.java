@@ -21,24 +21,23 @@ public class BSHAgentObject {
 		this.translator = translator;
 	}
 
-	public Map<String,Object> search (Map<String,Object> pattern) throws Exception
+	public Map<String,Object> search (ExtensibleObject pattern) throws Exception
 	{
 		if (finder != null)
 		{
-			ExtensibleObject eo = new ExtensibleObject();
-			eo.putAll(pattern);
-			return finder.find(eo);
+			return finder.find(pattern);
 		}
 		else if (finderV1 == null)
 		{
 			es.caib.seycon.ng.sync.intf.ExtensibleObject eo = new es.caib.seycon.ng.sync.intf.ExtensibleObject();
+			eo.setObjectType(pattern.getObjectType());
 			eo.putAll(pattern);
 			return finderV1.find(eo);
 		}
 		else
 			return null;
 	}
-	
+
 	public ExtensibleObject soffidToSystem (ExtensibleObject soffidObject) throws InternalErrorException
 	{
 		ExtensibleObjects objs = translator.generateObjects(soffidObject);

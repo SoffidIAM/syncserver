@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -38,6 +39,7 @@ import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
 import com.soffid.iam.sync.intf.AuthoritativeChange;
+import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 
@@ -412,6 +414,10 @@ public class AuthoritativeLoaderEngine {
 	private boolean processChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
 			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source, PrintWriter out,
 			ObjectTranslator objectTranslator, ValueObjectMapper vom) {
+		if (change.getId() == null)
+			change.setId(new AuthoritativeChangeIdentifier());
+		if (change.getId().getDate() == null)
+			change.getId().setDate(new Date());
 		if (change.getUser() != null)
 			return processUserChange(change, source, out, objectTranslator, vom);
 		else if (change.getGroup() != null)
@@ -515,20 +521,25 @@ public class AuthoritativeLoaderEngine {
 								eo, objectTranslator);
 					}
 				}
-				if (source != null)
+				if (source != null && change != null && change.getId() != null)
 					source.commitChange(change.getId());
 			}
 		} catch ( Exception e) {
 			error = true;
-			log.info("Error uploading change "+change.getId().toString(), e);
-			log.info("User information: "+change.getUser().toString());
+			log.info("Error uploading change "+(change == null || change.getId() == null ? "": change.getId().toString()), e);
+			if (change.getUser() != null)
+				log.info("User information: "+change.getUser().toString());
 			log.info("Exception: "+e.toString());
 			out.println ("Error uploading change ");
-			out.print(change.getId().toString());
-			out.print(":");
+			if (change != null && change.getId() != null)
+			{
+				out.print(change.getId().toString());
+				out.print(":");
+			}
 			e.printStackTrace (out);
 			out.print("User information: ");
-			out.println(change.getUser());
+			if (change.getUser() != null)
+				out.println(change.getUser());
 		}
 		return error;
 	}

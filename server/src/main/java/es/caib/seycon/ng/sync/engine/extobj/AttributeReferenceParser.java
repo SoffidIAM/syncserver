@@ -1,5 +1,7 @@
 package es.caib.seycon.ng.sync.engine.extobj;
 
+import com.soffid.iam.sync.engine.extobj.MemberAttributeReference;
+
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 
 public class AttributeReferenceParser {
@@ -7,8 +9,7 @@ public class AttributeReferenceParser {
 	
 	public static AttributeReference parse (ExtensibleObject object, String expression)
 	{
-		return new AttributeReference(
-				com.soffid.iam.sync.engine.extobj.AttributeReferenceParser.parse ( object, expression));
+		return AttributeReference.toAttributeReference(com.soffid.iam.sync.engine.extobj.AttributeReferenceParser.parse ( object, expression));
 	}
 	
 }

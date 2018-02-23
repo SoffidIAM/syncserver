@@ -2,6 +2,7 @@ package com.soffid.iam.sync.bootstrap;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URL;
 import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -10,18 +11,31 @@ import java.security.NoSuchProviderException;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Enumeration;
 import java.util.Properties;
+
+import javax.naming.InitialContext;
+import javax.sql.DataSource;
 
 import org.apache.commons.logging.LogFactory;
 import org.mortbay.log.Log;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.springframework.core.io.support.ResourcePatternResolver;
 
 import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.Server;
 import com.soffid.iam.api.Tenant;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.model.identity.IdentityGeneratorBean;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
+import com.soffid.iam.service.ApplicationBootService;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.TenantService;
 import com.soffid.iam.sync.ServerServiceLocator;
@@ -31,6 +45,14 @@ import com.soffid.iam.sync.jetty.SeyconLog;
 import com.soffid.iam.sync.service.CertificateEnrollService;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.utils.Security;
+import com.soffid.tools.db.persistence.XmlReader;
+import com.soffid.tools.db.schema.Column;
+import com.soffid.tools.db.schema.Database;
+import com.soffid.tools.db.schema.Table;
+import com.soffid.tools.db.updater.DBUpdater;
+import com.soffid.tools.db.updater.MsSqlServerUpdater;
+import com.soffid.tools.db.updater.MySqlUpdater;
+import com.soffid.tools.db.updater.OracleUpdater;
 
 import es.caib.seycon.ng.comu.ServerType;
 import es.caib.seycon.ng.exception.CertificateEnrollDenied;
@@ -145,14 +167,7 @@ public class Configure {
     }
     
     private static void parseMainParameters(String[] args)
-            throws IOException, InvalidKeyException, UnrecoverableKeyException,
-            KeyStoreException, NoSuchAlgorithmException,
-            NoSuchProviderException, CertificateException,
-            IllegalStateException, SignatureException, InternalErrorException,
-            UnknownUserException, InstantiationException,
-            IllegalAccessException, ClassNotFoundException,
-            CertificateEnrollWaitingForAproval, CertificateEnrollDenied,
-            KeyManagementException
+            throws Exception
     {
         Config config = Config.getConfig();
 
@@ -198,10 +213,22 @@ public class Configure {
          */
         config.setRole("server");
         
+        // Create database
+        updateDatabase();
+
         // Verificar configuracio
         ServerService service = ServerServiceLocator.instance().getServerService();
         config.setServerService(service);
         
+        // Execute database intialization procedure
+        com.soffid.iam.bpm.config.Configuration.configureForServer();
+        ApplicationBootService bootService = ServerServiceLocator.instance().getApplicationBootService();
+        bootService.consoleBoot();
+        
+        // Configuration has been overwritten by consoleBoot
+        config = Config.getConfig();
+        config.reload();
+
         DispatcherService dispatcherSvc = ServerServiceLocator.instance().getDispatcherService(); 
         if ( ! dispatcherSvc.findAllServers().isEmpty())
         {
@@ -247,4 +274,85 @@ public class Configure {
     }
 
 
+    protected static void updateDatabase () throws Exception
+    {
+    	Database db = new Database();
+    	XmlReader reader = new XmlReader();
+    	parseResources(db, reader, "console-ddl.xml");
+    	parseResources(db, reader, "core-ddl.xml");
+    	
+    	com.soffid.iam.sync.engine.db.DataSource ds = new com.soffid.iam.sync.engine.db.DataSource();
+        Connection conn = ds.getConnection();
+        
+        String type = Config.getConfig().getDB(); //$NON-NLS-1$
+        DBUpdater updater ;
+        if (type.contains(":mysql:") ||
+        		type.contains(":mariadb:"))  //$NON-NLS-1$
+        {
+        	updater = new MySqlUpdater();
+        } else if (type.contains(":oracle:")) { //$NON-NLS-1$
+        	updater = new OracleUpdater();
+        } else if (type.contains(":sqlserver:")) {
+        	updater = new MsSqlServerUpdater();
+        } else {
+            throw new RuntimeException("Unable to get dialect for database type ["+type+"]"); //$NON-NLS-1$ //$NON-NLS-2$
+        }
+        updater.setLog(System.out);
+        updater.setIgnoreFailures(true);
+        updater.update(conn, db);
+        
+    	IdentityGeneratorBean identityGenerator = (IdentityGeneratorBean) ServerServiceLocator.instance().getService("identity-generator");
+    	if (! identityGenerator.isSequenceStarted())
+    	{
+    		long l = getMaxIdentifier(conn, db);
+    		identityGenerator.initialize(l, 100, 1);
+    	}
+
+        conn.close();
+    }
+
+	private static long getMaxIdentifier(Connection connection, Database db) throws SQLException {
+		long l = 1;
+		for (Table t: db.tables)
+		{
+			for (Column c: t.columns)
+			{
+				if (c.primaryKey)
+				{
+					PreparedStatement st = connection.prepareStatement("SELECT MAX("+c.name+") FROM "+t.name);
+					try
+					{
+						ResultSet rs = st.executeQuery();
+						try
+						{
+							if (rs.next())
+							{
+								long l2 = rs.getLong(1);
+								if (l2 >= l)
+									l = l2+1;
+							}
+						}
+						finally
+						{
+							rs.close();
+						}
+					}
+					finally
+					{
+						st.close();
+					}
+				}
+			}
+		}
+		return l;
+	}
+
+	private static void parseResources(Database db,
+			XmlReader reader, String path) throws IOException, Exception {
+		Enumeration<URL> resources = Thread.currentThread().getContextClassLoader().getResources(path);
+    	while (resources.hasMoreElements())
+    	{
+    		reader.parse(db, resources.nextElement().openStream());
+    	}
+	}
 }

@@ -466,7 +466,8 @@ public class ValueObjectMapper
 	{
 		RoleGrant rg = new RoleGrant();
 		rg.setSystem(toSingleString(map.get("grantedRolSystem")));
-		rg.setDomainValue(toSingleString(map.get("domainVaue")));
+		rg.setDomainValue(toSingleString(map.get("domainValue")));
+		rg.setHasDomain(rg.getDomainValue() != null);
 		rg.setId(toLong(toSingleton(map.get("id"))));
 		rg.setRoleId(toLong(toSingleton(map.get("grantedRoleId"))));
 		rg.setOwnerAccountName(toSingleString(map.get("ownerAccount")));
@@ -474,7 +475,8 @@ public class ValueObjectMapper
 		rg.setOwnerGroup(toSingleString(map.get("ownerGroup")));
 		rg.setOwnerRole(toLong(map.get("ownerRoleId")));
 		rg.setOwnerRoleName(toSingleString(map.get("ownerRoleName")));
-		rg.setRoleName(toSingleString(map.get("grantedRoleId")));
+		rg.setRoleName(toSingleString(map.get("grantedRole")));
+		rg.setRoleId((Long) toSingleton(map.get("grantedRoleId")));
 		rg.setUser(toSingleString(map.get("ownerUser")));
 		rg.setHasDomain(rg.getDomainValue() != null);
 		return rg;

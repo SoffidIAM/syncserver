@@ -185,7 +185,6 @@ class MyX509KeyManager implements X509KeyManager {
 	}
 
 	public PrivateKey getPrivateKey(String alias) {
-		log.info("Buscando clave "+alias);
 		return parent.getPrivateKey(alias);
 	}
 

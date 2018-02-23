@@ -57,6 +57,8 @@ public class SeyconUserRealm implements UserRealm {
 			String userName = URLEncoder.encode(n, "UTF-8");
 			if (domain != null)
 				userName = URLEncoder.encode(domain, "UTF-8") + "\\" + userName;
+			else
+				userName = "master\\" + userName;
 			return new SimplePrincipal (userName);
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException(e);
