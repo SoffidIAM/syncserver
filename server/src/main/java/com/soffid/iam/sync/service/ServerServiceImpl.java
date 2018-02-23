@@ -222,10 +222,14 @@ public class ServerServiceImpl extends ServerServiceBase {
 		Date now = new Date();
 		for (RoleGrant rg : rgs) {
 			if ((rg.getStartDate() == null || now.after(rg.getStartDate()))
-					&& (rg.getEndDate() == null || now.before(rg.getEndDate()))) {
+					&& (rg.getEndDate() == null || now.before(rg.getEndDate())) &&
+					rg.getOwnerAccountName() != null) {
 				AccountEntity account = getAccountEntityDao()
 						.findByNameAndSystem(rg.getOwnerAccountName(),
 								rg.getOwnerSystem());
+				if (account == null)
+					throw new InternalErrorException(String.format("Error getting accounts for role %d at %s: Account %s at %s does not exist",
+							roleId, dispatcherId, rg.getOwnerAccountName(), rg.getOwnerSystem()));
 				if (account.getUsers().isEmpty())
 					acc.add(getAccountEntityDao().toAccount(account));
 				else
