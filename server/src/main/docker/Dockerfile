@@ -5,8 +5,7 @@ RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y openjdk-8-jr
 # RUN apt-get  install -y mysql-client
 
 RUN echo "Adding sync server ${pom.version} "
-COPY target/install4j/iam-sync.tar.gz Soffid-iamsync.tar.gz
-RUN mkdir -p /opt/soffid && cd /opt/soffid && tar -xzf /Soffid-iamsync.tar.gz && rm /Soffid-iamsync.tar.gz
+ADD target/install4j/SoffidIAMSync_unix_nojre.tar.gz /opt/soffid/
 COPY src/main/docker/start.sh /opt/soffid/iam-sync/start.sh
 
 EXPOSE 760

@@ -14,7 +14,7 @@
 	<properties>
 		<maven.compile.source>1.5</maven.compile.source>
 		<maven.compile.target>1.5</maven.compile.target>
-		<iam.version>2.0.0-SNAPSHOT</iam.version>
+		<iam.version>2.0.5-SNAPSHOT</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -251,6 +251,12 @@
 									</file>
 									<type>deb</type>
 								</artifact>
+								<artifact>
+									<file>
+										 target/install4j/SoffidIAMSync_unix_nojre.tar.gz
+									</file>
+									<type>tar.gz</type>
+								</artifact>
 							</artifacts>
 						</configuration>
 					</execution>
@@ -453,11 +459,6 @@
 			<artifactId>servlet-api</artifactId>
 			<version>2.4</version>
 			<scope>provided</scope>
-		</dependency>
-		<dependency>
-			<groupId>jboss</groupId>
-			<artifactId>jboss-j2ee</artifactId>
-			<version>3.2.8-5</version>
 		</dependency>
 		<dependency>
 			<groupId>javax.mail</groupId>
@@ -684,7 +685,12 @@
     		<artifactId>bcpkix-jdk15on</artifactId>
     		<version>1.51</version>
 		</dependency>
-	</dependencies>
+                <dependency>
+                        <groupId>org.apache.openejb</groupId>
+                        <artifactId>javaee-api</artifactId>
+                         <version>6.0-6</version>
+               </dependency>
+ 	</dependencies>
 	<reporting>
 		<plugins>
 			<plugin>
