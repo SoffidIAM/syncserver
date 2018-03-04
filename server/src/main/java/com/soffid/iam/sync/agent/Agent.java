@@ -152,4 +152,7 @@ public abstract class Agent implements AgentInterface {
 		return eof.getExtensibleObject(type, object1, object2);
 	}
 
+	public boolean isSingleton() {
+		return false;
+	}
 }

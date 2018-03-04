@@ -53,6 +53,7 @@ public class AgentManagerImpl extends AgentManagerBase {
     private static Logger log = Log.getLogger("AgentManager");
     static Hashtable serverTable = new Hashtable();
     static Hashtable<String, PluginInfo> pluginsLoader = new Hashtable<String, PluginInfo>();
+    static HashMap<String,Object> singletons = new HashMap<String, Object>();
 
     /**
      * Constructor
@@ -71,10 +72,17 @@ public class AgentManagerImpl extends AgentManagerBase {
      * @return URL del agente creado
      * @see Agent
      */
-    public String handleCreateAgent(System System) throws java.rmi.RemoteException,
+    public String handleCreateAgent(System system) throws java.rmi.RemoteException,
             es.caib.seycon.ng.exception.InternalErrorException {
+    	
+    	Object o = singletons.get(system.getName());
+    	if (o != null)
+    	{
+            return "/seycon/Agent/" + o.hashCode();    		
+    	}
+    	
         try {
-            AgentInterface agent = performCreateAgent(System);
+            AgentInterface agent = performCreateAgent(system);
             String url = "/seycon/Agent/" + agent.hashCode();
             SoffidApplication.getJetty().bind(url, agent, "server");
             String serverName = Invoker.getInvoker().getUser();
@@ -95,25 +103,29 @@ public class AgentManagerImpl extends AgentManagerBase {
             	v2Agent.setServerName(serverName);
             	v2Agent.setServer(rsl.getServerService());
             	v2Agent.init();
+            	if (v2Agent.isSingleton())
+            		singletons.put(system.getName(), v2Agent);
             }
             return url;
         } catch (Exception e) {
-            log.warn("Error creating object " + System.getName(), e);
-            throw new InternalErrorException("Error creando objecto " + System.getClassName(), e);
+            log.warn("Error creating object " + system.getName(), e);
+            throw new InternalErrorException("Error creando objecto " + system.getClassName(), e);
         }
     }
 
-    public Object handleCreateLocalAgent(System System) throws ClassNotFoundException,
+    public Object handleCreateLocalAgent(System system) throws ClassNotFoundException,
             InstantiationException, IllegalAccessException, InvocationTargetException,
             InternalErrorException, IOException {
         try {
-            Object agent = performCreateAgent(System);
+            Object agent = performCreateAgent(system);
             if (agent instanceof com.soffid.iam.sync.agent.Agent)
             {
             	com.soffid.iam.sync.agent.Agent v2Agent = (com.soffid.iam.sync.agent.Agent) agent;
 	            v2Agent.setServerName(Config.getConfig().getHostName());
 	            v2Agent.setServer(ServerServiceLocator.instance().getServerService());
 	            v2Agent.init();
+	            if (v2Agent.isSingleton())
+	            	singletons.put(system.getName(), v2Agent);
             } else {
             	es.caib.seycon.ng.sync.agent.Agent v1Agent = (es.caib.seycon.ng.sync.agent.Agent) agent;
 	            v1Agent.setServerName(Config.getConfig().getHostName());
@@ -122,8 +134,8 @@ public class AgentManagerImpl extends AgentManagerBase {
             }
             return agent;
         } catch (Exception e) {
-            log.warn("Error creating object " + System.getName(), e);
-            throw new InternalErrorException("Error creando objecto " + System.getClassName(), e);
+            log.warn("Error creating object " + system.getName(), e);
+            throw new InternalErrorException("Error creando objecto " + system.getClassName(), e);
         }
     }
 
