@@ -154,7 +154,7 @@ public class ReconcileEngine2
 		List<String> accountsList;
 		try {
 			Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
-			accountsList = agent.getAccountsList();
+			accountsList = getAccountList();
 		} finally {
 			Watchdog.instance().dontDisturb();
 		}
@@ -177,7 +177,7 @@ public class ReconcileEngine2
 			{
 				try {
 					Watchdog.instance().interruptMe(dispatcher.getTimeout());
-					existingAccount = agent.getAccountInfo(accountName);
+					existingAccount = getAccountInfo(accountName);
 				} finally {
 					Watchdog.instance().dontDisturb();
 				}
@@ -188,7 +188,7 @@ public class ReconcileEngine2
 			} else {
 				Watchdog.instance().interruptMe(dispatcher.getTimeout());
 				try {
-					existingAccount = agent.getAccountInfo(accountName);
+					existingAccount = getAccountInfo(accountName);
 				} finally {
 					Watchdog.instance().dontDisturb();
 				}
@@ -201,6 +201,32 @@ public class ReconcileEngine2
 			}
 		}
 		
+	}
+
+	private Account getAccountInfo(String accountName) throws RemoteException, InternalErrorException {
+		for (int i = 0; i < 2; i++)
+		{
+			try {
+				return agent.getAccountInfo(accountName);
+			} catch (Throwable e) {
+				log.append("Error getting account info. Retrying in 10 seconds\n");
+				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+			}
+		}
+		return agent.getAccountInfo(accountName);
+	}
+
+	private List<String> getAccountList() throws RemoteException, InternalErrorException {
+		for (int i = 0; i < 2; i++)
+		{
+			try {
+				return agent.getAccountsList();
+			} catch (Throwable e) {
+				log.append("Error getting accounts list. Retrying");
+				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+			}
+		}
+		return agent.getAccountsList();
 	}
 
 	protected void updateAccount(List<ReconcileTrigger> preUpdate, List<ReconcileTrigger> postUpdate,
@@ -329,8 +355,8 @@ public class ReconcileEngine2
 		acc = new Account ();
 		acc.setName(accountName);
 		acc.setDispatcher(dispatcher.getCodi());
-		if (existingAccount.getDescription() == null)
-			acc.setDescription(accountName+" "+accountName);
+		if (existingAccount.getDescription() == null || existingAccount.getDescription().trim().isEmpty())
+			acc.setDescription(accountName);
 		else
 			acc.setDescription(existingAccount.getDescription());
 		
@@ -346,8 +372,9 @@ public class ReconcileEngine2
 		else
 			acc.setType(existingAccount.getType());
 		acc.setPasswordPolicy(passwordPolicy);
+		acc.setAttributes(existingAccount.getAttributes());
+		boolean ok = true;
 		try {
-			boolean ok = true;
 			
 			if (! preInsert.isEmpty())
 			{
@@ -379,7 +406,7 @@ public class ReconcileEngine2
 		} catch (AccountAlreadyExistsException e) {
 			throw new InternalErrorException ("Unexpected exception", e);
 		}
-		reconcileRoles (acc);
+		if (ok) reconcileRoles (acc);
 	}
 
 	
@@ -495,7 +522,7 @@ public class ReconcileEngine2
 		Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
 		try
 		{
-			roles = agent.getRolesList();
+			roles = getRoleList();
 		} finally {
 			Watchdog.instance().dontDisturb();
 		}
@@ -523,7 +550,7 @@ public class ReconcileEngine2
 					Rol r;
 					try
 					{
-						r = agent.getRoleFullInfo(roleName);
+						r = getRoleFullInfo(roleName);
 					} finally {
 						Watchdog.instance().dontDisturb();
 					}
@@ -537,7 +564,7 @@ public class ReconcileEngine2
 					Rol r;
 					try
 					{
-						r = agent.getRoleFullInfo(roleName);
+						r = getRoleFullInfo(roleName);
 					} finally {
 						Watchdog.instance().dontDisturb();
 					}
@@ -548,6 +575,32 @@ public class ReconcileEngine2
 				}
 			}
 		}
+	}
+
+	private Rol getRoleFullInfo(String roleName) throws RemoteException, InternalErrorException {
+		for (int i = 0; i < 2; i++)
+		{
+			try {
+				return agent.getRoleFullInfo(roleName);
+			} catch (Throwable e) {
+				log.append("Error getting role info. Retrying\n");
+				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+			}
+		}
+		return agent.getRoleFullInfo(roleName);
+	}
+
+	private List<String> getRoleList() throws RemoteException, InternalErrorException {
+		for (int i = 0; i < 2; i++)
+		{
+			try {
+				return agent.getRolesList();
+			} catch (Throwable e) {
+				log.append("Error getting roles list. Retrying\n");
+				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+			}
+		}
+		return agent.getRolesList();
 	}
 
 	protected void loadRole(Rol r) throws InternalErrorException {
@@ -620,7 +673,7 @@ public class ReconcileEngine2
 		Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
 		try
 		{
-			accountGrants = agent.getAccountGrants(acc.getName());
+			accountGrants = getAccountGrants(acc);
 			// Remove duplicates
 			for ( int i = 0; accountGrants != null && i < accountGrants.size(); )
 			{	
@@ -668,6 +721,19 @@ public class ReconcileEngine2
 				unloadGrant(acc, grant);
 			}
 		}
+	}
+
+	private List<RolGrant> getAccountGrants(Account acc) throws RemoteException, InternalErrorException {
+		for (int i = 0; i < 2; i++)
+		{
+			try {
+				return agent.getAccountGrants(acc.getName());
+			} catch (Throwable e) {
+				log.append("Error getting account grants. Retrying\n");
+				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+			}
+		}
+		return agent.getAccountGrants(acc.getName());
 	}
 
 	protected void unloadGrant(Account acc, RolGrant grant) throws InternalErrorException {
@@ -774,12 +840,15 @@ public class ReconcileEngine2
 			Watchdog.instance().interruptMe(dispatcher.getTimeout());
 			try
 			{
-				role2 = agent.getRoleFullInfo(existingGrant.getRolName());
+				role2 = getRoleFullInfo(existingGrant.getRolName());
 			} finally {
 				Watchdog.instance().dontDisturb();
 			}
 			if (role2 == null)
-				throw new InternalErrorException("Unable to grab information about role "+existingGrant.getRolName());
+			{
+				log.append("ERROR: Role "+existingGrant.getRolName());
+				return null;				
+			}
 			role2.setBaseDeDades(dispatcher.getCodi());
 			if (role2.getDescripcio().length() > 150)
 				role2.setDescripcio(role2.getDescripcio().substring(0, 150));
