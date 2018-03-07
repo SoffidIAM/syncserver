@@ -465,27 +465,38 @@ public class SeyconApplication extends Object {
      * @see es.caib.seycon.ng.sync.engine.session.SessionManager#shutDown
      */
     public static void shutDown() throws FileNotFoundException, IOException {
+    	// First try. Clean shutdown in 3 seconds
         new Thread () {
             public void run() {
                 try {
-                    sleep(3000);
+                    sleep(1000);
                 } catch (InterruptedException e) {
                 }
                 Config config;
 				try {
-					config = Config.getConfig();
 					jetty.getServer().stop();
+					config = Config.getConfig();
 	                if (config.isServer()) {
 	                    shutdownPending = true;
 	                    Engine.getEngine().shutDown ();
 	                    sso.shutDown();
 	                    ssoDaemon.shutDown();
-	                } else {
-	                	System.exit(2);
 	                }
+                    sleep(3000);
+	                System.exit(2);
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
+            };
+        }.start();
+    	// Second try. Dirty shutdown in 30 seconds
+        new Thread () {
+            public void run() {
+                try {
+                    sleep(30000);
+                } catch (InterruptedException e) {
+                }
+               	System.exit(2);
             };
         }.start();
     }
