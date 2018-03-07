@@ -3,7 +3,6 @@ package es.caib.seycon.ng.sync.web.admin;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.util.ServiceLoader;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -12,13 +11,9 @@ import javax.servlet.http.HttpServletResponse;
 
 import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.servei.ServeiService;
-import es.caib.seycon.ng.sync.ServerServiceLocator;
 import es.caib.seycon.ng.sync.engine.DispatcherHandler;
 import es.caib.seycon.ng.sync.engine.Engine;
 import es.caib.seycon.ng.sync.engine.pool.AbstractPool;
-import es.caib.seycon.ng.sync.servei.SyncStatusService;
-import es.caib.seycon.ng.sync.servei.TaskGenerator;
 import es.caib.seycon.ng.sync.servei.TaskQueue;
 
 public class StatusServlet extends HttpServlet {
@@ -88,7 +83,7 @@ public class StatusServlet extends HttpServlet {
                     result = result + "running";
                 }
 
-                int contador = taskQueue.countTasks(disp);
+                int contador = taskQueue.countErrorTasks(disp);
                 result = result + " Tasks: " + Integer.toString(contador) + "\n";
             }
         }
