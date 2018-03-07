@@ -151,6 +151,7 @@ public class JettyServer implements PublisherInterface
                 connector2.setAcceptors(2);
                 connector2.setAcceptQueueSize(10);
                 connector2.setMaxIdleTime(5000);
+                connector2.setLowResourceMaxIdleTime(1);
                 server.addConnector(connector2);
             }
         }
@@ -234,9 +235,9 @@ public class JettyServer implements PublisherInterface
         connector.setKeystoreType(SeyconKeyStore.getKeyStoreType());
         connector.setWantClientAuth(true);
         connector.setAcceptors(2);
-        connector.setAcceptQueueSize(10);
-        connector.setMaxIdleTime(40000);
-        connector.setLowResourceMaxIdleTime(2000);
+        connector.setAcceptQueueSize(20);
+        connector.setMaxIdleTime(1500);
+        connector.setLowResourceMaxIdleTime(500);
 
         server.addConnector(connector);
 	}
