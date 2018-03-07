@@ -364,8 +364,8 @@ public class ReconcileEngine2
 		acc = new Account ();
 		acc.setName(accountName);
 		acc.setSystem(dispatcher.getName());
-		if (existingAccount.getDescription() == null)
-			acc.setDescription(accountName+" "+accountName);
+		if (existingAccount.getDescription() == null || existingAccount.getDescription().trim().isEmpty())
+			acc.setDescription(accountName);
 		else
 			acc.setDescription(existingAccount.getDescription());
 		
@@ -384,8 +384,9 @@ public class ReconcileEngine2
 		acc.setGrantedGroups(new LinkedList<Group>());
 		acc.setGrantedRoles(new LinkedList<Role>());
 		acc.setGrantedUsers(new LinkedList<User>());
+		acc.setAttributes(existingAccount.getAttributes());
+		boolean ok = true;
 		try {
-			boolean ok = true;
 			
 			if (! preInsert.isEmpty())
 			{
@@ -414,7 +415,8 @@ public class ReconcileEngine2
 		} catch (AccountAlreadyExistsException e) {
 			throw new InternalErrorException ("Unexpected exception", e);
 		}
-		reconcileRoles (acc);
+		if (ok)
+			reconcileRoles (acc);
 	}
 
 	private List<ReconcileTrigger> findTriggers (SoffidObjectType type, SoffidObjectTrigger trigger)
