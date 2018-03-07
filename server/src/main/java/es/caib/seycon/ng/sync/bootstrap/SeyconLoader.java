@@ -364,17 +364,20 @@ public class SeyconLoader extends Object {
                 throw e;
             }
             in = connection.getInputStream();
-            out = new FileOutputStream(fileName);
-            byte buffer[] = new byte[1024];
-            int size = in.read(buffer);
-            while (size >= 0) {
-                out.write(buffer, 0, size);
-                size = in.read(buffer);
-            }
-            out.flush();
-            out.close();
-            in.close();
+            out = new FileOutputStream(fileName+".jar");
+            int size;
+			copyFile(in, out);
             connection.disconnect();
+            
+            // Now, copy
+           	new File(fileName).delete();
+        
+            in = new FileInputStream(fileName+".jar");
+            out = new FileOutputStream(fileName);
+			copyFile(in, out);
+
+			connection.disconnect();
+            
         } catch (Exception e) {
             throw e;
         } finally {
@@ -386,6 +389,19 @@ public class SeyconLoader extends Object {
             }
         }
     }
+
+	private byte[] copyFile(InputStream in, OutputStream out) throws IOException {
+		byte buffer[] = new byte[1024];
+		int size = in.read(buffer);
+		while (size >= 0) {
+		    out.write(buffer, 0, size);
+		    size = in.read(buffer);
+		}
+		out.flush();
+		out.close();
+		in.close();
+		return buffer;
+	}
 
     private String getLibraryName(String component, String extension) throws SQLException, InternalErrorException, IOException {
     	JarExtractor je = new JarExtractor();
@@ -421,7 +437,8 @@ public class SeyconLoader extends Object {
     }
     
     private String getBaseLibraryName() throws SQLException, InternalErrorException, IOException {
-    	String dbVersion = canUseDatabase() ? new JarExtractor().getBaseJarVersion() : "LATEST";
+    	String dbVersion = canUseDatabase() ? new JarExtractor().getBaseJarVersion() : 
+    		"LATEST";
         String fileName = getLibraryName("syncserver", dbVersion, ".jar");
         return fileName;
     }
@@ -475,7 +492,11 @@ public class SeyconLoader extends Object {
                     + "bin" + FILE_SEPARATOR + "java";
             String mainClass = "es.caib.seycon.ng.sync.SeyconApplication";
             String javaopts = Config.getConfig().getJVMOptions();
-
+            if ("-Xmx64m".equals(javaopts))
+            {
+            	javaopts = "-Xmx256m";
+            }
+            
             javaopts = javaopts.replaceAll("%d",
                     Long.toString(System.currentTimeMillis()));
 
@@ -622,7 +643,7 @@ public class SeyconLoader extends Object {
             File log = Config.getConfig().getLogFile();
             log.renameTo(new File(dir, "syncserver.log-" + logDate));
             // Borrar archivos antiguos de hace más de cinco días
-            long deleteBefore = System.currentTimeMillis() - 5 * 24 * 60 * 60
+            long deleteBefore = System.currentTimeMillis() - 30 * 24 * 60 * 60
                     * 1000;
             for (File f : dir.listFiles()) {
                 if (f.getName().startsWith("syncserver.log")
