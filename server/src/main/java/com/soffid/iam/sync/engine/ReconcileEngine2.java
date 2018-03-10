@@ -442,7 +442,6 @@ public class ReconcileEngine2
 		} catch (AccountAlreadyExistsException e) {
 			throw new InternalErrorException ("Unexpected exception", e);
 		}
-		if (ok)
 	}
 
 	private List<ReconcileTrigger> findTriggers (SoffidObjectType type, SoffidObjectTrigger trigger)
@@ -610,7 +609,7 @@ public class ReconcileEngine2
 		}
 	}
 
-	private Rol getRoleFullInfo(String roleName) throws RemoteException, InternalErrorException {
+	private Role getRoleFullInfo(String roleName) throws RemoteException, InternalErrorException {
 		for (int i = 0; i < 2; i++)
 		{
 			try {
@@ -757,7 +756,7 @@ public class ReconcileEngine2
 		}
 	}
 
-	private List<RolGrant> getAccountGrants(Account acc) throws RemoteException, InternalErrorException {
+	private List<RoleGrant> getAccountGrants(Account acc) throws RemoteException, InternalErrorException {
 		for (int i = 0; i < 2; i++)
 		{
 			try {
@@ -874,13 +873,13 @@ public class ReconcileEngine2
 			Watchdog.instance().interruptMe(dispatcher.getTimeout());
 			try
 			{
-				role2 = getRoleFullInfo(existingGrant.getRolName());
+				role2 = getRoleFullInfo(existingGrant.getRoleName());
 			} finally {
 				Watchdog.instance().dontDisturb();
 			}
 			if (role2 == null)
 			{
-				log.append("ERROR: Cannot find role "+existingGrant.getRolName());
+				log.append("ERROR: Cannot find role "+existingGrant.getRoleName());
 				return null;				
 			}
 			role2.setSystem(dispatcher.getName());

@@ -119,6 +119,7 @@ import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
+import es.caib.seycon.ng.sync.intf.AgentMirror;
 
 public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable {
     private static JbpmConfiguration jbpmConfig;
@@ -168,6 +169,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private com.soffid.iam.sync.engine.extobj.ObjectTranslator attributeTranslatorV2;
 	private TenantEntityDao tenantDao;
 	private DispatcherService dispatcherService;
+	private String mirroredAgent;
 
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
@@ -227,7 +229,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         boolean readOnly = getSystem().isReadOnly();
         // Verificar el nom del dipatcher
         if (t.getTask().getSystemName() != null
-                && ( !mirroredAgent.equals(t.getTask().getCoddis()) &&
+                && ( !mirroredAgent.equals(t.getTask().getSystemName()) &&
 						!this.getSystem().getName().equals(t.getTask().getSystemName()))) {
             return false;
 
@@ -621,7 +623,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		        throwable = e;
 		        // abort = true ;
 		    } catch (Throwable e) {
-				if ("local".equals(dispatcher.getUrl()))
+				if ("local".equals(system.getUrl()))
 				{
 					log.warn("Error interno", e);
 				} else {
@@ -1556,15 +1558,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         Object agent;
 		try {
             startTask(true);
-<<<<<<< HEAD:server/src/main/java/com/soffid/iam/sync/engine/DispatcherHandlerImpl.java
-            	try {
-                	targetHost = um.getServerURL().getHost();
-            	} catch (Exception e) {
-                	targetHost = "";
-            	}
-            	// Eliminar el dominio
-            	if (targetHost.indexOf(".") > 0)
-                	targetHost = targetHost.substring(0, targetHost.indexOf("."));
+        	try {
+            	targetHost = um.getServerURL().getHost();
+        	} catch (Exception e) {
+            	targetHost = "";
+        	}
+        	// Eliminar el dominio
+        	if (targetHost.indexOf(".") > 0)
+            	targetHost = targetHost.substring(0, targetHost.indexOf("."));
     
         	String phase = "connecting to";
         	if ("local".equals(getSystem().getUrl())) {
@@ -1626,7 +1627,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	            if (agent instanceof AgentMirror)
 	            	mirroredAgent = ((AgentMirror) agent).getAgentToMirror();
 	            if (mirroredAgent == null)
-	            	mirroredAgent = getDispatcher().getCodi();
+	            	mirroredAgent = getSystem().getName();
         	}
         	return agent;
 

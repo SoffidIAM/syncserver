@@ -3,6 +3,10 @@ package com.soffid.iam.sync.web.admin;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -13,6 +17,8 @@ import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
+import com.soffid.iam.sync.engine.TaskHandler;
+import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.pool.AbstractPool;
 import com.soffid.iam.sync.service.TaskQueue;
 
@@ -76,7 +82,24 @@ public class StatusServlet extends HttpServlet {
         TaskQueue taskQueue = ServiceLocator.instance().getTaskQueue();
         result = result + "Tasks: " + Integer.toString(taskQueue.countTasks()) + "\n";
 
-        for (DispatcherHandler disp : ServiceLocator.instance().getTaskGenerator().getDispatchers()) {
+        Collection<DispatcherHandler> dispatchers = ServiceLocator.instance().getTaskGenerator().getDispatchers();
+        int max = 0;
+        for ( DispatcherHandler d: dispatchers)
+        	if ( d.getInternalId() > max) max = d.getInternalId();
+        
+        int[] counters = new int[max+1];
+        for ( Iterator<TaskHandler> it = taskQueue.getIterator(); it.hasNext();)
+        {
+        	TaskHandler th = it.next();
+            for ( DispatcherHandler dis: dispatchers)
+            {
+	        	TaskHandlerLog log = th.getLog(dis.getInternalId());
+	        	if (log != null  && ! log.isComplete( ) && log.getNumber() > 1)
+	        		counters[dis.getInternalId()] ++;
+            }
+        }
+        
+        for (DispatcherHandler disp : dispatchers) {
             if (disp != null && disp.isActive()) {
                 result = result + disp.getSystem().getName() + ": ";
                 if (disp.getRemoteAgent() != null) {
@@ -85,8 +108,7 @@ public class StatusServlet extends HttpServlet {
                     result = result + "running";
                 }
 
-                int contador = taskQueue.countErrorTasks(disp);
-                result = result + " Tasks: " + Integer.toString(contador) + "\n";
+                result = result + " Tasks: " + Integer.toString(counters[disp.getInternalId()]) + "\n";
             }
         }
         return result;

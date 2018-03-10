@@ -957,10 +957,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		return contador;
 	}
 
-	@Override
+//	@Override
 	protected int handleCountErrorTasks (DispatcherHandler taskDispatcher) throws Exception
 	{
 		int contador = 0;
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 		synchronized (taskList)
 		{
 			for (int priority = 0; priority < taskList.size(); priority++)
