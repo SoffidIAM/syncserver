@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Domain;
 import com.soffid.iam.api.Group;
@@ -315,9 +316,15 @@ public class ValueObjectMapper
 			account.setPasswordExpiration(toCalendar (object.getAttribute("passwordExpiration")));
 			if (object.getAttribute("accountDisabled") != null &&
 					object.getAttribute("accountDisabled").toString().equals("true"))
+			{
 				account.setDisabled(true);
+				account.setStatus(AccountStatus.DISABLED);
+			}
 			else
+			{
 				account.setDisabled(false);
+				account.setStatus(AccountStatus.ACTIVE);
+			}
 			if (object.getAttribute("type") != null )
 			{
 				if (object.getAttribute("type") instanceof AccountType)
