@@ -259,6 +259,7 @@ public class TaskScheduler
 					task.setError(true);
 					DocumentService ds = ServiceLocator.instance().getDocumentService();
 					ds.createDocument("text/plain", task.getName(), "taskmgr");
+					ds.openUploadTransfer();
 					byte[] sb = ("Server restarted during execution").getBytes();
 					ds.nextUploadPackage(sb, sb.length);
 					ds.endUploadTransfer();
