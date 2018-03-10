@@ -14,6 +14,7 @@ import java.util.List;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.Application;
 import com.soffid.iam.api.Domain;
 import com.soffid.iam.api.Group;
@@ -100,6 +101,7 @@ public class ReconcileEngine
 						acc.setDescription("Autocreated account "+accountName);
 					
 					acc.setDisabled(false);
+					acc.setStatus(AccountStatus.ACTIVE);
 					acc.setLastUpdated(Calendar.getInstance());
 					acc.setType(AccountType.IGNORED);
 					acc.setPasswordPolicy(passwordPolicy);
