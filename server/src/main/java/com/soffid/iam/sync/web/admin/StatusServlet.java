@@ -3,7 +3,6 @@ package com.soffid.iam.sync.web.admin;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
-import java.util.ServiceLoader;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -86,7 +85,7 @@ public class StatusServlet extends HttpServlet {
                     result = result + "running";
                 }
 
-                int contador = taskQueue.countTasks(disp);
+                int contador = taskQueue.countErrorTasks(disp);
                 result = result + " Tasks: " + Integer.toString(contador) + "\n";
             }
         }
