@@ -2,6 +2,7 @@ package com.soffid.iam.sync.service;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AgentStatusInfo;
+import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
@@ -44,7 +45,9 @@ import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.SyncStatusServiceBase;
 import com.soffid.iam.sync.service.TaskQueue;
+import com.soffid.iam.utils.ConfigurationCache;
 
+import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
@@ -477,6 +480,11 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 				try {
 					Thread.sleep(3000); // Wait 3 seconds for console transation to complete
 					getTaskGenerator().updateAgents();
+					for ( Configuration cfg:  com.soffid.iam.ServiceLocator.instance().getConfigurationService().findConfigurationByFilter("%", null, null, null))
+					{
+						if (cfg.getNetworkCode() == null || cfg.getNetworkCode().isEmpty())
+							ConfigurationCache.setProperty(cfg.getCode(), cfg.getValue());
+					}
 				} catch (Throwable e) {
 					LogFactory.getLog(SyncStatusServiceImpl.class).warn("Error updating configuration", e);
 				}

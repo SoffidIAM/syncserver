@@ -119,6 +119,7 @@ import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
+import es.caib.seycon.ng.sync.intf.AgentMirror;
 
 public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable {
     private static JbpmConfiguration jbpmConfig;
@@ -168,6 +169,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private com.soffid.iam.sync.engine.extobj.ObjectTranslator attributeTranslatorV2;
 	private TenantEntityDao tenantDao;
 	private DispatcherService dispatcherService;
+	private String mirroredAgent;
 
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
@@ -227,7 +229,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         boolean readOnly = getSystem().isReadOnly();
         // Verificar el nom del dipatcher
         if (t.getTask().getSystemName() != null
-                && !this.getSystem().getName().equals(t.getTask().getSystemName())) {
+                && ( !mirroredAgent.equals(t.getTask().getSystemName()) &&
+						!this.getSystem().getName().equals(t.getTask().getSystemName()))) {
             return false;
 
             // Verificar el domini de contrasenyes
@@ -620,7 +623,15 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		        throwable = e;
 		        // abort = true ;
 		    } catch (Throwable e) {
-		        log.warn("Error interno", e);
+				if ("local".equals(system.getUrl()))
+				{
+					log.warn("Error interno", e);
+				} else {
+					String error = SoffidStackTrace.getStackTrace(e)
+							.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
+					log.warn("Error interno: "+error);
+					
+				}
 		        ok = false;
 		        reason = e.toString();
 		        throwable = e;
@@ -860,7 +871,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		{
 			if (t.getTask().getUser() == null || t.getTask().getUser().trim().length() == 0 )
 				return;
-           	Account acc = accountService.findAccount(t.getTask().getUser(), getSystem().getName());
+           	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
            	if (acc != null && ( acc.getType().equals (AccountType.IGNORED) ||
            			isUnmanagedType (acc.getPasswordPolicy())))
            	{
@@ -928,13 +939,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         if (userMgr == null)
         	return;
         
-       	Account acc = accountService.findAccount(t.getTask().getUser(), getSystem().getName());
+       	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
        	if (acc != null && !acc.isDisabled() &&
        			! acc.getType().equals (AccountType.IGNORED) &&
        			! isUnmanagedType(acc.getPasswordPolicy()))
        	{
 	        if ("S".equals(t.getTask().getPasswordChange()) && !getSystem().getTrusted().booleanValue()) {
-	            Password p = server.generateFakePassword(acc.getName(), getSystem().getName());
+	            Password p = server.generateFakePassword(acc.getName(), mirroredAgent);
             	userMgr.updateUserPassword(acc.getName(), null, p, true);
         		auditAccountPasswordChange(acc, null, true);
 	    		accountService.updateAccountPasswordDate(acc, new Long(0));
@@ -1058,7 +1069,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     	if (t.getTask().getGroup() != null)
     	{
 	        try {
-	            Group grup = server.getGroupInfo(t.getTask().getGroup(), getSystem().getName());
+	            Group grup = server.getGroupInfo(t.getTask().getGroup(), mirroredAgent);
 	            groupMgr.updateGroup(grup);
 	        } catch (UnknownGroupException e) {
 	            groupMgr.removeGroup(t.getTask().getGroup());
@@ -1176,7 +1187,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         if (userMgr == null)
         	return;
 
-        Account acc = accountService.findAccount(t.getTask().getUser(), getSystem().getName());
+        Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
         if (acc != null && !acc.isDisabled() )
         {
         	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
@@ -1547,14 +1558,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         Object agent;
 		try {
             startTask(true);
-            	try {
-                	targetHost = um.getServerURL().getHost();
-            	} catch (Exception e) {
-                	targetHost = "";
-            	}
-            	// Eliminar el dominio
-            	if (targetHost.indexOf(".") > 0)
-                	targetHost = targetHost.substring(0, targetHost.indexOf("."));
+        	try {
+            	targetHost = um.getServerURL().getHost();
+        	} catch (Exception e) {
+            	targetHost = "";
+        	}
+        	// Eliminar el dominio
+        	if (targetHost.indexOf(".") > 0)
+            	targetHost = targetHost.substring(0, targetHost.indexOf("."));
     
         	String phase = "connecting to";
         	if ("local".equals(getSystem().getUrl())) {
@@ -1612,6 +1623,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                     	log.warn("Unable to create Kerberos principal", e);
                 	}
             	}
+	            mirroredAgent = null;
+	            if (agent instanceof AgentMirror)
+	            	mirroredAgent = ((AgentMirror) agent).getAgentToMirror();
+	            if (mirroredAgent == null)
+	            	mirroredAgent = getSystem().getName();
         	}
         	return agent;
 
@@ -1638,7 +1654,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         			task.getTask().getTransaction().equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD) ||
         			task.getTask().getTransaction().equals(TaskHandler.UPDATE_ACCOUNT))
         	{
-	            user = server.getUserInfo(task.getTask().getUser(), getSystem().getName());
+	            user = server.getUserInfo(task.getTask().getUser(), mirroredAgent);
         	}
         	else
         	{
@@ -1659,7 +1675,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         User usuari = getTaskUser(task);
         if (usuari == null)
             return Collections.EMPTY_LIST;
-        return server.getUserAccounts(usuari.getId(), getSystem().getName());
+        return server.getUserAccounts(usuari.getId(), mirroredAgent);
     }
 
     @Override
@@ -1873,7 +1889,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		String accountName = taskHandler.getTask().getUser();
 		// Check existing user on system
 		Account account = accountService.findAccount(accountName,
-						getSystem().getName());
+						mirroredAgent);
 
 		Collection<RoleGrant> grants = new LinkedList<RoleGrant>();
 		
@@ -1901,7 +1917,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			}
 		}
 		else
-			grants = server.getAccountRoles(accountName, getSystem().getName());
+			grants = server.getAccountRoles(accountName, mirroredAgent);
 		
 		for (Role role : reconcileManager.getAccountRoles(taskHandler.getTask().getUser()))
 		{
@@ -1910,7 +1926,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				boolean found = false;
 				for (RoleGrant rg: grants)
 				{
-					if (rg.getRoleName().equals (role.getName()) && rg.getSystem().equals (getSystem().getName()))
+					if (rg.getRoleName().equals (role.getName()) && rg.getSystem().equals (mirroredAgent))
 					{
 						found = true;
 						break;
@@ -1945,7 +1961,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		String accountName = taskHandler.getTask().getUser();
 		// Check existing user on system
 		Account account = accountService.findAccount(accountName,
-						getSystem().getName());
+						mirroredAgent);
 
 		Collection<RoleGrant> grants = new LinkedList<RoleGrant>();
 		
@@ -2014,7 +2030,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					reconcileAccount.getAttributes().putAll(user.getAttributes());
 				reconcileService.addUser(reconcileAccount);				
 			}
-			grants = server.getAccountRoles(accountName, getSystem().getName());
+			grants = server.getAccountRoles(accountName, mirroredAgent);
 		}
 		
 		for (RoleGrant role : reconcileManager.getAccountGrants(taskHandler.getTask().getUser()))
@@ -2024,7 +2040,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				boolean found = false;
 				for (RoleGrant rg: grants)
 				{
-					if (rg.getRoleName().equals (role.getRoleName()) && rg.getSystem().equals (getSystem().getName()))
+					if (rg.getRoleName().equals (role.getRoleName()) && rg.getSystem().equals (mirroredAgent))
 					{
 						found = true;
 						break;

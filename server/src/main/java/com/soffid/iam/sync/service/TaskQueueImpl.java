@@ -957,6 +957,29 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		return contador;
 	}
 
+//	@Override
+	protected int handleCountErrorTasks (DispatcherHandler taskDispatcher) throws Exception
+	{
+		int contador = 0;
+		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
+		synchronized (taskList)
+		{
+			for (int priority = 0; priority < taskList.size(); priority++)
+			{
+				for (Iterator<TaskHandler> it = taskList.get(priority).iterator(); it
+								.hasNext();)
+				{
+					TaskHandler task = it.next();
+					if (task.isComplete())
+						it.remove();
+					else if (taskDispatcher.isError(task))
+						contador++;
+				}
+			}
+		}
+		return contador;
+	}
+
 	@Override
 	protected void handleExpireTasks () throws Exception
 	{
