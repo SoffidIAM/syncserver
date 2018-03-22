@@ -29,7 +29,6 @@ import com.soffid.iam.service.SessionService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.challenge.ChallengeStore;
 import com.soffid.iam.sync.engine.kerberos.KerberosManager;
-import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonService;
 import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
@@ -195,7 +194,7 @@ public class PasswordLoginServlet extends HttpServlet {
 
     private String doStartAction(HttpServletRequest req, HttpServletResponse resp) throws Exception {
         String s = doPreStartAction(req, resp);
-        if (s.equals("OK")) {
+    	if (s.equals("OK")) {
             String clientIP = req.getParameter("clientIP");
             String domain = req.getParameter("domain");
             if (domain.isEmpty())
@@ -240,8 +239,9 @@ public class PasswordLoginServlet extends HttpServlet {
 
         PasswordValidation result = logonService.validatePassword(user, domain, pass);
         if (result == PasswordValidation.PASSWORD_GOOD) {
-            if (! usuari.getActive().booleanValue() || !"I".equals(usuari.getUserType())) {
-                log.debug("login {}: not authorized", user, null);
+        	log.info("Prestart action GOOD {} {}", user, domain);
+            if (! usuari.getActive().booleanValue()) {
+                log.info("login {} is disabled: not authorized", user, null);
                 return "ERROR";
             }
         } else if (result == PasswordValidation.PASSWORD_GOOD_EXPIRED) {
