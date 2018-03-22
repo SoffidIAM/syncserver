@@ -3,6 +3,7 @@ package com.soffid.iam.sync.service;
 import java.io.IOException;
 import java.io.Writer;
 import java.lang.reflect.Array;
+import java.net.URL;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -17,6 +18,8 @@ import org.hibernate.SQLQuery;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
 
+import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.config.Config;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.jetty.Invoker;
@@ -217,13 +220,49 @@ public class QueryServiceImpl extends QueryServiceBase {
             } else if (v.elementAt(0).equals("config") && v.size() == 2) {
                 stmt = conn.prepareStatement("SELECT 1 CON_ORDRE, CON_VALOR " + "FROM   SC_CONFIG "
                         + "WHERE  CON_IDXAR IS NULL AND CON_CODI=? " + "UNION "
-                        + "SELECT 0 CON_ORDRE, CON_VALOR " + "FROM   SC_MAQUIN, SC_CONFIG "
+                        + "SELECT 0 CON_ORDRE, CON_VALOR " 
+                        + "FROM   SC_MAQUIN, SC_CONFIG "
                         + "WHERE  CON_IDXAR=MAQ_IDXAR AND CON_CODI=? AND MAQ_ADRIP=? "
                         + "ORDER  BY 1");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setString(2, (String) v.elementAt(1));
                 Invoker invoker = Invoker.getInvoker();
                 stmt.setString(3, invoker.getAddr().getHostAddress());
+
+                ResultSet rset = stmt.executeQuery();
+                if (!rset.next())
+                {
+                    rset.close();
+                    String r = "";
+                    if ( "SSOServer".equals(v.elementAt(1)))
+                    {
+                    	String serverList = Config.getConfig().getServerList();
+                    	for (String s: serverList.split("\\s*,\\s*"))
+                    	{
+                    		try {
+								URL u = new URL(s);
+								if (!r.isEmpty()) r = r + ",";
+								r = r + u.getHost();
+							} catch (Exception e) {
+							}
+                    	}
+                    }
+                    boolean xml = "text/xml".equals(contentType);
+                    if (xml)
+                        writer.append("<data>")
+                    		.append("<row><CON_ORDRE>1</CON_ORDRE><CON_VALOR>")
+                    		.append(r)
+                    		.append("</CON_VALOR></row>")
+                    		.append("</data>");                    		
+                    else
+                        writer.append("OK|")
+                    		.append( "2|CON_ORDRE|CON_VALOR|" )
+                    		.append("0|")
+                    		.append(r);
+                    writer.flush();
+                    return;
+                }
+                rset.close();
             } else {
                 throw new InternalErrorException("Invalid path");
             }
