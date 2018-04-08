@@ -71,13 +71,23 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
         HostEntityDao dao = getHostEntityDao();
         HostEntity maq = dao.findByName(server);
         if (maq == null)
-            maq = dao.findByIP(server);
+        {
+        	for (HostEntity maq2: dao.findByIP(server))
+        	{
+        		maq = maq2;
+        		break;
+        	}
+        }
         if (maq == null)
         {
         	try
 			{
 				InetAddress address = InetAddress.getByName(server);
-				maq = dao.findByIP(address.getHostAddress());
+				for (HostEntity maq2: dao.findByIP(address.getHostAddress()))
+				{
+					maq = maq2;
+					break;
+				}
 				if (maq == null)
 				{
 					String serial = server + ":"+ address.getHostAddress();

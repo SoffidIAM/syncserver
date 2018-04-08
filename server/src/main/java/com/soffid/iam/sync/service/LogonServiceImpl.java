@@ -461,7 +461,12 @@ public class LogonServiceImpl extends LogonServiceBase {
         }
 
         HostEntityDao dao = getHostEntityDao();
-        HostEntity m = dao.findByIP(maquina);
+        HostEntity m = null;
+		for (HostEntity maq2: dao.findByIP(maquina))
+		{
+			m = maq2;
+			break;
+		}
         if (m == null) {
         	m = dao.findByName(hostName);
         	if (m == null) {
