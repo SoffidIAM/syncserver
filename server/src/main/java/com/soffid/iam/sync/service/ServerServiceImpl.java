@@ -448,10 +448,11 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 	@Override
 	protected Host handleGetHostInfoByIP(String ip) throws Exception {
-		HostEntity host = getHostEntityDao().findByIP(ip);
-		if (host == null)
-			throw new UnknownHostException(ip);
-		return getHostEntityDao().toHost(host);
+		for (HostEntity host: getHostEntityDao().findByIP(ip))
+		{
+			return getHostEntityDao().toHost(host);
+		}
+		throw new UnknownHostException(ip);
 	}
 
 	@Override
