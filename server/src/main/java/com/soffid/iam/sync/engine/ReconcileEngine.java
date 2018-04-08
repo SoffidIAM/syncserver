@@ -53,6 +53,7 @@ public class ReconcileEngine
 	private ServerService serverService;
 	private UserDomainService dominiService;
 	private UserService usuariService;
+	private TaskGenerator taskGenerator;
 
 	/**
 	 * @param dispatcher 
@@ -67,6 +68,7 @@ public class ReconcileEngine
 		serverService = ServiceLocator.instance().getServerService();
 		dominiService = ServiceLocator.instance().getUserDomainService();
 		usuariService = ServiceLocator.instance().getUserService();
+		taskGenerator = ServiceLocator.instance().getTaskGenerator();
 	}
 
 	/**
@@ -76,51 +78,56 @@ public class ReconcileEngine
 	 */
 	public void reconcile () throws RemoteException, InternalErrorException
 	{
-		String passwordPolicy = guessPasswordPolicy ();
-		for (String accountName: agent.getAccountsList())
-		{
-			Account acc = accountService.findAccount(accountName, dispatcher.getName());
-			if (acc == null)
+		String virtualTransactionId = taskGenerator.startVirtualSourceTransaction(!dispatcher.isGenerateTasksOnLoad());
+		try {
+			String passwordPolicy = guessPasswordPolicy ();
+			for (String accountName: agent.getAccountsList())
 			{
-				User usuari = agent.getUserInfo(accountName);
-				if (usuari != null)
+				Account acc = accountService.findAccount(accountName, dispatcher.getName());
+				if (acc == null)
 				{
-					acc = new Account ();
-					acc.setName(accountName);
-					acc.setSystem(dispatcher.getName());
-					if (usuari.getFullName() != null)
-						acc.setDescription(usuari.getFullName());
-					else if (usuari.getLastName() != null)
+					User usuari = agent.getUserInfo(accountName);
+					if (usuari != null)
 					{
-						if (usuari.getFirstName() == null)
-							acc.setDescription(usuari.getLastName());
+						acc = new Account ();
+						acc.setName(accountName);
+						acc.setSystem(dispatcher.getName());
+						if (usuari.getFullName() != null)
+							acc.setDescription(usuari.getFullName());
+						else if (usuari.getLastName() != null)
+						{
+							if (usuari.getFirstName() == null)
+								acc.setDescription(usuari.getLastName());
+							else
+								acc.setDescription(usuari.getFirstName()+" "+usuari.getLastName());
+						}
 						else
-							acc.setDescription(usuari.getFirstName()+" "+usuari.getLastName());
-					}
-					else
-						acc.setDescription("Autocreated account "+accountName);
-					
-					acc.setDisabled(false);
-					acc.setStatus(AccountStatus.ACTIVE);
-					acc.setLastUpdated(Calendar.getInstance());
-					acc.setType(AccountType.IGNORED);
-					acc.setPasswordPolicy(passwordPolicy);
-					acc.setGrantedGroups(new LinkedList<Group>());
-					acc.setGrantedRoles(new LinkedList<Role>());
-					acc.setGrantedUsers(new LinkedList<User>());
-					try {
-						acc = accountService.createAccount(acc);
-					} catch (AccountAlreadyExistsException e) {
-						throw new InternalErrorException ("Unexpected exception", e);
+							acc.setDescription("Autocreated account "+accountName);
+						
+						acc.setDisabled(false);
+						acc.setStatus(AccountStatus.ACTIVE);
+						acc.setLastUpdated(Calendar.getInstance());
+						acc.setType(AccountType.IGNORED);
+						acc.setPasswordPolicy(passwordPolicy);
+						acc.setGrantedGroups(new LinkedList<Group>());
+						acc.setGrantedRoles(new LinkedList<Role>());
+						acc.setGrantedUsers(new LinkedList<User>());
+						try {
+							acc = accountService.createAccount(acc);
+						} catch (AccountAlreadyExistsException e) {
+							throw new InternalErrorException ("Unexpected exception", e);
+						}
 					}
 				}
+				
+				if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
+					reconcileRoles (acc);
 			}
 			
-			if (acc != null && acc.getId() != null && (dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType())))
-				reconcileRoles (acc);
+			reconcileAllRoles();
+		} finally {
+			taskGenerator.finishVirtualSourceTransaction(virtualTransactionId);
 		}
-		
-		reconcileAllRoles();
 	}
 
 	/**

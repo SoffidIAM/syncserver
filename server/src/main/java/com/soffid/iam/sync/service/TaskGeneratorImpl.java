@@ -407,4 +407,9 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 	public String handleStartVirtualSourceTransaction() throws InternalErrorException, InternalErrorException {
 		return getTaskEntityDao().startVirtualSourceTransaction();
 	}
+
+	@Override
+	protected String handleStartVirtualSourceTransaction(boolean readonly) throws Exception {
+		return getTaskEntityDao().startVirtualSourceTransaction(readonly);
+	}
 }

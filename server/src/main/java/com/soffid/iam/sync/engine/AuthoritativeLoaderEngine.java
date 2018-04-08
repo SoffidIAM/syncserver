@@ -42,6 +42,7 @@ import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.sync.service.TaskGenerator;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
@@ -79,6 +80,8 @@ public class AuthoritativeLoaderEngine {
 
 	private HashMap<String, Set<String>> objectNames;
 
+	private TaskGenerator taskGenerator;
+
 	
 	public AuthoritativeLoaderEngine(DispatcherHandlerImpl handler)
 	{
@@ -90,133 +93,140 @@ public class AuthoritativeLoaderEngine {
 		objectService = ServiceLocator.instance().getCustomObjectService();
         server = ServerServiceLocator.instance().getServerService();
         authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
+		taskGenerator = ServiceLocator.instance().getTaskGenerator();
 		
 		log = LogFactory.getLog(system.getName());
 	}
 	/**
+	 * @throws InternalErrorException 
 	 * @throws Exception 
 	 * 
 	 */
-	public void doAuthoritativeImport (ScheduledTask task, PrintWriter out) 
+	public void doAuthoritativeImport (ScheduledTask task, PrintWriter out)  
 	{
 
-		try {
-			userNames = new HashSet<String>();
-			groupNames = new HashSet<String>();
-			objectNames = new HashMap<String,Set<String>>();
-			
-			preInsertTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
-			postInsertTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
-			preDeleteTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
-			postDeleteTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
-			preUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
-			postUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
-			HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> postUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
-			for (ReconcileTrigger trigger: dispatcherService.findReconcileTriggersByDispatcher(system.getId()))
-			{
-				SoffidObjectType type = trigger.getObjectType();
-				Map<SoffidObjectType, LinkedList<ReconcileTrigger>> map = null;
+		try { 
+			String virtualTransactionId = taskGenerator.startVirtualSourceTransaction(!system.isGenerateTasksOnLoad());
+			try {
+				userNames = new HashSet<String>();
+				groupNames = new HashSet<String>();
+				objectNames = new HashMap<String,Set<String>>();
 				
-				if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_INSERT))
-					map = preInsertTrigger;
-				else if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_UPDATE))
-					map = preUpdateTrigger;
-				else if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_INSERT))
-					map = postInsertTrigger;
-				else if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_UPDATE))
-					map = postUpdateTrigger;
-				else if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_DELETE))
-					map = preDeleteTrigger;
-				else if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_DELETE))
-					map = postDeleteTrigger;
-
-				if ( map != null)
+				preInsertTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
+				postInsertTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
+				preDeleteTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
+				postDeleteTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
+				preUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
+				postUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
+				HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> postUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
+				for (ReconcileTrigger trigger: dispatcherService.findReconcileTriggersByDispatcher(system.getId()))
 				{
-					LinkedList<ReconcileTrigger> list = map.get(type);
-					if (list == null)
+					SoffidObjectType type = trigger.getObjectType();
+					Map<SoffidObjectType, LinkedList<ReconcileTrigger>> map = null;
+					
+					if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_INSERT))
+						map = preInsertTrigger;
+					else if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_UPDATE))
+						map = preUpdateTrigger;
+					else if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_INSERT))
+						map = postInsertTrigger;
+					else if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_UPDATE))
+						map = postUpdateTrigger;
+					else if (trigger.getTrigger().equals(SoffidObjectTrigger.PRE_DELETE))
+						map = preDeleteTrigger;
+					else if (trigger.getTrigger().equals(SoffidObjectTrigger.POST_DELETE))
+						map = postDeleteTrigger;
+	
+					if ( map != null)
 					{
-						list = new LinkedList<ReconcileTrigger>();
-						map.put(type, list);
+						LinkedList<ReconcileTrigger> list = map.get(type);
+						if (list == null)
+						{
+							list = new LinkedList<ReconcileTrigger>();
+							map.put(type, list);
+						}
+						list.add(trigger);
 					}
-					list.add(trigger);
 				}
+				ObjectTranslator objectTranslator = new ObjectTranslator (system);
+				ValueObjectMapper vom = new ValueObjectMapper();
+	
+	    		Object agent = handler.connect(false);
+	    	
+				com.soffid.iam.sync.intf.AuthoritativeIdentitySource source = InterfaceWrapper.getAuthoritativeIdentitySource(agent);
+				com.soffid.iam.sync.intf.AuthoritativeIdentitySource2 source2 = InterfaceWrapper.getAuthoritativeIdentitySource2(agent);
+	    		if (source != null)
+	    		{
+	    			Collection<com.soffid.iam.sync.intf.AuthoritativeChange> changes = source.getChanges();
+	    			if ( changes != null && !changes.isEmpty())
+	    			{
+		    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
+		    	        {
+		    	        	processChange(change, source, out, objectTranslator, vom);
+		    	        }
+		    			changes = source.getChanges();
+	    			}
+					if (system.isFullReconciliation())
+					{
+						removeUsers (out, objectTranslator, vom);
+						removeGroups(out, objectTranslator, vom);
+						removeCustomObjects(out, objectTranslator, vom);
+					}
+	    		} else if (source2 != null)
+	    		{
+	    			String lastId = null;
+	    			Configuration cfg = null;
+	    			String cfgId = null;
+	    			ConfigurationService cfgSvc = null;
+	    			if ( ! system.isFullReconciliation())
+	    			{
+		    			cfgSvc = ServerServiceLocator.instance().getConfigurationService();
+		    			cfgId = "soffid.sync.authoritative.change."+getSystem().getName();
+		    			cfg = cfgSvc.findParameterByNameAndNetworkName(cfgId, null);
+		    			if (cfg != null)
+		    				lastId = cfg.getValue();
+	    			}
+					boolean anyError = false;
+					boolean moreData;
+					do
+					{
+						Collection<com.soffid.iam.sync.intf.AuthoritativeChange> changes;
+						changes = source2.getChanges(lastId);
+						if (changes == null || changes.isEmpty())
+							break;
+		    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
+		    	        {
+		    	        	if ( processChange(change, null, out, objectTranslator, vom) )
+		    	        		anyError = true;
+		    	        }
+	   				} while (source2.hasMoreData());
+					
+					if (! anyError && system.isFullReconciliation())
+					{
+						removeUsers (out, objectTranslator, vom);
+						removeGroups(out, objectTranslator, vom);
+						removeCustomObjects(out, objectTranslator, vom);
+					}
+					String nextChange = source2.getNextChange() ;
+					if (! anyError && nextChange != null && ! system.isFullReconciliation())
+					{
+						if (cfg == null) {
+							cfg = new Configuration();
+							cfg.setValue(nextChange);
+							cfg.setCode(cfgId);
+							cfg.setDescription("Last authoritative change id loaded");
+							cfgSvc.create(cfg);
+						} else {
+							cfg.setValue(nextChange);
+							cfgSvc.update(cfg);
+						}
+					}
+	    		} else {
+	    			out.println("This agent does not support account reconciliation");
+	    		}
+			} finally {
+				taskGenerator.finishVirtualSourceTransaction(virtualTransactionId);
 			}
-			ObjectTranslator objectTranslator = new ObjectTranslator (system);
-			ValueObjectMapper vom = new ValueObjectMapper();
-
-    		Object agent = handler.connect(false);
-    	
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource source = InterfaceWrapper.getAuthoritativeIdentitySource(agent);
-			com.soffid.iam.sync.intf.AuthoritativeIdentitySource2 source2 = InterfaceWrapper.getAuthoritativeIdentitySource2(agent);
-    		if (source != null)
-    		{
-    			Collection<com.soffid.iam.sync.intf.AuthoritativeChange> changes = source.getChanges();
-    			if ( changes != null && !changes.isEmpty())
-    			{
-	    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
-	    	        {
-	    	        	processChange(change, source, out, objectTranslator, vom);
-	    	        }
-	    			changes = source.getChanges();
-    			}
-				if (system.isFullReconciliation())
-				{
-					removeUsers (out, objectTranslator, vom);
-					removeGroups(out, objectTranslator, vom);
-					removeCustomObjects(out, objectTranslator, vom);
-				}
-    		} else if (source2 != null)
-    		{
-    			String lastId = null;
-    			Configuration cfg = null;
-    			String cfgId = null;
-    			ConfigurationService cfgSvc = null;
-    			if ( ! system.isFullReconciliation())
-    			{
-	    			cfgSvc = ServerServiceLocator.instance().getConfigurationService();
-	    			cfgId = "soffid.sync.authoritative.change."+getSystem().getName();
-	    			cfg = cfgSvc.findParameterByNameAndNetworkName(cfgId, null);
-	    			if (cfg != null)
-	    				lastId = cfg.getValue();
-    			}
-				boolean anyError = false;
-				boolean moreData;
-				do
-				{
-					Collection<com.soffid.iam.sync.intf.AuthoritativeChange> changes;
-					changes = source2.getChanges(lastId);
-					if (changes == null || changes.isEmpty())
-						break;
-	    	        for (com.soffid.iam.sync.intf.AuthoritativeChange change: changes)
-	    	        {
-	    	        	if ( processChange(change, null, out, objectTranslator, vom) )
-	    	        		anyError = true;
-	    	        }
-   				} while (source2.hasMoreData());
-				
-				if (! anyError && system.isFullReconciliation())
-				{
-					removeUsers (out, objectTranslator, vom);
-					removeGroups(out, objectTranslator, vom);
-					removeCustomObjects(out, objectTranslator, vom);
-				}
-				String nextChange = source2.getNextChange() ;
-				if (! anyError && nextChange != null && ! system.isFullReconciliation())
-				{
-					if (cfg == null) {
-						cfg = new Configuration();
-						cfg.setValue(nextChange);
-						cfg.setCode(cfgId);
-						cfg.setDescription("Last authoritative change id loaded");
-						cfgSvc.create(cfg);
-					} else {
-						cfg.setValue(nextChange);
-						cfgSvc.update(cfg);
-					}
-				}
-    		} else {
-    			out.println("This agent does not support account reconciliation");
-    		}
 		} 
 		catch (Exception e)
 		{

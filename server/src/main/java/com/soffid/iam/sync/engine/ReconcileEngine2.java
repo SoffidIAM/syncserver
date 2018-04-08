@@ -46,6 +46,7 @@ import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.api.ReconcileTrigger;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -90,6 +91,7 @@ public class ReconcileEngine2
 	
 	List<String> roles = new LinkedList<String>();
 	List<String> accountsList = new LinkedList<String>();
+	private TaskGenerator taskGenerator;
 
 	public ReconcileEngine2(com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent,
 			PrintWriter out) {
@@ -104,6 +106,7 @@ public class ReconcileEngine2
 		rolDomainService = ServiceLocator.instance().getDomainService();
 		dadesAddicionalsService = ServiceLocator.instance().getAdditionalDataService();
 		reconcileService = ServiceLocator.instance().getReconcileService();
+		taskGenerator = ServiceLocator.instance().getTaskGenerator();
 		log = out;
 	}
 
@@ -117,13 +120,18 @@ public class ReconcileEngine2
 		objectTranslator = new ObjectTranslator (dispatcher);
 		vom = new ValueObjectMapper();
 		
-		reconcileAllRoles ();
-		reconcileAccounts();
-		
-		if (dispatcher.isFullReconciliation())
-		{
-			removeAccounts();
-			removeRoles();
+		String virtualTransactionId = taskGenerator.startVirtualSourceTransaction(!dispatcher.isGenerateTasksOnLoad());
+		try {
+			reconcileAllRoles ();
+			reconcileAccounts();
+			
+			if (dispatcher.isFullReconciliation())
+			{
+				removeAccounts();
+				removeRoles();
+			}
+		} finally {
+			taskGenerator.finishVirtualSourceTransaction(virtualTransactionId);
 		}
 	}
 
