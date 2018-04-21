@@ -80,7 +80,7 @@ public class CertificateServer {
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
         SecureRandom random = new SecureRandom();
 
-        keyGen.initialize(1024, random);
+        keyGen.initialize(2048, random);
 
         // Generar clave raiz
         KeyPair pair = keyGen.generateKeyPair();
@@ -186,7 +186,7 @@ public class CertificateServer {
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
             SecureRandom random = new SecureRandom();
 
-            keyGen.initialize(1024, random);
+            keyGen.initialize(2048, random);
 
             // Generar clave para agente o servidor secundario
             KeyPair pair = keyGen.generateKeyPair();
