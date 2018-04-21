@@ -30,6 +30,7 @@
   <string name="jbpm.mail.smtp.host" value="localhost" />
   <bean   name="jbpm.mail.address.resolver" class="org.jbpm.identity.mail.IdentityAddressResolver" singleton="true" />
   <string name="jbpm.mail.from.address" value="noreply.jbpm@soffid.com" />
+  <string name="jbpm.mail.class.name" value="com.soffid.iam.bpm.mail.Mail" />
   
 
 </jbpm-configuration>
