@@ -24,6 +24,7 @@ import com.soffid.iam.reconcile.common.ReconcileAssignment;
 import com.soffid.iam.reconcile.common.ReconcileRole;
 import com.soffid.iam.reconcile.service.ReconcileService;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -32,11 +33,13 @@ import es.caib.seycon.ng.sync.ServerServiceLocator;
 public class ManualReconcileEngine extends ReconcileEngine2 {
 
 	Log log = LogFactory.getLog(getClass());
+	private String tenant;
 	private static final int MAX_LENGTH = 150;
 	private static final int MAX_ROLE_CODE_LENGTH = 50;
 
-	public ManualReconcileEngine(com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent, PrintWriter out) {
+	public ManualReconcileEngine(String tenant, com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent, PrintWriter out) {
 		super(dispatcher, agent, out);
+		this.tenant = tenant;
 	}
 
 	/**
@@ -77,6 +80,10 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 		reconcileAccount = new ReconcileAccount();
 		reconcileAccount.setAccountName(account.getName());
 		reconcileAccount.setDescription(account.getDescription());
+		if (reconcileAccount.getDescription() == null || 
+				reconcileAccount.getDescription().trim().isEmpty())
+			reconcileAccount.setDescription(account.getName());
+		
 		reconcileAccount.setProcessId(reconcileProcessId);
 		reconcileAccount.setProposedAction(AccountProposedAction.BIND_TO_EXISTING_USER);
 		reconcileAccount.setDispatcher(dispatcher.getName());
@@ -134,7 +141,8 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 			log.info("Registering account "+existingAccount.getName()+" change");
 			ReconcileAccount reconcileAccount = new ReconcileAccount();
 			reconcileAccount.setAccountName(existingAccount.getName());
-			if (existingAccount.getDescription() == null)
+			if (existingAccount.getDescription() == null || 
+					existingAccount.getDescription().trim().isEmpty())
 				reconcileAccount.setDescription(acc.getDescription());
 			else
 				reconcileAccount.setDescription(existingAccount.getDescription());
@@ -243,8 +251,19 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 
 	@Override
 	public void reconcile() throws Exception {
-		super.reconcile();
-		endReconcile();
+		Security.nestedLogin(tenant, dispatcher.getName(), Security.ALL_PERMISSIONS);
+		try {
+			super.reconcile();
+			endReconcile();
+		} finally {
+			Security.nestedLogoff();
+		}
+	}
+
+	@Override
+	protected void removeRole(List<ReconcileTrigger> preDelete, List<ReconcileTrigger> postDelete, String roleName,
+			Role role, boolean ok) throws InternalErrorException {
+		// Nothing to do
 	}
 
 }

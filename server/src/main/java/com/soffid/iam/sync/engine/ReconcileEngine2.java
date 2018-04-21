@@ -108,6 +108,8 @@ public class ReconcileEngine2
 		reconcileService = ServiceLocator.instance().getReconcileService();
 		taskGenerator = ServiceLocator.instance().getTaskGenerator();
 		log = out;
+		if (log == null)
+			log = new PrintWriter( System.out );
 	}
 
 	/**
@@ -149,23 +151,28 @@ public class ReconcileEngine2
 			if (role != null)
 			{
 				boolean ok = true;
-				RoleExtensibleObject eo = new RoleExtensibleObject(role, serverService);
-				if (! preDelete.isEmpty())
-				{
-					ok = executeTriggers(preDelete, eo, null);
-				}
-				if (ok)
-				{
-					log.append("Removing role "+roleName+"\n");
-					try {
-						appService.delete(role);
-						executeTriggers(postDelete, eo, null);
-					} catch (Exception e) {
-						log.println("Error: "+e.toString());
-					}
-				}
+				removeRole(preDelete, postDelete, roleName, role, ok);
 			}
 		}		
+	}
+
+	protected void removeRole(List<ReconcileTrigger> preDelete, List<ReconcileTrigger> postDelete, String roleName,
+			Role role, boolean ok) throws InternalErrorException {
+		RoleExtensibleObject eo = new RoleExtensibleObject(role, serverService);
+		if (! preDelete.isEmpty())
+		{
+			ok = executeTriggers(preDelete, eo, null);
+		}
+		if (ok)
+		{
+			log.append("Removing role "+roleName+"\n");
+			try {
+				appService.delete(role);
+				executeTriggers(postDelete, eo, null);
+			} catch (Exception e) {
+				log.println("Error: "+e.toString());
+			}
+		}
 	}
 
 	private void removeAccounts() throws InternalErrorException {

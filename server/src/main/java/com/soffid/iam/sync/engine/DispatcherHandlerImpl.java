@@ -1712,12 +1712,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	protected static JbpmConfiguration getConfig ()
 	{
-		if (jbpmConfig == null)
-		{
-			jbpmConfig = JbpmConfiguration
-							.getInstance("es/caib/seycon/ng/sync/jbpm/jbpm.cfg.xml");
-		}
-		return jbpmConfig;
+		return com.soffid.iam.bpm.config.Configuration.getConfig();
 	}
 
 	/**
@@ -1776,7 +1771,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				reconcileThread = new ReconcileThread();
 				reconcileThread.setName("Reconcile thread for "+getSystem().getName());
 				try {
-					ManualReconcileEngine engine = new ManualReconcileEngine(getSystem(), (ReconcileMgr2) connect(false), null);
+					ManualReconcileEngine engine = new ManualReconcileEngine(Security.getCurrentTenantName(), getSystem(), InterfaceWrapper.getReconcileMgr2(connect(false)), null);
 					engine.setReconcileProcessId(Long.decode(taskHandler.getTask().getHost()));
 					reconcileThread.setEngine(
 							engine);
