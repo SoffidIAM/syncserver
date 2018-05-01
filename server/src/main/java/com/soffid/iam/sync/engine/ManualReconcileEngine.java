@@ -114,6 +114,7 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 		}
 		
 		
+		HashMap<String, Object> changes = new HashMap<String, Object>();
 		if (existingAccount.getAttributes() != null )
 		{
 			for (String att: existingAccount.getAttributes().keySet())
@@ -123,16 +124,19 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 				if (v != null &&
 						!v.equals(v2))
 				{
-					acc.getAttributes().put(att, v);
+					changes.put(att,  v);
 					anyChange = true;
 				}
 			}
 		}
-		
+		else
+			existingAccount.setAttributes(new HashMap<String, Object>());
+
 		if (AccountStatus.REMOVED.equals(acc.getStatus()) ||
 				acc.isDisabled() != existingAccount.isDisabled())
 		{
 			log.info("Enabled state for account "+acc.getName()+" has changed");
+			changes.put("accountDisabled", existingAccount.isDisabled());
 			anyChange = true;
 		}
 	
@@ -154,8 +158,7 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 			reconcileAccount.setDeletedAccount(Boolean.FALSE);
 			reconcileAccount.setActive(! existingAccount.isDisabled());
 			reconcileAccount.setAttributes(new HashMap<String, Object>());
-//			if (existingAccount.getAttributes() != null)
-//				reconcileAccount.getAttributes().putAll(existingAccount.getAttributes());
+			reconcileAccount.getAttributes().putAll(changes);
 			reconcileService.addUser(reconcileAccount);				
 		}
 		reconcileRoles (acc);

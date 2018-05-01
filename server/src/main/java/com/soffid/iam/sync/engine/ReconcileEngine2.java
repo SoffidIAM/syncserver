@@ -227,7 +227,8 @@ public class ReconcileEngine2
 
 		for (String accountName: accountsList)
 		{
-			reconcileAccount(preInsert, postInsert, preUpdate, postUpdate, accountName, passwordPolicy);
+			if (accountName != null && ! accountName.trim().isEmpty())
+				reconcileAccount(preInsert, postInsert, preUpdate, postUpdate, accountName, passwordPolicy);
 		}
 	}
 
