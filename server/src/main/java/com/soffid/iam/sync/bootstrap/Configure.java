@@ -38,6 +38,7 @@ import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.ApplicationBootService;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.TenantService;
+import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
@@ -62,10 +63,10 @@ import es.caib.seycon.ng.exception.ServerRedirectException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 
 public class Configure {
+    static org.apache.commons.logging.Log log  = LogFactory.getLog(Configure.class);
 
     public static void main(String args[]) throws Exception {
         LogConfigurator.configureMinimalLogging();
-        org.apache.commons.logging.Log log  = LogFactory.getLog(Configure.class);
         Security.onSyncServer();
 //        Log.setLog(new SeyconLog());
 
@@ -198,6 +199,7 @@ public class Configure {
         	password = new Password(new String(pass));
         }
         config.setPassword(password);
+        config.setRole("server");
         // Configurar servidor
         /*
          * java.io.Console cons = System.console(); if (cons != null) { String
@@ -227,6 +229,7 @@ public class Configure {
         
         // Configuration has been overwritten by consoleBoot
         config = Config.getConfig();
+        config.setServerService(service);
         config.reload();
 
         DispatcherService dispatcherSvc = ServerServiceLocator.instance().getDispatcherService(); 
@@ -248,6 +251,12 @@ public class Configure {
         Tenant t = tenantSvc.getMasterTenant();
         tenantSvc.addTenantServer(t, server.getName());
 
+        log.info("Is server: "+config.isServer());
+        log.info("Role: "+config.getRole());
+        log.info("Server service: "+config.getServerService());
+        log.info("Server list: "+config.getServerList());
+        
+        log.info("Generating security keys");
         s.createRoot();
     }
 

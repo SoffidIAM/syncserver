@@ -27,6 +27,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Vector;
 
+import org.apache.commons.logging.LogFactory;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
 import org.bouncycastle.asn1.x500.style.RFC4519Style;
 import org.bouncycastle.asn1.x509.BasicConstraints;
@@ -35,8 +36,6 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
-import org.mortbay.log.Log;
-import org.mortbay.log.Logger;
 
 import com.soffid.iam.api.Password;
 import com.soffid.iam.config.Config;
@@ -49,6 +48,7 @@ import es.caib.seycon.ng.exception.CertificateEnrollDenied;
 import es.caib.seycon.ng.exception.CertificateEnrollWaitingForAproval;
 import es.caib.seycon.ng.exception.InternalErrorException;
 
+@SuppressWarnings("deprecation")
 public class CertificateServer {
     private static final String MASTER_CA_NAME = "CN=RootCA,OU=master,O=Soffid";
 	KeyStore ks;
@@ -58,7 +58,7 @@ public class CertificateServer {
     boolean noCheck = false;
     private Password password;
     Config config = Config.getConfig();
-    Logger log = Log.getLogger("CertificateServer");
+    org.apache.commons.logging.Log log  = LogFactory.getLog(getClass());
 
     public CertificateServer() throws KeyStoreException, NoSuchAlgorithmException,
             CertificateException, FileNotFoundException, IOException, InternalErrorException {
@@ -76,6 +76,7 @@ public class CertificateServer {
             NoSuchProviderException, CertificateException, FileNotFoundException, IOException,
             InvalidKeyException, IllegalStateException, SignatureException,
             UnrecoverableKeyException, InternalErrorException, KeyManagementException {
+        log.info("Generating RSA keys ");
 
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
         SecureRandom random = new SecureRandom();
@@ -100,7 +101,9 @@ public class CertificateServer {
                 .toCharArray(), new X509Certificate[] { servercert, cert });
 
         // Guardar certificado
+        log.info("Storing keystore "+SeyconKeyStore.getKeyStoreFile());
         SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
+        log.info("Storing keystore "+ SeyconKeyStore.getRootKeyStoreFile());
         SeyconKeyStore.saveKeyStore(rootks, SeyconKeyStore.getRootKeyStoreFile());
     }
 
@@ -118,7 +121,6 @@ public class CertificateServer {
             UnrecoverableKeyException, KeyStoreException {
 
         Key key = rootks.getKey(SeyconKeyStore.ROOT_KEY, password.getPassword().toCharArray());
-        log.debug("Got root key {}", SeyconKeyStore.ROOT_CERT, null);
         return createCertificate(tenant, hostName, certificateKey, (PrivateKey) key, root);
     }
 
@@ -142,7 +144,7 @@ public class CertificateServer {
         generator.setNotAfter(c.getTime());
         if (root)
         {
-        	log.info("Creating root certificate authority", null, null);
+        	log.info("Creating root certificate authority");
         	generator.addExtension(
         		    X509Extensions.BasicConstraints, true, new BasicConstraints(true));
         }
@@ -156,9 +158,9 @@ public class CertificateServer {
 	        generator.addExtension(X509Extensions.SubjectAlternativeName, false, subjectAltName);
         }
 
-        log.debug("Creating cert for {} publickey =", name, certificateKey.toString());
+        log.debug("Creating cert for "+certificateKey+" publickey");
         X509Certificate cert = generator.generate(signerKey, "BC");
-        log.debug("Generated cert {}", cert, null);
+        log.debug("Generated cert "+cert);
 
         return cert;
     }
