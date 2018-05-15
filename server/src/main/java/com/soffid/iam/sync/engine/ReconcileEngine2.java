@@ -606,6 +606,7 @@ public class ReconcileEngine2
 					if (r != null)
 					{
 						r.setName(roleName);
+						createRole(r);
 					}
 				} else {
 					Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
