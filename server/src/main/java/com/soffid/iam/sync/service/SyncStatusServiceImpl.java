@@ -758,14 +758,9 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	protected void handleStartScheduledTask(ScheduledTask t) throws Exception {
     	TaskScheduler ts = TaskScheduler.getScheduler();
     	
-       	for (ScheduledTask task: ts.getTasks())
-       	{
-       		if (task.getId().equals(t.getId()) &&
-       				task.getTenant().equals(Security.getCurrentTenantName()))
-       		{
+    	ScheduledTask task = ts.findTask(t.getId());
+    	if (task != null)
        			ts.runNow(task, null, false);
-        	}
-        }
 	}
 
 	@Override
