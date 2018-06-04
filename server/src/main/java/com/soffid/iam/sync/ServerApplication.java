@@ -9,11 +9,14 @@ package com.soffid.iam.sync;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.LinkedList;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.sync.bootstrap.QueryHelper;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
@@ -36,15 +39,36 @@ import es.caib.seycon.ng.sync.agent.AgentManager;
 public class ServerApplication extends SoffidApplication {
     private static ServerService server;
 
-    public static void configure () throws FileNotFoundException, IOException {
+    public static void configure () throws FileNotFoundException, IOException, InternalErrorException, SQLException {
         Config config = Config.getConfig();
         
-//        HibernateInterceptor hi = (HibernateInterceptor) ServerServiceLocator.instance().getService("hibernateInterceptor");
-//        hi.setFlushMode(HibernateAccessor.FLUSH_EAGER);
+        setCacheParams();
 
         server = ServerServiceLocator.instance().getServerService();
         config.setServerService(server);
     }
+    
+    protected static void setCacheParams () throws InternalErrorException, SQLException, FileNotFoundException, IOException
+    {
+   		Connection c = ConnectionPool.getPool().getPoolConnection();
+   		try {
+			QueryHelper qh = new QueryHelper( c );
+	   		for (Object[] row: qh.select("SELECT CON_VALOR "
+	   				+ "FROM SC_CONFIG, SC_TENANT "
+	   				+ "WHERE TEN_ID=CON_TEN_ID AND CON_CODI='soffid.cache.enable' and TEN_NAME='master'", new String[0]))
+	   		{
+	   			System.setProperty("soffid.cache.enable", (String) row[0]);
+	    	}
+   		} finally {
+   			ConnectionPool.getPool().releaseConnection(c);
+   		}
+   		File confDir = Config.getConfig().getHomeDir();
+   		File cfgFile = new File ( new File (confDir, "conf"), "jcs.properties");
+   		if (cfgFile.canRead())
+   			System.setProperty("soffid.cache.configFile", cfgFile.getAbsolutePath());
+   	}
+
+
     
     public static void start() throws InterruptedException, FileNotFoundException, IOException, InternalErrorException {
         Config config = Config.getConfig();
