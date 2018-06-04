@@ -7,8 +7,6 @@ import java.net.URLStreamHandlerFactory;
 import java.util.Enumeration;
 import java.util.LinkedList;
 
-import sun.misc.CompoundEnumeration;
-
 public class AgentClassLoader extends URLClassLoader {
 
     public AgentClassLoader(URL[] urls) {
@@ -73,7 +71,7 @@ public class AgentClassLoader extends URLClassLoader {
             tmp[1] = ClassLoader.getSystemClassLoader().getResources(name);
         }
 
-        return new CompoundEnumeration<URL>(tmp);
+        return new SimpleEnumeration<URL>(tmp);
 	}
 
 }
