@@ -222,8 +222,8 @@ public class ValueObjectMapper
 					if ("active".equals(attribute)) usuari.setActive(toBoolean(toSingleton(value)));
 					else if ("mailAlias".equals(attribute)) usuari.setMailAlias(toSingleString (value));
 					else if ("userName".equals(attribute)) usuari.setUserName(toSingleString( value) );
-					else if ("primaryGroup".equals(attribute)) usuari.setComments(toSingleString( value));
-					else if ("comments".equals(attribute)) usuari.setPrimaryGroup(toSingleString(value));
+					else if ("primaryGroup".equals(attribute)) usuari.setPrimaryGroup(toSingleString( value));
+					else if ("comments".equals(attribute)) usuari.setComments(toSingleString(value));
 					else if ("createdOn".equals(attribute)) usuari.setCreatedDate(toCalendar(toSingleton(value)));
 					else if ("modifiedOn".equals(attribute)) usuari.setModifiedDate(toCalendar(toSingleton(value)));
 					else if ("mailDomain".equals(attribute)) usuari.setMailDomain(toSingleString(value));
