@@ -712,7 +712,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
     						}
     						else if (taskDispatcher.isComplete(task))
     						{
-    							// Ignore
+    							tasksToNotify.add(task);
     						}
     						else if (!taskDispatcher.applies(task))
     						{
@@ -808,7 +808,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
     							}
     							else if (taskDispatcher.isComplete(task))
     							{
-    								// Ignore 
+        							tasksToNotify.add(task);
     							}
     							else if (!taskDispatcher.applies(task))
     							{
