@@ -1,11 +1,7 @@
 package com.soffid.iam.sync.engine;
 
-import java.io.ByteArrayOutputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -31,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
-import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
@@ -39,7 +34,6 @@ import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.PasswordPolicy;
-import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
@@ -65,7 +59,6 @@ import com.soffid.iam.reconcile.service.ReconcileService;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.AccountService;
-import com.soffid.iam.service.ConfigurationService;
 import com.soffid.iam.service.CustomObjectService;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.GroupService;
@@ -76,15 +69,9 @@ import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
-import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
-import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
-import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
-import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
-import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
 import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
-import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.CustomObjectMgr;
 import com.soffid.iam.sync.intf.CustomTaskMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
@@ -110,7 +97,6 @@ import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.Dispatcher;
-import es.caib.seycon.ng.comu.SoffidObjectTrigger;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
@@ -228,9 +214,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         boolean trusted = isTrusted();
         boolean readOnly = getSystem().isReadOnly();
         // Verificar el nom del dipatcher
-        if (t.getTask().getSystemName() != null
-                && ( !mirroredAgent.equals(t.getTask().getSystemName()) &&
-						!this.getSystem().getName().equals(t.getTask().getSystemName()))) {
+        if (t.getTask().getSystemName() != null &&
+        		( mirroredAgent != null && !mirroredAgent.equals(t.getTask().getSystemName()))) {
             return false;
 
             // Verificar el domini de contrasenyes

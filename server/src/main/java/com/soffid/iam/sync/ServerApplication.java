@@ -9,11 +9,14 @@ package com.soffid.iam.sync;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.LinkedList;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.sync.bootstrap.QueryHelper;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
@@ -23,7 +26,6 @@ import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.web.internal.DownloadLibraryServlet;
 import com.soffid.iam.util.Syslogger;
-import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.agent.AgentManager;
@@ -36,15 +38,46 @@ import es.caib.seycon.ng.sync.agent.AgentManager;
 public class ServerApplication extends SoffidApplication {
     private static ServerService server;
 
-    public static void configure () throws FileNotFoundException, IOException {
+    public static void configure () throws FileNotFoundException, IOException, InternalErrorException, SQLException {
         Config config = Config.getConfig();
         
-//        HibernateInterceptor hi = (HibernateInterceptor) ServerServiceLocator.instance().getService("hibernateInterceptor");
-//        hi.setFlushMode(HibernateAccessor.FLUSH_EAGER);
+        setCacheParams();
 
         server = ServerServiceLocator.instance().getServerService();
         config.setServerService(server);
     }
+    
+    protected static void setCacheParams () throws InternalErrorException, SQLException, FileNotFoundException, IOException
+    {
+   		Connection c = ConnectionPool.getPool().getPoolConnection();
+   		try {
+			QueryHelper qh = new QueryHelper( c );
+	   		for (Object[] row: qh.select("SELECT CON_VALOR "
+	   				+ "FROM SC_CONFIG, SC_TENANT "
+	   				+ "WHERE TEN_ID=CON_TEN_ID AND CON_CODI='soffid.cache.enable' and TEN_NAME='master'", new String[0]))
+	   		{
+	   			System.setProperty("soffid.cache.enable", (String) row[0]);
+	    	}
+	   		File confDir = Config.getConfig().getHomeDir();
+	   		File cfgFile = new File ( new File (confDir, "conf"), "jcs.properties");
+	   		if (cfgFile.canRead())
+	   			System.setProperty("soffid.cache.configFile", cfgFile.getAbsolutePath());
+	   		else
+	   		{
+				for ( Object[] data: qh.select(
+						  "SELECT BCO_NAME, BCO_VALUE "
+						+ "FROM   SC_BLOCON "
+						+ "WHERE  BCO_NAME = 'soffid.cache.config'", new Object [0]))
+				{
+					System.setProperty  ((String) data[0], new String((byte[]) data[1], "UTF-8"));
+				}
+	   		}
+   		} finally {
+   			ConnectionPool.getPool().releaseConnection(c);
+   		}
+   	}
+
+
     
     public static void start() throws InterruptedException, FileNotFoundException, IOException, InternalErrorException {
         Config config = Config.getConfig();

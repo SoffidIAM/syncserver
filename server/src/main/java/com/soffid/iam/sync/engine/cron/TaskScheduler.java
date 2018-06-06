@@ -242,6 +242,24 @@ public class TaskScheduler
 		return result;
 	}
 
+	public ScheduledTask findTask (long id) throws ClassNotFoundException, InstantiationException, IllegalAccessException, InternalErrorException, FileNotFoundException, IOException
+	{
+		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
+		
+		List<ScheduledTask> list = taskSvc.listTasks();
+		List<ScheduledTask> result = new LinkedList<ScheduledTask>();
+		String hostName = Config.getConfig().getHostName();
+		
+		for (final ScheduledTask task: list)
+		{
+			if (task.getId().equals(id))
+			{
+				return task;
+			}
+		}
+		return null;
+	}
+
 	public void init () throws InternalErrorException, FileNotFoundException, IOException, DocumentBeanException
 	{
 		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
