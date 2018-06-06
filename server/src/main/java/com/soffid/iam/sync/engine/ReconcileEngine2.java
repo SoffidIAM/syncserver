@@ -346,6 +346,13 @@ public class ReconcileEngine2
 			anyChange = true;
 		}
 		
+		if (existingAccount.getPasswordPolicy() != null &&
+				!existingAccount.getPasswordPolicy().equals(acc.getPasswordPolicy()))
+		{
+			acc.setPasswordPolicy(existingAccount.getPasswordPolicy());
+			anyChange = true;
+		}
+		
 		if (existingAccount.getPasswordExpiration() != null &&
 				!existingAccount.getPasswordExpiration().equals(acc.getPasswordExpiration()))
 		{
@@ -423,7 +430,8 @@ public class ReconcileEngine2
 			acc.setType(AccountType.IGNORED);
 		else
 			acc.setType(existingAccount.getType());
-		acc.setPasswordPolicy(passwordPolicy);
+		if (acc.getPasswordPolicy() == null)
+			acc.setPasswordPolicy(passwordPolicy);
 		acc.setGrantedGroups(new LinkedList<Group>());
 		acc.setGrantedRoles(new LinkedList<Role>());
 		acc.setGrantedUsers(new LinkedList<User>());
