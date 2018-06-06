@@ -26,7 +26,6 @@ import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.web.internal.DownloadLibraryServlet;
 import com.soffid.iam.util.Syslogger;
-import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.agent.AgentManager;
@@ -59,13 +58,23 @@ public class ServerApplication extends SoffidApplication {
 	   		{
 	   			System.setProperty("soffid.cache.enable", (String) row[0]);
 	    	}
+	   		File confDir = Config.getConfig().getHomeDir();
+	   		File cfgFile = new File ( new File (confDir, "conf"), "jcs.properties");
+	   		if (cfgFile.canRead())
+	   			System.setProperty("soffid.cache.configFile", cfgFile.getAbsolutePath());
+	   		else
+	   		{
+				for ( Object[] data: qh.select(
+						  "SELECT BCO_NAME, BCO_VALUE "
+						+ "FROM   SC_BLOCON "
+						+ "WHERE  BCO_NAME = 'soffid.cache.config'", new Object [0]))
+				{
+					System.setProperty  ((String) data[0], new String((byte[]) data[1], "UTF-8"));
+				}
+	   		}
    		} finally {
    			ConnectionPool.getPool().releaseConnection(c);
    		}
-   		File confDir = Config.getConfig().getHomeDir();
-   		File cfgFile = new File ( new File (confDir, "conf"), "jcs.properties");
-   		if (cfgFile.canRead())
-   			System.setProperty("soffid.cache.configFile", cfgFile.getAbsolutePath());
    	}
 
 
