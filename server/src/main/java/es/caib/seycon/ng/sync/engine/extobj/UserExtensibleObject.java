@@ -148,6 +148,8 @@ public class UserExtensibleObject extends ExtensibleObject
     			{
     				if (dada.getValorDadaDate() != null)
         				dadesMap.put(dada.getCodiDada(), dada.getValorDadaDate().getTime());
+    				else if (dada.getBlobDataValue() != null)
+    					dadesMap.put(dada.getCodiDada(), dada.getBlobDataValue());
     				else
     					dadesMap.put(dada.getCodiDada(), dada.getValorDada());
     			}
@@ -163,6 +165,8 @@ public class UserExtensibleObject extends ExtensibleObject
     			{
     				if (dada.getValorDadaDate() != null)
         				dadesMap.put(dada.getCodiDada(), dada.getValorDadaDate().getTime());
+    				else if (dada.getBlobDataValue() != null)
+    					dadesMap.put(dada.getCodiDada(), dada.getBlobDataValue());
     				else
     					dadesMap.put(dada.getCodiDada(), dada.getValorDada());
     			}
