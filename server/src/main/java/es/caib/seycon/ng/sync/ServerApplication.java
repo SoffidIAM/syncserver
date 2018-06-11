@@ -11,6 +11,9 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
+import java.util.Date;
 import java.util.Iterator;
 import java.util.LinkedList;
 
@@ -34,6 +37,7 @@ import es.caib.seycon.ng.sync.agent.AgentManager;
 import es.caib.seycon.ng.sync.agent.AgentManagerImpl;
 import es.caib.seycon.ng.sync.engine.DispatcherHandler;
 import es.caib.seycon.ng.sync.engine.Engine;
+import es.caib.seycon.ng.sync.engine.cert.CertificateServer;
 import es.caib.seycon.ng.sync.engine.db.ConnectionPool;
 import es.caib.seycon.ng.sync.engine.log.LogConfigurator;
 import es.caib.seycon.ng.sync.engine.session.SessionManager;
@@ -43,6 +47,7 @@ import es.caib.seycon.ng.sync.servei.ServerService;
 import es.caib.seycon.ng.sync.servei.TaskGenerator;
 import es.caib.seycon.ng.sync.web.internal.DownloadLibraryServlet;
 import es.caib.seycon.ng.utils.Security;
+import es.caib.seycon.ssl.SeyconKeyStore;
 import es.caib.seycon.util.Syslogger;
 import es.caib.seycon.util.TimedProcess;
 
@@ -57,13 +62,36 @@ public class ServerApplication extends SeyconApplication {
     public static void configure () throws FileNotFoundException, IOException {
         Config config = Config.getConfig();
         
-//        HibernateInterceptor hi = (HibernateInterceptor) ServerServiceLocator.instance().getService("hibernateInterceptor");
-//        hi.setFlushMode(HibernateAccessor.FLUSH_EAGER);
-
         server = ServerServiceLocator.instance().getServerService();
         config.setServerService(server);
+        
+        try {
+            File f = SeyconKeyStore.getRootKeyStoreFile();
+            if (f.canRead()) {
+            	log.info("Checking root certificate expiration date", null, null);
+                KeyStore s = SeyconKeyStore.loadKeyStore(f);
+                X509Certificate cert = (X509Certificate) s
+                        .getCertificate(SeyconKeyStore.ROOT_KEY);
+                Date notAfter = cert.getNotAfter();
+                if (notAfter != null && notAfter.before(new Date()))
+                {
+                	regenerateRootCert();
+                }
+            }
+        } catch (Exception e) {
+        	log.warn("Error checking root certificate", e);
+        }
+
     }
     
+	private static void regenerateRootCert() throws Exception
+	{
+    	log.info("Recreating root certificate", null, null);
+        CertificateServer s = new CertificateServer();
+        s.createRoot();
+	}
+
+
     public static void start() throws InterruptedException, FileNotFoundException, IOException, InternalErrorException {
         Config config = Config.getConfig();
 
