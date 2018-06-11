@@ -14,7 +14,7 @@
   <properties>
     <maven.compile.source>1.5</maven.compile.source>
     <maven.compile.target>1.5</maven.compile.target>
-    <iam.version>1.8.5</iam.version>
+    <iam.version>1.8.17</iam.version>
   </properties>
   <scm>
         <connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
