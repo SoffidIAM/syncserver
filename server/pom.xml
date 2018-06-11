@@ -171,6 +171,24 @@
 						</configuration>
 					</execution>
 					<execution>
+						<id>copy-server-extra-2</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>
+								${project.build.directory}/server-only/lib
+							</outputDirectory>
+							<includeGroupIds>org.apache.commons</includeGroupIds>
+							<includeArtifactIds>commons-jcs-core</includeArtifactIds>
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true</overWriteSnapshots>
+							<overWriteIfNewer>true</overWriteIfNewer>
+							<stripVersion>false</stripVersion>
+						</configuration>
+					</execution>
+					<execution>
 						<id>copy-agent</id>
 						<phase>package</phase>
 						<goals>
