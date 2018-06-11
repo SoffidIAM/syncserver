@@ -84,6 +84,9 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 		reconcileAccount = new ReconcileAccount();
 		reconcileAccount.setAccountName(account.getName());
 		reconcileAccount.setDescription(account.getDescription());
+		if (reconcileAccount.getDescription() == null ||
+				reconcileAccount.getDescription().trim().isEmpty())
+			reconcileAccount.setDescription(reconcileAccount.getAccountName());
 		reconcileAccount.setProcessId(reconcileProcessId);
 		reconcileAccount.setProposedAction(AccountProposedAction.BIND_TO_EXISTING_USER);
 		reconcileAccount.setDispatcher(dispatcher.getCodi());
@@ -113,25 +116,29 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 //		}
 		
 		
-//		if (existingAccount.getAttributes() != null )
-//		{
-//			for (String att: existingAccount.getAttributes().keySet())
-//			{
-//				Object v = existingAccount.getAttributes().get(att);
-//				Object v2 = acc.getAttributes().get(att);
-//				if (v != null &&
-//						!v.equals(v2))
-//				{
-//					acc.getAttributes().put(att, v);
-//					anyChange = true;
-//				}
-//			}
-//		}
+		if (existingAccount.getAttributes() != null )
+		{
+			for (String att: existingAccount.getAttributes().keySet())
+			{
+				Object v = existingAccount.getAttributes().get(att);
+				Object v2 = acc.getAttributes().get(att);
+				if (v != null &&
+						!v.equals(v2))
+				{
+					acc.getAttributes().put(att, v);
+					anyChange = true;
+				}
+			}
+		}
 		
 		if (AccountStatus.REMOVED.equals(acc.getStatus()) ||
 				acc.isDisabled() != existingAccount.isDisabled())
 		{
 			log.info("Enabled state for account "+acc.getName()+" has changed");
+			if (existingAccount.getAttributes() == null)
+				existingAccount.setAttributes(new HashMap<String, Object>());
+			existingAccount.getAttributes().put("accountDisabled", existingAccount.isDisabled()? "true": "false");
+			acc.getAttributes().put("accountDisabled", acc.isDisabled()? "true": "false");
 			anyChange = true;
 		}
 	
@@ -140,7 +147,7 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 			log.info("Registering account "+existingAccount.getName()+" change");
 			ReconcileAccount reconcileAccount = new ReconcileAccount();
 			reconcileAccount.setAccountName(existingAccount.getName());
-			if (existingAccount.getDescription() == null)
+			if (existingAccount.getDescription() == null || existingAccount.getDescription().trim().isEmpty())
 				reconcileAccount.setDescription(acc.getDescription());
 			else
 				reconcileAccount.setDescription(existingAccount.getDescription());
@@ -152,8 +159,8 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 			reconcileAccount.setDeletedAccount(Boolean.FALSE);
 			reconcileAccount.setActive(! existingAccount.isDisabled());
 			reconcileAccount.setAttributes(new HashMap<String, Object>());
-//			if (existingAccount.getAttributes() != null)
-//				reconcileAccount.getAttributes().putAll(existingAccount.getAttributes());
+			if (existingAccount.getAttributes() != null)
+				reconcileAccount.getAttributes().putAll(existingAccount.getAttributes());
 			reconcileService.addUser(reconcileAccount);				
 		}
 		reconcileRoles (acc);
