@@ -4,12 +4,8 @@
 package com.soffid.iam.sync.engine.extobj;
 
 import java.util.Collection;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Group;

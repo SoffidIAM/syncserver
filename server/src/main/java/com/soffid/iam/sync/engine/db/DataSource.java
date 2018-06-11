@@ -3,7 +3,6 @@ package com.soffid.iam.sync.engine.db;
 import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.SQLException;
-import java.sql.SQLFeatureNotSupportedException;
 import java.util.logging.Logger;
 
 import es.caib.seycon.ng.exception.InternalErrorException;

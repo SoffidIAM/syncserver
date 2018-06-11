@@ -10,14 +10,13 @@ import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 
-import es.caib.seycon.ng.ServiceLocator;
 import bsh.BshClassManager;
 import bsh.ExternalNameSpace2;
-import bsh.Modifiers;
 import bsh.NameSpace;
 import bsh.Primitive;
 import bsh.UtilEvalError;
 import bsh.Variable;
+import es.caib.seycon.ng.ServiceLocator;
 
 public class ExtensibleObjectNamespace extends ExternalNameSpace2
 {

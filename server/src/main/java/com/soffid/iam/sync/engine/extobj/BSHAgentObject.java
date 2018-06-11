@@ -1,7 +1,6 @@
 package com.soffid.iam.sync.engine.extobj;
 
 import java.util.Collection;
-import java.util.LinkedList;
 import java.util.Map;
 
 import com.soffid.iam.sync.intf.ExtensibleObject;

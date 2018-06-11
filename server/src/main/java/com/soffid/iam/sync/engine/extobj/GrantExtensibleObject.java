@@ -3,10 +3,6 @@
  */
 package com.soffid.iam.sync.engine.extobj;
 
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.List;
-
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
@@ -16,7 +12,6 @@ import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.sync.service.ServerService;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;

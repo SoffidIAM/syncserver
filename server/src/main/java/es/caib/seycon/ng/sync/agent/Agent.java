@@ -163,4 +163,9 @@ public abstract class Agent implements AgentInterface {
 		return ExtensibleObject.toExtensibleObject(eo);
 	}
 
+	public boolean supportsRename ()
+	{
+		return false;
+	}
+
 }

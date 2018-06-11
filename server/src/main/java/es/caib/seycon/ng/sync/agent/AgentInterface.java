@@ -9,4 +9,7 @@ package es.caib.seycon.ng.sync.agent;
  */
 public interface AgentInterface extends com.soffid.iam.sync.agent.AgentInterface
 {
+	String getAgentVersion();
+	
+	boolean supportsRename ();
 }
