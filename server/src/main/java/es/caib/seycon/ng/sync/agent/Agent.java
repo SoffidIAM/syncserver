@@ -147,4 +147,9 @@ public abstract class Agent implements AgentInterface {
         return concat;
     }
     
+	public boolean supportsRename ()
+	{
+		return false;
+	}
+
 }

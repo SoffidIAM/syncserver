@@ -134,13 +134,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	Logger log = LoggerFactory.getLogger(DispatcherHandler.class);
     boolean active = true;
     private boolean reconfigure = false;
-    private String status;
     private Object agent;
-    private Object objectClass;
-    private long lastConnect;
     private ServerService server;
     private boolean actionStop;
-    private long taskQueueStartTime;
     private long nextConnect;
     private Exception connectException;
     private String agentVersion;
@@ -455,7 +451,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             // setName (agentName);
             while (active) {
                 // Actualiza información del último bucle realizado
-                taskQueueStartTime = new java.util.Date().getTime();
+//                taskQueueStartTime = new java.util.Date().getTime();
 
                 // Forzar la reconexion
 
@@ -1217,6 +1213,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private void updateAccount (Object agent, TaskHandler t) throws RemoteException, InternalErrorException
 	{
 		UserMgr userMgr = agent instanceof UserMgr ? (UserMgr) agent: null;
+		
 		if (userMgr != null)
 		{
 			if (t.getTask().getUsuari() == null || t.getTask().getUsuari().trim().length() == 0 )
@@ -1249,10 +1246,32 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     					throw new InternalErrorException("Error getting user "+userId);
     				}
            			
-           			userMgr.updateUser(acc.getName(), user);
+    	        	if ( acc.getOldName() != null && supportsRename)
+    	        	{
+    	        		((UserMgr) agent).updateUser(acc.getName(), user);	    	        		
+    	        	}
+    	        	else if (acc.getOldName() != null)
+    	        	{
+    	            	((UserMgr) agent).removeUser(acc.getOldName());
+    	        		((UserMgr) agent).updateUser(acc.getName(), user);	    	        		
+    	        	}
+    	        	else
+           				userMgr.updateUser(acc.getName(), user);
            		}
            		else
-       				userMgr.updateUser(acc.getName(), acc.getDescription());
+           		{
+    	        	if ( acc.getOldName() != null && supportsRename)
+    	        	{
+    	        		((UserMgr) agent).updateUser(acc.getName(), acc.getDescription());	    	        		
+    	        	}
+    	        	else if (acc.getOldName() != null)
+    	        	{
+    	            	((UserMgr) agent).removeUser(acc.getOldName());
+    	        		((UserMgr) agent).updateUser(acc.getName(), acc.getDescription());	    	        		
+    	        	}
+    	        	else
+           				userMgr.updateUser(acc.getName(), acc.getDescription());           			
+           		}
            	}
            	if (acc != null)
            	{
@@ -1751,11 +1770,24 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     	        {
 	        		for (Account account: getAccounts(t))
 	    	        {
-	    				accountService.updateAccountLastUpdate(account);
 	    	        	if (account.isDisabled())
+	    	        	{
 	    	            	((UserMgr) agent).removeUser(account.getName());
+	    	        	}
+	    	        	else if ( account.getOldName() != null && supportsRename)
+	    	        	{
+	    	        		((UserMgr) agent).updateUser(account.getName(), user);	    	        		
+	    	        	}
+	    	        	else if (account.getOldName() != null)
+	    	        	{
+	    	            	((UserMgr) agent).removeUser(account.getOldName());
+	    	        		((UserMgr) agent).updateUser(account.getName(), user);	    	        		
+	    	        	}
 	    	        	else
+	    	        	{
 	    	        		((UserMgr) agent).updateUser(account.getName(), user);
+	    	        	}
+	    				accountService.updateAccountLastUpdate(account);
 	    	        }
     	        }
             } 
@@ -1777,6 +1809,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     private Date lastLog = null;
+	private boolean supportsRename;
+	private String status;
 
     /**
      * Recuperar los registros de acceso del agente remoto
@@ -1959,8 +1993,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	            	agentVersion = ((AgentInterface)agent).getAgentVersion();
 	            else
 	            	agentVersion = "Unknown";
-	            objectClass = agent.getClass();
-	            lastConnect = new java.util.Date().getTime();
+	            
+	            
+            	supportsRename = ((AgentInterface) agent).supportsRename(); 
+	            
 	            if (agent instanceof KerberosAgent) {
 	            	this.agent = agent;
 	                String domain = ((KerberosAgent) agent).getRealmName();

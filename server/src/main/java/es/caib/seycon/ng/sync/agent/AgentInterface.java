@@ -10,4 +10,6 @@ package es.caib.seycon.ng.sync.agent;
 public interface AgentInterface
 {
 	String getAgentVersion();
+	
+	boolean supportsRename ();
 }
