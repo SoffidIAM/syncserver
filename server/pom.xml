@@ -155,7 +155,7 @@
 								com.oracle,mysql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
 								org.hibernate,javax.mail,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
 								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
-								org.json,org.w3c
+								org.json,org.w3c,org.apache.cxf
 							</includeGroupIds>
 							<excludeArtifactIds>
 								iam-tomee,iam-common,dbtools,signaturaapi,
@@ -708,6 +708,12 @@
                         <artifactId>javaee-api</artifactId>
                          <version>6.0-6</version>
                </dependency>
+		<dependency>
+			<groupId>org.apache.cxf</groupId>
+			<artifactId>cxf-rt-rs-client</artifactId>
+			<version>3.1.10</version>
+			<scope>provided</scope>
+		</dependency>
  	</dependencies>
 	<reporting>
 		<plugins>
