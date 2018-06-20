@@ -13,8 +13,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.axis.InternalException;
-
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.AttributeMapping;
 import com.soffid.iam.api.ObjectMapping;

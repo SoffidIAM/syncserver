@@ -504,12 +504,6 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>axis</groupId>
-			<artifactId>axis</artifactId>
-			<version>1.4</version>
-			<scope>compile</scope>
-		</dependency>
-		<dependency>
 			<groupId>java.sun.com</groupId>
 			<artifactId>plugin.jar</artifactId>
 			<version>1.5</version>
@@ -531,32 +525,6 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Validació de certificats -->
-		<dependency>
-			<groupId>es.caib.signatura.valcert</groupId>
-			<artifactId>valcert-client-axis</artifactId>
-			<version>1.6.1</version>
-			<type>jar</type>
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>bouncycastle</groupId>
-					<artifactId>bcprov-jdk14</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>bouncycastle</groupId>
-					<artifactId>bctsp-jdk14</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>bouncycastle</groupId>
-					<artifactId>bcmail-jdk14</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>axis</groupId>
-					<artifactId>axis-wsdl4j</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 		<dependency>
 			<artifactId>iam-common</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
@@ -566,6 +534,12 @@
 			<artifactId>iam-tomee</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
 			<version>${iam.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.tomee</groupId>
+					<artifactId>openejb-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<artifactId>iam-core</artifactId>

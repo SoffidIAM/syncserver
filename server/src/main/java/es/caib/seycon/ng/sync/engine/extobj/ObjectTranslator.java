@@ -9,8 +9,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 
-import org.apache.axis.InternalException;
-
 import com.soffid.iam.api.System;
 import com.soffid.iam.sync.engine.InterfaceWrapper;
 
