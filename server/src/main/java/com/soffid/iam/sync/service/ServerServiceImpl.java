@@ -1213,7 +1213,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 		AccountEntity accountEntity = getAccountEntityDao()
 				.findByNameAndSystem(account, dispatcherId);
 
-		return getApplicationService().findRoleGrantByAccount(
+		if (accountEntity == null)
+			return new LinkedList<RoleGrant>();
+		else
+			return getApplicationService().findRoleGrantByAccount(
 				accountEntity.getId());
 	}
 

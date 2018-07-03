@@ -118,7 +118,6 @@ public class AuthoritativeLoaderEngine {
 				postDeleteTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
 				preUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
 				postUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
-				HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> postUpdateTrigger = new HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>>();
 				for (ReconcileTrigger trigger: dispatcherService.findReconcileTriggersByDispatcher(system.getId()))
 				{
 					SoffidObjectType type = trigger.getObjectType();

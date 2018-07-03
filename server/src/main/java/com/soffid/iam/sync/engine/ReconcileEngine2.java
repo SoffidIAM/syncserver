@@ -17,6 +17,7 @@ import java.util.List;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.Application;
 import com.soffid.iam.api.AttributeVisibilityEnum;
 import com.soffid.iam.api.DataType;
@@ -170,7 +171,7 @@ public class ReconcileEngine2
 				appService.delete(role);
 				executeTriggers(postDelete, eo, null);
 			} catch (Exception e) {
-				log.println("Error: "+e.toString());
+				log.println(" Error: "+e.toString());
 			}
 		}
 	}
@@ -199,7 +200,7 @@ public class ReconcileEngine2
 						accountService.removeAccount(account);
 						executeTriggers(postDelete, eo, null);
 					} catch (Exception e) {
-						log.println("Error: "+e.toString());
+						log.println(" Error: "+e.toString());
 					}
 				}
 			}
@@ -379,9 +380,73 @@ public class ReconcileEngine2
 		if (isUnmanaged && acc.isDisabled() != existingAccount.isDisabled())
 		{
 			acc.setDisabled(existingAccount.isDisabled());
+			acc.setStatus(acc.isDisabled() ? AccountStatus.DISABLED: AccountStatus.ACTIVE);
 			anyChange = true;
 		}
 
+		if (isUnmanaged && existingAccount.getType() != AccountType.IGNORED && existingAccount.getType() != null &&
+				acc.getType() != existingAccount.getType())
+		{
+			acc.setType(existingAccount.getType());
+			anyChange = true;
+		}
+
+		if (isUnmanaged && !acc.getOwnerUsers().equals(existingAccount.getOwnerUsers()) &&
+				existingAccount.getOwnerUsers() != null)
+		{
+			acc.setOwnerUsers(existingAccount.getOwnerUsers());
+			anyChange = true;
+		}
+		if (isUnmanaged && !acc.getOwnerGroups().equals(existingAccount.getOwnerGroups())  &&
+				existingAccount.getOwnerGroups() != null)
+		{
+			acc.setOwnerGroups(existingAccount.getOwnerGroups());
+			anyChange = true;
+		}
+		if (isUnmanaged && !acc.getOwnerRoles().equals(existingAccount.getOwnerRoles())  &&
+				existingAccount.getOwnerRoles() != null)
+		{
+			acc.setOwnerRoles(existingAccount.getOwnerRoles());
+			anyChange = true;
+		}
+
+		if (isUnmanaged && !acc.getManagerUsers().equals(existingAccount.getManagerUsers())  &&
+				existingAccount.getManagerUsers() != null)
+		{
+			acc.setManagerUsers(existingAccount.getManagerUsers());
+			anyChange = true;
+		}
+		if (isUnmanaged && !acc.getManagerGroups().equals(existingAccount.getManagerGroups())  &&
+				existingAccount.getManagerGroups() != null)
+		{
+			acc.setManagerGroups(existingAccount.getManagerGroups());
+			anyChange = true;
+		}
+		if (isUnmanaged && !acc.getManagerRoles().equals(existingAccount.getManagerRoles())  &&
+				existingAccount.getManagerRoles() != null)
+		{
+			acc.setManagerRoles(existingAccount.getManagerRoles());
+			anyChange = true;
+		}
+
+		if (isUnmanaged && !acc.getGrantedUsers().equals(existingAccount.getGrantedUsers()) &&
+				existingAccount.getGrantedUsers() != null)
+		{
+			acc.setGrantedUsers(existingAccount.getGrantedUsers());
+			anyChange = true;
+		}
+		if (isUnmanaged && !acc.getGrantedGroups().equals(existingAccount.getGrantedGroups()) &&
+				existingAccount.getGrantedGroups() != null)
+		{
+			acc.setGrantedGroups(existingAccount.getGrantedGroups());
+			anyChange = true;
+		}
+		if (isUnmanaged && !acc.getGrantedRoles().equals(existingAccount.getGrantedRoles()) &&
+				existingAccount.getGrantedRoles() != null)
+		{
+			acc.setGrantedRoles(existingAccount.getGrantedRoles());
+			anyChange = true;
+		}
 		if (anyChange)
 		{
 			if (isUnmanaged)
@@ -432,10 +497,51 @@ public class ReconcileEngine2
 			acc.setType(existingAccount.getType());
 		if (acc.getPasswordPolicy() == null)
 			acc.setPasswordPolicy(passwordPolicy);
-		acc.setGrantedGroups(new LinkedList<Group>());
-		acc.setGrantedRoles(new LinkedList<Role>());
-		acc.setGrantedUsers(new LinkedList<User>());
 		acc.setAttributes(existingAccount.getAttributes());
+		if (existingAccount.getType() != AccountType.IGNORED && existingAccount.getType() != null )
+		{
+			acc.setType(existingAccount.getType());
+		}
+
+		if (existingAccount.getOwnerUsers() != null)
+		{
+			acc.setOwnerUsers(existingAccount.getOwnerUsers());
+		}
+		if (existingAccount.getOwnerGroups() != null)
+		{
+			acc.setOwnerGroups(existingAccount.getOwnerGroups());
+		}
+		if (existingAccount.getOwnerRoles() != null)
+		{
+			acc.setOwnerRoles(existingAccount.getOwnerRoles());
+		}
+
+		if (existingAccount.getManagerUsers() != null)
+		{
+			acc.setManagerUsers(existingAccount.getManagerUsers());
+		}
+		if (existingAccount.getManagerGroups() != null)
+		{
+			acc.setManagerGroups(existingAccount.getManagerGroups());
+		}
+		if (existingAccount.getManagerRoles() != null)
+		{
+			acc.setManagerRoles(existingAccount.getManagerRoles());
+		}
+
+		if (existingAccount.getGrantedUsers() != null)
+		{
+			acc.setGrantedUsers(existingAccount.getGrantedUsers());
+		}
+		if (existingAccount.getGrantedGroups() != null)
+		{
+			acc.setGrantedGroups(existingAccount.getGrantedGroups());
+		}
+		if (existingAccount.getGrantedRoles() != null)
+		{
+			acc.setGrantedRoles(existingAccount.getGrantedRoles());
+		}
+
 		boolean ok = true;
 		try {
 			
@@ -904,7 +1010,7 @@ public class ReconcileEngine2
 			}
 			if (role2 == null)
 			{
-				log.append("ERROR: Cannot find role "+existingGrant.getRoleName());
+				log.println(" ERROR: Cannot find role "+existingGrant.getRoleName());
 				return null;				
 			}
 			role2.setSystem(dispatcher.getName());

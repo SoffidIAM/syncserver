@@ -27,10 +27,12 @@ import com.soffid.iam.sync.service.ServerService;
 import bsh.EvalError;
 import bsh.Interpreter;
 import bsh.NameSpace;
+import bsh.ParseException;
 import bsh.Primitive;
 import bsh.TargetError;
 import es.caib.seycon.ng.comu.AttributeDirection;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.SoffidStackTrace;
 
 /**
  * @author bubu
@@ -405,18 +407,13 @@ public class ObjectTranslator
 				return false;
 			else
 				return true;
-		} catch (TargetError e) {
-			throw new InternalErrorException ("Error evaluating expression "+condition+": "+
-					e.getTarget().getMessage(),
-					e.getTarget());
-		} catch (EvalError e) {
-			String msg;
-			try {
-				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
-			} catch (Exception e2) {
-				msg = e.getMessage();
-			}
-			throw new InternalErrorException ("Error evaluating expression "+condition+": "+msg);
+		} catch (ParseException ex) {
+			throw new InternalErrorException ("Error parsing expression "+condition+": "+
+					ex.getMessage());
+		} catch (TargetError ex) {
+			throw new InternalErrorException (ex.getMessage()+" executing expression  at "+ex.getScriptStackTrace(), ex.getTarget());
+		} catch (EvalError ex) {
+			throw new InternalErrorException ("Error evaluating expression "+ex.getMessage()+" at line "+ex.getErrorLineNumber()+" "+ex.getScriptStackTrace());
 		}
 	}
 	

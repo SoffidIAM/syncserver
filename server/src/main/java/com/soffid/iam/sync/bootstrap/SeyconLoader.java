@@ -275,8 +275,8 @@ public class SeyconLoader extends Object {
             } else {
                 out.close();
                 tmpFile.renameTo(targetFile);
-                fvm.deleteOldCopies(jarName);
                 log.info("Generated {}", fileName, null);
+                fvm.deleteOldCopies(jarName);
             }
         } catch (Exception e) {
             if (out != null)
