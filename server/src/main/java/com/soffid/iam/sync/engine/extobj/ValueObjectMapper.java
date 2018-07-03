@@ -10,6 +10,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -282,8 +283,8 @@ public class ValueObjectMapper
 		}
 		if (object.getObjectType().equals(SoffidObjectType.OBJECT_GROUP.getValue()))
 		{
-			change.setObjectType(SoffidObjectType.OBJECT_GROUP);
 			change = new AuthoritativeChange ();
+			change.setObjectType(SoffidObjectType.OBJECT_GROUP);
 			change.setGroup(parseGroup(object));
 		}
 		if (object.getObjectType().equals(SoffidObjectType.OBJECT_CUSTOM.getValue()))
@@ -334,6 +335,17 @@ public class ValueObjectMapper
 			}
 			else
 				account.setType(AccountType.IGNORED);
+
+			account.setOwnerUsers(parseList(object, "ownerUsers"));
+			account.setOwnerGroups(parseList(object, "ownerGroups"));
+			account.setOwnerRoles(parseList(object, "ownerRoles"));
+			//account.setGrantedUsers(parseList(object, "grantedUsers"));
+			//account.setGrantedGroups(parseList(object, "grantedGroups"));
+			//account.setGrantedRoles(parseList(object, "grantedRoles"));
+			account.setManagerUsers(parseList(object, "managerUsers"));
+			account.setManagerGroups(parseList(object, "managerGroups"));
+			account.setManagerRoles(parseList(object, "managerRoles"));
+
 			account.setPasswordPolicy( toSingleString(object.getAttribute("passwordPolicy")));
 			Object map = object.getAttribute("accountAttributes");
 			if (map != null && map instanceof Map)
@@ -348,6 +360,13 @@ public class ValueObjectMapper
 		return account;
 	}
 
+	private Collection parseList(ExtensibleObject object, String tag) {
+		Object value = object.get(tag);
+		if (value != null && value instanceof Collection)
+			return (Collection) value;
+		else
+			return null;
+	}
 	public Group parseGroup (ExtensibleObject object) throws InternalErrorException
 	{
 		Group grup = null;
