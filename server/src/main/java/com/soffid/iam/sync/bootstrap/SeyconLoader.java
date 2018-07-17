@@ -1,7 +1,6 @@
 // Copyright (c) 2000 Govern  de les Illes Balears
 package com.soffid.iam.sync.bootstrap;
 
-import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -10,28 +9,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.sql.SQLException;
-import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Vector;
-import java.util.jar.Attributes;
 import java.util.jar.JarFile;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
@@ -39,7 +27,6 @@ import org.mortbay.log.Logger;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.ssl.ConnectionFactory;
-import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.jetty.DupOutputStream;
 import com.soffid.iam.sync.jetty.SeyconLog;
 import com.soffid.iam.sync.service.ServerService;
@@ -182,6 +169,7 @@ public class SeyconLoader extends Object {
             generateEngineFile();
             downloadDependencies("syncserver");
             fvm.deleteAllCopies("seycon-library");
+            generateStandardJar("iam-tomee");
             generateStandardJar("iam-core");
             downloadDependencies("iam-core");
         }
