@@ -491,7 +491,7 @@ public class ValueObjectMapper
 	public RoleGrant parseGrant (Map<String,Object> map)
 	{
 		RoleGrant rg = new RoleGrant();
-		rg.setSystem(toSingleString(map.get("grantedRolSystem")));
+		rg.setSystem(toSingleString(map.get("grantedRoleSystem")));
 		rg.setDomainValue(toSingleString(map.get("domainValue")));
 		rg.setHasDomain(rg.getDomainValue() != null);
 		rg.setId(toLong(toSingleton(map.get("id"))));
@@ -505,6 +505,7 @@ public class ValueObjectMapper
 		rg.setRoleId((Long) toSingleton(map.get("grantedRoleId")));
 		rg.setUser(toSingleString(map.get("ownerUser")));
 		rg.setHasDomain(rg.getDomainValue() != null);
+		rg.setHolderGroup((String) map.get("holderGroup"));
 		return rg;
 	}
 	

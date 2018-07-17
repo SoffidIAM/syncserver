@@ -67,6 +67,8 @@ public class GrantExtensibleObject extends ExtensibleObject
 			obj = grant.getOwnerRoleName();
 		else if ("ownerUser".equals(attribute))
 			obj = grant.getUser();
+		else if ("holderGroup".equals(attribute))
+			obj = grant.getHolderGroup();
 		else if ("ownerUserObject".equals(attribute) && grant.getUser() != null)
 		{
 			try {
