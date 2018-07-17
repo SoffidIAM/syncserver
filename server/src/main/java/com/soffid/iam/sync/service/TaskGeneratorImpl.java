@@ -190,7 +190,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         log.info("Looking for agent updates", null, null);
         ArrayList<DispatcherHandlerImpl> oldDispatchers = new ArrayList<DispatcherHandlerImpl>(
                 dispatchers);
-        Collection<SystemEntity> entities = getSystemEntityDao().findServerTenants( config.getHostName());
+        Collection<SystemEntity> entities = new HashSet<SystemEntity>( getSystemEntityDao().findServerTenants( config.getHostName()) );
+        
         // Reconfigurar dispatcher modificats
         for (Iterator<SystemEntity> it = entities.iterator(); it.hasNext(); ) {
             SystemEntity dispatcherEntity = it.next();
