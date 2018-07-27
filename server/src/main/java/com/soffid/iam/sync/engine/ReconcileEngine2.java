@@ -891,7 +891,12 @@ public class ReconcileEngine2
 		for (int i = 0; i < 2; i++)
 		{
 			try {
-				return agent.getAccountGrants(acc.getName());
+				List<RoleGrant> grants = agent.getAccountGrants(acc.getName());
+				for (RoleGrant grant: grants)
+				{
+					grant.setSystem(dispatcher.getName());
+				}
+				return grants;
 			} catch (Throwable e) {
 				log.append("Error getting account grants. Retrying\n");
 				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
