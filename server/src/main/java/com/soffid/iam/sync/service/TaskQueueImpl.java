@@ -636,7 +636,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		th.setTask(getTaskEntityDao().toTask(newTask));
 		th.setTimeout(null);
 		th.setValidated(false);
-		addTask(th);
+		if (newTask.getId() != null)
+			addTask(th);
 		return th;
 	}
 
@@ -1382,7 +1383,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			Task tasca = task.getTask();
 			tasca.setTaskDate(Calendar.getInstance());
 			TaskEntity tasque = getTaskEntityDao().taskToEntity(tasca);
-			getTaskEntityDao().create(tasque);
+			getTaskEntityDao().createForce(tasque);
 			tasca.setId(tasque.getId());
 			addTask(task);
 		}
