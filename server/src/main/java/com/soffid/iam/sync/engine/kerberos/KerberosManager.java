@@ -55,6 +55,7 @@ public class KerberosManager {
 
     private Collection<DispatcherHandler> getDispatcherHandlerForRealm (String domain) throws InternalErrorException 
     {
+//    	log.info("Getting systems for realm {}", domain, null);
         Collection<DispatcherHandler> result = new LinkedList<DispatcherHandler>();
         Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
         for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
@@ -62,10 +63,15 @@ public class KerberosManager {
             if (handler != null) {
                 KerberosAgent krb = handler.getKerberosAgent();
                 try {
-                    if (krb != null && domain.equals(krb.getRealmName()))
-                        result.add(handler);
+                	if (krb != null)
+                	{
+	                	String actualDomain = krb.getRealmName();
+	                    if (domain.equals(actualDomain)) {
+	                        result.add(handler);
+	                    }
+                	}
                 } catch (InternalErrorException e) {
-                    log.warn("Error getting kerberos name", e);
+                    log.warn("Error getting kerberos name in "+handler.getSystem().getName(), e);
                 }
             }
         }
