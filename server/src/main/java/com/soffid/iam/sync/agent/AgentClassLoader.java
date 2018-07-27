@@ -27,7 +27,8 @@ public class AgentClassLoader extends URLClassLoader {
         // First, check if the class has already been loaded
         Class c = findLoadedClass(name);
         if (c == null) {
-            if (getParent() != null && (name.startsWith("java.")  || name.startsWith("javax."))) {
+            if (getParent() != null && (name.startsWith("java.")  || name.startsWith("javax.")) &&
+            		! name.startsWith("javax.ws.")) {
                 try {
                     c = getParent().loadClass(name);
                 } catch (ClassNotFoundException e) {
