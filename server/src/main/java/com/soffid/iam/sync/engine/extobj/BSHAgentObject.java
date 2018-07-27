@@ -1,5 +1,7 @@
 package com.soffid.iam.sync.engine.extobj;
 
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.Map;
 
 import com.soffid.iam.sync.intf.ExtensibleObject;
@@ -55,4 +57,20 @@ public class BSHAgentObject {
 		else
 			return objs.getObjects().get(0);
 	}
+
+	public Collection<Map<String,Object>> invoke (String verb, String command, Map<String, Object> params) throws InternalErrorException
+	{
+		if (finder != null)
+			return finder.invoke(verb, command, params);
+
+		if (finderV1 != null)
+		{
+			return finderV1.invoke(verb, command, params);
+		}
+
+		throw new InternalErrorException("Invoke method not supported");
+		
+	}
+	
+	
 }
