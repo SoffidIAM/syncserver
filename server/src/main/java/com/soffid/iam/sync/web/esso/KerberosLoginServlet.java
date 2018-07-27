@@ -190,7 +190,10 @@ public class KerberosLoginServlet extends HttpServlet {
         String domain = principal.substring(split + 1).toUpperCase();
 
         System dispatcher = km.getSystemForRealm(domain); 
-        
+        if (dispatcher == null)
+        {
+        	log.warn("Cannot guess agent for principal {} (domain {})", principal, domain);
+        }
         LogonService logonService = ServerServiceLocator.instance().getLogonService();
         final Challenge challenge = logonService.requestChallenge(Challenge.TYPE_KERBEROS, 
         				user,

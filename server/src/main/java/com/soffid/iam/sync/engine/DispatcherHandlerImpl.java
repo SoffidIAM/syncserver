@@ -1735,7 +1735,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					taskEntity.setHost(taskHandler.getTask().getHost());
 					taskEntity.setUser(user);
 					taskEntity.setSystemName(getSystem().getName());
-					
+		            tasqueEntityDao.createForce(taskEntity);
+
 					taskqueue.addTask(taskEntity);
 				}
 			}
@@ -2080,6 +2081,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 taskEntity.setDb(getSystem().getName());
                 taskEntity.setSystemName(getSystem().getName());
 	            taskEntity.setTenant( tenant );
+	            tasqueEntityDao.createForce(taskEntity);
                 taskqueue.addTask(taskEntity);
             }
         }

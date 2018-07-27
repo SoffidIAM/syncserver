@@ -102,7 +102,6 @@ public class ServerApplication extends SoffidApplication {
         // Download del codi font
         if (config.isActiveServer()) {
             jetty.bindServiceServlet("/", null, DownloadLibraryServlet.class);
-
         }
 
         for ( Object service: 

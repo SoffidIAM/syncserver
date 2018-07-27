@@ -335,7 +335,7 @@ public class SeyconLoader extends Object {
         }
     }
 
-    private void downloadFile(String sourceURL, String fileName)
+    public static void downloadFile(String sourceURL, String fileName)
             throws Exception, IOException {
         InputStream in = null;
         OutputStream out = null;

@@ -866,6 +866,11 @@ public class InterfaceWrapper {
 			public ExtensibleObject find(ExtensibleObject pattern) throws Exception {
 				return agent.find( es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject(pattern));
 			}
+
+			public Collection<Map<String, Object>> invoke(String verb, String command, Map<String, Object> params)
+					throws InternalErrorException {
+				return agent.invoke(verb, command, params);
+			}
 		};
 	}
 

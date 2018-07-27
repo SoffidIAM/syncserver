@@ -572,6 +572,9 @@ public class ReconcileEngine2
 		} catch (AccountAlreadyExistsException e) {
 			throw new InternalErrorException ("Unexpected exception", e);
 		}
+		
+		reconcileRoles (acc);
+
 	}
 
 	private List<ReconcileTrigger> findTriggers (SoffidObjectType type, SoffidObjectTrigger trigger)
@@ -1134,7 +1137,7 @@ public class ReconcileEngine2
 		if (role.getDescription().length() > 150)
 			role.setDescription(role.getDescription().substring(0, 150));
 				
-		return appService.create(role);
+		return appService.create2(role);
 	}
 
 	protected Role updateRole (Role soffidRole, Role systemRole) throws InternalErrorException
@@ -1185,13 +1188,12 @@ public class ReconcileEngine2
 		}
 
 		if (systemRole.getOwnedRoles() != null && !
-				systemRole.getOwnedRoles().equals(systemRole.getOwnedRoles()))
+				systemRole.getOwnedRoles().equals(soffidRole.getOwnedRoles()))
 		{
 			soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
 			anyChange = true;
 		}
 		
-		boolean containsOwnedRoles = systemRole.getOwnedRoles() != null;
 		if (systemRole.getOwnerRoles() != null && !
 				systemRole.getOwnerRoles().equals(soffidRole.getOwnerRoles()))
 		{
@@ -1240,7 +1242,7 @@ public class ReconcileEngine2
 			if (ok)
 			{
 				log.append ("Updating role "+soffidRole.getName()+"\n");
-				soffidRole = appService.update(soffidRole);
+				soffidRole = appService.update2(soffidRole);
 				executeTriggers(postUpdateRole, 
 						new RoleExtensibleObject(r, serverService),
 						new RoleExtensibleObject(soffidRole, serverService));

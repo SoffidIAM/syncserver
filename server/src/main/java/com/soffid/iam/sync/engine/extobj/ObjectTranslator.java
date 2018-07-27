@@ -109,8 +109,6 @@ public class ObjectTranslator
 		return objects;
 	}
 
-	
-
 	public ExtensibleObjects parseInputObjects (ExtensibleObject source) throws InternalErrorException
 	{
 		ExtensibleObjects target = new ExtensibleObjects();
