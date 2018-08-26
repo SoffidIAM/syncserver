@@ -195,6 +195,8 @@ public class KerberosLoginServlet extends HttpServlet {
         	log.warn("Cannot guess agent for principal {} (domain {})", principal, domain);
         }
         LogonService logonService = ServerServiceLocator.instance().getLogonService();
+        
+        
         final Challenge challenge = logonService.requestChallenge(Challenge.TYPE_KERBEROS, 
         				user,
         				dispatcher==null ? null: dispatcher.getName(), 
@@ -202,6 +204,12 @@ public class KerberosLoginServlet extends HttpServlet {
         				Integer.decode(cardSupport));
 
         challenge.setKerberosDomain(domain);
+
+        // Check some credentials are stored
+        if ( secretStoreService.getAllSecrets(challenge.getUser()).isEmpty()) {
+        	throw new LogonDeniedException("No secrets available for "+user+" yet");
+        }
+
 
         Subject serverSubject = km.getServerSubject(challenge.getKerberosDomain());
 
