@@ -61,6 +61,8 @@ public class RoleExtensibleObject extends ExtensibleObject
     			obj = role.getPassword();
     		else if ("description".equals(attribute))
     			obj = role.getDescription();
+    		else if ("wfmanaged".equals(attribute))
+    			obj = role.getBpmEnforced();
     		else if ("ownedRoles".equals(attribute))
     		{
     			List<ExtensibleObject> ownedRoles = new LinkedList<ExtensibleObject>();
