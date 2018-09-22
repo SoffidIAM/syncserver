@@ -85,9 +85,10 @@ public class CertificateServer {
 
         // Generar clave raiz
         KeyPair pair = keyGen.generateKeyPair();
-        X509V3CertificateGenerator generator = getX509Generator();
-        generator.setSubjectDN(new X509Name(MASTER_CA_NAME));
-        X509Certificate cert = createCertificate("master", "RootCA", pair.getPublic(), pair.getPrivate(), true);
+//        X509V3CertificateGenerator generator = getX509Generator();
+//        generator.setSubjectDN(new X509Name(MASTER_CA_NAME));
+//        generator.setSignatureAlgorithm("SHA256WithRSA");
+        X509Certificate cert = createCertificate("master", "RootCA", pair.getPublic(), pair.getPrivate(), null, true);
         rootks.setKeyEntry(SeyconKeyStore.ROOT_KEY, pair.getPrivate(), password.getPassword()
                 .toCharArray(), new X509Certificate[] { cert });
 
@@ -121,14 +122,15 @@ public class CertificateServer {
             UnrecoverableKeyException, KeyStoreException {
 
         Key key = rootks.getKey(SeyconKeyStore.ROOT_KEY, password.getPassword().toCharArray());
-        return createCertificate(tenant, hostName, certificateKey, (PrivateKey) key, root);
+        X509Certificate rootCert = (X509Certificate) rootks.getCertificate(SeyconKeyStore.ROOT_KEY);
+        return createCertificate(tenant, hostName, certificateKey, (PrivateKey) key, rootCert, root);
     }
 
     public X509Certificate createCertificate(String tenant, String hostName, PublicKey certificateKey,
-            PrivateKey signerKey, boolean root) throws CertificateEncodingException, InvalidKeyException,
+            PrivateKey signerKey, X509Certificate rootCert, boolean root) throws CertificateEncodingException, InvalidKeyException,
             IllegalStateException, NoSuchProviderException, NoSuchAlgorithmException,
             SignatureException {
-        X509V3CertificateGenerator generator = getX509Generator();
+        X509V3CertificateGenerator generator = getX509Generator(rootCert);
         Vector<ASN1ObjectIdentifier> tags = new Vector<ASN1ObjectIdentifier>();
         Vector<String> values = new Vector<String>();
         tags.add (RFC4519Style.cn); values.add (hostName);
@@ -138,7 +140,8 @@ public class CertificateServer {
         generator.setSubjectDN(name);
         generator.setPublicKey(certificateKey);
         generator.setNotBefore(new Date());
-        generator.setSignatureAlgorithm("SHA256WithRSA");
+        String algorithm = "SHA256WithRSA";
+        generator.setSignatureAlgorithm(algorithm);
         Calendar c = Calendar.getInstance();
         c.add(Calendar.YEAR, 10);
         generator.setNotAfter(c.getTime());
@@ -148,7 +151,7 @@ public class CertificateServer {
         	generator.addExtension(
         		    X509Extensions.BasicConstraints, true, new BasicConstraints(true));
         }
-        else
+        else 
         {
 	        GeneralNames subjectAltName = new GeneralNames(
 	        		new GeneralName[] {
@@ -199,7 +202,7 @@ public class CertificateServer {
 
             X509Certificate root = enrollService.getRootCertificate();
             ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, root);
-            selfSigned = createCertificate(adminTenant, hostName, publicKey, privateKey, false);
+            selfSigned = createCertificate(adminTenant, hostName, publicKey, privateKey, root, false);
             ks.setKeyEntry(PRIVATE_KEY, privateKey, password.getPassword().toCharArray(),
                     new Certificate[] { selfSigned });
             SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
@@ -248,12 +251,19 @@ public class CertificateServer {
 
     }
 
-    private X509V3CertificateGenerator getX509Generator() {
+    private X509V3CertificateGenerator getX509Generator(X509Certificate rootCert) {
 
         long now = System.currentTimeMillis() - 1000 * 60 * 10; // 10 minutos
         long l = now + 1000L * 60L * 60L * 24L * 365L * 5L; // 5 años
         X509V3CertificateGenerator generator = new X509V3CertificateGenerator();
-        generator.setIssuerDN(new X509Name(MASTER_CA_NAME));
+        if (rootCert == null)
+        {
+        	generator.setIssuerDN(new X509Name(MASTER_CA_NAME));
+        }
+        else
+        {
+        	generator.setIssuerDN(rootCert.getSubjectX500Principal());	
+        }
         generator.setNotAfter(new Date(l));
         generator.setNotBefore(new Date(now));
         generator.setSerialNumber(BigInteger.valueOf(now));
