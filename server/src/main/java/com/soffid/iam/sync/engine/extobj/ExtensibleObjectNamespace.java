@@ -67,7 +67,7 @@ public class ExtensibleObjectNamespace extends ExternalNameSpace2
 				externalMap.put(name,  new RemoteServiceLocator());
 			else if ("dispatcherService".equals (name))
 				externalMap.put(name,  agent);
-			else if ("THIS".equals (name))
+			else if ("THIS".equalsIgnoreCase(name) )
 				externalMap.put(name,  object);
 			else if (object.containsKey(name)){
 				if (value == null)

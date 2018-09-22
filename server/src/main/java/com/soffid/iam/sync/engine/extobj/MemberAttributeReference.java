@@ -55,7 +55,7 @@ public class MemberAttributeReference extends AttributeReference
 		Object p = parentReference.getValue();
 		if (p == null)
 			return null;
-		else if ("this".equals(member))
+		else if ("this".equalsIgnoreCase(member))
 			return p;
 		else if (p instanceof Map)
 			return ((Map) p).get(member);
