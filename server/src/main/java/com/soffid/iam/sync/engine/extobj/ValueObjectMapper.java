@@ -143,6 +143,35 @@ public class ValueObjectMapper
 	}
 	
 	
+	final static String [] USER_ATTRIBUTES = new String [] {
+			"active",
+			"mailAlias",
+			"userName",
+			"primaryGroup",
+			"comments",
+			"createdOn",
+			"modifiedOn",
+			"mailDomain",
+			"fullName",
+			"id",
+			"multiSession",
+			"firstName",
+			"shortName",
+			"lastName",
+			"lastName2",
+			"mailServer",
+			"homeServer",
+			"profileServer",
+			"phone",
+			"userType",
+			"createdBy",
+			"modifiedBy",
+			"attributes",
+			"secondaryGroups",
+			"changeId",
+			"changeDate",
+			"employeeId"
+	};
 	
 	public User parseUser (ExtensibleObject object) throws InternalErrorException
 	{
@@ -150,7 +179,7 @@ public class ValueObjectMapper
 		if (object.getObjectType().equals(SoffidObjectType.OBJECT_USER.getValue()))
 		{
 			usuari = new User();
-			for (String attribute: object.getAttributes())
+			for (String attribute: USER_ATTRIBUTES)
 			{
 				try 
 				{
@@ -216,7 +245,7 @@ public class ValueObjectMapper
 				id = new AuthoritativeChangeIdentifier();
 				change.setId(id);
 			}
-			for (String attribute: object.getAttributes())
+			for (String attribute: USER_ATTRIBUTES)
 			{
 				try {
 					Object value = object.getAttribute(attribute);
