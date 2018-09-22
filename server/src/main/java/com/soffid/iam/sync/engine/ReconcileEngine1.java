@@ -5,12 +5,14 @@ package com.soffid.iam.sync.engine;
 
 import java.io.PrintWriter;
 import java.rmi.RemoteException;
+import java.util.LinkedList;
 import java.util.List;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
-import com.soffid.iam.sync.intf.ReconcileMgr2;
+import com.soffid.iam.api.User;
+import com.soffid.iam.sync.intf.ReconcileMgr;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 
@@ -18,31 +20,44 @@ import es.caib.seycon.ng.exception.InternalErrorException;
  * @author bubu
  *
  */
-public class ReconcileEngine2 extends ReconcileEngine
+public class ReconcileEngine1 extends ReconcileEngine
 {
 
-	private ReconcileMgr2 agent;
+	private ReconcileMgr agent;
 
-	public ReconcileEngine2(com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent,
+	public ReconcileEngine1(com.soffid.iam.api.System dispatcher, ReconcileMgr agent,
 			PrintWriter out) {
 		super (dispatcher, out);
 		this.agent = agent;
 	}
 
 
+	Account userToAccount(User u)
+	{
+		if (u == null)
+			return null;
+		Account acc = new Account();
+		acc.setName(u.getUserName());
+		acc.setDescription(u.getFullName());
+		if (acc.getDescription() == null || acc.getDescription().trim().isEmpty())
+			acc.setDescription(u.getFirstName()+" "+u.getLastName());
+		acc.setDisabled( u.getActive() != null && u.getActive().booleanValue());
+		return acc;
+	}
+	
 
 	@Override
 	protected Account getAccountInfo(String accountName) throws RemoteException, InternalErrorException {
 		for (int i = 0; i < 2; i++)
 		{
 			try {
-				return agent.getAccountInfo(accountName);
+				return userToAccount( agent.getUserInfo(accountName) );
 			} catch (Throwable e) {
 				log.append("Error getting account info. Retrying in 10 seconds\n");
 				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
 			}
 		}
-		return agent.getAccountInfo(accountName);
+		return userToAccount( agent.getUserInfo(accountName) );
 	}
 
 
@@ -90,22 +105,29 @@ public class ReconcileEngine2 extends ReconcileEngine
 	}
 
 	@Override
-	protected List<RoleGrant> getAccountGrants(Account acc) throws RemoteException, InternalErrorException {
-		for (int i = 0; i < 2; i++)
+	protected  List<RoleGrant> getAccountGrants(Account acc) throws RemoteException, InternalErrorException {
+		for (int i = 0; i < 3; i++)
 		{
 			try {
-				List<RoleGrant> grants = agent.getAccountGrants(acc.getName());
-				for (RoleGrant grant: grants)
+				List<RoleGrant> grants = new LinkedList<RoleGrant>(); 
+				for (Role role: agent.getAccountRoles(acc.getName()))
 				{
+					RoleGrant grant = new RoleGrant();
+					grant.setRoleName(role.getName());
+					grant.setOwnerAccountName(acc.getName());
 					grant.setSystem(dispatcher.getName());
+					grant.setOwnerSystem(dispatcher.getName());
+					grants.add(grant);
 				}
 				return grants;
-			} catch (Throwable e) {
-				log.append("Error getting account grants. Retrying\n");
-				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+			} catch (RemoteException e) {
+				if (i == 2)
+					throw e;
+			} catch (InternalErrorException e) {
+				if (i == 2)
+					throw e;
 			}
 		}
-		return agent.getAccountGrants(acc.getName());
+		return null;
 	}
-
 }

@@ -2201,7 +2201,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			ReconcileMgr2 reconMgr2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
     		if (reconMgr != null)
     		{
-    			new ReconcileEngine (getSystem(), reconMgr).reconcile();
+    			new ReconcileEngine1 (getSystem(), reconMgr, out).reconcile();
     		} 
     		else if (reconMgr2 != null)
         	{
