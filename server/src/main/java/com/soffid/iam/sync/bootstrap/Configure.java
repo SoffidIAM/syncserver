@@ -38,6 +38,7 @@ import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.ApplicationBootService;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.TenantService;
+import com.soffid.iam.ssl.ConnectionFactory;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
@@ -156,7 +157,14 @@ public class Configure {
             if (!cs.hasServerKey())
                 cs.obtainCertificate(serverUrl, adminTenant, adminUser, adminPassword, null);
             else
-                System.out.println ("This node is already configured. Remove conf directory to reconfigure.");
+            {
+                System.out.println ("This node was already configured. To regenerate security keys, you should remove conf directory to reconfigure.");
+                RemoteServiceLocator rsl = new RemoteServiceLocator(serverUrl);
+                ServerService serverService = rsl.getServerService();
+                config.setServerList(serverUrl);
+                config.setServerService(serverService);
+                config.updateFromServer();
+            }
         } catch (NoClassDefFoundError e) {
             System.out.println("Warning: JAVA 6 required");
         } catch (NoSuchMethodError e) {
@@ -274,6 +282,7 @@ public class Configure {
         if (!cs.hasServerKey()) {
             cs.obtainCertificate(serverUrl, adminTenant, adminUser,
                     adminPassword, adminDomain);
+            ConnectionFactory.reloadKeys();
         }
         RemoteServiceLocator rsl = new RemoteServiceLocator(serverUrl);
         ServerService serverService = rsl.getServerService();
