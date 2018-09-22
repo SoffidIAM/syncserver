@@ -61,7 +61,10 @@ public class ServerApplication extends SoffidApplication {
 	   		File confDir = Config.getConfig().getHomeDir();
 	   		File cfgFile = new File ( new File (confDir, "conf"), "jcs.properties");
 	   		if (cfgFile.canRead())
+	   		{
 	   			System.setProperty("soffid.cache.configFile", cfgFile.getAbsolutePath());
+	   			log.info("Using cache configuration file : "+cfgFile.getAbsolutePath());
+	   		}
 	   		else
 	   		{
 				for ( Object[] data: qh.select(
@@ -70,6 +73,7 @@ public class ServerApplication extends SoffidApplication {
 						+ "WHERE  BCO_NAME = 'soffid.cache.config'", new Object [0]))
 				{
 					System.setProperty  ((String) data[0], new String((byte[]) data[1], "UTF-8"));
+		   			log.info("Missing cache configuration file : "+cfgFile.getAbsolutePath());
 				}
 	   		}
    		} finally {
