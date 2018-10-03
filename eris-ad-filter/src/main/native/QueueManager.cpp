@@ -765,7 +765,10 @@ DECLSPEC_EXPORT BOOL configureEris(LPWSTR url, BOOL allowUnknownCA, LPWSTR domai
 			return FALSE;
 	}
 	if (strncmp (hosts, "OK|", 3) != 0 )
+	{
+		printf ("Received error from server: %s\n", hosts);
 		return FALSE;
+	}
 	// Busca el quinto pipe
 	int i = 0;
 	int pipes = 0;
@@ -775,7 +778,10 @@ DECLSPEC_EXPORT BOOL configureEris(LPWSTR url, BOOL allowUnknownCA, LPWSTR domai
 		i ++;
 	}
 	if (! hosts[i])
+	{
+		printf ("Missing seycon.server.list parameter in server configuration\n");
 		return FALSE;
+	}
 	// Construir la lista de URLs
 	WCHAR achURLS [40000];
 	const char *host = &hosts[i];
