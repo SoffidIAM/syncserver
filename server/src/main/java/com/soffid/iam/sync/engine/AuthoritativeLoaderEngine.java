@@ -1,6 +1,5 @@
 package com.soffid.iam.sync.engine;
 
-import java.io.BufferedWriter;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collection;
@@ -14,7 +13,6 @@ import java.util.Set;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.commons.logging.impl.Log4jFactory;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
@@ -32,7 +30,6 @@ import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.GroupService;
 import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
-import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
@@ -44,7 +41,6 @@ import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
 
-import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;

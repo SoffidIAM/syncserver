@@ -30,6 +30,7 @@ import com.soffid.iam.sync.engine.session.SessionManager;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonServiceBase;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -512,8 +513,10 @@ public class LogonServiceImpl extends LogonServiceBase {
 			accountEntity = getAccountEntityDao().findByNameAndSystem(user, domain);
 			
 			if (accountEntity == null)
+			{
 				throw new UnknownUserException(String.format(
-					Messages.getString("LogonServiceImpl.UnknownUserOnDomainMsg"), user, domain)); //$NON-NLS-1$
+						Messages.getString("LogonServiceImpl.UnknownUserOnDomainMsg"), user, domain)); //$NON-NLS-1$
+			}
 
 			dc = accountEntity.getSystem().getPasswordDomain();
 			for (UserAccountEntity ua : accountEntity.getUsers())

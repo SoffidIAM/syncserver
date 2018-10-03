@@ -1077,8 +1077,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 				.getEnableAccessControl())));
 		Collection<AccessControlEntity> acl = dispatcher.getAccessControls();
 		AccessControlEntityDao aclDao = getAccessControlEntityDao();
-		dispatcherInfo.getControlAcces()
-				.addAll(aclDao.toAccessControlList(acl));
+		dispatcherInfo.setControlAcces(aclDao.toAccessControlList(acl));
 
 		return dispatcherInfo;
 	}
