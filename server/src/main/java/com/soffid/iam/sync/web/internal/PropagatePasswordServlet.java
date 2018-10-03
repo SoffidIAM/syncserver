@@ -12,24 +12,32 @@ import javax.servlet.http.HttpServletResponse;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PolicyCheckResult;
+import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.PasswordService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonService;
+import com.soffid.iam.sync.service.Messages;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.UnknownUserException;
 
 public class PropagatePasswordServlet extends HttpServlet {
     
     Logger log = Log.getLogger("PropagatePasswordServlet");
     private LogonService logonService;
 	private PasswordService passwordService;
+	private AccountService accountService;
     
     public PropagatePasswordServlet () {
-        logonService = ServerServiceLocator.instance().getLogonService();
-        passwordService = ServerServiceLocator.instance().getPasswordService();
+        logonService = ServiceLocator.instance().getLogonService();
+        accountService = ServiceLocator.instance().getAccountService();
+        passwordService = ServiceLocator.instance().getPasswordService();
     }
     
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -46,6 +54,12 @@ public class PropagatePasswordServlet extends HttpServlet {
             	log.info("PropagatePassword: user={} domain={} source="+req.getRemoteHost()+"("+req.getRemoteAddr()+")", user, domain);
             BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
             try {
+        		Account acc = accountService.findAccount(user, domain);
+        		if (acc == null) {
+    	       		String prefix = ConfigurationCache.getProperty("soffid.propagatepassword.prefix");
+    	       		if (prefix != null)
+    	       			user = prefix + user;
+        		}
             	if (testOnly)
             	{
             		// When modifying a.d. passwod, a.d. will ask for password correctnes, but this password

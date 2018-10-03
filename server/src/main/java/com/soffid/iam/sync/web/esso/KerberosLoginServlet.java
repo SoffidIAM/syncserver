@@ -6,8 +6,6 @@ import java.io.OutputStreamWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.PrivilegedAction;
-import java.util.Iterator;
-import java.util.List;
 
 import javax.security.auth.Subject;
 import javax.servlet.ServletException;
@@ -32,7 +30,6 @@ import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.challenge.ChallengeStore;
 import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.intf.SecretStoreAgent;
-import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonService;
 import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
