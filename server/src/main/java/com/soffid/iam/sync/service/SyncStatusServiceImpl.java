@@ -674,7 +674,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			String object1, String object2) throws InternalErrorException {
 		Task tasca = new Task();
 		tasca.setTaskDate(Calendar.getInstance());
-		tasca.setServer(dispatcher);
+		tasca.setSystemName(dispatcher);
 		tasca.setExpirationDate(Calendar.getInstance());
 		tasca.getExpirationDate().add(Calendar.MINUTE, 5);
 
@@ -685,14 +685,14 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_GROUP) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_GROUP))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE) ||
@@ -700,33 +700,30 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_MAIL_LIST))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_LIST_ALIAS);
 			tasca.setAlias(object1);
 			tasca.setMailDomain(object2);
-			tasca.setSystemName(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ROLE))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ROLE);
 			tasca.setRole(object1);
 			tasca.setDatabase(dispatcher);
-			tasca.setSystemName(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_USER))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_GROUP))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_GROUP);
 			tasca.setGroup(object1);
-			tasca.setSystemName(dispatcher);
 		}
 		
 		return th;
