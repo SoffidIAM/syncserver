@@ -677,11 +677,16 @@
     		<artifactId>bcpkix-jdk15on</artifactId>
     		<version>1.51</version>
 		</dependency>
-                <dependency>
-                        <groupId>org.apache.openejb</groupId>
-                        <artifactId>javaee-api</artifactId>
-                         <version>6.0-6</version>
-               </dependency>
+        <dependency>
+                <groupId>org.apache.tomee</groupId>
+                <artifactId>javaee-api</artifactId>
+                 <version>7.0-1</version>
+        </dependency>
+        <dependency>
+                <groupId>org.apache.geronimo.javamail</groupId>
+                <artifactId>geronimo-javamail_1.4_mail</artifactId>
+                 <version>1.9.0-alpha-2</version>
+        </dependency>
 		<dependency>
 			<groupId>org.apache.cxf</groupId>
 			<artifactId>cxf-rt-rs-client</artifactId>
