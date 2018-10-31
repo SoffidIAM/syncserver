@@ -133,7 +133,13 @@ public class DownloadLibraryServlet extends HttpServlet {
         {
 	        for (File module: modulesDir.listFiles())
 	        {
-	        	dump (out, module);
+	        	try {
+	        		dump (out, module);
+	        	} 
+	        	catch (Exception e)
+	        	{
+	        		log.warn("Error uncompressing file " + module.getAbsolutePath(), e);
+	        	}
 	        }
         }
 
