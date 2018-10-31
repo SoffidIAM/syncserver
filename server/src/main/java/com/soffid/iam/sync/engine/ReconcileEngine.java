@@ -604,7 +604,7 @@ public abstract class ReconcileEngine
 				}
 				if (value == null) // Remove attribute
 				{
-					if (soffidValue != null )
+					if (soffidValue != null && soffidValue.getId() != null)
 					{
 						accountService.removeAccountAttribute(soffidValue);
 					}
