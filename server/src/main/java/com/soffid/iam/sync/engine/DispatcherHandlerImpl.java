@@ -1625,14 +1625,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	if (mainAgent)
         	{
             	if (agent instanceof AgentInterface)
+            	{
             		agentVersion = ((AgentInterface)agent).getAgentVersion();
+            		supportsRename = ((AgentInterface) agent).supportsRename();
+            	}
             	else if (agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface)
+            	{
             		agentVersion = ((es.caib.seycon.ng.sync.agent.AgentInterface)agent).getAgentVersion();
+            		supportsRename = ((es.caib.seycon.ng.sync.agent.AgentInterface) agent).supportsRename();
+            	}
             	else
+            	{
             		agentVersion = "Unknown";
+            		supportsRename = false;
+            	}
             	objectClass = agent.getClass();
             	lastConnect = new java.util.Date().getTime();
-            	supportsRename = ((AgentInterface) agent).supportsRename(); 
             	KerberosAgent krb = InterfaceWrapper.getKerberosAgent (agent);
             	if (krb != null) {
             		this.agent = agent;
