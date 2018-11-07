@@ -22,10 +22,8 @@ import java.sql.SQLWarning;
 import java.sql.SQLXML;
 import java.sql.Time;
 import java.sql.Timestamp;
-import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.LinkedList;
-import java.util.concurrent.Executor;
 
 public class WrappedPreparedStatement implements PreparedStatement {
 	

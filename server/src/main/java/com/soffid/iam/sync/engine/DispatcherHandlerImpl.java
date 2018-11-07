@@ -112,12 +112,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	Logger log = LoggerFactory.getLogger(DispatcherHandler.class);
     boolean active = true;
     private boolean reconfigure = false;
-    private String status;
     private Object agent;
     private Object objectClass;
     private long lastConnect;
     private boolean actionStop;
-    private long taskQueueStartTime;
     private long nextConnect;
     private Exception connectException;
     private String agentVersion;
@@ -457,7 +455,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             // setName (agentName);
             while (active) {
                 // Actualiza información del último bucle realizado
-                taskQueueStartTime = new java.util.Date().getTime();
+//                taskQueueStartTime = new java.util.Date().getTime();
 
                 // Forzar la reconexion
 
@@ -852,6 +850,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private void updateAccount (Object agent, TaskHandler t) throws RemoteException, InternalErrorException
 	{
 		com.soffid.iam.sync.intf.UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
+
 		if (userMgr != null)
 		{
 			if (t.getTask().getUser() == null || t.getTask().getUser().trim().length() == 0 )
@@ -884,10 +883,32 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     					throw new InternalErrorException("Error getting user "+userId);
     				}
            			
-           			userMgr.updateUser(acc, user);
+    	        	if ( acc.getOldName() != null && supportsRename)
+    	        	{
+    	        		userMgr.updateUser(acc, user);	    	        		
+    	        	}
+    	        	else if (acc.getOldName() != null)
+    	        	{
+    	        		userMgr.removeUser(acc.getOldName());
+    	        		userMgr.updateUser(acc, user);	    	        		
+    	        	}
+    	        	else
+           				userMgr.updateUser(acc, user);
            		}
            		else
-       				userMgr.updateUser(acc);
+           		{
+    	        	if ( acc.getOldName() != null && supportsRename)
+    	        	{
+    	        		userMgr.updateUser(acc);	    	        		
+    	        	}
+    	        	else if (acc.getOldName() != null)
+    	        	{
+    	            	userMgr.removeUser(acc.getOldName());
+    	        		userMgr.updateUser(acc);	    	        		
+    	        	}
+    	        	else
+           				userMgr.updateUser(acc);           			
+           		}
            	}
            	if (acc != null)
            	{
@@ -1395,11 +1416,24 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     	        {
 	        		for (Account account: getAccounts(t))
 	    	        {
-	    				accountService.updateAccountLastUpdate(account);
 	    	        	if (account.isDisabled())
-	    	        		userMgr.removeUser(account.getName());
+	    	        	{
+	    	            	userMgr.removeUser(account.getName());
+	    	        	}
+	    	        	else if ( account.getOldName() != null && supportsRename)
+	    	        	{
+	    	        		userMgr.updateUser(account, user);	    	        		
+	    	        	}
+	    	        	else if (account.getOldName() != null)
+	    	        	{
+	    	            	userMgr.removeUser(account.getOldName());
+	    	        		userMgr.updateUser(account, user);	    	        		
+	    	        	}
 	    	        	else
+	    	        	{
 	    	        		userMgr.updateUser(account, user);
+	    	        	}
+	    				accountService.updateAccountLastUpdate(account);
 	    	        }
     	        }
             } 
@@ -1421,6 +1455,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     private Date lastLog = null;
+	private boolean supportsRename;
+	private String status;
 
     /**
      * Recuperar los registros de acceso del agente remoto
@@ -1589,11 +1625,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	if (mainAgent)
         	{
             	if (agent instanceof AgentInterface)
+            	{
             		agentVersion = ((AgentInterface)agent).getAgentVersion();
+            		supportsRename = ((AgentInterface) agent).supportsRename();
+            	}
             	else if (agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface)
+            	{
             		agentVersion = ((es.caib.seycon.ng.sync.agent.AgentInterface)agent).getAgentVersion();
+            		supportsRename = ((es.caib.seycon.ng.sync.agent.AgentInterface) agent).supportsRename();
+            	}
             	else
+            	{
             		agentVersion = "Unknown";
+            		supportsRename = false;
+            	}
             	objectClass = agent.getClass();
             	lastConnect = new java.util.Date().getTime();
             	KerberosAgent krb = InterfaceWrapper.getKerberosAgent (agent);

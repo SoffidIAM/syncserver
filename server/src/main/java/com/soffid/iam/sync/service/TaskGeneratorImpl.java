@@ -183,7 +183,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     }
 
     @Override
-    protected void handleUpdateAgents() throws Exception {
+    protected synchronized void handleUpdateAgents() throws Exception {
     	boolean anySharedThreadChange = false;
     	
         log.info("Looking for agent updates", null, null);

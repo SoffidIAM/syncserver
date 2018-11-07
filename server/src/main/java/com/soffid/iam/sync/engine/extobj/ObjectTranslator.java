@@ -3,14 +3,10 @@
  */
 package com.soffid.iam.sync.engine.extobj;
 
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 
 import com.soffid.iam.ServiceLocator;
@@ -32,7 +28,6 @@ import bsh.Primitive;
 import bsh.TargetError;
 import es.caib.seycon.ng.comu.AttributeDirection;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.SoffidStackTrace;
 
 /**
  * @author bubu

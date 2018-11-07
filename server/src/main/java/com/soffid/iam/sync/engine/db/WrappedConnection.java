@@ -1,6 +1,5 @@
 package com.soffid.iam.sync.engine.db;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.sql.Array;
 import java.sql.Blob;
@@ -27,8 +26,6 @@ import java.util.concurrent.Executor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import es.caib.seycon.ng.comu.ReplicaDatabase;
 
 public class WrappedConnection implements Connection {
     Connection wrappedConnection;

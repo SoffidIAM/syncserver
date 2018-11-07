@@ -1,7 +1,5 @@
 package com.soffid.iam.sync.engine.extobj;
 
-import java.util.Map;
-
 public abstract class AttributeReference
 {
 	public AttributeReference getParentReference()

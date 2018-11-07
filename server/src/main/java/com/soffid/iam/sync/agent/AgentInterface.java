@@ -10,4 +10,6 @@ package com.soffid.iam.sync.agent;
 public interface AgentInterface
 {
 	String getAgentVersion();
+	
+	boolean supportsRename ();
 }

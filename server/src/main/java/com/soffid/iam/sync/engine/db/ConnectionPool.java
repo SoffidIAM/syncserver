@@ -16,9 +16,7 @@ import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 import com.soffid.iam.config.Config;
-import com.soffid.iam.sync.engine.DispatcherHandler;
 
-import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.servei.TaskGenerator;
 

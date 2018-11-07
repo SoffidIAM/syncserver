@@ -10,9 +10,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AccountStatus;
@@ -27,13 +25,11 @@ import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjects;
-import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.util.DateParser;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.TipusDomini;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.UnknownRoleException;
 
 /**
  * @author bubu
@@ -482,8 +478,8 @@ public class ValueObjectMapper
 				}
 				rol.setOwnerRoles(ownerRoles);
 			}
-			Collection ownerGroupsMap = (Collection) object.getAttribute("ownerGroupss");
-			if (ownerRolesMap != null)
+			Collection ownerGroupsMap = (Collection) object.getAttribute("ownerGroups");
+			if (ownerGroupsMap != null)
 			{
 				LinkedList<Group> ownerGroups = new LinkedList<Group>();
 				for (Object ownerGroupMap: ownerGroupsMap)
