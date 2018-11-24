@@ -1160,8 +1160,17 @@ public abstract class ReconcileEngine
 		if (systemRole.getAttributes() != null && 
 				!systemRole.getAttributes().equals(soffidRole.getAttributes()))
 		{
-			soffidRole.setAttributes(systemRole.getAttributes());
-			anyChange = true;
+			for (String att: systemRole.getAttributes().keySet())
+			{
+				Object v = systemRole.getAttributes().get(att);
+				Object v2 = soffidRole.getAttributes().get(att);
+				if (v != null &&
+						!v.equals(v2))
+				{
+					soffidRole.getAttributes().put(att, v);
+					anyChange = true;
+				}
+			}
 		}
 				
 		if (anyChange)
