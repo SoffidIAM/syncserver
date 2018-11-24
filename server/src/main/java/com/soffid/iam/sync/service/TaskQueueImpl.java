@@ -555,6 +555,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	private void populateTaskLog(TaskHandler newTask, TaskEntity tasque) throws InternalErrorException {
 		// Instanciar los logs
+		String targetDispatcher = tasque.getSystemName();
+		if (targetDispatcher != null && targetDispatcher.trim().isEmpty())
+			targetDispatcher = null;
 		Collection<DispatcherHandler> dispatchers = getTaskGenerator().getDispatchers();
 		ArrayList<TaskHandlerLog> logs = new ArrayList<TaskHandlerLog>(
 						dispatchers.size());
@@ -565,7 +568,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			log.setDispatcher(d);
 			log.setFirst(0);
 			log.setNext(0);
-			log.setComplete(false);
+			if (targetDispatcher == null)
+				log.setComplete(false);
+			else
+				log.setComplete( targetDispatcher.equals(d.getSystem().getName()));				
 			log.setNumber(0);
 			logs.add(log);
 		}
