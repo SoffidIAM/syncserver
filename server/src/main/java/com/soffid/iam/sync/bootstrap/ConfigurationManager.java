@@ -53,11 +53,15 @@ public class ConfigurationManager
 							prop.setProperty(Config.PORT_PROPERTY, rset.getString(1));
 						}
 					});
-    		qh.select("SELECT CON_VALOR FROM SC_CONFIG WHERE CON_IDXAR IS NULL AND CON_CODI='seycon.server.list' AND CON_TEN_ID=?",
+    		qh.select("select SRV_URL from SC_TENSER, SC_SERVER WHERE TNS_TEN_ID=? AND TNS_SRV_ID=SRV_ID AND SRV_TYPE='server'",
     	    				new Object[] {masterTenant},
     	    				new QueryAction() {
     							public void perform(ResultSet rset) throws SQLException, IOException {
-    								prop.setProperty(Config.SERVERLIST_PROPERTY, rset.getString(1));
+    								if ( prop.getProperty(Config.SERVERLIST_PROPERTY) == null)
+    									prop.setProperty(Config.SERVERLIST_PROPERTY, rset.getString(1));
+    								else
+    									prop.setProperty(Config.SERVERLIST_PROPERTY, 
+    											prop.getProperty(Config.SERVERLIST_PROPERTY)+","+rset.getString(1));
     							}
     						});
     		qh.select("SELECT SRV_USEMDB, SRV_TYPE, SRV_JVMOPT FROM SC_SERVER WHERE SRV_NOM=?",
