@@ -202,7 +202,7 @@ public class ConnectionPool {
 	 */
 	public String getDummyQuery (String type)
 	{
-        if ("mysql".equals(type))  //$NON-NLS-1$
+        if ("mysql".equals(type) || "postgresql".equals(type))  //$NON-NLS-1$
         {
         	return ("SELECT 1");
         } else if ("oracle".equals (type)) { //$NON-NLS-1$
@@ -302,10 +302,18 @@ public class ConnectionPool {
             }
             try{
             	Class c = Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+            	log.info("Registering driver", c.getClass().getName(),null);
             	DriverManager.registerDriver((java.sql.Driver) c.newInstance());
             } catch (Exception e) {
             	log.info("Error registering driver: {}", e, null);
             }
+            try{
+            	Class c = Class.forName("org.postgresql.Driver");
+            	DriverManager.registerDriver((java.sql.Driver) c.newInstance());
+            } catch (Exception e) {
+            	log.info("Error registering driver: {}", e, null);
+            }
+            driversRegistered = true;
         }
 
         Config config = Config.getConfig();

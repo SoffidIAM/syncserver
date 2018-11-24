@@ -55,6 +55,7 @@ import com.soffid.tools.db.updater.DBUpdater;
 import com.soffid.tools.db.updater.MsSqlServerUpdater;
 import com.soffid.tools.db.updater.MySqlUpdater;
 import com.soffid.tools.db.updater.OracleUpdater;
+import com.soffid.tools.db.updater.PostgresqlUpdater;
 
 import es.caib.seycon.ng.comu.ServerType;
 import es.caib.seycon.ng.exception.CertificateEnrollDenied;
@@ -312,6 +313,8 @@ public class Configure {
         	updater = new OracleUpdater();
         } else if (type.contains(":sqlserver:")) {
         	updater = new MsSqlServerUpdater();
+        } else if (type.contains(":postgresql:")) {
+        	updater = new PostgresqlUpdater();
         } else {
             throw new RuntimeException("Unable to get dialect for database type ["+type+"]"); //$NON-NLS-1$ //$NON-NLS-2$
         }
