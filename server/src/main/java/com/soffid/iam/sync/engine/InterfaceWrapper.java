@@ -476,12 +476,10 @@ public class InterfaceWrapper {
 
 		final es.caib.seycon.ng.sync.servei.ServerService agent = obj;
 			return new ServerService() {
-
 				public void cancelTask(long taskid)
 						throws InternalErrorException, InternalErrorException {
 					agent.cancelTask(taskid);
 				}
-
 				public void changePassword(String account, String dispatcherId,
 						com.soffid.iam.api.Password p, boolean mustChange)
 						throws InternalErrorException, InternalErrorException,
@@ -854,6 +852,11 @@ public class InterfaceWrapper {
 
 				public CustomObject getCustomObject(String type, String name) throws InternalErrorException {
 					return agent.getCustomObject(type, name);
+				}
+
+				public Map<String, Object> getUserAttributes(long userId) throws InternalErrorException,
+						InternalErrorException, InternalErrorException, UnknownUserException {
+					return agent.getUserAttributes(userId);
 				}
 			};
 	}

@@ -419,13 +419,13 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 		UserEntity usuari = getUserEntityDao().load(userId);
 
-		UserDataEntity dataEntity = dao.findByDataType(usuari.getUserName(),
-				data);
-		if (dataEntity == null)
-			return null;
-		else
+		for (UserDataEntity dataEntity: dao.findByDataType(usuari.getUserName(),
+				data))
+		{
+			
 			return dao.toUserData(dataEntity);
-
+		}
+		return null;
 	}
 
 	@Override
@@ -1485,5 +1485,13 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected CustomObject handleGetCustomObject(String type, String name) throws Exception {
 		return getCustomObjectService().findCustomObjectByTypeAndName(type, name);
+	}
+
+	@Override
+	protected Map<String, Object> handleGetUserAttributes(long userId) throws Exception {
+		User u = getUserService().findUserByUserId(userId);
+		if (u == null)
+			return new HashMap<String, Object>();
+		return getUserService().findUserAttributes(u.getUserName());
 	}
 }
