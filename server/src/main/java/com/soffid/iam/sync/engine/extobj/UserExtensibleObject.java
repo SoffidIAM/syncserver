@@ -139,30 +139,17 @@ public class UserExtensibleObject extends ExtensibleObject
     		}
     		else if ("userAttributes".equals(attribute))
     		{
-    			Collection<UserData> dades = serverService.getUserData(usuari.getId());
-    			Map<String, Object> dadesMap = new HashMap<String, Object>();
-    			for (UserData dada: dades)
-    			{
-    				if (dada.getDateValue() != null)
-        				dadesMap.put(dada.getAttribute(), dada.getDateValue().getTime());
-    				else
-    					dadesMap.put(dada.getAttribute(), dada.getValue());
-    			}
-    			obj = dadesMap;
+    			Map<String, Object> dades = serverService.getUserAttributes(usuari.getId());
+    			obj = dades;
     		}
     		else if ("attributes".equals(attribute))
     		{
-    			Collection<UserData> dades = serverService.getUserData(usuari.getId());
+    			Map<String, Object> dades = serverService.getUserAttributes(usuari.getId());
     			Map<String, Object> dadesMap = new HashMap<String, Object>();
    				if (account.getAttributes() != null)
     				dadesMap.putAll(account.getAttributes());
-    			for (UserData dada: dades)
-    			{
-    				if (dada.getDateValue() != null)
-        				dadesMap.put(dada.getAttribute(), dada.getDateValue().getTime());
-    				else
-    					dadesMap.put(dada.getAttribute(), dada.getValue());
-    			}
+   				if (dades != null)
+   					dadesMap.putAll(dades);
     			obj = dadesMap;
     		}
     		else if ("grantedRoles".equals(attribute))
