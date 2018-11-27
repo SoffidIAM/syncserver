@@ -171,11 +171,13 @@ public class LogonServiceImpl extends LogonServiceBase {
         if (domain == null)
         {
 	        PasswordEntityDao dao = getPasswordEntityDao();
-	        PasswordEntity contra = dao.findLastByUserDomain(r.getUserEntity(), r.getDominiContrasenyaEntity());
-	        if (contra == null || contra.getExpirationDate().before(new Date()))
-	            return true;
-	        else
-	            return false;
+	        for (PasswordEntity contra: dao.findLastByUserDomain(r.getUserEntity(), r.getDominiContrasenyaEntity()))
+	        {
+		        if (contra.getExpirationDate().before(new Date()))
+		            return true;
+	        	
+	        }
+            return false;
         }
         else
         {
