@@ -595,6 +595,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
             }
         }
 		newTask.setLogs(logs);
+		if (targetDispatcher != null)
+			pushTaskToPersist(newTask);
 	}
 
 	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
