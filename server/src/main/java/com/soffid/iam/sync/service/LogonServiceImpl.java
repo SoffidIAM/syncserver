@@ -244,7 +244,10 @@ public class LogonServiceImpl extends LogonServiceBase {
             					ch.getPassword(),
             					ch.getClientHost() ,
             					ch.getChallengeId(),
-            					ch.isCloseOldSessions(), ch.isSilent());
+            					ch.isCloseOldSessions(), ch.isSilent(),
+            					ch.getType() == Challenge.TYPE_KERBEROS ? "K" :
+            						ch.getType() == Challenge.TYPE_CERT ? "C" :
+            							"P");
             }
             if (ch.getPassword() != null)
                 propagatePassword(ch.getUserKey(), ch.getDomain(), ch.getPassword().getPassword());

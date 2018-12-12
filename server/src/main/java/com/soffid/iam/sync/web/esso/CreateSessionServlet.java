@@ -64,7 +64,7 @@ public class CreateSessionServlet extends HttpServlet {
                     null, // Password,
                     client,
                     null,  // Sense clau
-                    false, false); // Sense tancar altres sessions
+                    false, false, null); // Sense tancar altres sessions
             writer.write("OK|");
             writer.write(Long.toString(session.getId()));
             writer.write("\n");
