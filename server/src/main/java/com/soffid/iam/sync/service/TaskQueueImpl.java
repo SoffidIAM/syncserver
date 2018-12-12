@@ -514,6 +514,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			tasqueEntity.setServer(hostname);
 			tasqueEntity.setHash(hash);
 			getTaskEntityDao().update(tasqueEntity);
+			getTaskEntityDao().cancelUnscheduledCopies(tasqueEntity);
 		} else {
 			// Cancel local tasks
 			TaskHandler oldTask = null;
@@ -571,7 +572,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (targetDispatcher == null)
 				log.setComplete(false);
 			else
-				log.setComplete( targetDispatcher.equals(d.getSystem().getName()));				
+				log.setComplete( ! targetDispatcher.equals(d.getSystem().getName()));				
 			log.setNumber(0);
 			logs.add(log);
 		}
@@ -1377,8 +1378,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		for (DispatcherHandler dispatcher: getTaskGenerator().getDispatchers())
 		{
 			if (dispatcher.isActive() && (
-					task.getTask().getServer() == null || 
-					dispatcher.getSystem().getName().equals (task.getTask().getServer())))
+					task.getTask().getSystemName() == null || 
+					dispatcher.getSystem().getName().equals (task.getTask().getSystemName())))
 			{
 				if (dispatcher.isConnected())
 				{
