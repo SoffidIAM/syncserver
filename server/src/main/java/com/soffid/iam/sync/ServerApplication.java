@@ -9,6 +9,7 @@ package com.soffid.iam.sync;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Iterator;
@@ -72,8 +73,16 @@ public class ServerApplication extends SoffidApplication {
 						+ "FROM   SC_BLOCON "
 						+ "WHERE  BCO_NAME = 'soffid.cache.config'", new Object [0]))
 				{
-					System.setProperty  ((String) data[0], new String((byte[]) data[1], "UTF-8"));
-		   			log.info("Missing cache configuration file : "+cfgFile.getAbsolutePath());
+					byte b[] = null;
+					if (data[1] == null)
+						b = null;
+					else if (data[1] instanceof byte[])
+						b = (byte[]) data[1];
+					if (b != null)
+					{
+						System.setProperty  ((String) data[0], new String(b, "UTF-8"));
+						log.info("Using stored jcs configuration");
+					}
 				}
 	   		}
    		} finally {
