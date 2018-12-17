@@ -134,6 +134,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	        	sss.putSecret(usuari, secret, new Password(value));
 	        else if (account == null || account.trim().length() == 0)
 	        {
+	        	log.info("Creating account for {}", usuari.getUserName(), null);
 	    		if (canCreateAccount (usuari, system))
 	    		{
 	    			Account acc = createAccount (system, usuari, description);
@@ -320,11 +321,17 @@ public class ChangeSecretServlet extends HttpServlet {
 		String authSystem = ConfigurationCache.getProperty("AutoSSOSystem"); //$NON-NLS-1$
 		if (authSystem != null && authSystem.equals(system))
 		{
-			Collection<AuthorizationRole> auts = ServiceLocator
-					.instance()
-					.getAuthorizationService()
-					.getUserAuthorization("sso:manageAccounts", usuari.getUserName());
-			return ! auts.isEmpty();
+			System soffid = ServiceLocator.instance().getDispatcherService().findSoffidDispatcher();
+			for (UserAccount account: accountSvc.findUsersAccounts(usuari.getUserName(), soffid.getName()))
+			{
+				Collection<AuthorizationRole> auts = ServiceLocator
+						.instance()
+						.getAuthorizationService()
+						.getUserAuthorization("sso:manageAccounts", account.getName());
+				if (! auts.isEmpty())
+					return true;
+			}
+			return false;
 		}
 		else 
 		{
