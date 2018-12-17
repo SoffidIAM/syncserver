@@ -2,16 +2,20 @@
 
 # Test environment variables
 function configuremain {
-	if [[ "$MARIADB_HOST" == "" ]]
+	if [[ "$DB_URL" == "" ]]
 	then
-	    echo "Missing \$MARIADB_HOST environment variable. Exiting"
-	    exit 1
-	fi
-	MARIADB_PORT=${MARIADB_PORT:-3306}
-	if [[ "$MARIADB_DB" == "" ]]
-	then
-	    echo "Missing \$MARIADB_DB environment variable. Exiting"
-	    exit 1
+		if [[ "$MARIADB_HOST" == "" ]]
+		then
+			echo "Missing \$MARIADB_HOST or \$DB_URL environment variable. Exiting"
+			exit 1
+		fi
+		MARIADB_PORT=${MARIADB_PORT:-3306}
+		if [[ "$MARIADB_DB" == "" ]]
+		then
+			echo "Missing \$MARIADB_DB environment variable. Exiting"
+			exit 1
+		fi
+		DB_URL="jdbc:mysql://$MARIADB_HOST:$MARIADB_PORT/$MARIADB_DB"
 	fi
 	
 	if [[ "$MARIADB_USER" == "" ]]
@@ -32,9 +36,10 @@ function configuremain {
 	fi
     
     echo "Configuring as main server"
-	/opt/soffid/iam-sync/bin/configure -main -hostname "$SOFFID_HOSTNAME" -dbuser "$MARIADB_USER" -dbpass "$MARIADB_PASS" -dburl "jdbc:mysql://$MARIADB_HOST:$MARIADB_PORT/$MARIADB_DB"
-
-	touch /opt/soffid/iam-sync/conf/configured
+	/opt/soffid/iam-sync/bin/configure -main -hostname "$SOFFID_HOSTNAME" -dbuser "$MARIADB_USER" -dbpass "$MARIADB_PASS" -dburl "$DB_URL" && 
+	touch /opt/soffid/iam-sync/conf/configured &&
+	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
+	
 }
 
 
@@ -68,9 +73,9 @@ function configureproxy {
 	fi
     
     echo "Configuring as secondary or proxy server"
-	/opt/soffid/iam-sync/bin/configure -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"
-	
-	touch /opt/soffid/iam-sync/conf/configured
+	/opt/soffid/iam-sync/bin/configure -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"  && 
+	touch /opt/soffid/iam-sync/conf/configured &&
+	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
 }
 
 

@@ -433,10 +433,16 @@ public abstract class ReconcileEngine
 				log.append ("Fetching password attributes for ").append (accountName).append ('\n');
 			
 			try {
-				accountService.updateAccount(acc);
-
 				if (isUnmanaged)
-					reconcileAccountAttributes (acc, existingAccount);
+				{
+					for (String k: existingAccount.getAttributes().keySet())
+					{
+						acc.getAttributes().put(k, existingAccount.getAttributes().get(k));
+					}
+					accountService.updateAccount2(acc);
+				}
+				else
+					accountService.updateAccount2(acc);
 
 				executeTriggers(postUpdate, 
 						new AccountExtensibleObject(acc2, serverService),
@@ -543,8 +549,8 @@ public abstract class ReconcileEngine
 				log.append ("Creating account ");
 				log.append(acc.getName());
 				log.append ('\n');
-				acc = accountService.createAccount(acc);
-				reconcileAccountAttributes (acc, existingAccount);
+				acc.setAttributes(existingAccount.getAttributes());
+				acc = accountService.createAccount2(acc);
 				executeTriggers(postInsert, null, new AccountExtensibleObject(acc, serverService));
 			}
 		} catch (AccountAlreadyExistsException e) {
@@ -584,64 +590,6 @@ public abstract class ReconcileEngine
 		return ok;
 	}
 	
-	private void reconcileAccountAttributes(Account soffidAccount, Account systemAccount) throws InternalErrorException {
-		List<UserData> soffidAttributes = accountService.getAccountAttributes(soffidAccount);
-		if (systemAccount.getAttributes() != null)
-		{
-			for (String key: systemAccount.getAttributes().keySet())
-			{
-				Object value = systemAccount.getAttributes().get(key);
-				UserData soffidValue = null;
-				for (Iterator<UserData> it = soffidAttributes.iterator(); it.hasNext();)
-				{
-					UserData du = it.next();
-					if (du.getAttribute().equals (key))
-					{
-						it.remove();
-						soffidValue = du;
-						break;
-					}
-				}
-				if (value == null) // Remove attribute
-				{
-					if (soffidValue != null && soffidValue.getId() != null)
-					{
-						accountService.removeAccountAttribute(soffidValue);
-					}
-				} else if (soffidValue == null) // Create value
-				{
-					// Verify attribute exists
-					DataType type = dadesAddicionalsService.findSystemDataType(soffidAccount.getSystem(), key);
-					if (type == null)
-					{
-						type = new DataType();
-						type.setSystemName(soffidAccount.getSystem());
-						type.setOrder(0L);
-						type.setCode(key);
-						type.setLabel(key);
-						type.setOperatorVisibility(AttributeVisibilityEnum.HIDDEN);
-						type.setAdminVisibility(AttributeVisibilityEnum.HIDDEN);
-						type.setUserVisibility(AttributeVisibilityEnum.HIDDEN);
-						type.setType(value instanceof byte[] ? TypeEnumeration.BINARY_TYPE:
-							value instanceof Date || value instanceof Calendar ? TypeEnumeration.DATE_TYPE:
-							TypeEnumeration.STRING_TYPE);
-					}
-					soffidValue = new UserData();
-					soffidValue.setAccountName(soffidAccount.getName());
-					soffidValue.setSystemName(soffidAccount.getSystem());
-					soffidValue.setAttribute(key);
-					setDadaValue(soffidValue, value);
-					accountService.createAccountAttribute(soffidValue);
-				}
-				else
-				{
-					setDadaValue(soffidValue, value);
-					accountService.updateAccountAttribute(soffidValue);
-				}
-			}
-		}
-	}
-
 	private void setDadaValue(UserData soffidValue, Object value) {
 		if (value instanceof Date)
 		{
@@ -1160,8 +1108,17 @@ public abstract class ReconcileEngine
 		if (systemRole.getAttributes() != null && 
 				!systemRole.getAttributes().equals(soffidRole.getAttributes()))
 		{
-			soffidRole.setAttributes(systemRole.getAttributes());
-			anyChange = true;
+			for (String att: systemRole.getAttributes().keySet())
+			{
+				Object v = systemRole.getAttributes().get(att);
+				Object v2 = soffidRole.getAttributes().get(att);
+				if (v != null &&
+						!v.equals(v2))
+				{
+					soffidRole.getAttributes().put(att, v);
+					anyChange = true;
+				}
+			}
 		}
 				
 		if (anyChange)

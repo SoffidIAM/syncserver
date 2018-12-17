@@ -171,11 +171,13 @@ public class LogonServiceImpl extends LogonServiceBase {
         if (domain == null)
         {
 	        PasswordEntityDao dao = getPasswordEntityDao();
-	        PasswordEntity contra = dao.findLastByUserDomain(r.getUserEntity(), r.getDominiContrasenyaEntity());
-	        if (contra == null || contra.getExpirationDate().before(new Date()))
-	            return true;
-	        else
-	            return false;
+	        for (PasswordEntity contra: dao.findLastByUserDomain(r.getUserEntity(), r.getDominiContrasenyaEntity()))
+	        {
+		        if (contra.getExpirationDate().before(new Date()))
+		            return true;
+	        	
+	        }
+            return false;
         }
         else
         {
@@ -242,7 +244,10 @@ public class LogonServiceImpl extends LogonServiceBase {
             					ch.getPassword(),
             					ch.getClientHost() ,
             					ch.getChallengeId(),
-            					ch.isCloseOldSessions(), ch.isSilent());
+            					ch.isCloseOldSessions(), ch.isSilent(),
+            					ch.getType() == Challenge.TYPE_KERBEROS ? "K" :
+            						ch.getType() == Challenge.TYPE_CERT ? "C" :
+            							"P");
             }
             if (ch.getPassword() != null)
                 propagatePassword(ch.getUserKey(), ch.getDomain(), ch.getPassword().getPassword());

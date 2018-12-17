@@ -14,7 +14,7 @@
 	<properties>
 		<maven.compile.source>1.5</maven.compile.source>
 		<maven.compile.target>1.5</maven.compile.target>
-		<iam.version>2.3.3</iam.version>
+		<iam.version>2.4.1-SNAPSHOT</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -152,7 +152,7 @@
 								${project.build.directory}/server-only/lib
 							</outputDirectory>
 							<includeGroupIds>
-								com.oracle,mysql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
+								com.oracle,org.mariadb.jdbc,org.postgresql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
 								org.hibernate,javax.mail,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
 								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
 								org.json,org.w3c,org.apache.cxf
@@ -486,9 +486,8 @@
 		</dependency>
 		<dependency>
 			<groupId>com.oracle</groupId>
-			<artifactId>ojdbc14</artifactId>
-			<version>10.2.0.4.0</version>
-			<classifier>noseal</classifier>
+			<artifactId>ojdbc7</artifactId>
+			<version>12.1.0.1.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
@@ -498,9 +497,15 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>mysql</groupId>
-			<artifactId>mysql-connector-java</artifactId>
-			<version>5.1.21</version>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.2.5.jre7</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mariadb.jdbc</groupId>
+			<artifactId>mariadb-java-client</artifactId>
+			<version>1.2.3</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
@@ -642,7 +647,7 @@
 		<dependency>
 			<groupId>com.soffid.iam.console</groupId>
 			<artifactId>dbtools</artifactId>
-			<version>1.10</version>
+			<version>1.17</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>

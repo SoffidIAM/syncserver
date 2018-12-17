@@ -80,30 +80,42 @@ public class ChangeSecretServlet extends HttpServlet {
         String value = req.getParameter("value"); //$NON-NLS-1$
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(),
                         "UTF-8")); //$NON-NLS-1$
-        try {
-        	Security.nestedLogin(user, new String[] {
-        			Security.AUTO_USER_QUERY+Security.AUTO_ALL,
-        			Security.AUTO_ACCOUNT_QUERY+Security.AUTO_ALL,
-        			Security.AUTO_ACCOUNT_UPDATE+Security.AUTO_ALL,
-        			Security.AUTO_ACCOUNT_CREATE+Security.AUTO_ALL
-        	});
-            User usuari = usuariService.findUserByUserName(user);
-            if (usuari == null)
-                throw new UnknownUserException(user);
-
-            for (Session sessio : ss.getActiveSessions(usuari.getId())) {
-                if (sessio.getKey().equals(key) ) {
-                    writer.write(doChangeSecret(usuari, secret, account, system, ssoAttribute, description, value));
-                    writer.close();
-                    return;
-                }
-            }
-            writer.write(Messages.getString("ChangeSecretServlet.0")); //$NON-NLS-1$
-            log.warn("Invalid key {} for user {}", key, user); //$NON-NLS-1$
-        } catch (Exception e) {
-            log.warn("Error getting keys", e); //$NON-NLS-1$
-            writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n"); //$NON-NLS-1$ //$NON-NLS-2$
-        }
+        
+        
+        User usuari;
+		try {
+			usuari = usuariService.findUserByUserName(user);
+			if (usuari == null)
+				throw new UnknownUserException(user);
+			String userAccount = user;
+			for ( UserAccount ua: accountSvc.getUserAccounts(usuari))
+			{
+				userAccount = ua.getName();
+			}
+	        Security.nestedLogin(userAccount, new String[] {
+	        		Security.AUTO_USER_QUERY+Security.AUTO_ALL,
+	        		Security.AUTO_ACCOUNT_QUERY+Security.AUTO_ALL,
+	        		Security.AUTO_ACCOUNT_UPDATE+Security.AUTO_ALL,
+	        		Security.AUTO_ACCOUNT_CREATE+Security.AUTO_ALL
+	        });
+	        try {
+	
+	            for (Session sessio : ss.getActiveSessions(usuari.getId())) {
+	                if (sessio.getKey().equals(key) ) {
+	                    writer.write(doChangeSecret(usuari, userAccount, secret, account, system, ssoAttribute, description, value));
+	                    writer.close();
+	                    return;
+	                }
+	            }
+	            writer.write(Messages.getString("ChangeSecretServlet.0")); //$NON-NLS-1$
+	            log.warn("Invalid key {} for user {}", key, user); //$NON-NLS-1$
+	        } finally {
+	        	Security.nestedLogoff();
+	        }
+		} catch (Exception e) {
+			log.warn("Error getting keys", e); //$NON-NLS-1$
+			writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n"); //$NON-NLS-1$ //$NON-NLS-2$
+		}
         writer.close();
 
     }
@@ -115,18 +127,19 @@ public class ChangeSecretServlet extends HttpServlet {
 	 * @param system
      * @param value 
      * @param value2 
+     * @param value2 
 	 * @return
      * @throws InternalErrorException 
      * @throws RemoteException 
      * @throws AccountAlreadyExistsException 
      * @throws UnsupportedEncodingException 
 	 */
-	private String doChangeSecret (User usuari, String secret, String account,
+	private String doChangeSecret (User usuari, String userAccount, String secret, String account,
 					String system, String ssoAttribute, String description, String value) throws InternalErrorException, RemoteException,
 					AccountAlreadyExistsException, UnsupportedEncodingException
 	{
 
-		Security.nestedLogin(usuari.getUserName(), Security.getAuthorizations().toArray(new String [0]));
+		Security.nestedLogin(userAccount, Security.getAuthorizations().toArray(new String [0]));
 		try
 		{
 	        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
@@ -134,6 +147,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	        	sss.putSecret(usuari, secret, new Password(value));
 	        else if (account == null || account.trim().length() == 0)
 	        {
+	        	log.info("Creating account for {}", usuari.getUserName(), null);
 	    		if (canCreateAccount (usuari, system))
 	    		{
 	    			Account acc = createAccount (system, usuari, description);
@@ -320,11 +334,17 @@ public class ChangeSecretServlet extends HttpServlet {
 		String authSystem = ConfigurationCache.getProperty("AutoSSOSystem"); //$NON-NLS-1$
 		if (authSystem != null && authSystem.equals(system))
 		{
-			Collection<AuthorizationRole> auts = ServiceLocator
-					.instance()
-					.getAuthorizationService()
-					.getUserAuthorization("sso:manageAccounts", usuari.getUserName());
-			return ! auts.isEmpty();
+			System soffid = ServiceLocator.instance().getDispatcherService().findSoffidDispatcher();
+			for (UserAccount account: accountSvc.findUsersAccounts(usuari.getUserName(), soffid.getName()))
+			{
+				Collection<AuthorizationRole> auts = ServiceLocator
+						.instance()
+						.getAuthorizationService()
+						.getUserAuthorization("sso:manageAccounts", account.getName());
+				if (! auts.isEmpty())
+					return true;
+			}
+			return false;
 		}
 		else 
 		{

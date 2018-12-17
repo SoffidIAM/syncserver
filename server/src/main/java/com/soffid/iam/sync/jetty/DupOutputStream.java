@@ -15,7 +15,7 @@ public class DupOutputStream extends OutputStream {
 
     public void close() throws IOException {
         out1.close ();
-        out2.close ();
+//        out2.close (); stdout should not be closed
     }
 
     @Override

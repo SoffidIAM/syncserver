@@ -66,6 +66,10 @@ public class QueryHelper {
     		{
     			stmt.setTimestamp(num, (java.sql.Timestamp) param);
     		}
+    		else if (param instanceof Boolean)
+    		{
+    			stmt.setBoolean(num, (Boolean) param);
+    		}
     		else 
     		{
     			stmt.setString(num, param.toString());
@@ -112,6 +116,10 @@ public class QueryHelper {
 			else if (param instanceof Integer)
 			{
 				stmt.setInt(num, (Integer) param);
+			}
+			else if (param instanceof Boolean)
+			{
+				stmt.setBoolean(num, (Boolean) param);
 			}
 			else if (param instanceof Date)
 			{

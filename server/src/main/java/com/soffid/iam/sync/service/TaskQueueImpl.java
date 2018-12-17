@@ -514,6 +514,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			tasqueEntity.setServer(hostname);
 			tasqueEntity.setHash(hash);
 			getTaskEntityDao().update(tasqueEntity);
+			getTaskEntityDao().cancelUnscheduledCopies(tasqueEntity);
 		} else {
 			// Cancel local tasks
 			TaskHandler oldTask = null;
@@ -555,6 +556,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	private void populateTaskLog(TaskHandler newTask, TaskEntity tasque) throws InternalErrorException {
 		// Instanciar los logs
+		String targetDispatcher = tasque.getSystemName();
+		if (targetDispatcher != null && targetDispatcher.trim().isEmpty())
+			targetDispatcher = null;
 		Collection<DispatcherHandler> dispatchers = getTaskGenerator().getDispatchers();
 		ArrayList<TaskHandlerLog> logs = new ArrayList<TaskHandlerLog>(
 						dispatchers.size());
@@ -565,7 +569,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			log.setDispatcher(d);
 			log.setFirst(0);
 			log.setNext(0);
-			log.setComplete(false);
+			if (targetDispatcher == null)
+				log.setComplete(false);
+			else
+				log.setComplete( ! targetDispatcher.equals(d.getSystem().getName()));				
 			log.setNumber(0);
 			logs.add(log);
 		}
@@ -589,6 +596,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
             }
         }
 		newTask.setLogs(logs);
+		if (targetDispatcher != null)
+			pushTaskToPersist(newTask);
 	}
 
 	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
@@ -709,6 +718,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
     						}
     						else if (task.isComplete())
     						{
+    							tasksToNotify.add(task);
     							iterator.remove();
     						}
     						else if (taskDispatcher.isComplete(task))
@@ -1072,9 +1082,16 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			thl = new TaskHandlerLog();
 			thl.setNumber(0);
 			thl.setFirst(now);
-			thl.setComplete(true);
+			thl.setComplete(false);
 			task.getLogs().set(taskDispatcher.getInternalId(), thl);
 		}
+		
+		if (thl.isComplete())
+		{
+			// This task was already notified;
+			return;
+		}
+		
 		thl.setDispatcher(taskDispatcher);
 		thl.setComplete(bOK);
 		thl.setReason(sReason);
@@ -1361,8 +1378,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		for (DispatcherHandler dispatcher: getTaskGenerator().getDispatchers())
 		{
 			if (dispatcher.isActive() && (
-					task.getTask().getServer() == null || 
-					dispatcher.getSystem().getName().equals (task.getTask().getServer())))
+					task.getTask().getSystemName() == null || 
+					dispatcher.getSystem().getName().equals (task.getTask().getSystemName())))
 			{
 				if (dispatcher.isConnected())
 				{
@@ -1539,6 +1556,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		if (newTask.isRejected())
 		{
+			log.info("Task is rejected", null, null);
     		TaskEntityDao dao = getTaskEntityDao();
     		newTask.setChanged(false);
     		TaskEntity tasque = dao.load(newTask.getTask().getId());
@@ -1557,7 +1575,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    		TaskEntity tasque = dao.load(newTask.getTask().getId());
 	    		if (tasque == null)
 	    		{
-	    			// Ignore
+//	    			log.info("Task was previously removed", null, null);
 	    		}
 	    		else if (newTask.isComplete())
 	    		{
@@ -1566,6 +1584,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	        			tlDao.remove(tasque.getLogs());
 	        			dao.remove(tasque);
 	    			}
+//	    			log.info("Task is complete", null, null);
 	    		}
 	    		else
 	    		{
@@ -1576,24 +1595,26 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			dao.update(tasque);
 	    
 	    			Collection<TaskLogEntity> daoEntities = tasque.getLogs();
+//	    			log.info("Task is pending", null, null);
 	    			if (newTask.getLogs() != null)
 	    			{
-	        			for (TaskHandlerLog log : newTask.getLogs()) {
-	        				if (log != null)
+	        			for (TaskHandlerLog tasklog : newTask.getLogs()) {
+	        				if (tasklog != null)
 	        				{
 	                            boolean found = false;
 	                            for (TaskLogEntity logEntity : daoEntities) {
-	                                if (log.getDispatcher() != null &&
-	                                		logEntity.getSystem().getId().equals(log.getDispatcher().getSystem().getId())) {
+	                                if (tasklog.getDispatcher() != null &&
+	                                		logEntity.getSystem().getId().equals(tasklog.getDispatcher().getSystem().getId())) {
 	                                    found = true;
-	                                    persistLog(tasque, log, logEntity);
+	                                    persistLog(tasque, tasklog, logEntity);
 	                                    break;
 	                                }
 	                            }
 	                            if (!found) {
 	                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
-	                                persistLog(tasque, log, logEntity);
+	                                persistLog(tasque, tasklog, logEntity);
 	                            }
+//	                            log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
 	        				}
                         }
 	    			}
