@@ -1603,7 +1603,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	        				{
 	                            boolean found = false;
 	                            for (TaskLogEntity logEntity : daoEntities) {
-	                                if (tasklog.getDispatcher() != null &&
+	                                if (logEntity != null &&
+	                                		tasklog.getDispatcher() != null &&
 	                                		logEntity.getSystem().getId().equals(tasklog.getDispatcher().getSystem().getId())) {
 	                                    found = true;
 	                                    persistLog(tasque, tasklog, logEntity);
