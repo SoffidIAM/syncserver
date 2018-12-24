@@ -16,35 +16,23 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Enumeration;
-import java.util.Properties;
-
-import javax.naming.InitialContext;
-import javax.sql.DataSource;
 
 import org.apache.commons.logging.LogFactory;
-import org.mortbay.log.Log;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
-import org.springframework.core.io.support.ResourcePatternResolver;
 
 import com.soffid.iam.ServiceLocator;
-import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.Server;
 import com.soffid.iam.api.Tenant;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.identity.IdentityGeneratorBean;
 import com.soffid.iam.remote.RemoteServiceLocator;
-import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.ApplicationBootService;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.TenantService;
 import com.soffid.iam.ssl.ConnectionFactory;
-import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
-import com.soffid.iam.sync.jetty.SeyconLog;
-import com.soffid.iam.sync.service.CertificateEnrollService;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.utils.Security;
 import com.soffid.tools.db.persistence.XmlReader;
@@ -61,7 +49,6 @@ import es.caib.seycon.ng.comu.ServerType;
 import es.caib.seycon.ng.exception.CertificateEnrollDenied;
 import es.caib.seycon.ng.exception.CertificateEnrollWaitingForAproval;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.ServerRedirectException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 
 public class Configure {
