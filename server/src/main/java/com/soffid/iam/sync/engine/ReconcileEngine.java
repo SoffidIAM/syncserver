@@ -435,11 +435,14 @@ public abstract class ReconcileEngine
 			try {
 				if (isUnmanaged)
 				{
-					for (String k: existingAccount.getAttributes().keySet())
+					if (existingAccount.getAttributes() != null)
 					{
-						acc.getAttributes().put(k, existingAccount.getAttributes().get(k));
+						for (String k: existingAccount.getAttributes().keySet())
+						{
+							acc.getAttributes().put(k, existingAccount.getAttributes().get(k));
+						}
+						accountService.updateAccount2(acc);
 					}
-					accountService.updateAccount2(acc);
 				}
 				else
 					accountService.updateAccount2(acc);
