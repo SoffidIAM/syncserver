@@ -865,8 +865,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
            	else if (acc == null || 
            			acc.isDisabled())
            	{
-       			userMgr.removeUser(t.getTask().getUser());
-           			
+           		if (acc != null)
+           			accountService.updateAccountLastUpdate(acc);
+           		else
+           		{
+	       			userMgr.removeUser(t.getTask().getUser());
+	       	        AuditEntity auditoria = auditoriaDao.newAuditEntity();
+	       	        auditoria.setAction("A"); // Applied changes
+	       	        auditoria.setDate(new Date());
+	       	        auditoria.setAccount(t.getTask().getUser());
+	       	        auditoria.setObject("SC_ACCOUN");
+	       	        auditoria.setDb(getSystem().getName());
+	       	        auditoriaDao.create(auditoria);
+           		}	           			
            	}
            	else
            	{
@@ -1056,14 +1067,17 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         String bd = t.getTask().getDatabase();
         if (bd == null)
         	bd = t.getTask().getSystemName();
-        try {
-            Role rolInfo = server.getRoleInfo(rol, bd);
-            if(rolInfo == null)
-            	roleMgr.removeRole(rol, bd);
-            else
-            	roleMgr.updateRole(rolInfo);
-        } catch (UnknownRoleException e) {
-            roleMgr.removeRole(rol, bd);
+        if (bd.equals( mirroredAgent ))
+        {
+	        try {
+	            Role rolInfo = server.getRoleInfo(rol, bd);
+	            if(rolInfo == null)
+	            	roleMgr.removeRole(rol, bd);
+	            else
+	            	roleMgr.updateRole(rolInfo);
+	        } catch (UnknownRoleException e) {
+	            roleMgr.removeRole(rol, bd);
+	        }
         }
     }
 
