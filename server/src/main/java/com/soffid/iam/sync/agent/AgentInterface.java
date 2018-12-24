@@ -12,4 +12,8 @@ public interface AgentInterface
 	String getAgentVersion();
 	
 	boolean supportsRename ();
+	
+	void startCaptureLog ();
+	
+	String endCaptureLog ();
 }

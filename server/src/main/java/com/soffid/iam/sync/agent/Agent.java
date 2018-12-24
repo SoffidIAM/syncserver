@@ -158,4 +158,18 @@ public abstract class Agent implements AgentInterface {
 	public boolean isSingleton() {
 		return false;
 	}
+	
+	public void startCaptureLog() {
+		log = new CaptureLogger();
+	}
+	
+	public String endCaptureLog () {
+		String r = null;
+		if ( log instanceof CaptureLogger)
+		{
+			r = log.toString();
+		}
+        log = LoggerFactory.getLogger(getClass());
+        return r;
+	}
 }
