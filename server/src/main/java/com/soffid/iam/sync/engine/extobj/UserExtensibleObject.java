@@ -125,13 +125,19 @@ public class UserExtensibleObject extends ExtensibleObject
     		else if ("secondaryGroups".equals(attribute))
     		{
     			Collection<Group> groups;
-    			groups = serverService.getUserGroups(account.getName(), account.getSystem());
-    			List<GroupExtensibleObject> list = new LinkedList<GroupExtensibleObject>();
-    			for ( Group group: groups)
+    			if (account.getName() == null || account.getName().trim().isEmpty() ||
+    					account.getSystem() == null || account.getSystem().trim().isEmpty())
+    				obj = new LinkedList<Group>();
+    			else
     			{
-    				list.add(new GroupExtensibleObject(group, account.getSystem(), serverService));
+	    			groups = serverService.getUserGroups(account.getName(), account.getSystem());
+	    			List<GroupExtensibleObject> list = new LinkedList<GroupExtensibleObject>();
+	    			for ( Group group: groups)
+	    			{
+	    				list.add(new GroupExtensibleObject(group, account.getSystem(), serverService));
+	    			}
+	    			obj = list;
     			}
-    			obj = list;
     		} 
     		else if ("accountAttributes".equals(attribute))
     		{
