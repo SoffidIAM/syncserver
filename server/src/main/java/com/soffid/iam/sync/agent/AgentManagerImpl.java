@@ -74,7 +74,16 @@ public class AgentManagerImpl extends AgentManagerBase {
      */
     public String handleCreateAgent(System system) throws java.rmi.RemoteException,
             es.caib.seycon.ng.exception.InternalErrorException {
-    	
+    	return handleCreateAgent(system, false);
+    }
+    
+    public String handleCreateAgentDebug(System system) throws java.rmi.RemoteException,
+    	es.caib.seycon.ng.exception.InternalErrorException {
+    	return handleCreateAgent(system, true);
+    }
+
+    public String handleCreateAgent(System system, boolean debug) throws java.rmi.RemoteException,
+        es.caib.seycon.ng.exception.InternalErrorException {
     	Object o = singletons.get(system.getName());
     	if (o != null)
     	{
@@ -88,6 +97,13 @@ public class AgentManagerImpl extends AgentManagerBase {
             String serverName = Invoker.getInvoker().getUser();
             if (serverName.indexOf('\\') > 0)
             	serverName = serverName.substring(serverName.indexOf('\\')+1);
+            
+            if (debug)
+            {
+            	agent.startCaptureLog();
+            	agent.setDebug(true);
+            }
+            
             if (agent instanceof es.caib.seycon.ng.sync.agent.Agent)
             {
                 es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
@@ -106,6 +122,8 @@ public class AgentManagerImpl extends AgentManagerBase {
             	if (v2Agent.isSingleton())
             		singletons.put(system.getName(), v2Agent);
             }
+            if (debug)
+            	agent.setDebug(true);
             return url;
         } catch (Exception e) {
             log.warn("Error creating object " + system.getName(), e);
@@ -116,8 +134,27 @@ public class AgentManagerImpl extends AgentManagerBase {
     public Object handleCreateLocalAgent(System system) throws ClassNotFoundException,
             InstantiationException, IllegalAccessException, InvocationTargetException,
             InternalErrorException, IOException {
+    	return handleCreateLocalAgent(system, false);
+    }
+    
+    public Object handleCreateLocalAgentDebug(System system) throws ClassNotFoundException,
+        InstantiationException, IllegalAccessException, InvocationTargetException,
+        InternalErrorException, IOException {
+    	return handleCreateLocalAgent(system, true);
+
+    }
+    
+    public Object handleCreateLocalAgent(System system, boolean debug) throws ClassNotFoundException,
+        InstantiationException, IllegalAccessException, InvocationTargetException,
+        InternalErrorException, IOException {
         try {
-            Object agent = performCreateAgent(system);
+            AgentInterface agent = performCreateAgent(system);
+            if (debug)
+            {
+            	agent.startCaptureLog();
+            	agent.setDebug(true);
+            }
+            
             if (agent instanceof com.soffid.iam.sync.agent.Agent)
             {
             	com.soffid.iam.sync.agent.Agent v2Agent = (com.soffid.iam.sync.agent.Agent) agent;
@@ -132,6 +169,8 @@ public class AgentManagerImpl extends AgentManagerBase {
 	            v1Agent.setServer(es.caib.seycon.ng.sync.ServerServiceLocator.instance().getServerService());
 	            v1Agent.init();            	
             }
+            if (debug)
+            	agent.setDebug(true);
             return agent;
         } catch (Exception e) {
             log.warn("Error creating object " + system.getName(), e);

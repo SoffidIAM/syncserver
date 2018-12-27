@@ -13,6 +13,7 @@ import java.util.Iterator;
 import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.api.SoffidObjectType;
+import com.soffid.iam.sync.agent.CaptureLogger;
 import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFatory;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
@@ -47,6 +48,7 @@ public abstract class Agent implements AgentInterface {
     transient private ServerService server;
     String agentVersion;
     String serverName;
+    boolean debug = false;
     
     public String getServerName ()
 	{
@@ -168,4 +170,37 @@ public abstract class Agent implements AgentInterface {
 		return false;
 	}
 
+	public boolean isSingleton() {
+		return false;
+	}
+	
+	public void startCaptureLog() {
+		log = new CaptureLogger();
+	}
+	
+	public String endCaptureLog () {
+		String r = null;
+		if ( log instanceof CaptureLogger)
+		{
+			r = log.toString();
+		}
+        log = LoggerFactory.getLogger(getClass());
+        return r;
+	}
+	public String getCapturedLog () {
+		String r = null;
+		if ( log instanceof CaptureLogger)
+		{
+			r = log.toString();
+		}
+        return r;
+	}
+
+	public boolean isDebug() {
+		return debug;
+	}
+
+	public void setDebug(boolean debug) {
+		this.debug = debug;
+	}
 }

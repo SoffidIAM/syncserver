@@ -16,4 +16,10 @@ public interface AgentInterface
 	void startCaptureLog ();
 	
 	String endCaptureLog ();
+
+	String getCapturedLog (); 
+	
+	boolean isSingleton ();
+	
+	void setDebug(boolean debug);
 }

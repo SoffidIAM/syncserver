@@ -20,6 +20,7 @@ import com.soffid.iam.model.UserEntityDao;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.sync.ServerServiceLocator;
+import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.PriorityTaskQueue;
 import com.soffid.iam.sync.engine.TaskHandler;
@@ -1313,14 +1314,24 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		throw new UnsupportedOperationException();
 	}
 
-	/* (non-Javadoc)
-	 * @see es.caib.seycon.ng.sync.servei.TaskQueueBase#handleProcessOBTask(es.caib.seycon.ng.sync.engine.TaskHandler)
-	 */
 	@SuppressWarnings ("rawtypes")
 	@Override
-	protected Map handleProcessOBTask (TaskHandler task) throws Exception
+	protected Map<String,Exception> handleProcessOBTask (TaskHandler task) throws Exception
+	{
+		return processOBTask(task, false);
+	}
+
+	@SuppressWarnings ("rawtypes")
+	@Override
+	protected Map<String, DebugTaskResults> handleDebugTask (TaskHandler task) throws Exception
+	{
+		return processOBTask(task, true);
+	}
+
+	protected Map processOBTask (TaskHandler task, boolean debug) throws Exception
 	{
 		Map<String, Exception> m = new HashMap<String, Exception>();
+		Map<String, DebugTaskResults> debugMap = new HashMap<String, DebugTaskResults>();
 
 		if (task.getTask().getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD))
 		{
@@ -1377,25 +1388,36 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		
 		for (DispatcherHandler dispatcher: getTaskGenerator().getDispatchers())
 		{
+			String dispatcherName = dispatcher.getSystem().getName();
 			if (dispatcher.isActive() && (
 					task.getTask().getSystemName() == null || 
-					dispatcher.getSystem().getName().equals (task.getTask().getSystemName())))
+					dispatcherName.equals (task.getTask().getSystemName())))
 			{
+				DebugTaskResults  r = new DebugTaskResults();
 				if (dispatcher.isConnected())
 				{
-    				try {
-    					dispatcher.processOBTask(task);
-    				} catch (Exception e) {
-    					m.put(dispatcher.getSystem().getName(), e);
-    				}
+					if (debug)
+					{
+						r = dispatcher.debugTask(task);
+					}
+					else
+					{
+	    				try {
+	    					dispatcher.processOBTask(task);
+	    				} catch (Exception e) {
+	    					m.put(dispatcherName, e);
+	    				}
+					}
 				}
 				else if (dispatcher.getConnectException() != null)
 				{
-					m.put(dispatcher.getSystem().getName(), dispatcher.getConnectException());
+					m.put(dispatcherName, dispatcher.getConnectException());
+					r.setStatus("System is offilne");
 				}
+				debugMap.put(dispatcherName, r);
 			}
 		}
-		if (!m.isEmpty())
+		if (!m.isEmpty() && !debug)
 		{
 			Task tasca = task.getTask();
 			tasca.setTaskDate(Calendar.getInstance());
@@ -1404,7 +1426,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			tasca.setId(tasque.getId());
 			addTask(task);
 		}
-		return m;
+		if (debug)
+			return debugMap;
+		else
+			return m;
 	}
 
 	/* (non-Javadoc)

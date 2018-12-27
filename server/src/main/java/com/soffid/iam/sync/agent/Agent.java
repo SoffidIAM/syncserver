@@ -39,6 +39,7 @@ public abstract class Agent implements AgentInterface {
     transient private ServerService server;
     String agentVersion;
     String serverName;
+    boolean debug = false;
     
     public String getServerName ()
 	{
@@ -155,6 +156,7 @@ public abstract class Agent implements AgentInterface {
 	public boolean supportsRename () {
 		return false;
 	}
+
 	public boolean isSingleton() {
 		return false;
 	}
@@ -171,5 +173,22 @@ public abstract class Agent implements AgentInterface {
 		}
         log = LoggerFactory.getLogger(getClass());
         return r;
+	}
+
+	public String getCapturedLog () {
+		String r = null;
+		if ( log instanceof CaptureLogger)
+		{
+			r = log.toString();
+		}
+        return r;
+	}
+
+	public boolean isDebug() {
+		return debug;
+	}
+
+	public void setDebug(boolean debug) {
+		this.debug = debug;
 	}
 }

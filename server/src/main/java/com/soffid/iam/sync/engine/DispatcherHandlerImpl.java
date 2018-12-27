@@ -2,6 +2,7 @@ package com.soffid.iam.sync.engine;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -69,6 +70,8 @@ import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.sync.engine.intf.DebugTaskResults;
+import com.soffid.iam.sync.engine.intf.GetObjectResults;
 import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
@@ -540,7 +543,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		    try {
 		        setStatus("Looking up server");
 		        log.info("Connecting ...");
-		        agent = connect(true);
+		        agent = connect(true, false);
 		        nextConnect = new java.util.Date().getTime() + timeoutDelay;
 		    } catch (Throwable e) {
 		        delay = timeoutDelay;
@@ -862,22 +865,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
            		// Nothing to do
            		return;
            	}
-           	else if (acc == null || 
-           			acc.isDisabled())
+           	
+           	if (acc == null )
            	{
-           		if (acc != null)
-           			accountService.updateAccountLastUpdate(acc);
-           		else
-           		{
-	       			userMgr.removeUser(t.getTask().getUser());
-	       	        AuditEntity auditoria = auditoriaDao.newAuditEntity();
-	       	        auditoria.setAction("A"); // Applied changes
-	       	        auditoria.setDate(new Date());
-	       	        auditoria.setAccount(t.getTask().getUser());
-	       	        auditoria.setObject("SC_ACCOUN");
-	       	        auditoria.setDb(getSystem().getName());
-	       	        auditoriaDao.create(auditoria);
-           		}	           			
+       			userMgr.removeUser(t.getTask().getUser());
+       	        AuditEntity auditoria = auditoriaDao.newAuditEntity();
+       	        auditoria.setAction("A"); // Applied changes
+       	        auditoria.setDate(new Date());
+       	        auditoria.setAccount(t.getTask().getUser());
+       	        auditoria.setObject("SC_ACCOUN");
+       	        auditoria.setDb(getSystem().getName());
+       	        auditoriaDao.create(auditoria);
+           	}
+           	else if (acc.isDisabled())
+           	{
+       			userMgr.removeUser(t.getTask().getUser());           		
+           		accountService.updateAccountLastUpdate(acc);
            	}
            	else
            	{
@@ -920,9 +923,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     	        	else
            				userMgr.updateUser(acc);           			
            		}
-           	}
-           	if (acc != null)
-           	{
            		accountService.updateAccountLastUpdate(acc);
            	}
 		}
@@ -1118,34 +1118,114 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     	}
     }
 
-	public  Map<String, Object>  getSoffidObject(String systemName, SoffidObjectType type, String object1,
+	public  GetObjectResults  getSoffidObject(String systemName, SoffidObjectType type, String object1,
 			String object2) throws Exception
 	{
-        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
-        if (objectMgr == null)
-        	return null;
-        
-        if (type == SoffidObjectType.OBJECT_ACCOUNT ||
-        		type == SoffidObjectType.OBJECT_ROLE)
-        	object2 = systemName;
-        
-   		ExtensibleObject r = objectMgr.getSoffidObject(type, object1, object2);
-   		return r;
+		if (! isConnected())
+		{
+			throw new InternalErrorException("System "+systemName+" is offline");
+		}
+		GetObjectResults r = new GetObjectResults();
+		Object agent;
+		try
+		{
+			agent = connect(false, true);
+		}
+		catch (Exception e)
+		{
+			throw new InternalErrorException ("Unable to connect to "+systemName, e);
+		}
+
+		try {
+	        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
+	        if (objectMgr == null)
+	        {
+	        	r.setStatus("error");
+	        	r.setLog("Function not implemented");
+	        	r.setObject(new HashMap<String, Object>());
+	        }
+	        else
+	        {
+		        if (type == SoffidObjectType.OBJECT_ACCOUNT ||
+		        		type == SoffidObjectType.OBJECT_ROLE)
+		        	object2 = systemName;
+		        ExtensibleObject object = objectMgr.getSoffidObject(type, object1, object2);
+		        if (object == null)
+		        {
+		        	r.setObject( new HashMap<String, Object>(  ));
+		        	r.setStatus("not found");
+		        }
+		        else
+		        {
+		        	r.setStatus("success");
+		        	r.setObject( new HashMap<String, Object>( object ));
+		        }
+		   		r.setLog(( (AgentInterface) agent).getCapturedLog());
+	        }
+		} catch (Exception e) {
+			r.setStatus("error");
+			r.setObject(new HashMap<String, Object>());
+	   		String log = ( (AgentInterface) agent).getCapturedLog();
+	   		if (log == null) log = "";
+	   		String stackTrace = SoffidStackTrace.getStackTrace(e);
+	   		r.setLog(log + "\n" + stackTrace);
+		}
+        return r;
     }
 
-	public  Map<String, Object>  getNativeObject(String systemName, SoffidObjectType type, String object1,
+	public  GetObjectResults  getNativeObject(String systemName, SoffidObjectType type, String object1,
 			String object2) throws Exception
 	{
-        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
-        if (objectMgr == null)
-        	return null;
-        
-        if (type == SoffidObjectType.OBJECT_ACCOUNT ||
-        		type == SoffidObjectType.OBJECT_ROLE)
-        	object2 = systemName;
-        
-   		ExtensibleObject r = objectMgr.getNativeObject(type, object1, object2);
-   		return r;
+		if (! isConnected())
+		{
+			throw new InternalErrorException("System "+systemName+" is offline");
+		}
+		GetObjectResults r = new GetObjectResults();
+		Object agent;
+		try
+		{
+			agent = connect(false, true);
+		}
+		catch (Exception e)
+		{
+			throw new InternalErrorException ("Unable to connect to "+systemName, e);
+		}
+
+		try {
+	        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
+	        if (objectMgr == null)
+	        {
+	        	r.setStatus("error");
+	        	r.setLog("Function not implemented");
+	        	r.setObject(new HashMap<String, Object>());
+	        }
+	        else
+	        {
+		        if (type == SoffidObjectType.OBJECT_ACCOUNT ||
+		        		type == SoffidObjectType.OBJECT_ROLE)
+		        	object2 = systemName;
+		        ExtensibleObject object = objectMgr.getNativeObject(type, object1, object2);
+		        if (object == null)
+		        {
+		        	r.setObject( new HashMap<String, Object>(  ));
+		        	r.setStatus("not found");
+		        }
+		        else
+		        {
+		        	r.setStatus("success");
+		        	r.setObject( new HashMap<String, Object>( object ));
+		        }
+		   		r.setLog(( (AgentInterface) agent).getCapturedLog());
+	        }
+		} catch (Exception e) {
+			r.setStatus("error");
+			r.setObject(new HashMap<String, Object>());
+	   		String log = ( (AgentInterface) agent).getCapturedLog();
+	   		if (log == null) log = "";
+	   		String stackTrace = SoffidStackTrace.getStackTrace(e);
+	   		r.setLog(log + "\n" + stackTrace);
+		}
+        return r;
     }
 
     private void createFolder(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
@@ -1551,6 +1631,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     /**
      * Inicializar las conexiones RMI
+     * @param b 
      * 
      * @throws InternalErrorException
      *             error interno asociado a la lógica del agente. Posiblemente
@@ -1572,21 +1653,21 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      * @throws IOException
      * @throws Exception 
      */
-    public Object connect(boolean mainAgent) throws Exception {
+    public Object connect(boolean mainAgent, boolean debug) throws Exception {
         URLManager um = new URLManager(getSystem().getUrl());
     	try {
-    		return connect (mainAgent, getSystem().getUrl());
+    		return connect (mainAgent, debug, getSystem().getUrl());
     	} catch (Exception e) {
     		if (getSystem().getUrl2() != null && !getSystem().getUrl2().isEmpty())
     		{
-    	   		return connect (mainAgent, getSystem().getUrl2());
+    	   		return connect (mainAgent, debug, getSystem().getUrl2());
     		}
     		else
     			throw e;
     	}
     }
     
-    private Object connect(boolean mainAgent, String url) throws ClassNotFoundException, InstantiationException,
+    private Object connect(boolean mainAgent, boolean debug, String url) throws ClassNotFoundException, InstantiationException,
     	IllegalAccessException, InvocationTargetException, InternalErrorException, IOException {
 
         URLManager um = new URLManager(url);
@@ -1607,7 +1688,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             	try {
                 	AgentManager am = ServerServiceLocator.instance().getAgentManager();
                		phase = "configuring";
-                	agent = am.createLocalAgent(getSystem());
+                	agent = debug? am.createLocalAgentDebug(getSystem()) : am.createLocalAgent(getSystem());
             	} catch (Exception e) {
                 	throw new InternalErrorException(String.format("Error %s %s", phase,
                         	getSystem().getUrl()), e);
@@ -1619,7 +1700,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 	rsl.setServer(getSystem().getUrl().toString());
                 	AgentManager am = rsl.getAgentManager();
                 	phase = "configuring";
-                	String agenturl = am.createAgent(getSystem());
+                	String agenturl = debug ? am.createAgentDebug(getSystem()) : am.createAgent(getSystem());
                 	agent = rsl.getRemoteService(agenturl);
             	} catch (Exception e) {
                 	throw new InternalErrorException(String.format("Error %s agent %s: %s", phase,
@@ -1816,7 +1897,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				reconcileThread = new ReconcileThread();
 				reconcileThread.setName("Reconcile thread for "+getSystem().getName());
 				try {
-					ManualReconcileEngine engine = new ManualReconcileEngine(Security.getCurrentTenantName(), getSystem(), InterfaceWrapper.getReconcileMgr2(connect(false)), null);
+					ManualReconcileEngine engine = new ManualReconcileEngine(Security.getCurrentTenantName(), getSystem(), InterfaceWrapper.getReconcileMgr2(connect(false, false)), null);
 					engine.setReconcileProcessId(Long.decode(taskHandler.getTask().getHost()));
 					reconcileThread.setEngine(
 							engine);
@@ -2236,7 +2317,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	{
 		try
 		{
-			Object agent = connect(false);
+			Object agent = connect(false, false);
 			if (applies(agent, task))
 			{
 				processTask(agent, task);
@@ -2248,6 +2329,42 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 	}
 
+	@Override
+	public DebugTaskResults debugTask (TaskHandler task) throws InternalErrorException
+	{
+		DebugTaskResults r = new DebugTaskResults();
+		r.setLog(new String());
+		AgentInterface agent = null;
+		try
+		{
+			try {
+				agent = (AgentInterface) connect(false, true);
+			} catch (Exception e) {
+				r.setException(e);
+				r.setStatus("Connection error");
+				r.setLog(SoffidStackTrace.getStackTrace(e));
+				return r;
+			}
+			if (applies(agent, task))
+			{
+				processTask(agent, task);
+				r.setStatus("Success");
+				r.setLog(agent.endCaptureLog());
+			} else {
+				r.setStatus("The agent does not accept the task");
+			}
+		}
+		catch (Exception e)
+		{
+			r.setStatus("Error");
+			r.setException(e);
+			String log = agent.endCaptureLog();
+			if (log == null) log = "";
+			r.setLog(log + SoffidStackTrace.getStackTrace(e));
+		}
+		return r;
+	}
+
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.engine.DispatcherHandler#doReconcile()
 	 */
@@ -2255,7 +2372,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	public void doReconcile (ScheduledTask task, PrintWriter out)
 	{
 		try {
-    		Object agent = connect(false);
+    		Object agent = connect(false, false);
 			ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
 			ReconcileMgr2 reconMgr2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
     		if (reconMgr != null)

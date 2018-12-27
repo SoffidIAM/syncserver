@@ -25,6 +25,7 @@ import com.soffid.iam.service.AccountService;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.agent.AgentManager;
+import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.InterfaceWrapper;
@@ -40,6 +41,7 @@ import com.soffid.iam.sync.engine.extobj.MembershipExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
+import com.soffid.iam.sync.engine.intf.GetObjectResults;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.jetty.JettyServer;
@@ -662,12 +664,12 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	}
 
 	@Override
-	public Exception handleTestPropagateObject(String dispatcher,
+	public DebugTaskResults handleTestPropagateObject(String dispatcher,
 			SoffidObjectType type, String object1, String object2)
 			throws InternalErrorException, InternalErrorException {
 		TaskHandler task = generateObjectTask(dispatcher, type, object1, object2);
-		Map map = getTaskQueue().processOBTask(task);
-		return (Exception) map.get(dispatcher);
+		Map<String, DebugTaskResults> map = getTaskQueue().debugTask(task);
+		return map.get(dispatcher);
 	}
 
 	private TaskHandler generateObjectTask(String dispatcher, SoffidObjectType type,
@@ -761,7 +763,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	}
 
 	@Override
-	protected Map<String, Object> handleGetNativeObject(String systemName, SoffidObjectType type, String object1,
+	protected GetObjectResults handleGetNativeObject(String systemName, SoffidObjectType type, String object1,
 			String object2) throws Exception {
 
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(systemName);
@@ -772,21 +774,14 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	}
 
 	@Override
-	protected Map<String, Object> handleGetSoffidObject(String systemName, SoffidObjectType type, String object1,
+	protected GetObjectResults handleGetSoffidObject(String systemName, SoffidObjectType type, String object1,
 			String object2) throws Exception {
 
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(systemName);
 		if (handler == null || !handler.isActive())
 			return null;
 
-		Map<String,Object> r = new HashMap<String, Object>();
-		
-		Map<String, Object> eo = handler.getSoffidObject(systemName, type, object1, object2);
-		for (String key: eo.keySet())
-		{
-			r.put(key, eo.get(key));
-		}
-		return r;
+		return handler.getSoffidObject(systemName, type, object1, object2);
 	}
 
 }

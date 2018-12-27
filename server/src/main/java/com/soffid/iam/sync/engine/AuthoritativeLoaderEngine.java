@@ -146,7 +146,7 @@ public class AuthoritativeLoaderEngine {
 				ObjectTranslator objectTranslator = new ObjectTranslator (system);
 				ValueObjectMapper vom = new ValueObjectMapper();
 	
-	    		Object agent = handler.connect(false);
+	    		Object agent = handler.connect(false, false);
 	    	
 				com.soffid.iam.sync.intf.AuthoritativeIdentitySource source = InterfaceWrapper.getAuthoritativeIdentitySource(agent);
 				com.soffid.iam.sync.intf.AuthoritativeIdentitySource2 source2 = InterfaceWrapper.getAuthoritativeIdentitySource2(agent);
