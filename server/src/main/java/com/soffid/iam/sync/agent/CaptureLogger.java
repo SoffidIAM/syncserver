@@ -1,6 +1,7 @@
 package com.soffid.iam.sync.agent;
 
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -10,17 +11,15 @@ import org.slf4j.Marker;
 import org.slf4j.helpers.FormattingTuple;
 import org.slf4j.helpers.MessageFormatter;
 
-import net.sf.jasperreports.util.StringBufferWriter;
-
 public class CaptureLogger implements Logger {
-	StringBuffer buffer;
+	StringWriter buffer;
 	private PrintWriter writer;
 	private DateFormat dateFormat;
 	public CaptureLogger()
 	{
 		dateFormat = SimpleDateFormat.getDateTimeInstance(SimpleDateFormat.SHORT, SimpleDateFormat.MEDIUM);
-		buffer = new StringBuffer();
-		writer = new PrintWriter( new StringBufferWriter(buffer));
+		buffer = new StringWriter();
+		writer = new PrintWriter( buffer );
 	}
 	
 	public String toString()
