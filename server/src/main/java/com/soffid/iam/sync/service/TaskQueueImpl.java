@@ -299,9 +299,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			else if (newTask.getTask().getTransaction()
 							.equals(TaskHandler.UPDATE_ACCOUNT))
 			{
-				InternalPasswordService ps = getInternalPasswordService();
-				AccountEntityDao accDao = getAccountEntityDao();
-				AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
 				// Update for virtual dispatchers
 				DispatcherHandler dispatcher =
 					getTaskGenerator().getDispatcher(newTask.getTask().getSystemName());
