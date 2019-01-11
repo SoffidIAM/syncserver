@@ -259,7 +259,8 @@ public class AuthoritativeLoaderEngine {
 			{
 				boolean ok = true;
 				user.setActive(false);
-				UserExtensibleObject eo = new UserExtensibleObject(new Account(), user, server);
+				Map<String, Object> atts = userService.findUserAttributes(user.getUserName());
+				UserExtensibleObject eo = new UserExtensibleObject(user, atts, server);
 				if (preDelete != null && !preDelete.isEmpty())
 				{
 					ok = executeTriggers(preDelete, eo, null, objectTranslator);
@@ -447,6 +448,7 @@ public class AuthoritativeLoaderEngine {
 			User previousUser = change.getUser() == null ||
 					change.getUser().getUserName() == null ? null :
 						userService.findUserByUserName(change.getUser().getUserName());
+			Map<String, Object> previousAtts = null;
 			boolean ok = true;
 			if (previousUser == null)
 			{
@@ -454,7 +456,6 @@ public class AuthoritativeLoaderEngine {
 				if (pi != null && ! pi.isEmpty())
 				{
 					UserExtensibleObject eo = buildExtensibleObject(change);
-					eo.setAttribute("attributes", change.getAttributes());
 					if (executeTriggers(pi, null, eo, objectTranslator))
 					{
 						change.setUser( vom.parseUser(eo));
@@ -468,12 +469,13 @@ public class AuthoritativeLoaderEngine {
 					}
 				}
 			} else {
+				previousAtts = userService.findUserAttributes(previousUser.getUserName());
 				LinkedList<ReconcileTrigger> pu = preUpdateTrigger.get(SoffidObjectType.OBJECT_USER);
 				if (pu != null && ! pu.isEmpty())
 				{
 					UserExtensibleObject eo = buildExtensibleObject(change);
-					if (executeTriggers(pu, 
-							new UserExtensibleObject(new Account (), previousUser, server), 
+					if (executeTriggers(pu,
+							new UserExtensibleObject(previousUser, previousAtts, server), 
 							eo, objectTranslator))
 					{
 						change.setUser( vom.parseUser(eo));
@@ -498,6 +500,7 @@ public class AuthoritativeLoaderEngine {
 							.append("\n");
 					log.info(
 							"Applied authoritative change for  "+change.getUser().getUserName());
+					log.info(change.toString());
 				}
 				else
 				{
@@ -513,16 +516,16 @@ public class AuthoritativeLoaderEngine {
 					LinkedList<ReconcileTrigger> pi = postInsertTrigger.get(SoffidObjectType.OBJECT_USER);
 					if (pi != null && ! pi.isEmpty())
 					{
-						UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
+						UserExtensibleObject eo = buildExtensibleObject(change);;
 						executeTriggers(pi, null, eo, objectTranslator);
 					}
 				} else {
 					LinkedList<ReconcileTrigger> pu = postUpdateTrigger.get(SoffidObjectType.OBJECT_USER);
 					if (pu != null && ! pu.isEmpty())
 					{
-						UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
+						UserExtensibleObject eo = buildExtensibleObject(change);
 						executeTriggers(pu, 
-								new UserExtensibleObject(new Account (), previousUser, server), 
+								new UserExtensibleObject(previousUser, previousAtts, server), 
 								eo, objectTranslator);
 					}
 				}
@@ -811,8 +814,7 @@ public class AuthoritativeLoaderEngine {
 
 	private UserExtensibleObject buildExtensibleObject(
 			AuthoritativeChange change) throws InternalErrorException {
-		UserExtensibleObject eo = new UserExtensibleObject(new Account (), change.getUser(), server);
-		eo.setAttribute("attributes", change.getAttributes());
+		UserExtensibleObject eo = new UserExtensibleObject(change.getUser(), change.getAttributes(), server);
 		List<ExtensibleObject> l = new LinkedList<ExtensibleObject>();
 		if (change.getGroups() != null)
 		{
