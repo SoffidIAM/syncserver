@@ -318,6 +318,7 @@
 							<tasks>
 								<exec failonerror="true" executable="docker" dir="${project.basedir}">
 									<arg value="build" />
+									<arg value="--no-cache" />
 									<arg value="-f" />
 									<arg value="target/docker/Dockerfile" />
 									<arg value="-t" />
