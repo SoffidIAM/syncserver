@@ -262,8 +262,8 @@ public class PasswordLoginServlet extends HttpServlet {
 
         if (challenge == null)
             throw new InternalErrorException("Invalid token " + challengeId);
-        if (!challenge.getHost().getIp().equals(req.getRemoteHost())) {
-            log.warn("Ticket spoofing detected from {}", req.getRemoteHost(), null);
+        if (!challenge.getHost().getIp().equals(req.getRemoteAddr())) {
+            log.warn("Ticket spoofing detected from {}. Expected {}", req.getRemoteAddr(), challenge.getHost().getIp());
             throw new InternalErrorException("Invalid token " + challengeId);
         }
         return challenge;
