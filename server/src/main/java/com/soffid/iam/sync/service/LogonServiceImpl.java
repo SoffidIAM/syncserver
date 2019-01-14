@@ -56,8 +56,8 @@ import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 public class LogonServiceImpl extends LogonServiceBase {
-    private static final int MIN_PAIN = 2000;
-    private static final int MAX_PAIN = 600000;
+    private static final int MIN_PAIN = 100;
+    private static final int MAX_PAIN = 30000;
     private Logger log = Log.getLogger("LogonServer"); //$NON-NLS-1$
     private String remoteHost;
 
@@ -148,11 +148,12 @@ public class LogonServiceImpl extends LogonServiceBase {
        		return;
         }
 
-       	if (domain == null)
-        {
-        	tasque.setTransaction(TaskHandler.PROPAGATE_PASSWORD);
+       	if (r.getUserEntity() != null)
+       	{
             tasque.setUser(r.getUserEntity().getUserName());
-        }
+            tasque.setPasswordsDomain(r.getDominiContrasenyaEntity().getName());
+            tasque.setTransaction(TaskHandler.PROPAGATE_PASSWORD);
+       	}
         else
         {
         	tasque.setTransaction(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD);
