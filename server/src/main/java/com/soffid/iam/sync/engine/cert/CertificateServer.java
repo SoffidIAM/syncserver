@@ -77,28 +77,45 @@ public class CertificateServer {
             InvalidKeyException, IllegalStateException, SignatureException,
             UnrecoverableKeyException, InternalErrorException, KeyManagementException {
         log.info("Generating RSA keys ");
+        
 
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
         SecureRandom random = new SecureRandom();
-
+        
         keyGen.initialize(2048, random);
+        X509Certificate cert = (X509Certificate) rootks.getCertificate(SeyconKeyStore.ROOT_CERT);
+        
+        if (! rootks.containsAlias(SeyconKeyStore.ROOT_CERT))
+        {
+        	// Generar clave raiz
+        	KeyPair pair = keyGen.generateKeyPair();
+        	cert = createCertificate("master", "RootCA", pair.getPublic(), pair.getPrivate(), null, true);
+        	rootks.setKeyEntry(SeyconKeyStore.ROOT_KEY, pair.getPrivate(), password.getPassword()
+        			.toCharArray(), new X509Certificate[] { cert });
+        	
+        	// Guardar trusted cert
+        	ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, cert);
+        	
+        }
 
-        // Generar clave raiz
-        KeyPair pair = keyGen.generateKeyPair();
-//        X509V3CertificateGenerator generator = getX509Generator();
-//        generator.setSubjectDN(new X509Name(MASTER_CA_NAME));
-//        generator.setSignatureAlgorithm("SHA256WithRSA");
-        X509Certificate cert = createCertificate("master", "RootCA", pair.getPublic(), pair.getPrivate(), null, true);
-        rootks.setKeyEntry(SeyconKeyStore.ROOT_KEY, pair.getPrivate(), password.getPassword()
-                .toCharArray(), new X509Certificate[] { cert });
-
-        // Guardar trusted cert
-        ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, cert);
 
         // Generar clave servidor
-        pair = keyGen.generateKeyPair();
-        X509Certificate servercert = createCertificate("master", config.getHostName(), pair.getPublic(), false);
-        ks.setKeyEntry(SeyconKeyStore.MY_KEY, pair.getPrivate(), password.getPassword()
+        Certificate oldCert = (Certificate) ks.getCertificate(SeyconKeyStore.MY_KEY);
+        PrivateKey secretKey = (PrivateKey) ks.getKey(SeyconKeyStore.MY_KEY, password.getPassword().toCharArray());
+        PublicKey publicKey;
+        if (secretKey == null || oldCert == null)
+        {
+        	KeyPair pair2 = keyGen.generateKeyPair();
+        	secretKey = pair2.getPrivate();
+        	publicKey = pair2.getPublic();
+        }
+        else
+        {
+        	publicKey = oldCert.getPublicKey();
+        }
+        	
+        X509Certificate servercert = createCertificate("master", config.getHostName(), publicKey, false);
+		ks.setKeyEntry(SeyconKeyStore.MY_KEY, secretKey, password.getPassword()
                 .toCharArray(), new X509Certificate[] { servercert, cert });
 
         // Guardar certificado

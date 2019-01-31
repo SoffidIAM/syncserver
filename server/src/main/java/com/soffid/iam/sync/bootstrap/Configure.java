@@ -15,6 +15,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Collection;
 import java.util.Enumeration;
 
 import org.apache.commons.logging.LogFactory;
@@ -62,9 +63,9 @@ public class Configure {
         if (args.length == 0) {
             System.out.println("Parameters:");
             System.out
-                    .println("  -main -hostname .. -dbuser .. -dbpass .. -dburl ..");
+                    .println("  -main [-force] -hostname .. -dbuser .. -dbpass .. -dburl ..");
             System.out
-                    .println("  -hostname .. -server .. -tenant .. -user .. -pass ..");
+            	.println("  -hostname .. -server .. -tenant .. -user .. -pass ..");
             System.exit(1);
         }
 
@@ -72,7 +73,6 @@ public class Configure {
             if ("-main".equals(args[0])) {
                 parseMainParameters(args);
             } else  {
-
                 parseSecondParameters(args);
             }
             log.info("Configuration successfully done.");
@@ -88,7 +88,7 @@ public class Configure {
 
     }
 
-    private static void parseSecondParameters(String[] args) throws IOException,
+	private static void parseSecondParameters(String[] args) throws IOException,
             InvalidKeyException, UnrecoverableKeyException, KeyStoreException,
             NoSuchAlgorithmException, NoSuchProviderException,
             CertificateException, IllegalStateException, SignatureException,
@@ -167,25 +167,31 @@ public class Configure {
             throws Exception
     {
         Config config = Config.getConfig();
-
+        boolean force = false;
+        String oldHostName = config.getHostName();
+        String hostName = config.getHostName();
+        String db = config.getDB();
+        String dbuser = config.getDbUser();
         int i;
         Password password = null;
-        for (i = 1; i < args.length - 1; i++) {
+        for (i = 1; i < args.length; i++) {
             if ("-hostname".equals(args[i]))
-                config.setHostName(args[++i]);
+            	hostName = args[++i];
             else if ("-dbuser".equals(args[i]))
-                config.setDbUser(args[++i]);
+            	dbuser = args[++i];
             else if ("-dbpass".equals(args[i]))
                 password = new Password(args[++i]);
             else if ("-dburl".equals(args[i]))
-                config.setDB(args[++i]);
+                db = args[++i];
+            else if ("-force".equals(args[i]))
+            	force = true;
             else
                 throw new RuntimeException("Unknown parameter " + args[i]);
         }
         if (i < args.length)
             throw new RuntimeException("Unknown parameter " + args[i]);
 
-        if (config.getDB() == null)
+        if (db == null)
         	throw new RuntimeException ("Missing -dburl parameter");
         if (password == null)
         {
@@ -194,22 +200,11 @@ public class Configure {
         	char pass [] = System.console().readPassword("%s's password: ", config.getDbUser());
         	password = new Password(new String(pass));
         }
+        // Configurar servidor
         config.setPassword(password);
         config.setRole("server");
-        // Configurar servidor
-        /*
-         * java.io.Console cons = System.console(); if (cons != null) { String
-         * hostname = java.net.InetAddress.getLocalHost().getHostName();
-         * config.setHostName( read (cons, "Hostname", config.getHostName(),
-         * hostname) ); config.setDbUser( read (cons, "DB User",
-         * config.getDbUser(), "seycon")); char[] passwd; passwd =
-         * cons.readPassword("%s [%s]: ", "DB Password", config.getPassword());
-         * if (passwd.length > 0) { Password p = new Password (new
-         * String(passwd)); config.setPassword(p); } config.setDB( read (cons,
-         * "DB URL", config.getDB(), "")); config.setDbPool( read (cons, "DB
-         * Pool", config.getDbPool(), "15")); }
-         */
-        config.setRole("server");
+        config.setDB(db);
+        config.setDbUser(dbuser);
         
         // Create database
         updateDatabase();
@@ -229,23 +224,37 @@ public class Configure {
         config.reload();
 
         DispatcherService dispatcherSvc = ServerServiceLocator.instance().getDispatcherService(); 
-        if ( ! dispatcherSvc.findAllServers().isEmpty())
+        Collection<Server> servers = dispatcherSvc.findAllServers();
+        Server server = null;
+		if ( ! servers.isEmpty())
         {
-        	throw new InternalErrorException ("This server cannot be configured as the main server as long as there are some servers created at Soffid console.\nPlease remove them to proceed.");
+        	if (!force)
+        		throw new InternalErrorException ("This server cannot be configured as the main server as long as there are some servers created at Soffid console.\nPlease remove them to proceed.");
+        	for ( Server server2: servers)
+        	{
+        		if (server2.getName().equals(oldHostName))
+        			server = server2;
+        	}
+        	if (server == null)
+        		throw new InternalErrorException ("Unable to find server configuration for "+oldHostName);
+        	server.setName(config.getHostName());
+        	dispatcherSvc.update(server);
         }
-        
+		else
+		{
+	        server = new Server();
+	        server.setName(config.getHostName());
+	        server.setUrl("https://"+config.getHostName()+":"+config.getPort()+"/");
+	        server.setType(ServerType.MASTERSERVER);
+	        server.setUseMasterDatabase(true);
+	        server = dispatcherSvc.create(server);
+	        TenantService tenantSvc = ServiceLocator.instance().getTenantService();
+	        Tenant t = tenantSvc.getMasterTenant();
+	        tenantSvc.addTenantServer(t, server.getName());
+		}
+		config.setHostName(hostName);
         CertificateServer s = new CertificateServer();
-
-        Server server = new Server();
-        server.setName(config.getHostName());
-        server.setUrl("https://"+config.getHostName()+":"+config.getPort()+"/");
-        server.setType(ServerType.MASTERSERVER);
-        server.setUseMasterDatabase(true);
-        server = dispatcherSvc.create(server);
         
-        TenantService tenantSvc = ServiceLocator.instance().getTenantService();
-        Tenant t = tenantSvc.getMasterTenant();
-        tenantSvc.addTenantServer(t, server.getName());
 
         log.info("Is server: "+config.isServer());
         log.info("Role: "+config.getRole());
