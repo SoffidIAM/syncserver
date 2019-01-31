@@ -309,6 +309,7 @@ public class SoffidApplication extends Object {
             
             configureSecurityHeaders();
             configureSecurity ();
+            configureSystemOut();
 
             // Establecemos el cacerts (copiamos el de JVM a conf si no existe)
             configureCerts(config);
@@ -352,7 +353,11 @@ public class SoffidApplication extends Object {
         }
     }
 
-    private static void configureSecurityHeaders() {
+    private static void configureSystemOut() {
+    	System.setOut( new SystemOutMultiplexer(System.out) );
+	}
+
+	private static void configureSecurityHeaders() {
     	RemoteInvokerFactory.addHeadersFactory(new SecurityHeaderFactory());
 	}
 

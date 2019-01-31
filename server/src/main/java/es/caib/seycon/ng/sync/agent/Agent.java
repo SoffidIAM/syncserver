@@ -13,6 +13,7 @@ import java.util.Iterator;
 import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.api.SoffidObjectType;
+import com.soffid.iam.sync.SystemOutMultiplexer;
 import com.soffid.iam.sync.agent.CaptureLogger;
 import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFatory;
@@ -175,10 +176,13 @@ public abstract class Agent implements AgentInterface {
 	}
 	
 	public void startCaptureLog() {
-		log = new CaptureLogger();
+		CaptureLogger captureLogger = new CaptureLogger();
+		log = captureLogger;
+		SystemOutMultiplexer.attachLogger(captureLogger.getPrintWriter());
 	}
 	
 	public String endCaptureLog () {
+		SystemOutMultiplexer.detachLogger();
 		String r = null;
 		if ( log instanceof CaptureLogger)
 		{
