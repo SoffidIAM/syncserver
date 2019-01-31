@@ -59,6 +59,8 @@ public class MailListExtensibleObject extends ExtensibleObject
 				obj = mailList.getExplodedUsersList().split("[, ]+");
 			else if ("explodedUserAddresses".equals(attribute))
 				obj = resolveAddresses (mailList.getExplodedUsersList().split("[, ]+"));
+			else if ("attributes".equals(attribute))
+				obj = mailList.getAttributes();
 			else
 				return null;
 		}
