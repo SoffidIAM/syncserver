@@ -106,6 +106,8 @@ public class UserExtensibleObject extends ExtensibleObject
     			obj = usuari.getLastName();
     		else if ("lastName2".equals(attribute))
     			obj = usuari.getMiddleName();
+    		else if ("middleName".equals(attribute))
+    			obj = usuari.getMiddleName();
     		else if ("mailServer".equals(attribute))
     			obj = usuari.getMailServer();
     		else if ("homeServer".equals(attribute))
