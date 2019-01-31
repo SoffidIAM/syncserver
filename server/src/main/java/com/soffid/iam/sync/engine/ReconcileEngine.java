@@ -218,8 +218,8 @@ public abstract class ReconcileEngine
 		List<ReconcileTrigger> postInsert = findTriggers(SoffidObjectType.OBJECT_ACCOUNT, SoffidObjectTrigger.POST_INSERT);
 		List<ReconcileTrigger> postUpdate = findTriggers(SoffidObjectType.OBJECT_ACCOUNT, SoffidObjectTrigger.POST_UPDATE);
 
-		preDeleteGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.PRE_UPDATE);
-		preInsertGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.PRE_DELETE);
+		preDeleteGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.PRE_DELETE);
+		preInsertGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.PRE_INSERT);
 		postInsertGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.POST_INSERT);
 		postDeleteGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.POST_DELETE);
 
