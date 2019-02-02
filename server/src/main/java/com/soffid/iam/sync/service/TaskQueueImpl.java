@@ -1,5 +1,32 @@
 package com.soffid.iam.sync.service;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.sql.Timestamp;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.ConcurrentModificationException;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Hashtable;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.Map;
+import java.util.Set;
+
+import org.mortbay.log.Log;
+import org.mortbay.log.Logger;
+import org.springframework.beans.BeansException;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.ApplicationContextAware;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.Task;
@@ -20,52 +47,18 @@ import com.soffid.iam.model.UserEntityDao;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.sync.ServerServiceLocator;
-import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.PriorityTaskQueue;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.TaskQueueIterator;
-import com.soffid.iam.sync.service.ServerService;
-import com.soffid.iam.sync.service.TaskGenerator;
-import com.soffid.iam.sync.service.TaskQueueBase;
+import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
-
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.sql.Timestamp;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.ConcurrentModificationException;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.Hashtable;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.hibernate.Hibernate;
-import org.mortbay.log.Log;
-import org.mortbay.log.Logger;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.InitializingBean;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.TransactionDefinition;
-import org.springframework.transaction.TransactionStatus;
 
 public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAware
 {
@@ -488,6 +481,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		// Eliminar tareas similares
 		if (hash == null || tasqueEntity.getServer() == null)
 		{
+			
+			getSyncServerStatsService().register("queue", "scheduled", 1);
 			hash = newTask.getHash();
 			// Cancel local tasks
 			TaskHandler oldTask = null;
@@ -572,6 +567,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			else
 				log.setComplete( ! targetDispatcher.equals(d.getSystem().getName()));				
 			log.setNumber(0);
+			while (logs.size() < d.getInternalId())
+				logs.add(null);
 			logs.add(log);
 		}
 		// Actualizar según base de datos
@@ -580,7 +577,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
             TaskLogEntity tl = it.next();
             for (Iterator<TaskHandlerLog> it2 = logs.iterator(); it2.hasNext(); ) {
                 TaskHandlerLog thl = it2.next();
-                if (thl.getDispatcher().getSystem().getId().equals(tl.getSystem().getId())) {
+                if (thl != null &&
+                		thl.getDispatcher().getSystem().getId().equals(tl.getSystem().getId())) {
                     thl.setComplete("S".equals(tl.getCompleted()));
                     thl.setReason(tl.getMessage());
                     thl.setFirst(tl.getCreationDate() == null ? 0 : tl.getCreationDate().getTime());
@@ -710,26 +708,34 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
     						{
     							return task;
     						}
-    						else if (task.isExpired())
-    						{
-    							tasksToRemove.add(task);
-    						}
-    						else if (task.isComplete())
-    						{
-    							tasksToNotify.add(task);
-    							iterator.remove();
-    						}
-    						else if (taskDispatcher.isComplete(task))
-    						{
-    							tasksToNotify.add(task);
-    						}
-    						else if (!taskDispatcher.applies(task))
-    						{
-    							tasksToNotify.add(task);
-    						}
     						else
     						{
-    							return task;
+    							int i = taskDispatcher.getInternalId();
+    							TaskHandlerLog tl = task.getLog(i);
+    							if (tl != null && tl.isComplete()) {
+    								// Already processed
+    							}
+    							else if (task.isExpired())
+	    						{
+	    							tasksToRemove.add(task);
+	    						}
+	    						else if (task.isComplete())
+	    						{
+	    							tasksToNotify.add(task);
+	    							iterator.remove();
+	    						}
+	    						else if (taskDispatcher.isComplete(task))
+	    						{
+	    							tasksToNotify.add(task);
+	    						}
+	    						else if (!taskDispatcher.applies(task))
+	    						{
+	    							tasksToNotify.add(task);
+	    						}
+	    						else
+	    						{
+	    							return task;
+	    						}
     						}
     					}
     				}
@@ -1578,6 +1584,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		if (newTask.isRejected())
 		{
+			getSyncServerStatsService().register("queue", "rejected", 1);
 			log.info("Task is rejected", null, null);
     		TaskEntityDao dao = getTaskEntityDao();
     		newTask.setChanged(false);
@@ -1605,6 +1612,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			{
 	        			tlDao.remove(tasque.getLogs());
 	        			dao.remove(tasque);
+	        			getSyncServerStatsService().register("queue", "finished", 1);
 	    			}
 //	    			log.info("Task is complete", null, null);
 	    		}
@@ -1680,3 +1688,4 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		return null;
 	}
 }
+

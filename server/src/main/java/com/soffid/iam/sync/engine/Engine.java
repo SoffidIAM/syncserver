@@ -1,15 +1,11 @@
 package com.soffid.iam.sync.engine;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.config.Config;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cron.TaskScheduler;
-import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 

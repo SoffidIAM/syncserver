@@ -93,6 +93,7 @@ import com.soffid.iam.sync.intf.UserMgr;
 import com.soffid.iam.sync.service.ChangePasswordNotificationQueue;
 import com.soffid.iam.sync.service.LogCollectorService;
 import com.soffid.iam.sync.service.SecretStoreService;
+import com.soffid.iam.sync.service.SyncServerStatsService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.util.Syslogger;
@@ -147,17 +148,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	DispatcherStatus dispatcherStatus = DispatcherStatus.STARTING;
 	private com.soffid.iam.sync.service.ServerService server;
 	private UserDomainService domainService;
-	private UserService userService;
-	private GroupService groupService;
-	private CustomObjectService objectService;
 	private InternalPasswordService internalPasswordService;
 	private AccountService accountService;
 	private es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator attributeTranslator;
 	private com.soffid.iam.sync.engine.extobj.ObjectTranslator attributeTranslatorV2;
 	private TenantEntityDao tenantDao;
-	private DispatcherService dispatcherService;
 	private String mirroredAgent;
-
+	private SyncServerStatsService statsService = ServiceLocator.instance().getSyncServerStatsService();
+	
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
 		if (passwordDomain == null)
@@ -192,14 +190,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         		ServerServiceLocator.instance().getInternalPasswordService();
         accountService = ServerServiceLocator.instance().getAccountService();
         domainService = ServerServiceLocator.instance().getUserDomainService();
-        userService = ServerServiceLocator.instance().getUserService();
-        groupService = ServerServiceLocator.instance().getGroupService();
         auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditEntityDao");
         tenantDao = (TenantEntityDao) ServerServiceLocator.instance().getService("tenantEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
         authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
-        dispatcherService = ServerServiceLocator.instance().getDispatcherService();
-        objectService = ServiceLocator.instance().getCustomObjectService();
         
         active = true;
     }
@@ -520,12 +514,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private void runLoopNext()
 			throws InternalErrorException {
     	ConnectionPool pool = ConnectionPool.getPool();
-	try {
-		startTask(false);
-		nextTask = processAndLogTask(nextTask);
-	} finally {
-		endTask();
-	}
+		try {
+			startTask(false);
+			nextTask = processAndLogTask(nextTask);
+		} finally {
+			endTask();
+		}
 	}
 
 	private void runLoopStart() throws InternalErrorException {
@@ -596,11 +590,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		if (thl == null || thl.getNext() < System.currentTimeMillis()) {
 		    reason = "";
 		    setStatus("Execute " + t.toString());
-		    log.debug("Executing {} ", t.toString(), null);
+//		    log.info("Executing {} ", t.toString(), null);
 		    Throwable throwable = null;
 		    try {
 		        processTask(agent, t);
 		        ok = true;
+		        statsService.register("tasks-success", getName(), 1);
 		        log.debug("Task {} DONE", t.toString(), null);
 		    } catch (RemoteException e) {
 		        handleRMIError(e);
@@ -609,6 +604,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		        throwable = e;
 		        // abort = true ;
 		    } catch (Throwable e) {
+		        statsService.register("tasks-error", getName(), 1);
 				if ("local".equals(system.getUrl()))
 				{
 					log.warn("Error interno", e);
