@@ -20,6 +20,7 @@ public class SharedThreadPool implements Runnable {
 
 	private int delay;
 	private int handlersSize = 0;
+	int startedThreads = 0;
 	
 	public void updateThreads (final Collection<? extends DispatcherHandler> dispatchers)
 	{
@@ -61,11 +62,12 @@ public class SharedThreadPool implements Runnable {
 				threadNumber = 1;
 		}
 		init = true;
-		for (int i = 0; i < threadNumber; i++)
+		for (int i = startedThreads; i < threadNumber; i++)
 		{
 			Thread t = new Thread (this);
 			t.setName("SharedThread"+ (i+1));
 			t.start();
+			startedThreads ++;
 		}
 	}
 
