@@ -165,12 +165,12 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     @Override
     protected Collection<DispatcherHandler> handleGetDispatchers() throws Exception {
     	String currentTenant = Security.getCurrentTenantName();
-        LinkedList<DispatcherHandler> list = new LinkedList<DispatcherHandler>(dispatchers);
-        for (Iterator<DispatcherHandler> it = list.iterator(); it.hasNext();)
+        LinkedList<DispatcherHandler> list = new LinkedList<DispatcherHandler>();
+        for (Iterator<DispatcherHandlerImpl> it = dispatchers.iterator(); it.hasNext();)
         {
         	DispatcherHandler d = it.next();
-        	if (! currentTenant.equals(d.getSystem().getTenant()))
-        		it.remove();
+        	if (currentTenant.equals(d.getSystem().getTenant()))
+        		list.add(d);
         }
         return list;
     }

@@ -744,6 +744,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 				}
 			}
 			th.getTask().setTaskDate(Calendar.getInstance());
+			getTaskQueue().pushTaskToPersist(th);
 			
 		}
 	}

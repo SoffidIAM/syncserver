@@ -17,6 +17,7 @@ import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import org.mortbay.log.Log;
@@ -62,20 +63,16 @@ import es.caib.seycon.ng.exception.UnknownRoleException;
 
 public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAware
 {
-	public static final int MAX_PRIORITY = 2;
+	public static final int MAX_PRIORITY = 4;
 	/**
 	 * Priorized tasks for any tenant
 	 */
-	Hashtable<Long,ArrayList<LinkedList<TaskHandler>>> globalTaskList;
+	Hashtable<Long,PrioritiesList> globalTaskList;
 	/**
 	 * Current tasks for any tenant, indexed by task hash.
 	 * It's used to detect duplicated tasks
 	 */
 	Map<Long, Hashtable<String, TaskHandler>> globalCurrentTasks;
-	/**
-	 * New incoming tasks not yet included in current tasks
-	 */
-	Map<Long, ArrayList<PriorityTaskQueue>> globalPriorityQueues;
 
 	String hostname;
 	private final Logger log = Log.getLogger("TaskQueue");
@@ -93,34 +90,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		return ht;
 	}
 	
-	private ArrayList<PriorityTaskQueue> getPriorityQueues ()
-	{
-		Long l = Security.getCurrentTenantId();
-		ArrayList<PriorityTaskQueue> ht = globalPriorityQueues.get(l);
-		if (ht == null)
-		{
-			ht = new ArrayList<PriorityTaskQueue>();
-			globalPriorityQueues.put(l, ht);
-		}
-		return ht;
-	}
-
-	private ArrayList<LinkedList<TaskHandler>> getTasksList ()
-	{
-		Long l = Security.getCurrentTenantId();
-		ArrayList<LinkedList<TaskHandler>> ht = globalTaskList.get(l);
-		if (ht == null)
-		{
-			ht = new ArrayList<LinkedList<TaskHandler>>();
-			for (int i = 0; i <= MAX_PRIORITY; i++)
-			{
-				ht.add(i, new LinkedList<TaskHandler>());
-			}
-			globalTaskList.put(l, ht);
-		}
-		return ht;
-	}
-
 	/***************************************************************************
 	 * Constructor
 	 * 
@@ -129,8 +98,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	public TaskQueueImpl ()
 	{
 		globalCurrentTasks = new Hashtable<Long, Hashtable<String, TaskHandler>>();
-		globalTaskList = new Hashtable<Long,ArrayList<LinkedList<TaskHandler>>>();
-		globalPriorityQueues = new Hashtable<Long, ArrayList<PriorityTaskQueue>>();
+		globalTaskList = new Hashtable<Long, PrioritiesList>();
 		try
 		{
 			hostname = Config.getConfig().getHostName();
@@ -498,7 +466,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
                 TaskEntity remoteTask = it.next();
                 cancelRemoteTask(remoteTask);
             }
-//			newTask.setTask(getTasqueEntityDao().toTasca(tasqueEntity));
 			newTask.getTask().setStatus("P");
 			newTask.getTask().setServer(hostname);
 			newTask.getTask().setHash(hash);
@@ -507,7 +474,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			tasqueEntity.setServer(hostname);
 			tasqueEntity.setHash(hash);
 			getTaskEntityDao().update(tasqueEntity);
-			getTaskEntityDao().cancelUnscheduledCopies(tasqueEntity);
+//			getTaskEntityDao().cancelUnscheduledCopies(tasqueEntity);
 		} else {
 			// Cancel local tasks
 			TaskHandler oldTask = null;
@@ -523,28 +490,35 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 		log.info("Added task {}", newTask.toString(), null);
 
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		synchronized (taskList)
+		// Register new tasks
+		currentTasks.put(hash, newTask);
+		for ( DispatcherHandler dispatcherHandler : getTaskGenerator().getDispatchers())
 		{
-			LinkedList<TaskHandler> list = taskList.get(newTask.getPriority());
-			list.add(newTask);
-			// Register new tasks
-			currentTasks.put(hash, newTask);
-		}
-
-		if (newTask.getPriority() < MAX_PRIORITY)
-		{
-			ArrayList<PriorityTaskQueue> priorityQueues = getPriorityQueues();
-			synchronized (priorityQueues)
+			if (! dispatcherHandler.isComplete(newTask))
 			{
-				for (int i = 0; i < priorityQueues.size(); i++)
+				PrioritiesList priorities = getPrioritiesList (dispatcherHandler);
+				int priority = newTask.getPriority();
+				if (priority >= MAX_PRIORITY)
+					priority = MAX_PRIORITY - 1;
+				TasksQueue queue = priorities.get(priority);
+				synchronized (queue)
 				{
-					PriorityTaskQueue queue = priorityQueues.get(i);
-					if (queue != null)
-						queue.addTask(newTask);
+					queue.addLast( newTask );
 				}
 			}
 		}
+	}
+
+	private PrioritiesList getPrioritiesList(DispatcherHandler dispatcherHandler) {
+		PrioritiesList p = globalTaskList.get(dispatcherHandler.getSystem().getId());
+		if (p == null)
+		{
+			p = new PrioritiesList();
+			for (int i = 0; i < MAX_PRIORITY; i++)
+				p.add(new TasksQueue());
+			globalTaskList.put(dispatcherHandler.getSystem().getId(), p);
+		}
+		return p;
 	}
 
 	private void populateTaskLog(TaskHandler newTask, TaskEntity tasque) throws InternalErrorException {
@@ -660,91 +634,53 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		TaskHandler task;
 		// Clean taskDispatcher priority queue
-
-		if (taskDispatcher != null)
-		{
-			ArrayList<PriorityTaskQueue> priorityQueues = getPriorityQueues();
-			synchronized (priorityQueues )
-			{
-				while (priorityQueues.size() <= taskDispatcher.getInternalId())
-				{
-					priorityQueues.add(null);
-				}
-				PriorityTaskQueue queue = priorityQueues.get(taskDispatcher
-								.getInternalId());
-				if (queue == null)
-				{
-					queue = new PriorityTaskQueue();
-					priorityQueues.set(taskDispatcher.getInternalId(), queue);
-				}
-				else
-				{
-					queue.clear();
-				}
-
-			}
-		}
+		int internalId = taskDispatcher.getInternalId();
 
 		LinkedList<TaskHandler> tasksToNotify = new LinkedList<TaskHandler>();
-		LinkedList<TaskHandler> tasksToRemove = new LinkedList<TaskHandler>();		 
-						
+		LinkedList<TaskHandler> tasksToRemove = new LinkedList<TaskHandler>();
+		PrioritiesList priorities = getPrioritiesList(taskDispatcher);
 		try {
-			ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-    		synchronized (taskList)
-    		{
-    			boolean retry;
-    			do
-    			{
-    				tasksToNotify.clear();
-    				tasksToRemove.clear();
-    				retry = false;
-    				TaskQueueIterator iterator = new TaskQueueIterator(taskList);
-    				try
-    				{
-    					while (iterator.hasNext())
-    					{
-    						task = iterator.next();
-    						if (taskDispatcher == null)
-    						{
-    							return task;
-    						}
-    						else
-    						{
-    							int i = taskDispatcher.getInternalId();
-    							TaskHandlerLog tl = task.getLog(i);
-    							if (tl != null && tl.isComplete()) {
-    								// Already processed
-    							}
-    							else if (task.isExpired())
-	    						{
-	    							tasksToRemove.add(task);
-	    						}
-	    						else if (task.isComplete())
-	    						{
-	    							tasksToNotify.add(task);
-	    							iterator.remove();
-	    						}
-	    						else if (taskDispatcher.isComplete(task))
-	    						{
-	    							tasksToNotify.add(task);
-	    						}
-	    						else if (!taskDispatcher.applies(task))
-	    						{
-	    							tasksToNotify.add(task);
-	    						}
-	    						else
-	    						{
-	    							return task;
-	    						}
-    						}
-    					}
-    				}
-    				catch (ConcurrentModificationException e)
-    				{
-    					retry = true;
-    				}
-    			} while (retry);
-    		}
+			for ( int priority = 0; priority < priorities.size(); priority++)
+			{
+				TasksQueue priorityQueue = priorities.get(priority);
+				synchronized (priorityQueue)
+				{
+					Iterator<TaskHandler> iterator = priorityQueue.iterator();
+					while (iterator.hasNext())
+					{
+						task = iterator.next();
+						TaskHandlerLog tl = task.getLog(internalId);
+		    			if (tl != null && tl.isComplete()) {
+		    				// Already processed
+		    			}
+		    			else if (task.isExpired())
+			    		{
+		    				iterator.remove();
+			    			tasksToRemove.add(task);
+			    		}
+			    		else if (task.isComplete())
+			    		{
+			    			tasksToNotify.add(task);
+			    			iterator.remove();
+			    		}
+			    		else if (taskDispatcher.isComplete(task))
+			    		{
+			    			iterator.remove();
+			    			tasksToNotify.add(task);
+			    		}
+			    		else if (!taskDispatcher.applies(task))
+		    			{
+			    			iterator.remove();
+			    			tasksToNotify.add(task);
+						}
+						else if (tl.getNext() < System.currentTimeMillis())
+						{
+			    			iterator.remove();
+							return task;
+						}
+	    			} 
+	    		}
+			}
 		} finally {
     		removeTaskList(tasksToRemove);
     		notifyUnmanagedTasks(taskDispatcher, tasksToNotify);
@@ -757,145 +693,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	protected TaskHandler handleGetNextPendingTask (DispatcherHandler taskDispatcher,
 					TaskHandler previousTask) throws Exception
 	{
-		TaskHandler task;
-		boolean found = false;
-
-		LinkedList<TaskHandler> tasksToNotify = new LinkedList<TaskHandler>();
-		LinkedList<TaskHandler> tasksToRemove = new LinkedList<TaskHandler>();		 
-						
-		try {
-    		// First try with dispatcher priority task
-    		if (taskDispatcher != null)
-    		{
-    			ArrayList<PriorityTaskQueue> priorityQueues = getPriorityQueues();
-    			PriorityTaskQueue priorityQueue;
-    			synchronized (priorityQueues)
-    			{
-    				priorityQueue = priorityQueues.get(taskDispatcher.getInternalId());
-    			}
-    			if (priorityQueue != null)
-    			{
-    				task = priorityQueue.getNextPendingTask(previousTask);
-    				while (task != null)
-    				{
-    					if (!taskDispatcher.isComplete(task))
-    					{
-    						if (!taskDispatcher.applies(task))
-    							tasksToNotify.add(task);
-    						else
-    							return task;
-    					}
-    					task = priorityQueue.getNextPendingTask(previousTask);
-    				}
-    
-    			}
-    		}
-    
-    		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-    		synchronized (taskList)
-    		{
-    			boolean retry;
-    			do
-    			{
-    				retry = false;
-    				try
-    				{
-    					TaskQueueIterator it = new TaskQueueIterator(taskList,
-    									previousTask.getPriority());
-    					while (it.hasNext())
-    					{
-    						task = it.next();
-    						if (task == previousTask)
-    							found = true;
-    						else if (found)
-    						{
-    	    					if (taskDispatcher == null)
-    							{
-    								return task;
-    							}
-    							else if (task.isExpired())
-    							{
-    								tasksToRemove.add(task);
-    							}
-    							else if (task.isComplete())
-    							{
-    								it.remove();
-    							}
-    							else if (taskDispatcher.isComplete(task))
-    							{
-        							tasksToNotify.add(task);
-    							}
-    							else if (!taskDispatcher.applies(task))
-    							{
-    								tasksToNotify.add(task);
-    							}
-    							else
-    							{
-    								return task;
-    							}
-    						}
-    					}
-    				}
-    				catch (ConcurrentModificationException e)
-    				{
-    					retry = true;
-    				}
-    			} while (retry);
-    		}
-    
-    		if (!found)
-    		{
-    			boolean retry;
-    			do
-    			{
-    				retry = false;
-    				try
-    				{
-    					synchronized (taskList)
-    					{
-    						TaskQueueIterator it = new TaskQueueIterator(taskList,
-    										previousTask.getPriority());
-    						while (it.hasNext())
-    						{
-    							task = it.next();
-    							if (taskDispatcher == null)
-    							{
-    								return task;
-    							}
-        						else if (task.isExpired())
-        						{
-        							tasksToRemove.add(task);
-        						}
-    							else if (task.isComplete())
-    							{
-    								it.remove();
-    							}
-    							else if (taskDispatcher.isComplete(task))
-    							{
-    								// IGNORE
-    							}
-    							else if (!taskDispatcher.applies(task))
-    							{
-    								tasksToNotify.add(task);
-    							}
-    							else
-    							{
-    								return task;
-    							}
-    						}
-    					}
-    				}
-    				catch (ConcurrentModificationException e)
-    				{
-    					retry = true;
-    				}
-    			} while (retry);
-    		}
-		} finally {
-    		removeTaskList(tasksToRemove);
-    		notifyUnmanagedTasks(taskDispatcher, tasksToNotify);
-		}
-		return null;
+		return handleGetPendingTask(taskDispatcher);
 	}
 
 	private void notifyUnmanagedTasks (DispatcherHandler taskDispatcher,
@@ -929,139 +727,107 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected int handleCountTasks () throws Exception
 	{
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		int contador = 0;
-		synchronized (taskList)
-		{
-			for (int priority = 0; priority < taskList.size(); priority++)
-			{
-				for (Iterator<TaskHandler> it = taskList.get(priority).iterator(); it
-								.hasNext();)
-				{
-					TaskHandler task = it.next();
-					if (task.isComplete())
-						it.remove();
-					else
-						contador++;
-				}
-			}
-		}
-		return contador;
+		return globalCurrentTasks.size();
 	}
 
 	@Override
 	protected int handleCountTasks (DispatcherHandler taskDispatcher) throws Exception
 	{
-		int contador = 0;
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		synchronized (taskList)
+		int size = 0;
+		PrioritiesList priorities = getPrioritiesList(taskDispatcher);
+		for ( int priority = 0; priority < priorities.size(); priority++)
 		{
-			for (int priority = 0; priority < taskList.size(); priority++)
-			{
-				for (Iterator<TaskHandler> it = taskList.get(priority).iterator(); it
-								.hasNext();)
-				{
-					TaskHandler task = it.next();
-					if (task.isComplete())
-						it.remove();
-					else if (!taskDispatcher.isComplete(task))
-						contador++;
-				}
-			}
+			TasksQueue priorityQueue = priorities.get(priority);
+			size += priorityQueue.size();
 		}
-		return contador;
+		return size;
 	}
 
 //	@Override
 	protected int handleCountErrorTasks (DispatcherHandler taskDispatcher) throws Exception
 	{
-		int contador = 0;
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		synchronized (taskList)
+		int size = 0;
+		PrioritiesList priorities = getPrioritiesList(taskDispatcher);
+		for ( int priority = 0; priority < priorities.size(); priority++)
 		{
-			for (int priority = 0; priority < taskList.size(); priority++)
-			{
-				for (Iterator<TaskHandler> it = taskList.get(priority).iterator(); it
-								.hasNext();)
+			TasksQueue priorityQueue = priorities.get(priority);
+			synchronized (priorityQueue) {
+				for (TaskHandler task : priorityQueue)
 				{
-					TaskHandler task = it.next();
-					if (task.isComplete())
-						it.remove();
-					else if (taskDispatcher.isError(task))
-						contador++;
+					if (taskDispatcher.isError(task))
+						size++;
 				}
 			}
 		}
-		return contador;
+		return size;
 	}
 
 	@Override
 	protected void handleExpireTasks () throws Exception
 	{
 		Set<Long> currentTenants = getTaskGenerator().getActiveTenants();
-		TaskHandler task;
 		Date now = new Date();
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
-		synchronized (taskList)
+		for (Long tenant: globalCurrentTasks.keySet() )
 		{
-			TaskQueueIterator it = new TaskQueueIterator(taskList);
-			while (it.hasNext())
-			{
-				task = it.next();
-
-				if (task.getTimeout() != null && task.getTimeout().before(now))
+			Hashtable<String, TaskHandler> ct = globalCurrentTasks.get(tenant);
+			try {
+				for (Iterator<Entry<String, TaskHandler>> iterator = ct.entrySet().iterator(); iterator.hasNext();)
 				{
-					task.cancel();
-					currentTasks.remove(task.getHash());
-					it.remove();
-					pushTaskToPersist(task);
-					synchronized (task)
+					Entry<String, TaskHandler> entry = iterator.next();
+					TaskHandler task = entry.getValue();
+					if (task.getTimeout() != null && task.getTimeout().before(now))
 					{
-						task.notify();
-					}
-				}
-				else
-				{
-					boolean allOk = true;
-					for (DispatcherHandler dh : getTaskGenerator().getDispatchers())
-					{
-						if (dh != null && dh.isActive())
+						task.cancel();
+						iterator.remove();
+						pushTaskToPersist(task);
+						synchronized (task)
 						{
-							if (task.getLogs().size() <= dh.getInternalId())
+							task.notify();
+						}
+					}
+					else
+					{
+						boolean allOk = true;
+						for (DispatcherHandler dh : getTaskGenerator().getDispatchers())
+						{
+							if (dh != null && dh.isActive())
 							{
-								allOk = false;
-								break;
-							}
-							else
-							{
-								TaskHandlerLog tasklog = task.getLogs().get(
-												dh.getInternalId());
-								if (tasklog == null || !tasklog.isComplete())
+								if (task.getLogs().size() <= dh.getInternalId())
 								{
 									allOk = false;
 									break;
 								}
+								else
+								{
+									TaskHandlerLog tasklog = task.getLogs().get(
+											dh.getInternalId());
+									if (tasklog == null || !tasklog.isComplete())
+									{
+										allOk = false;
+										break;
+									}
+								}
 							}
 						}
+						
+						if (allOk)
+						{
+							task.cancel();
+							pushTaskToPersist(task);
+							iterator.remove();
+							log.debug("Removing task {} from queue", task, null);
+						} else if ( ! currentTenants.contains(  task.getTenantId() ) )
+						{
+							task.reject();
+							pushTaskToPersist(task);
+							log.debug("Removing task {} from queue", task, null);
+							iterator.remove();
+						}
 					}
-
-					if (allOk)
-					{
-						task.cancel();
-						pushTaskToPersist(task);
-						currentTasks.remove(task.getHash());
-						log.debug("Removing task {} from queue", task, null);
-						it.remove();
-					} else if ( ! currentTenants.contains(  task.getTenantId() ) )
-					{
-						task.reject();
-						pushTaskToPersist(task);
-						currentTasks.remove(task.getHash());
-						log.debug("Removing task {} from queue", task, null);
-						it.remove();
-					}
+					
 				}
+			} catch (ConcurrentModificationException e) {
+				log.info("Unable to purge expired tasks: "+ e.toString(), null, null);
 			}
 		}
 	}
@@ -1102,6 +868,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		thl.setStackTrace(dumpStrackTrace(t));
 		thl.setNumber(thl.getNumber() + 1);
 		thl.setLast(now);
+		
 		long elapsed;
 		if (thl.getFirst() > 0)
 			elapsed = thl.getLast() - thl.getFirst();
@@ -1116,64 +883,70 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			elapsed = 1000 * 60 * 60 * 8; // Máximo 8 horas
 		thl.setNext(thl.getLast() + elapsed);
 
+		if ( ! bOK )
+		{
+			int nextPriority = task.getPriority() + thl.getNumber();
+			if (nextPriority >= MAX_PRIORITY)
+				nextPriority = MAX_PRIORITY - 1;
+			PrioritiesList prioQueue = getPrioritiesList(taskDispatcher);
+			TasksQueue queue = prioQueue.get(nextPriority);
+			synchronized (queue)
+			{
+				queue.addLast(task);
+			}
+		}
 		// Verificar si ha de cancellar la tasca
 		boolean allOk = true;
 		StringBuffer message = new StringBuffer();
 		String status = "P";
-		for (DispatcherHandler dh : getTaskGenerator().getDispatchers())
+		synchronized (task)
 		{
-			if ((dh != null) && dh.isActive())
+			for (DispatcherHandler dh : getTaskGenerator().getDispatchers())
 			{
-				if ((task.getTask().getSystemName() == null) ||
-						task.getTask().getSystemName()
-							.equals(dh.getSystem().getName()))
+				if ((dh != null) && dh.isActive())
 				{
-					if (task.getLogs().size() <= dh.getInternalId())
+					if ((task.getTask().getSystemName() == null) ||
+							task.getTask().getSystemName()
+								.equals(dh.getSystem().getName()))
 					{
-						allOk = false;
-					}
-					
-					else
-					{
-						TaskHandlerLog tasklog = task.getLogs().get(dh.getInternalId());
-						if (tasklog == null)
+						if (task.getLogs().size() <= dh.getInternalId())
 						{
 							allOk = false;
 						}
-						else if (!tasklog.isComplete())
+						else
 						{
-							allOk = false;
-							if (tasklog.getNumber() >= 3)
-								status = "E";
-							if ((tasklog.getReason() != null) &&
-									tasklog.getReason().length() > 0)
+							TaskHandlerLog tasklog = task.getLogs().get(dh.getInternalId());
+							if (tasklog == null)
 							{
-								message.append(tasklog.getDispatcher()
-												.getSystem().getName());
-								message.append(": ");
-								message.append(tasklog.getReason());
+								allOk = false;
+							}
+							else if (!tasklog.isComplete())
+							{
+								allOk = false;
+								if (tasklog.getNumber() >= 3)
+									status = "E";
+								if ((tasklog.getReason() != null) &&
+										tasklog.getReason().length() > 0)
+								{
+									message.append(tasklog.getDispatcher()
+													.getSystem().getName());
+									message.append(": ");
+									message.append(tasklog.getReason());
+								}
 							}
 						}
 					}
 				}
 			}
 		}
-
 		// //////////////// TASK COMPLETE
 		if (allOk)
 		{
-			ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 			Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 
 			task.cancel();
 			pushTaskToPersist(task);
 			currentTasks.remove(task.getHash());
-			synchronized (taskList)
-			{
-				LinkedList<TaskHandler> queue = taskList.get(task.getPriority());
-				queue.remove(task);
-			}
-
 			// Confirmar la propagación de contraseñas
 			String transaction = task.getTask().getTransaction();
 			if (transaction.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD)
@@ -1194,16 +967,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 		else if (task.getTimeout() != null && task.getTimeout().before(new Date()))
 		{
-			ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
 			Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 
 			pushTaskToPersist(task);
 			currentTasks.remove(task.getHash());
-			synchronized (taskList)
-			{
-				LinkedList<TaskHandler> queue = taskList.get(task.getPriority());
-				queue.remove(task);
-			}
 			synchronized (task)
 			{
 				task.notify();
@@ -1269,41 +1036,23 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	@Override
-	protected boolean handleIsEmpty () throws Exception
-	{
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		for (Iterator<LinkedList<TaskHandler>> it = taskList.iterator(); it.hasNext();)
-		{
-			if (!it.next().isEmpty())
-				return false;
-		}
-		return true;
-	}
-
-	@Override
-	protected Iterator handleGetIterator () throws Exception
-	{
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		return new TaskQueueIterator(taskList);
-	}
-
-	@Override
 	protected void handleCancelTask (long taskId) throws Exception
 	{
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		Task taskToDelete = null;
-		synchronized (taskList)
+		TaskEntity taskEntity = getTaskEntityDao().load(taskId);
+		if (taskEntity != null)
 		{
-			TaskQueueIterator it = new TaskQueueIterator(taskList);
-			while (it.hasNext())
+			Hashtable<String, TaskHandler> ct = globalCurrentTasks.get(Security.getCurrentTenantId());
+			if (ct != null)
 			{
-				TaskHandler task = it.next();
-				if (task.getTask().getId().longValue() == taskId)
+				TaskHandler task = ct.get(taskEntity.getHash());
+				if (task != null)
 				{
-					task.cancel();
-					pushTaskToPersist(task);
-					it.remove();
-					break;
+					if (task.getTask().getId().longValue() == taskId)
+					{
+						task.cancel();
+						pushTaskToPersist(task);
+						ct.remove(taskEntity.getHash());
+					}
 				}
 			}
 		}
@@ -1652,7 +1401,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    		}
 			} catch (Exception e) {
 	    		newTask.setChanged(true);
-				tasksToPersist.addFirst(newTask);
+	    		synchronized (tasksToPersist) {
+	    			tasksToPersist.addFirst(newTask);
+				}
 				throw e;
 			}
 		}
@@ -1664,24 +1415,19 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected TaskHandler handleFindTaskHandlerById (long taskId) throws Exception
 	{
-		ArrayList<LinkedList<TaskHandler>> taskList = getTasksList();
-		synchronized (tasksToPersist)
+		TaskEntity taskEntity = getTaskEntityDao().load(taskId);
+		if (taskEntity != null)
 		{
-			for (TaskHandler t: tasksToPersist)
+			Hashtable<String, TaskHandler> ct = globalCurrentTasks.get(Security.getCurrentTenantId());
+			if (ct != null)
 			{
-				if (t.getTask().getId().longValue() == taskId)
-					return t;
-			}
-		}
-		synchronized (taskList)
-		{
-			TaskQueueIterator it = new TaskQueueIterator(taskList);
-			while (it.hasNext())
-			{
-				TaskHandler task = it.next();
-				if (task.getTask().getId().longValue() == taskId)
+				TaskHandler task = ct.get(taskEntity.getHash());
+				if (task != null)
 				{
-					return task;
+					if (task.getTask().getId().longValue() == taskId)
+					{
+						return task;
+					}
 				}
 			}
 		}
@@ -1689,3 +1435,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 }
 
+class TasksQueue extends LinkedList<TaskHandler> {
+	
+}
+
+class PrioritiesList extends ArrayList<TasksQueue>{
+	
+}
