@@ -13,6 +13,7 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.logging.LogFactory;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSManager;
@@ -52,7 +53,7 @@ public class KerberosLoginServlet extends HttpServlet {
      * 
      */
     private static final long serialVersionUID = 1L;
-    Logger log = Log.getLogger("KerberosLoginServlet");
+    org.apache.commons.logging.Log log = LogFactory.getLog(getClass());
 
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
@@ -189,7 +190,7 @@ public class KerberosLoginServlet extends HttpServlet {
         System dispatcher = km.getSystemForRealm(domain); 
         if (dispatcher == null)
         {
-        	log.warn("Cannot guess agent for principal {} (domain {})", principal, domain);
+        	log.warn("Cannot guess agent for principal "+principal+" (domain "+domain+")");
         }
         LogonService logonService = ServerServiceLocator.instance().getLogonService();
         
@@ -257,8 +258,9 @@ public class KerberosLoginServlet extends HttpServlet {
         if (challenge == null)
             throw new InternalErrorException("Invalid token " + challengeId);
         if (!challenge.getHost().getName().equals(req.getRemoteHost()) &&
-                !challenge.getHost().getIp().equals(req.getRemoteAddr())) {
-            log.warn("Ticket spoofing detected from {}", req.getRemoteHost(), null);
+                !challenge.getHost().getIp().equals(req.getRemoteAddr())) 
+        {
+            log.warn("Ticket spoofing detected from "+req.getRemoteAddr()+". Expected "+challenge.getHost().getIp());
             throw new InternalErrorException("Invalid token " + challengeId);
         }
         return challenge;
@@ -267,7 +269,6 @@ public class KerberosLoginServlet extends HttpServlet {
     private String tryLogin(final Challenge challenge, final String token) throws Exception {
         // Ahora intentar hacer login kerberos
         final KerberosManager km = new KerberosManager();
-        log.info("Kerberos accept challenge {}\n{}", challenge.getChallengeId(), token);
         Subject serverSubject = km.getServerSubject(challenge.getKerberosDomain());
         Object result = Subject.doAs(serverSubject, new PrivilegedAction<Object>() {
             public Object run() {
@@ -282,8 +283,8 @@ public class KerberosLoginServlet extends HttpServlet {
                         resultToken = Base64.encodeBytes(outToken, Base64.DONT_BREAK_LINES);
                     }
                     if (ctx.isEstablished()) {
-                        log.info("Login desde {} hacia {}", ctx.getSrcName().toString(), ctx
-                                .getTargName().toString());
+                        log.info("Login from "+ctx.getSrcName()+" to "+ 
+                        		ctx.getTargName().toString()+" ip "+challenge.getHost().getIp());
                         return "OK|" + challenge.getChallengeId() + "|" + resultToken + "|"
                                 + challenge.getCardNumber() + "|" + challenge.getCell()+ "|" + challenge.getUser().getUserName();
                     } else {
@@ -299,7 +300,6 @@ public class KerberosLoginServlet extends HttpServlet {
         	
             throw (Exception) result;
         else {
-            log.info("Result is {}", result, null);
             return (String) result;
         }
     }
