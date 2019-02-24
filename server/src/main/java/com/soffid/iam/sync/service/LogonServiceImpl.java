@@ -384,6 +384,7 @@ public class LogonServiceImpl extends LogonServiceBase {
             }
         }
         ch.setHost(findHost(hostIp));
+        ch.getHost().setIp(hostIp);
         ch.setCardNumber(""); //$NON-NLS-1$
         ch.setCell(""); //$NON-NLS-1$
 
