@@ -243,7 +243,7 @@ public class Configure {
 		else
 		{
 	        server = new Server();
-	        server.setName(config.getHostName());
+	        server.setName(hostName);
 	        server.setUrl("https://"+config.getHostName()+":"+config.getPort()+"/");
 	        server.setType(ServerType.MASTERSERVER);
 	        server.setUseMasterDatabase(true);
