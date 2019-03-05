@@ -244,7 +244,7 @@ public class Configure {
 		{
 	        server = new Server();
 	        server.setName(hostName);
-	        server.setUrl("https://"+config.getHostName()+":"+config.getPort()+"/");
+	        server.setUrl("https://"+hostName+":"+config.getPort()+"/");
 	        server.setType(ServerType.MASTERSERVER);
 	        server.setUseMasterDatabase(true);
 	        server = dispatcherSvc.create(server);
