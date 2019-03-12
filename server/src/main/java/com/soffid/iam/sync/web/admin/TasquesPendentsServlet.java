@@ -160,89 +160,11 @@ public class TasquesPendentsServlet extends HttpServlet {
 
     private String getTasquesSearch(String cerca) throws InternalErrorException {
         StringBuffer toReturn = new StringBuffer();
-        toReturn.append("<table border=\"1\" class=\"headerfixe\"><tbody>");
-        toReturn.append("<th class=\"t\">Tasca</th>");
-        for (DispatcherHandler taskDispatcher : taskGenerator.getDispatchers()) {
-            if (taskDispatcher != null && taskDispatcher.isActive()) {
-                toReturn.append("<th>");
-                toReturn.append("<a href=agents?agent=");
-                toReturn.append(taskDispatcher.getSystem().getName());
-                toReturn.append(">");
-                toReturn.append(taskDispatcher.getSystem().getName());
-                toReturn.append("</th>");
-            }
-        }
-
-        Iterator<TaskHandler> iterator = taskQueue.getIterator();
-        if (cerca != null && !"".equals(cerca.trim())) {
-            while (iterator.hasNext()) {
-                TaskHandler currentTask = iterator.next();
-                if (currentTask.toString().contains(cerca)) { // No hacemos
-                                                              // comparación
-                                                              // case-sensitive
-                    toReturn.append("<tr>");
-                    toReturn.append("<td class=\"t\">");
-                    toReturn.append(currentTask);
-                    toReturn.append("</td>");
-                    for (DispatcherHandler taskDispatcher : taskGenerator.getDispatchers()) {
-
-                        if (taskDispatcher.isActive()) {
-                            if (taskDispatcher.isComplete(currentTask))
-                                toReturn.append("<td bgcolor=\"#00FF00\">DONE</td>");
-                            else if (taskDispatcher.isError(currentTask))
-                                toReturn.append("<td bgcolor=\"#FF0000\">ERROR</td>");
-                            else
-                                toReturn.append("<td bgcolor=\"#FFFF00\">PENDING</td>");
-                        }
-                    }
-                }
-            }
-        }
-        toReturn.append("</tbody></table>");
         return toReturn.toString();
     }
 
     public String getTasquesPendents(Integer rangInici) throws InternalErrorException {
         StringBuffer toReturn = new StringBuffer();
-        toReturn.append("<table border=\"1\" class=\"headerfixe\"><tbody>");
-        toReturn.append("<th class=\"t\">Tasca</th>");
-        for (DispatcherHandler taskDispatcher : taskGenerator.getDispatchers()) {
-            if (taskDispatcher.isActive()) {
-                toReturn.append("<th>");
-                toReturn.append("<a href=agents?agent=");
-                toReturn.append(taskDispatcher.getSystem().getName());
-                toReturn.append(">");
-                toReturn.append(taskDispatcher.getSystem().getName());
-                toReturn.append("</th>");
-            }
-        }
-
-        Iterator<TaskHandler> iterator = taskQueue.getIterator();
-        int currentTaskNumber = 0;
-        while (iterator.hasNext()) {
-            TaskHandler currentTask = iterator.next();
-            currentTaskNumber++;
-            if (rangInici == null
-                    || (currentTaskNumber > rangInici && currentTaskNumber <= rangInici
-                            + NUM_TASKES_PAGINA)) {
-                toReturn.append("<tr>");
-                toReturn.append("<td class=\"t\">");
-                toReturn.append(currentTask);
-                toReturn.append("</td>");
-                for (DispatcherHandler taskDispatcher : taskGenerator.getDispatchers()) {
-
-                    if (taskDispatcher.isActive()) {
-                        if (taskDispatcher.isComplete(currentTask))
-                            toReturn.append("<td bgcolor=\"#00FF00\">DONE</td>");
-                        else if (taskDispatcher.isError(currentTask))
-                            toReturn.append("<td bgcolor=\"#FF0000\">ERROR</td>");
-                        else
-                            toReturn.append("<td bgcolor=\"#FFFF00\">PENDING</td>");
-                    }
-                }
-            }
-        }
-        toReturn.append("</tbody></table>");
         return toReturn.toString();
     }
 

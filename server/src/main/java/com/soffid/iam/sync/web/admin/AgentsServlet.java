@@ -34,7 +34,6 @@ import com.soffid.iam.sync.agent.AgentManagerImpl;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
-import com.soffid.iam.sync.engine.TaskQueueIterator;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 
@@ -85,86 +84,6 @@ public class AgentsServlet extends HttpServlet {
     private String getTasquesPendentsAgent(String agent) throws InternalErrorException {
         StringBuffer toReturn = new StringBuffer();
 
-        TaskGenerator taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
-        for (DispatcherHandler dispatcher : taskGenerator.getDispatchers()) {
-            if (dispatcher != null && dispatcher.getSystem() != null
-                    && agent.equals(dispatcher.getSystem().getName())) {
-                toReturn.append("<P>URL: ");
-                toReturn.append(dispatcher.getSystem().getUrl());
-                toReturn.append("</p>");
-                toReturn.append("<table border=\"1\">");
-                toReturn.append("<th>#</th>");
-                toReturn.append("<th>Tasca</th>");
-                toReturn.append("<th>Priority</th>");
-                toReturn.append("<th>Executions</th>");
-                toReturn.append("<th>Execution time</th>");
-                toReturn.append("<th>Message</th>");
-                toReturn.append("<th>Scheduled</th>");
-                toReturn.append("<th>Timeout</th>");
-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat("dd/MM/yyyy kk:mm:ss");
-                TaskQueue taskQueue = ServerServiceLocator.instance().getTaskQueue();
-                int numTasca = 1;
-                for (Iterator<TaskHandler> it = taskQueue.getIterator(); it.hasNext();) {
-                    TaskHandler task = it.next();
-                    if (!dispatcher.isComplete(task)) {
-                        toReturn.append("<tr>");
-                        toReturn.append("<td>" + (numTasca++) + "</td>"); // numerem
-                                                                          // les
-                                                                          // tasques
-                                                                          // pendents
-                        toReturn.append("<td>");
-                        toReturn.append(task.toString());
-                        toReturn.append("</td>");
-
-                        toReturn.append("<td>");
-                        toReturn.append(task.getPriority());
-                        toReturn.append("</td>");
-
-                        TaskHandlerLog taskLog;
-                        try {
-                            taskLog = task.getLogs().get(dispatcher.getInternalId());
-                        } catch (IndexOutOfBoundsException e) {
-                            taskLog = null;
-                        }
-
-                        toReturn.append("<td>");
-                        if (taskLog != null)
-                            toReturn.append(taskLog.getNumber());
-                        toReturn.append("</td>");
-
-                        toReturn.append("<td>");
-                        if (taskLog != null && taskLog.getLast() > 0) {
-                            toReturn.append(simpleDateFormat.format(new Date(taskLog.getLast())));
-                        }
-                        toReturn.append("</td>");
-
-                        toReturn.append("<td>");
-                        if (taskLog != null && taskLog.getReason() != null) {
-                            toReturn.append(taskLog.getReason());
-                            toReturn.append("<br><div class=\"st0\" onclick=\"mostra(this)\"><div>[+] <span class='st'>mostra stack trace</span></div><div style=\"display:none;\">");
-                            toReturn.append(taskLog.getStackTrace() != null ? taskLog
-                                    .getStackTrace().replaceAll("\n", "<br/>") : "" + "</div>");
-                        }
-                        toReturn.append("</td>");
-
-                        toReturn.append("<td>");
-                        if (taskLog != null && taskLog.getNext() > 0) {
-                            toReturn.append(simpleDateFormat.format(new Date(taskLog.getNext())));
-                        }
-                        toReturn.append("</td>");
-
-                        toReturn.append("<td>");
-                        if (task.getTimeout() != null) {
-                            toReturn.append(simpleDateFormat.format(task.getTimeout()));
-                        }
-                        toReturn.append("</td>");
-
-                        toReturn.append("</tr>");
-                    }
-                }
-                toReturn.append("</table>");
-            }
-        }
         return toReturn.toString();
     }
 
