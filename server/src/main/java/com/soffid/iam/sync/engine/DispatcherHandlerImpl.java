@@ -726,7 +726,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.PROPAGATE_PASSWORD)) {
-            propagatePassword(agent, t);
+            propagateUserPassword(agent, t);
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD)) {
@@ -998,7 +998,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     private void updateMailList(Object agent, TaskHandler t) throws InternalErrorException {
         MailAliasMgr aliasMgr = InterfaceWrapper.getMailAliasMgr ( agent );
         try {
-            aliasMgr = (MailAliasMgr) agent;
+            aliasMgr = (MailAliasMgr) aliasMgr;
         } catch (ClassCastException e) {
             return;
         }
@@ -1285,7 +1285,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	{
 	            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
 	                    + t.getPassword().getHash() + ": ACCEPTED");
-	            log.debug("Accepted proposed password for {}", acc.getName(), null);
+	            log.info("Accepted proposed password for {}", acc.getName(), null);
 	            cancelTask(t);
 	        	if (acc instanceof UserAccount)
 	        	{
@@ -1352,6 +1352,90 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	    }
     }
 
+    private void propagateUserPassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+    	log.info("En propagateUserPassword");
+        if (!isTrusted())
+            return;
+
+    	log.info("En propagateUserPassword 2");
+        UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
+        if (userMgr == null)
+        	return;
+
+    	log.info("En propagateUserPassword 3 "+t.getTask().getUser());
+    	for (Account acc: accountService.findUsersAccounts(t.getTask().getUser(), mirroredAgent))
+    	{
+	        if (!acc.isDisabled() )
+	        {
+	        	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
+	        	{
+		            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
+		                    + t.getPassword().getHash() + ": ACCEPTED");
+		            log.info("Accepted proposed password for {}", acc.getName(), null);
+		            cancelTask(t);
+		        	if (acc instanceof UserAccount)
+		        	{
+		        		UserAccount ua = (UserAccount) acc;
+			            
+			            TaskEntity te = tasqueEntityDao.newTaskEntity();
+			            te.setTransaction(TaskHandler.UPDATE_PROPAGATED_PASSWORD);
+			            te.setPasswordsDomain(getSystem().getPasswordsDomain());
+			            te.setPassword(t.getPassword().toString());
+			            te.setUser(ua.getUser());
+			            te.setTenant( tenantDao.findByName( getSystem().getTenant() ));
+			            taskqueue.addTask(te);
+			            
+			            AuditEntity auditoria = auditoriaDao.newAuditEntity();
+			            auditoria.setAction("L");
+			            auditoria.setDate(new Date());
+			            auditoria.setUser(ua.getUser());
+			            auditoria.setPasswordDomain(getSystem().getPasswordsDomain());
+			            auditoria.setObject("SC_USUARI");
+			            auditoria.setDb(getSystem().getName());
+			            auditoria.setAccount(acc.getName());
+			            auditoriaDao.create(auditoria);
+	
+						internalPasswordService.storePassword(ua.getUser(), getSystem().getPasswordsDomain(), 
+										t.getPassword().getPassword(), false);
+						secretStoreService.putSecret(
+										getTaskUser(t),
+										"dompass/" + getPasswordDomain().getId(), 
+										t.getPassword());
+		        	}
+		        	else
+		        	{
+	   		            for (String u: accountService.getAccountUsers(acc))
+	   		            {
+	   		            	changePasswordNotificationQueue.addNotification(u);
+	   		            }
+			            AuditEntity auditoria = auditoriaDao.newAuditEntity();
+			            auditoria.setAction("L");
+			            auditoria.setDate(new Date());
+			            auditoria.setAccount(acc.getName());
+			            auditoria.setDb(acc.getSystem());
+			            auditoria.setObject("SC_ACCOUN");
+			            auditoriaDao.create(auditoria);
+		        	}
+	        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), t.getPassword(), false, null);
+		        } else {
+		        	String timeout = System.getProperty("soffid.propagate.timeout");
+		        	if (timeout != null)
+		        	{
+		        		long timeoutLong = Long.decode(timeout)*1000;
+			        	TaskHandlerLog tasklog = t.getLog(getInternalId());
+			        	if (tasklog == null || tasklog.first == 0 ||
+			        			System.currentTimeMillis() < tasklog.first + timeoutLong)
+			        	{
+			                log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
+			                throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
+			        	}
+		        	}
+		        	
+		       		log.info("Rejected proposed password for {}", t.getTask().getUser(), null);
+		        }
+	        }
+	    }
+    }
 
     private void expireUserPassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
         UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
