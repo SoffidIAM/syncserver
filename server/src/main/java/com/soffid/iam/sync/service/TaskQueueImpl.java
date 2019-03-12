@@ -49,10 +49,8 @@ import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.DispatcherHandler;
-import com.soffid.iam.sync.engine.PriorityTaskQueue;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
-import com.soffid.iam.sync.engine.TaskQueueIterator;
 import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.utils.Security;
 
@@ -1141,12 +1139,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		for (DispatcherHandler dispatcher: getTaskGenerator().getDispatchers())
 		{
 			String dispatcherName = dispatcher.getSystem().getName();
-			if (dispatcher.isActive() && (
-					task.getTask().getSystemName() == null || 
-					dispatcherName.equals (task.getTask().getSystemName())))
+			if (task.getTask().getSystemName() == null || 
+					dispatcherName.equals (task.getTask().getSystemName()))
 			{
 				DebugTaskResults  r = new DebugTaskResults();
-				if (dispatcher.isConnected())
+				if (dispatcher.isConnected() && dispatcher.isActive())
 				{
 					if (debug)
 					{
@@ -1157,13 +1154,19 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    				try {
 	    					dispatcher.processOBTask(task);
 	    				} catch (Exception e) {
-	    					m.put(dispatcherName, e);
+	    					m.put(dispatcherName, dispatcher.getConnectException());
+	    					r.setException(e);
 	    				}
 					}
 				}
 				else if (dispatcher.getConnectException() != null)
 				{
 					m.put(dispatcherName, dispatcher.getConnectException());
+					r.setException(dispatcher.getConnectException());
+					r.setStatus("System is offilne");
+				}
+				else
+				{
 					r.setStatus("System is offilne");
 				}
 				debugMap.put(dispatcherName, r);
@@ -1353,6 +1356,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    		TaskEntity tasque = dao.load(newTask.getTask().getId());
 	    		if (tasque == null)
 	    		{
+	    			newTask.cancel();
 //	    			log.info("Task was previously removed", null, null);
 	    		}
 	    		else if (newTask.isComplete())
