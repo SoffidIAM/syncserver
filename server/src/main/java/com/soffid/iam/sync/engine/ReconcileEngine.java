@@ -441,8 +441,8 @@ public abstract class ReconcileEngine
 						{
 							acc.getAttributes().put(k, existingAccount.getAttributes().get(k));
 						}
-						accountService.updateAccount2(acc);
 					}
+					accountService.updateAccount2(acc);
 				}
 				else
 					accountService.updateAccount2(acc);
