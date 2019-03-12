@@ -96,7 +96,7 @@ public class Configure {
             KeyManagementException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied {
         Config config = Config.getConfig();
 
-        String adminTenant="";
+        String adminTenant="master";
         String adminUser = "";
         Password adminPassword = null;
         String serverUrl = "";
