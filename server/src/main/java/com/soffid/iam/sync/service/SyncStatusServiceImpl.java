@@ -3,6 +3,7 @@ package com.soffid.iam.sync.service;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AgentStatusInfo;
 import com.soffid.iam.api.Configuration;
+import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
@@ -34,6 +35,7 @@ import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.cron.TaskScheduler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GrantExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.MailListExtensibleObject;
@@ -656,6 +658,11 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			} catch (UnknownGroupException e) {
 				source = new ExtensibleObject();
 			}
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_CUSTOM))
+		{
+			CustomObject co = getServerService().getCustomObject(object1, object2);
+			source = new CustomExtensibleObject(co, getServerService());
 		} else {
 			source = new ExtensibleObject();
 		}
@@ -727,7 +734,13 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			tasca.setTransaction(TaskHandler.UPDATE_GROUP);
 			tasca.setGroup(object1);
 		}
-		
+		else if (type.equals(SoffidObjectType.OBJECT_CUSTOM))
+		{
+			tasca.setTransaction(TaskHandler.UPDATE_OBJECT);
+			tasca.setCustomObjectName(object2);
+			tasca.setCustomObjectType(object1);
+		}
+
 		return th;
 	}
 
