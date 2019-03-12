@@ -103,6 +103,8 @@ public class ServerApplication extends SoffidApplication {
         // pool.allocate(Integer.parseInt(poolSize));
 
         Config.getConfig().setServerService(server);
+        // Set kerberos properties
+        setKerberosProperties ();
         // Configuramos el syslog
         Syslogger.configure();
         // Cambiar las claves de activación
@@ -148,7 +150,19 @@ public class ServerApplication extends SoffidApplication {
         
     }
     
-    private static void tryToResetAgents() throws IOException, InternalErrorException {
+    private static void setKerberosProperties() throws FileNotFoundException, IOException {
+    	if (System.getProperty("java.security.krb5.conf") == null)
+    	{
+    		String krb5File = Config.getConfig().getHomeDir() + "/conf/krb5.conf";
+    		java.lang.System.setProperty("java.security.krb5.conf", krb5File);
+    	}
+    	if (System.getProperty("sun.security.krb5.debug") == null)
+    		java.lang.System.setProperty("sun.security.krb5.debug", "true");
+    	if (System.getProperty("javax.security.auth.useSubjectCredsOnly") == null)
+    		java.lang.System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+	}
+
+	private static void tryToResetAgents() throws IOException, InternalErrorException {
         Config config = Config.getConfig();
         String BASE_DIRECTORY = config.getHomeDir().getAbsolutePath();
         File resetFile = new File(BASE_DIRECTORY + FILE_SEPARATOR + "tmp" + FILE_SEPARATOR
