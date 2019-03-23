@@ -192,7 +192,9 @@ public class ConnectionPool {
 	public String getDriverType (String driver)
 	{
         String type = driver.substring(driver.indexOf(":")+1); //$NON-NLS-1$
-        return type.substring(0, type.indexOf(":")); //$NON-NLS-1$
+        type = type.substring(0, type.indexOf(":")); //$NON-NLS-1$
+        if (type.equals("mariadb")) type = "mysql";
+        return type;
 	}
 
 
@@ -276,7 +278,6 @@ public class ConnectionPool {
 
     /**
      * Instancia una conexión a la base de datos. Utiliza el driver
-     * oracle.jdbc.driver.OracleDriver
      * 
      * @throws SQLException
      *                 error al conectar a la base de datos
