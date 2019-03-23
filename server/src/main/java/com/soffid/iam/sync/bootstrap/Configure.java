@@ -201,8 +201,8 @@ public class Configure {
         	password = new Password(new String(pass));
         }
         // Configurar servidor
-        config.setPassword(password);
         config.setRole("server");
+        config.setPassword(password);
         config.setDB(db);
         config.setDbUser(dbuser);
         

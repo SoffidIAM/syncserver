@@ -84,6 +84,10 @@ public class ConfigurationManager
 							prop.put(Config.ROL_PROPERTY, rset.getString(2));
 							if (rset.getString(3) != null)
 								prop.put(Config.JAVA_OPT_PROPERTY, rset.getString(3));
+							else if ( "server".equals(rset.getString(2)))
+								prop.put(Config.JAVA_OPT_PROPERTY, "-Xmx512m");
+							else
+								prop.put(Config.JAVA_OPT_PROPERTY, "-Xmx128m");
 						}
 
 					});
