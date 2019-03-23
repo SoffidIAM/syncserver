@@ -67,7 +67,7 @@
       </dirEntry>
     </entries>
     <components>
-      <component name="Sync server" id="33486" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="false" downloadable="false" hidden="false">
+      <component name="Sync server" id="33486" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="true" downloadable="false" hidden="false">
         <description />
         <include all="false">
           <entry location=".i4j_fileset_" fileType="regular" />
@@ -104,8 +104,8 @@
       </java>
       <includedFiles />
       <unextractableFiles />
-      <vmOptionsFile mode="none" overwriteMode="0" fileMode="644">
-        <content />
+      <vmOptionsFile mode="content" overwriteMode="0" fileMode="644">
+        <content>-Xmx128m</content>
       </vmOptionsFile>
       <customScript mode="1" file="">
         <content />
@@ -849,7 +849,7 @@ else
       </excludedComponents>
       <includedDownloadableComponents />
     </windows>
-    <unixInstaller name="Unix Installer" id="953" customizedId="" mediaFileName="" installDir="soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="./resources/linux-x86-1.6.0_30.tar.gz" manualJREEntry="true" bundleType="1" jreURL="" jreShared="false" directDownload="false" installOnlyIfNecessary="false" customInstallBaseDir="" contentFilesType="1" downloadURL="">
+    <unixInstaller name="Unix Installer" id="953" customizedId="" mediaFileName="" installDir="soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false" bundleType="1" jreURL="" jreShared="false" directDownload="false" installOnlyIfNecessary="false" customInstallBaseDir="" contentFilesType="1" downloadURL="">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
@@ -873,7 +873,7 @@ else
         <content />
       </installerScript>
     </unixInstaller>
-    <linuxRPM name="Linux RPM" id="32595" customizedId="" mediaFileName="" installDir="/opt/soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="resources/linux-x86-1.6.0_30.tar.gz" manualJREEntry="true" os="linux" arch="i386">
+    <linuxRPM name="Linux RPM" id="32595" customizedId="" mediaFileName="" installDir="/opt/soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false" os="linux" arch="i386">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
@@ -928,7 +928,7 @@ fi;</content>
       </excludedComponents>
       <includedDownloadableComponents />
     </windows>
-    <linuxDeb name="Linux Deb Archive" id="33995" customizedId="" mediaFileName="" installDir="/opt/soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="resources/linux-x86-1.6.0_30.tar.gz" manualJREEntry="true" bzip="false" description="Soffid IAM Synchronization server" dependencies="" maintainerEmail="contact@soffid.com" architectureSet="false" architecture="">
+    <linuxDeb name="Linux Deb Archive" id="33995" customizedId="" mediaFileName="" installDir="/opt/soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false" bzip="false" description="Soffid IAM Synchronization server" dependencies="" maintainerEmail="contact@soffid.com" architectureSet="false" architecture="">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
