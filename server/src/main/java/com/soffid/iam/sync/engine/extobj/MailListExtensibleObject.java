@@ -55,9 +55,9 @@ public class MailListExtensibleObject extends ExtensibleObject
 				obj = mailList.getRoleMembers().split("[, ]+");
 			else if ("lists".equals(attribute))
 				obj = mailList.getLists().split("[, ]+");
-			else if ("explodedUsers".equals(attribute))
+			else if ("explodedUsers".equals(attribute) && mailList.getExplodedUsersList() != null)
 				obj = mailList.getExplodedUsersList().split("[, ]+");
-			else if ("explodedUserAddresses".equals(attribute))
+			else if ("explodedUserAddresses".equals(attribute) && mailList.getExplodedUsersList() != null)
 				obj = resolveAddresses (mailList.getExplodedUsersList().split("[, ]+"));
 			else if ("attributes".equals(attribute))
 				obj = mailList.getAttributes();
