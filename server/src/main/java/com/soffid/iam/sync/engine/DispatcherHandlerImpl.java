@@ -93,6 +93,7 @@ import com.soffid.iam.sync.intf.UserMgr;
 import com.soffid.iam.sync.service.ChangePasswordNotificationQueue;
 import com.soffid.iam.sync.service.LogCollectorService;
 import com.soffid.iam.sync.service.SecretStoreService;
+import com.soffid.iam.sync.service.SyncServerStatsService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.util.Syslogger;
@@ -147,17 +148,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	DispatcherStatus dispatcherStatus = DispatcherStatus.STARTING;
 	private com.soffid.iam.sync.service.ServerService server;
 	private UserDomainService domainService;
-	private UserService userService;
-	private GroupService groupService;
-	private CustomObjectService objectService;
 	private InternalPasswordService internalPasswordService;
 	private AccountService accountService;
 	private es.caib.seycon.ng.sync.engine.extobj.ObjectTranslator attributeTranslator;
 	private com.soffid.iam.sync.engine.extobj.ObjectTranslator attributeTranslatorV2;
 	private TenantEntityDao tenantDao;
-	private DispatcherService dispatcherService;
 	private String mirroredAgent;
-
+	private SyncServerStatsService statsService = ServiceLocator.instance().getSyncServerStatsService();
+	
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
 		if (passwordDomain == null)
@@ -192,14 +190,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         		ServerServiceLocator.instance().getInternalPasswordService();
         accountService = ServerServiceLocator.instance().getAccountService();
         domainService = ServerServiceLocator.instance().getUserDomainService();
-        userService = ServerServiceLocator.instance().getUserService();
-        groupService = ServerServiceLocator.instance().getGroupService();
         auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditEntityDao");
         tenantDao = (TenantEntityDao) ServerServiceLocator.instance().getService("tenantEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
         authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
-        dispatcherService = ServerServiceLocator.instance().getDispatcherService();
-        objectService = ServiceLocator.instance().getCustomObjectService();
         
         active = true;
     }
@@ -520,12 +514,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private void runLoopNext()
 			throws InternalErrorException {
     	ConnectionPool pool = ConnectionPool.getPool();
-	try {
-		startTask(false);
-		nextTask = processAndLogTask(nextTask);
-	} finally {
-		endTask();
-	}
+		try {
+			startTask(false);
+			nextTask = processAndLogTask(nextTask);
+		} finally {
+			endTask();
+		}
 	}
 
 	private void runLoopStart() throws InternalErrorException {
@@ -557,7 +551,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
         boolean ok = true;
         setStatus("Getting Task");
-        log.info("Getting tasks");
+//        log.info("Getting tasks");
 
     	ConnectionPool pool = ConnectionPool.getPool();
     	
@@ -593,43 +587,40 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		String reason;
 		boolean ok;
 		TaskHandlerLog thl = t.getLog(getInternalId());
-		if (thl == null || thl.getNext() < System.currentTimeMillis()) {
-		    reason = "";
-		    setStatus("Execute " + t.toString());
-		    log.debug("Executing {} ", t.toString(), null);
-		    Throwable throwable = null;
-		    try {
-		        processTask(agent, t);
-		        ok = true;
-		        log.debug("Task {} DONE", t.toString(), null);
-		    } catch (RemoteException e) {
-		        handleRMIError(e);
-		        ok = false;
-		        reason = "Cannot connect to " + getSystem().getUrl();
-		        throwable = e;
-		        // abort = true ;
-		    } catch (Throwable e) {
-				if ("local".equals(system.getUrl()))
-				{
-					log.warn("Error interno", e);
-				} else {
-					String error = SoffidStackTrace.getStackTrace(e)
-							.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
-					log.warn("Error interno: "+error);
-					
-				}
-		        ok = false;
-		        reason = e.toString();
-		        throwable = e;
-		    }
-		    setStatus("Getting Task");
-		    TaskHandler nextTask = taskqueue.getNextPendingTask(this, t);
-		    // setStatus("Notifying task status " + t.transactionCode);
-		    taskqueue.notifyTaskStatus(t, this, ok, reason, throwable);
-		    t = nextTask;
-		} else {
-		    t = taskqueue.getNextPendingTask(this, t);
-		}
+	    reason = "";
+	    setStatus("Execute " + t.toString());
+	    log.info("Executing {} ", t.toString(), null);
+	    Throwable throwable = null;
+	    try {
+	        processTask(agent, t);
+	        ok = true;
+	        statsService.register("tasks-success", getName(), 1);
+	        log.debug("Task {} DONE", t.toString(), null);
+	    } catch (RemoteException e) {
+	        handleRMIError(e);
+	        ok = false;
+	        reason = "Cannot connect to " + getSystem().getUrl();
+	        throwable = e;
+	        // abort = true ;
+	    } catch (Throwable e) {
+	        statsService.register("tasks-error", getName(), 1);
+			if ("local".equals(system.getUrl()))
+			{
+				log.warn("Error interno", e);
+			} else {
+				String error = SoffidStackTrace.getStackTrace(e)
+						.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
+				log.warn("Error interno: "+error);
+				
+			}
+	        ok = false;
+	        reason = e.toString();
+	        throwable = e;
+	    }
+	    setStatus("Getting Task");
+	    taskqueue.notifyTaskStatus(t, this, ok, reason, throwable);
+	    TaskHandler nextTask = taskqueue.getNextPendingTask(this, t);
+	    t = nextTask;
 		return t;
 	}
 
@@ -735,7 +726,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.PROPAGATE_PASSWORD)) {
-            propagatePassword(agent, t);
+            propagateUserPassword(agent, t);
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD)) {
@@ -1007,7 +998,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     private void updateMailList(Object agent, TaskHandler t) throws InternalErrorException {
         MailAliasMgr aliasMgr = InterfaceWrapper.getMailAliasMgr ( agent );
         try {
-            aliasMgr = (MailAliasMgr) agent;
+            aliasMgr = (MailAliasMgr) aliasMgr;
         } catch (ClassCastException e) {
             return;
         }
@@ -1294,7 +1285,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	{
 	            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
 	                    + t.getPassword().getHash() + ": ACCEPTED");
-	            log.debug("Accepted proposed password for {}", acc.getName(), null);
+	            log.info("Accepted proposed password for {}", acc.getName(), null);
 	            cancelTask(t);
 	        	if (acc instanceof UserAccount)
 	        	{
@@ -1361,6 +1352,90 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	    }
     }
 
+    private void propagateUserPassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+    	log.info("En propagateUserPassword");
+        if (!isTrusted())
+            return;
+
+    	log.info("En propagateUserPassword 2");
+        UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
+        if (userMgr == null)
+        	return;
+
+    	log.info("En propagateUserPassword 3 "+t.getTask().getUser());
+    	for (Account acc: accountService.findUsersAccounts(t.getTask().getUser(), mirroredAgent))
+    	{
+	        if (!acc.isDisabled() )
+	        {
+	        	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
+	        	{
+		            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
+		                    + t.getPassword().getHash() + ": ACCEPTED");
+		            log.info("Accepted proposed password for {}", acc.getName(), null);
+		            cancelTask(t);
+		        	if (acc instanceof UserAccount)
+		        	{
+		        		UserAccount ua = (UserAccount) acc;
+			            
+			            TaskEntity te = tasqueEntityDao.newTaskEntity();
+			            te.setTransaction(TaskHandler.UPDATE_PROPAGATED_PASSWORD);
+			            te.setPasswordsDomain(getSystem().getPasswordsDomain());
+			            te.setPassword(t.getPassword().toString());
+			            te.setUser(ua.getUser());
+			            te.setTenant( tenantDao.findByName( getSystem().getTenant() ));
+			            taskqueue.addTask(te);
+			            
+			            AuditEntity auditoria = auditoriaDao.newAuditEntity();
+			            auditoria.setAction("L");
+			            auditoria.setDate(new Date());
+			            auditoria.setUser(ua.getUser());
+			            auditoria.setPasswordDomain(getSystem().getPasswordsDomain());
+			            auditoria.setObject("SC_USUARI");
+			            auditoria.setDb(getSystem().getName());
+			            auditoria.setAccount(acc.getName());
+			            auditoriaDao.create(auditoria);
+	
+						internalPasswordService.storePassword(ua.getUser(), getSystem().getPasswordsDomain(), 
+										t.getPassword().getPassword(), false);
+						secretStoreService.putSecret(
+										getTaskUser(t),
+										"dompass/" + getPasswordDomain().getId(), 
+										t.getPassword());
+		        	}
+		        	else
+		        	{
+	   		            for (String u: accountService.getAccountUsers(acc))
+	   		            {
+	   		            	changePasswordNotificationQueue.addNotification(u);
+	   		            }
+			            AuditEntity auditoria = auditoriaDao.newAuditEntity();
+			            auditoria.setAction("L");
+			            auditoria.setDate(new Date());
+			            auditoria.setAccount(acc.getName());
+			            auditoria.setDb(acc.getSystem());
+			            auditoria.setObject("SC_ACCOUN");
+			            auditoriaDao.create(auditoria);
+		        	}
+	        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), t.getPassword(), false, null);
+		        } else {
+		        	String timeout = System.getProperty("soffid.propagate.timeout");
+		        	if (timeout != null)
+		        	{
+		        		long timeoutLong = Long.decode(timeout)*1000;
+			        	TaskHandlerLog tasklog = t.getLog(getInternalId());
+			        	if (tasklog == null || tasklog.first == 0 ||
+			        			System.currentTimeMillis() < tasklog.first + timeoutLong)
+			        	{
+			                log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
+			                throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
+			        	}
+		        	}
+		        	
+		       		log.info("Rejected proposed password for {}", t.getTask().getUser(), null);
+		        }
+	        }
+	    }
+    }
 
     private void expireUserPassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
         UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
@@ -1541,6 +1616,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 
     private void cancelTask(TaskHandler t) throws InternalErrorException {
+    	t.cancel();
         taskqueue.cancelTask(t.getTask().getId());
     }
 

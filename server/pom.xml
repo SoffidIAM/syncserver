@@ -8,13 +8,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.soffid.iam.sync</groupId>
 	<artifactId>syncserver</artifactId>
-	<version>2.5.7-SNAPSHOT</version>
+	<version>2.6.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>Soffid IAM Sync server</name>
 	<properties>
 		<maven.compile.source>1.5</maven.compile.source>
 		<maven.compile.target>1.5</maven.compile.target>
-		<iam.version>2.5.0-1</iam.version>
+		<iam.version>2.6.0-SNAPSHOT</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -318,6 +318,7 @@
 							<tasks>
 								<exec failonerror="true" executable="docker" dir="${project.basedir}">
 									<arg value="build" />
+									<arg value="--no-cache" />
 									<arg value="-f" />
 									<arg value="target/docker/Dockerfile" />
 									<arg value="-t" />
@@ -505,7 +506,7 @@
 		<dependency>
 			<groupId>org.mariadb.jdbc</groupId>
 			<artifactId>mariadb-java-client</artifactId>
-			<version>1.2.3</version>
+			<version>1.8.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>

@@ -6,6 +6,7 @@ package com.soffid.iam.sync.engine.extobj;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
@@ -61,7 +62,13 @@ public class ExtensibleObjectNamespace extends ExternalNameSpace2
 			else if ("serviceLocatorV1".equals (name))
 				externalMap.put(name,  ServiceLocator.instance());
 			else if ("serviceLocator".equals (name))
-				externalMap.put(name,  com.soffid.iam.ServiceLocator.instance());
+			{
+				Config config = Config.getConfig();
+				if (config.isAgent())
+					externalMap.put(name,  new RemoteServiceLocator());
+				else
+					externalMap.put(name,  com.soffid.iam.ServiceLocator.instance());
+			}
 			else if ("remoteServiceLocator".equals (name))
 				externalMap.put(name,  new RemoteServiceLocator());
 			else if ("dispatcherService".equals (name))

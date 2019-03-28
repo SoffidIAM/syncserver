@@ -29,17 +29,6 @@ public class UpdateHostAddress extends HttpServlet {
             String name = request.getParameter("name");
             String serial = request.getParameter("serial");
             String ip = request.getRemoteAddr();
-            try {
-                String nameIp = InetAddress.getByName(name).getHostAddress();
-                if (! ip.equals(nameIp)) {
-                    log.warn (String.format("Trying to register host %s(%s) from address %s",
-                            name, nameIp, ip));
-//                    response.getOutputStream().println("ERROR");
-//                    return ;
-                }
-            } catch (UnknownHostException e) {
-            
-            }
             NetworkService xs = ServerServiceLocator.instance().getNetworkService();
             xs.registerDynamicIP(name, request.getRemoteAddr(), serial);
             response.getOutputStream().println("OK");
@@ -48,6 +37,8 @@ public class UpdateHostAddress extends HttpServlet {
             response.getOutputStream().println("ERROR|"+e.toString());
             if (! (e instanceof UnknownNetworkException))
             	log.warn("Error invoking " + request.getRequestURI(), e);
+            else
+            	log.warn("Error registering host: "+e.getMessage());
         }
     }
 

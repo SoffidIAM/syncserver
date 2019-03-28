@@ -207,48 +207,51 @@ public class ChangeSecretServlet extends HttpServlet {
 		           	acs.updateAccountPasswordDate(acc, l);
 		           	ServiceLocator.instance().getLogonService().propagatePassword(account, system, value);
 	           	} else {
-	           		String actualAttribute = "SSO:"+ssoAttribute;
-	           		for ( UserData du: accountSvc.getAccountAttributes(acc))
+	           		if ( value.length() < 1024)
 	           		{
-	           			if (du.getAttribute().equals (actualAttribute) && du.getId() != null)
-	           			{
-	       					du.setValue(value);
-	       					accountSvc.updateAccountAttribute(du);
-	       					return "OK";
-	           			}
+		           		String actualAttribute = "SSO:"+ssoAttribute;
+		           		for ( UserData du: accountSvc.getAccountAttributes(acc))
+		           		{
+		           			if (du.getAttribute().equals (actualAttribute) && du.getId() != null)
+		           			{
+		       					du.setValue(value);
+		       					accountSvc.updateAccountAttribute(du);
+		       					return "OK";
+		           			}
+		           		}
+		           		// Attribute not found
+		           		AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
+		           		DataType md = metadataService.findSystemDataType(system, actualAttribute);
+		           		if (md == null)
+		           		{
+		           			md = new DataType();
+		           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
+		           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
+		           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
+		           			md.setCode(actualAttribute);
+		           			if (ssoAttribute.equals("Server"))
+		           			{
+		               			md.setLabel("Server");
+		               			md.setType(TypeEnumeration.STRING_TYPE);
+		           			}
+		           			else
+		           			{
+		           				md.setLabel("Form data");
+		               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
+		           			}
+		           			md.setSize(1024);
+		           			md.setOrder(0L);
+		           			md.setSystemName(system);
+		           			md.setRequired(false);
+		           			md = metadataService.create(md);
+		           		}
+		           		UserData du = new UserData();
+		           		du.setAccountName(account);
+		           		du.setSystemName(system);
+		           		du.setAttribute(md.getCode());
+						du.setValue(value);
+		           		acs.createAccountAttribute(du);
 	           		}
-	           		// Attribute not found
-	           		AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
-	           		DataType md = metadataService.findSystemDataType(system, actualAttribute);
-	           		if (md == null)
-	           		{
-	           			md = new DataType();
-	           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
-	           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
-	           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
-	           			md.setCode(actualAttribute);
-	           			if (ssoAttribute.equals("Server"))
-	           			{
-	               			md.setLabel("Server");
-	               			md.setType(TypeEnumeration.STRING_TYPE);
-	           			}
-	           			else
-	           			{
-	           				md.setLabel("Form data");
-	               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
-	           			}
-	           			md.setSize(1024);
-	           			md.setOrder(0L);
-	           			md.setSystemName(system);
-	           			md.setRequired(false);
-	           			md = metadataService.create(md);
-	           		}
-	           		UserData du = new UserData();
-	           		du.setAccountName(account);
-	           		du.setSystemName(system);
-	           		du.setAttribute(md.getCode());
-					du.setValue(value);
-	           		acs.createAccountAttribute(du);
 	           	}
 	    		
 	        } else {

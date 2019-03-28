@@ -300,5 +300,9 @@ public class CaptureLogger implements Logger {
 		error (msg, t);
 	}
 
+	public PrintWriter getPrintWriter() {
+		return writer;
+	}
+
 }
 

@@ -20,12 +20,13 @@ public class SharedThreadPool implements Runnable {
 
 	private int delay;
 	private int handlersSize = 0;
+	int startedThreads = 0;
 	
 	public void updateThreads (final Collection<? extends DispatcherHandler> dispatchers)
 	{
 		synchronized (handlers)
 		{
-			handlers.clear();
+			handlers = new LinkedList<DispatcherHandler>();
 			for (DispatcherHandler d: dispatchers)
 			{
 				if (d.getSystem().getSharedDispatcher() != null &&
@@ -61,11 +62,12 @@ public class SharedThreadPool implements Runnable {
 				threadNumber = 1;
 		}
 		init = true;
-		for (int i = 0; i < threadNumber; i++)
+		for (int i = startedThreads; i < threadNumber; i++)
 		{
 			Thread t = new Thread (this);
 			t.setName("SharedThread"+ (i+1));
 			t.start();
+			startedThreads ++;
 		}
 	}
 
@@ -77,10 +79,13 @@ public class SharedThreadPool implements Runnable {
 		while (true)
 		{
 			DispatcherHandler h = null;
+			// handlers must be saved to a local variable to avoid a dispatcher to be twice due to 
+			// a reconfiguration during loop execution
+			LinkedList<DispatcherHandler> currentHandlers = handlers;
 			try {
-				synchronized (handlers)
+				synchronized (currentHandlers)
 				{
-					h = handlers.pollFirst();
+					h = currentHandlers.pollFirst();
 				}
 				if (h == null)
 				{
@@ -119,10 +124,10 @@ public class SharedThreadPool implements Runnable {
 			} finally {
 				if (h != null)
 				{
-					synchronized (handlers)
+					synchronized (currentHandlers)
 					{
 						if (h.isActive())
-							handlers.addLast(h);
+							currentHandlers.addLast(h);
 					}
 				}
 			}

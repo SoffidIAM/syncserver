@@ -4,9 +4,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
-import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -14,7 +12,6 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import com.soffid.iam.ServiceLocator;
-import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.TaskHandler;
@@ -88,15 +85,9 @@ public class StatusServlet extends HttpServlet {
         	if ( d.getInternalId() > max) max = d.getInternalId();
         
         int[] counters = new int[max+1];
-        for ( Iterator<TaskHandler> it = taskQueue.getIterator(); it.hasNext();)
+        for ( DispatcherHandler dis: dispatchers)
         {
-        	TaskHandler th = it.next();
-            for ( DispatcherHandler dis: dispatchers)
-            {
-	        	TaskHandlerLog log = th.getLog(dis.getInternalId());
-	        	if (log != null  && ! log.isComplete( ) && log.getNumber() > 1)
-	        		counters[dis.getInternalId()] ++;
-            }
+       		counters[dis.getInternalId()] = taskQueue.countTasks(dis);
         }
         
         for (DispatcherHandler disp : dispatchers) {
