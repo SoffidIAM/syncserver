@@ -24,9 +24,9 @@ function configuremain {
 	    exit 1
 	fi
 	
-	if [[ "$MARIADB_PASS" == "" && "$DB_PASS" == ""]]
+	if [[ "$MARIADB_PASS" == "" && "$DB_PASSWORD" == "" ]]
 	then
-	    echo "Missing \$DB_PASS environment variable. Exiting"
+	    echo "Missing \$DB_PASSWORD environment variable. Exiting"
 	    exit 1
 	fi
 
@@ -36,7 +36,7 @@ function configuremain {
 	fi
     
     echo "Configuring as main server"
-	/opt/soffid/iam-sync/bin/configure -main -hostname "$SOFFID_HOSTNAME" -dbuser "${DB_USER:-$MARIADB_USER}" -dbpass "${DB_PASS:-$MARIADB_PASS}" -dburl "$DB_URL" && 
+	/opt/soffid/iam-sync/bin/configure -main -hostname "$SOFFID_HOSTNAME" -dbuser "${DB_USER:-$MARIADB_USER}" -dbpass "${DB_PASSWORD:-$MARIADB_PASS}" -dburl "$DB_URL" && 
 	touch /opt/soffid/iam-sync/conf/configured &&
 	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
 	
