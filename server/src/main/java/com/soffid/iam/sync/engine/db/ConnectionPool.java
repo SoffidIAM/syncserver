@@ -31,6 +31,8 @@ public class ConnectionPool {
     ThreadLocal<ThreadBound> threadStatus = new ThreadLocal<ConnectionPool.ThreadBound>();
 	private boolean driversRegistered = false;
     
+	long lastEmptyTime = 0;
+	
 	public static ConnectionPool getPool() {
         if (thePool == null) {
         	try
@@ -116,7 +118,9 @@ public class ConnectionPool {
             while  (qci == null )
             {
                 qci = (QueryConnectionInfo) freeConnections.pop();
-                Statement stmt = null;
+                if (freeConnections.isEmpty())
+                	lastEmptyTime = System.currentTimeMillis();
+               	Statement stmt = null;
                 ResultSet rset = null;
                 try {
                 	stmt = qci.connection.createStatement();
@@ -135,7 +139,13 @@ public class ConnectionPool {
                     try {
                         qci.connection.setThread();
                     } catch (SQLException e) {
-                        log.warn("Error assigning SQL Connection", e);
+                    	log.warn("Error getting connection", e);
+                    	if (qci.connection !=null)
+                    	{
+                    		try {
+                    			qci.connection.close();
+                    		} catch (SQLException e2) {}
+                    	}
                         qci = null;
                     }
                     
@@ -162,6 +172,7 @@ public class ConnectionPool {
             }
         } catch (EmptyStackException e) {
             Connection c;
+            lastEmptyTime = System.currentTimeMillis();
             try {
            		c = createDatabaseConnection();
             } catch (Exception e1) {
@@ -182,6 +193,7 @@ public class ConnectionPool {
         }
         currentDB.put(Thread.currentThread(),qci);
         qci.locks = qci.locks + 1;
+        qci.thread = Thread.currentThread();
         return qci.connection;
     }
 
@@ -267,6 +279,13 @@ public class ConnectionPool {
                     log.warn ("Error releasing connection", e);
                     throw new NullPointerException();
                 }
+                if ( lastEmptyTime > 0 && 
+                		System.currentTimeMillis() - lastEmptyTime > 60000 ) // 1 minute
+                {
+                	lastEmptyTime = System.currentTimeMillis();
+                	cancelConnection(qci);
+                }
+                
                 if (! qci.cancelled)
                 {
             		Stack<QueryConnectionInfo> freeConnections = freeMainConnections;
