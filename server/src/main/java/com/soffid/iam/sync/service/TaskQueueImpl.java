@@ -630,9 +630,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	protected TaskHandler handleGetPendingTask (DispatcherHandler taskDispatcher)
 					throws Exception
 	{
-		TaskHandler task;
-		// Clean taskDispatcher priority queue
 		int internalId = taskDispatcher.getInternalId();
+		TaskHandler task;
 
 		LinkedList<TaskHandler> tasksToNotify = new LinkedList<TaskHandler>();
 		LinkedList<TaskHandler> tasksToRemove = new LinkedList<TaskHandler>();

@@ -423,7 +423,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     int delay, timeoutDelay;
     boolean abort = false;
-	private TaskHandler nextTask;
 	private long waitUntil;
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> preInsertTrigger;
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> postInsertTrigger;
@@ -462,10 +461,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                     runLoopStart();
                     boolean ok = true;
                     setStatus("Getting Task");
-                    while (nextTask != null && !abort && !actionStop && !reconfigure && agent != null) {
-                        runLoopNext();
+                    while (!abort && !actionStop && !reconfigure && agent != null) {
+                        if (!runLoopNext())
+                        	break;
                     }
-                    
                 } catch (Throwable e) {
                     log.warn("Error on dispatcher loop", e);
                 }
@@ -511,12 +510,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		waitUntil = System.currentTimeMillis() + delay;
 	}
 
-	private void runLoopNext()
+	private boolean runLoopNext()
 			throws InternalErrorException {
     	ConnectionPool pool = ConnectionPool.getPool();
 		try {
 			startTask(false);
-			nextTask = processAndLogTask(nextTask);
+			return processAndLogTask();
 		} finally {
 			endTask();
 		}
@@ -555,7 +554,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     	ConnectionPool pool = ConnectionPool.getPool();
     	
-    	nextTask = taskqueue.getPendingTask(this);
 	}
 
 	private void runInit() throws InternalErrorException {
@@ -581,47 +579,51 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		engine.doAuthoritativeImport(task, out);
 	}
 
-	private TaskHandler processAndLogTask (TaskHandler t) throws InternalErrorException
+	private boolean processAndLogTask () throws InternalErrorException
 	{
 		ConnectionPool pool = ConnectionPool.getPool();
-		String reason;
-		boolean ok;
-		TaskHandlerLog thl = t.getLog(getInternalId());
-	    reason = "";
-	    setStatus("Execute " + t.toString());
-	    log.info("Executing {} ", t.toString(), null);
-	    Throwable throwable = null;
-	    try {
-	        processTask(agent, t);
-	        ok = true;
-	        statsService.register("tasks-success", getName(), 1);
-	        log.debug("Task {} DONE", t.toString(), null);
-	    } catch (RemoteException e) {
-	        handleRMIError(e);
-	        ok = false;
-	        reason = "Cannot connect to " + getSystem().getUrl();
-	        throwable = e;
-	        // abort = true ;
-	    } catch (Throwable e) {
-	        statsService.register("tasks-error", getName(), 1);
-			if ("local".equals(system.getUrl()))
-			{
-				log.warn("Error interno", e);
-			} else {
-				String error = SoffidStackTrace.getStackTrace(e)
-						.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
-				log.warn("Error interno: "+error);
-				
+		String reason = "";
+		boolean ok = false;
+		TaskHandler t = taskqueue.getPendingTask(this);
+		if (t == null)
+			return false;
+		Throwable throwable = null;
+		try
+		{
+			
+			TaskHandlerLog thl = t.getLog(getInternalId());
+			reason = "";
+			setStatus("Execute " + t.toString());
+			log.info("Executing {} ", t.toString(), null);
+			try {
+				processTask(agent, t);
+				ok = true;
+				statsService.register("tasks-success", getName(), 1);
+				log.debug("Task {} DONE", t.toString(), null);
+			} catch (RemoteException e) {
+				handleRMIError(e);
+				ok = false;
+				reason = "Cannot connect to " + getSystem().getUrl();
+				throwable = e;
+				// abort = true ;
+			} catch (Throwable e) {
+				statsService.register("tasks-error", getName(), 1);
+				if ("local".equals(system.getUrl()))
+				{
+					log.warn("Error interno", e);
+				} else {
+					String error = SoffidStackTrace.getStackTrace(e)
+							.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
+					log.warn("Error interno: "+error);
+				}
+				ok = false;
+				reason = e.toString();
+				throwable = e;
 			}
-	        ok = false;
-	        reason = e.toString();
-	        throwable = e;
-	    }
-	    setStatus("Getting Task");
-	    taskqueue.notifyTaskStatus(t, this, ok, reason, throwable);
-	    TaskHandler nextTask = taskqueue.getNextPendingTask(this, t);
-	    t = nextTask;
-		return t;
+		} finally {
+			taskqueue.notifyTaskStatus(t, this, ok, reason, throwable);
+		}
+		return true;
 	}
 
     /**
@@ -2477,11 +2479,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 	}
 	
-	public TaskHandler getNextTask ()
-	{
-		return nextTask;
-	}
-	
 	public DispatcherStatus getDispatcherStatus ()
 	{
 		return dispatcherStatus;
@@ -2505,11 +2502,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			// Go on with loop_start
 		case LOOP_START:
 			runLoopStart();
-			dispatcherStatus = nextTask == null ? DispatcherStatus.GET_LOGS : DispatcherStatus.NEXT_TASK;
+			dispatcherStatus = DispatcherStatus.NEXT_TASK;
 			break;
 		case NEXT_TASK:
-			runLoopNext();
-			dispatcherStatus = nextTask == null ? DispatcherStatus.GET_LOGS : DispatcherStatus.NEXT_TASK;
+			if (runLoopNext())
+				dispatcherStatus = DispatcherStatus.NEXT_TASK;
+			else
+				dispatcherStatus = DispatcherStatus.GET_LOGS;
 			break;
 		case GET_LOGS:
 			runGetLogs();

@@ -23,6 +23,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.orm.hibernate3.SessionFactoryUtils;
 
 import com.soffid.iam.api.System;
+import com.soffid.iam.api.Task;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.Parameter;
 import com.soffid.iam.model.SystemEntity;
@@ -31,6 +32,7 @@ import com.soffid.iam.model.TenantEntity;
 import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
+import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGeneratorBase;
 import com.soffid.iam.sync.service.TaskQueue;
@@ -252,7 +254,21 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             DispatcherHandlerImpl oldHandler = itOld.next();
             if (oldHandler.isActive())
             {
-                oldHandler.gracefullyStop();
+            	Security.nestedLogin(oldHandler.getSystem().getTenant(), 
+            			"TaskGenerator", 
+            			Security.ALL_PERMISSIONS);
+            	try
+            	{
+	                oldHandler.gracefullyStop();
+	                do {
+	                	TaskHandler task = getTaskQueue().getPendingTask(oldHandler);
+	                	if (task == null)
+	                		break;
+	                	getTaskQueue().notifyTaskStatus(task, oldHandler, true, null, null);
+	                } while (true);
+                } finally {
+                	Security.nestedLogoff();
+                }
             }
         }
 

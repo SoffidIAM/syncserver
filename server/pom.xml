@@ -1,5 +1,8 @@
 <?xml version="1.0"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:maven="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:maven="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<parent>
 		<artifactId>root</artifactId>
 		<groupId>com.soffid.iam.sync</groupId>
@@ -271,7 +274,7 @@
 								</artifact>
 								<artifact>
 									<file>
-										 target/install4j/SoffidIAMSync_unix_nojre.tar.gz
+										target/install4j/SoffidIAMSync_unix_nojre.tar.gz
 									</file>
 									<type>tar.gz</type>
 								</artifact>
@@ -301,8 +304,11 @@
 						<phase>package</phase>
 						<configuration>
 							<target>
-								<taskdef name="install4j" classname="com.install4j.Install4JTask" classpath="${env.INSTALL4J_HOME}/bin/ant.jar" />
-								<install4j projectfile="src/install-agent/seycon agent.install4j">
+								<taskdef name="install4j"
+									classname="com.install4j.Install4JTask"
+									classpath="${env.INSTALL4J_HOME}/bin/ant.jar" />
+								<install4j
+									projectfile="src/install-agent/seycon agent.install4j">
 									<variable name="seycon.version" value="${pom.version}" />
 								</install4j>
 							</target>
@@ -316,7 +322,8 @@
 						<phase>package</phase>
 						<configuration>
 							<tasks>
-								<exec failonerror="true" executable="docker" dir="${project.basedir}">
+								<exec failonerror="true" executable="docker"
+									dir="${project.basedir}">
 									<arg value="build" />
 									<arg value="--no-cache" />
 									<arg value="-f" />
@@ -451,8 +458,12 @@
 		</pluginManagement>
 	</build>
 	<dependencies>
-		<!--dependency> <groupId>mysql</groupId> <artifactId>mysql-connector-java</artifactId> 
-			<version>5.0.4</version> <scope>provided</scope> </dependency -->
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.0.4</version>
+			<scope>provided</scope>
+		</dependency>
 		<dependency>
 			<groupId>commons-fileupload</groupId>
 			<artifactId>commons-fileupload</artifactId>
@@ -684,27 +695,27 @@
 			<version>1.7.0</version>
 		</dependency>
 		<dependency>
-    		<groupId>org.bouncycastle</groupId>
-    		<artifactId>bcpkix-jdk15on</artifactId>
-    		<version>1.51</version>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcpkix-jdk15on</artifactId>
+			<version>1.51</version>
 		</dependency>
-        <dependency>
-                <groupId>org.apache.tomee</groupId>
-                <artifactId>javaee-api</artifactId>
-                 <version>7.0-1</version>
-        </dependency>
-        <dependency>
-                <groupId>org.apache.geronimo.javamail</groupId>
-                <artifactId>geronimo-javamail_1.4_mail</artifactId>
-                 <version>1.9.0-alpha-2</version>
-        </dependency>
+		<dependency>
+			<groupId>org.apache.tomee</groupId>
+			<artifactId>javaee-api</artifactId>
+			<version>7.0-1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.geronimo.javamail</groupId>
+			<artifactId>geronimo-javamail_1.4_mail</artifactId>
+			<version>1.9.0-alpha-2</version>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.cxf</groupId>
 			<artifactId>cxf-rt-rs-client</artifactId>
 			<version>3.1.10</version>
 			<scope>provided</scope>
 		</dependency>
- 	</dependencies>
+	</dependencies>
 	<reporting>
 		<plugins>
 			<plugin>
