@@ -133,7 +133,7 @@ public class JarExtractor {
         java.sql.ResultSet rset = null;
         Connection connection = ConnectionPool.getPool().getPoolConnection();
         try {
-            stmt = connection.prepareStatement("SELECT BCO_VERSIO FROM SC_BLOCON, SC_TENANT WHERE BCO_NAME=? AND TEN_ID=BLO_TEN_ID AND TEN_NAME='master'");
+            stmt = connection.prepareStatement("SELECT BCO_VERSIO FROM SC_BLOCON, SC_TENANT WHERE BCO_NAME=? AND TEN_ID=BCO_TEN_ID AND TEN_NAME='master'");
             stmt.setString(1, name);
             rset = stmt.executeQuery();
             if (rset.next()) {
@@ -158,7 +158,7 @@ public class JarExtractor {
         java.sql.ResultSet rset = null;
         Connection connection = ConnectionPool.getPool().getPoolConnection();
         try {
-            stmt = connection.prepareStatement("SELECT BCO_VALUE FROM SC_BLOCON, SC_TENANT WHERE BCO_NAME=? AND TEN_ID=BLO_TEN_ID AND TEN_NAME='master'");
+            stmt = connection.prepareStatement("SELECT BCO_VALUE FROM SC_BLOCON, SC_TENANT WHERE BCO_NAME=? AND TEN_ID=BCO_TEN_ID AND TEN_NAME='master'");
             stmt.setString(1, name);
             rset = stmt.executeQuery();
             if (rset.next()) {
