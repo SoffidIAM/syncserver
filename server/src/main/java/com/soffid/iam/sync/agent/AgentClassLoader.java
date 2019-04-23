@@ -24,31 +24,33 @@ public class AgentClassLoader extends URLClassLoader {
 
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {
-        // First, check if the class has already been loaded
-        Class c = findLoadedClass(name);
-        if (c == null) {
-            if (getParent() != null && (name.startsWith("java.")  || name.startsWith("javax.")) &&
-            		! name.startsWith("javax.ws.")) {
-                try {
-                    c = getParent().loadClass(name);
-                } catch (ClassNotFoundException e) {
-                    c = findClass(name);
-                }
-            } else {
-                try {
-                    c = findClass(name);
-                } catch (ClassNotFoundException e) {
-                    // If still not found, then invoke findClass in order
-                    // to find the class.
-                    if (getParent() != null) {
-                        c = getParent().loadClass(name);
-                    } else {
-                        throw new ClassNotFoundException(name);
-                    }
-                }
-            }
+        synchronized (getClassLoadingLock(name)) {
+	        // First, check if the class has already been loaded
+	        Class c = findLoadedClass(name);
+	        if (c == null) {
+	            if (getParent() != null && (name.startsWith("java.")  || name.startsWith("javax.")) &&
+	            		! name.startsWith("javax.ws.")) {
+	                try {
+	                    c = getParent().loadClass(name);
+	                } catch (ClassNotFoundException e) {
+	                    c = findClass(name);
+	                }
+	            } else {
+	                try {
+	                    c = findClass(name);
+	                } catch (ClassNotFoundException e) {
+	                    // If still not found, then invoke findClass in order
+	                    // to find the class.
+	                    if (getParent() != null) {
+	                        c = getParent().loadClass(name);
+	                    } else {
+	                        throw new ClassNotFoundException(name);
+	                    }
+	                }
+	            }
+	        }
+	        return c;
         }
-        return c;
     }
 
 	@Override
