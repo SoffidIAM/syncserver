@@ -2443,12 +2443,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		return r;
 	}
 
+	boolean ongoingReconcile = false;
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.engine.DispatcherHandler#doReconcile()
 	 */
 	@Override
 	public void doReconcile (ScheduledTask task, PrintWriter out)
 	{
+		synchronized (this)
+		{
+			if (ongoingReconcile)
+				throw new RuntimeException("Another reconciliation is in process");
+			ongoingReconcile = true;
+		}
 		try {
     		Object agent = connect(false, false);
 			ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
@@ -2476,6 +2483,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				log.warn("Error during reconcile process", e);
 				SoffidStackTrace.printStackTrace(e, out);
 			} catch (Exception e2) {}
+   		} finally {
+   			ongoingReconcile = false;
 		}
 	}
 	
