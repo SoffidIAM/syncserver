@@ -70,6 +70,8 @@ public class UserExtensibleObject extends ExtensibleObject
     			obj = account.getId();
     		else if ("accountName".equals(attribute)  && account != null)
     			obj = account.getName();
+    		else if ("oldAccountName".equals(attribute)  && account != null)
+    			obj = account.getOldName();
     		else if ("system".equals(attribute) && account != null)
     			obj = account.getSystem();
     		else if ("accountDescription".equals(attribute) && account != null)
@@ -137,7 +139,7 @@ public class UserExtensibleObject extends ExtensibleObject
     		else if ("secondaryGroups".equals(attribute))
     		{
     			Collection<Group> groups;
-    			if (account.getName() == null || account.getName().trim().isEmpty() ||
+    			if (account == null || account.getName() == null || account.getName().trim().isEmpty() ||
     					account.getSystem() == null || account.getSystem().trim().isEmpty())
     				obj = new LinkedList<Group>();
     			else
