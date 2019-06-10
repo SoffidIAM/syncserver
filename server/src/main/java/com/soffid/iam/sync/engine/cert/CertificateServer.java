@@ -25,6 +25,7 @@ import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.Vector;
 
 import org.apache.commons.logging.LogFactory;
@@ -113,6 +114,9 @@ public class CertificateServer {
         {
         	publicKey = oldCert.getPublicKey();
         }
+        File ksFile = new File (config.getHomeDir(), "conf/root.jks");
+        log.info("Storing keystore "+ ksFile);
+        SeyconKeyStore.saveKeyStore(rootks, ksFile);
         	
         X509Certificate servercert = createCertificate("master", config.getHostName(), publicKey, false);
 		ks.setKeyEntry(SeyconKeyStore.MY_KEY, secretKey, password.getPassword()
@@ -121,8 +125,6 @@ public class CertificateServer {
         // Guardar certificado
         log.info("Storing keystore "+SeyconKeyStore.getKeyStoreFile());
         SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
-        log.info("Storing keystore "+ SeyconKeyStore.getRootKeyStoreFile());
-        SeyconKeyStore.saveKeyStore(rootks, SeyconKeyStore.getRootKeyStoreFile());
     }
 
     public X509Certificate createCertificate(String tenant, String hostName, PublicKey certificateKey)
@@ -138,7 +140,17 @@ public class CertificateServer {
             NoSuchProviderException, NoSuchAlgorithmException, SignatureException,
             UnrecoverableKeyException, KeyStoreException {
 
+        try {
+			rootks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getRootKeyStoreFile());
+		} catch (Exception e) {
+			throw new KeyStoreException("Error loading root key ",e);
+		}
         Key key = rootks.getKey(SeyconKeyStore.ROOT_KEY, password.getPassword().toCharArray());
+        for ( Enumeration<String> enumeration = rootks.aliases(); enumeration.hasMoreElements();)
+        {
+        	String s = enumeration.nextElement();
+        	log.info(">> "+s);
+        }
         X509Certificate rootCert = (X509Certificate) rootks.getCertificate(SeyconKeyStore.ROOT_KEY);
         return createCertificate(tenant, hostName, certificateKey, (PrivateKey) key, rootCert, root);
     }
@@ -156,7 +168,9 @@ public class CertificateServer {
         X509Name name = new X509Name(tags, values);
         generator.setSubjectDN(name);
         generator.setPublicKey(certificateKey);
-        generator.setNotBefore(new Date());
+        Calendar c2 = Calendar.getInstance();
+        c2.add(Calendar.DAY_OF_MONTH, -1);
+        generator.setNotBefore(c2.getTime());
         String algorithm = "SHA256WithRSA";
         generator.setSignatureAlgorithm(algorithm);
         Calendar c = Calendar.getInstance();
@@ -188,7 +202,7 @@ public class CertificateServer {
     private static final String PRIVATE_KEY = SeyconKeyStore.MY_KEY + ".private";
 
     public void obtainCertificate(String serverUrl, String adminTenant, String adminUser, Password adminPassword,
-            String domain) throws NoSuchAlgorithmException, NoSuchProviderException,
+            String domain, boolean remote) throws NoSuchAlgorithmException, NoSuchProviderException,
             KeyStoreException, FileNotFoundException, CertificateException, IOException,
             InvalidKeyException, UnrecoverableKeyException, IllegalStateException,
             SignatureException, InternalErrorException,
@@ -227,7 +241,7 @@ public class CertificateServer {
         
         if (config.getRequestId() == null) {
             long id = enrollService.createRequest(adminTenant, adminUser, adminPassword.getPassword(), domain,
-                    hostName, publicKey);
+            				hostName, publicKey);
             config.setRequestId(Long.toString(id));
             System.out.println ("The certificate request has been issued.");
         } 
@@ -238,7 +252,7 @@ public class CertificateServer {
                 Long l = Long.decode(config.getRequestId());
                 X509Certificate root = enrollService.getRootCertificate();
                 X509Certificate cert = enrollService.getCertificate(adminTenant, adminUser,
-                        adminPassword.getPassword(), domain, hostName, l);
+                        adminPassword.getPassword(), domain, hostName, l, remote);
                 ks.setKeyEntry(SeyconKeyStore.MY_KEY, privateKey, SeyconKeyStore
                         .getKeyStorePassword().getPassword().toCharArray(), new X509Certificate[] {
                         cert, root });
@@ -284,7 +298,7 @@ public class CertificateServer {
         generator.setNotAfter(new Date(l));
         generator.setNotBefore(new Date(now));
         generator.setSerialNumber(BigInteger.valueOf(now));
-        generator.setSignatureAlgorithm("sha1WithRSAEncryption");
+        generator.setSignatureAlgorithm("SHA256WithRSA");
         return generator;
     }
 

@@ -133,6 +133,9 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     		Collection<AuthorizationRole> auths = ServiceLocator.instance().getAuthorizationService().getUserAuthorization(Security.AUTO_AUTHORIZATION_ALL, user);
     		if (!auths.isEmpty())
     			return true;
+    		auths = ServiceLocator.instance().getAuthorizationService().getUserAuthorization(Security.AUTO_SERVER_MANAGE_SERVER, user);
+    		if (!auths.isEmpty())
+    			return true;
     	}
     	return false;
 	}
@@ -153,6 +156,13 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     @Override
     protected X509Certificate handleGetCertificate(String tenant, String user, String password, String domain,
             String hostName, Long request) throws Exception {
+    	return handleGetCertificate(tenant, user, password, domain, hostName, request, false);
+    }
+    
+    @Override
+    protected X509Certificate handleGetCertificate(String tenant, String user, String password, String domain,
+            String hostName, Long request, boolean remote) throws Exception {
+
     	Security.nestedLogin(tenant, user, Security.ALL_PERMISSIONS);
     	try 
     	{
@@ -224,8 +234,17 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        		Server server = new Server();
 	        		server.setName(hostName);
 	        		server.setBackupDatabase(null);
-	        		server.setType(ServerType.PROXYSERVER);
-	        		server.setUrl("https://"+hostName+":"+Config.getConfig().getPort()+"/");
+	        		if (remote)
+	        		{
+	        			server.setType(ServerType.REMOTESERVER);
+	        			String gateway = getDispatcherService().createRemoteServer(hostName, tenant);
+	        			server.setUrl("https://"+gateway+":"+Config.getConfig().getPort()+"/");
+	        		}
+	        		else
+	        		{
+	        			server.setType(ServerType.PROXYSERVER);
+	        			server.setUrl("https://"+hostName+":"+Config.getConfig().getPort()+"/");
+	        		}
 	        		server.setUseMasterDatabase(Boolean.FALSE);
 	        		server = getDispatcherService().create(server);
 	        		TenantService tenantSvc = ServiceLocator.instance().getTenantService();
@@ -264,6 +283,5 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
             certificateServer = new CertificateServer();
         return certificateServer.getRoot();
     }
-
     
 }

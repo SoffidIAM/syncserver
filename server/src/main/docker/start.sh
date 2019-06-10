@@ -78,6 +78,40 @@ function configureproxy {
 	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
 }
 
+# Configure remote server
+function configureremote {
+	if [[ "$SOFFID_SERVER" == "" ]]
+	then
+	    echo "Missing \$SOFFID_SERVER environment variable. Exiting"
+	    exit 1
+	fi
+	if [[ "$SOFFID_USER" == "" ]]
+	then
+	    echo "Missing \$SOFFID_USER environment variable. Exiting"
+	    exit 1
+	fi
+	
+	if [[ "$SOFFID_PASS" == "" ]]
+	then
+	    echo "Missing \$SOFFID_PASS environment variable. Exiting"
+	    exit 1
+	fi
+
+	if [[ "$SOFFID_HOSTNAME" == "" ]]
+	then
+		SOFFID_HOSTNAME=$(hostname)
+	fi
+    
+	if [[ "$SOFFID_TENANT" == "" ]]
+	then
+		SOFFID_TENANT=master
+	fi
+    
+    echo "Configuring as remote server"
+	/opt/soffid/iam-sync/bin/configure -remote -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"  && 
+	touch /opt/soffid/iam-sync/conf/configured &&
+	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
+}
 
 function configure {
 	if [[ "$SOFFID_MAIN" == "yes" ]]
@@ -85,7 +119,12 @@ function configure {
 	    configuremain || exit 1
 	elif [[ "$SOFFID_MAIN" == "no" ]]
 	then
-	    configureproxy || exit 1
+		if [[ "$SOFFID_REMOTE" == "yes" ]]
+		then
+		    configureremote || exit 1
+		else
+		    configureproxy || exit 1
+		fi
 	else
 	    echo "Missing \$SOFFID_MAIN environment variable."
 	    echo "Use SOFFID_MAIN=yes for first server"

@@ -92,7 +92,7 @@ public class SeyconLoader extends Object {
 
         Config config = Config.getConfig();
         String role = config.getRole();
-        if (! "server".equals (role) && ! "agent".equals (role))
+        if (! "server".equals (role) && ! "agent".equals (role) && !"gateway".equals(role) && !"remote".equals(role))
         {
         	log.warn("Sync server is not configured.", null, null);
             do
@@ -107,10 +107,8 @@ public class SeyconLoader extends Object {
 				}
             	config.reload();
             	role = config.getRole();
-            } while (! "server".equals (role) && ! "agent".equals (role));
+            } while (! "server".equals (role) && ! "agent".equals (role) && !"gateway".equals(role) && !"remote".equals(role));
         }
-//        ServerService ss = ServerServiceLocator.instance().getServerService();
-//        config.setServerService(ss);
         
         modulesDir = new File(new File(BASE_DIRECTORY), "addons");
         modulesDir.mkdirs();
