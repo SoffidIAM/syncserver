@@ -8,7 +8,7 @@ import java.util.Enumeration;
 import java.util.LinkedList;
 
 public class AgentClassLoader extends URLClassLoader {
-
+	Object lock = new Object();
     public AgentClassLoader(URL[] urls) {
         super(urls);
     }
@@ -24,7 +24,7 @@ public class AgentClassLoader extends URLClassLoader {
 
     @Override
     public Class<?> loadClass(String name) throws ClassNotFoundException {
-        synchronized (getClassLoadingLock(name)) {
+        synchronized (lock) {
 	        // First, check if the class has already been loaded
 	        Class c = findLoadedClass(name);
 	        if (c == null) {
