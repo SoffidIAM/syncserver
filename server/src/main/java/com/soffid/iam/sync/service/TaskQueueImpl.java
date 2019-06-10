@@ -123,192 +123,196 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		try
 		{
 			TaskEntity entity = getTaskEntityDao().load(newTask.getTask().getId());
-			// Actualizar la cache de passwords
-			TaskGenerator tg = getTaskGenerator();
-			if (entity == null ||
-				newTask.getTask().getServer() == null && !tg.isEnabled() ||
-				newTask.getTask().getServer() != null &&
-				!newTask.getTask().getServer().equals(hostname))
+			addTask(newTask, entity);
+		} finally {
+			Security.nestedLogoff();
+		}
+	}
+
+	private void addTask(TaskHandler newTask, TaskEntity entity)
+			throws InternalErrorException, UnknownGroupException, UnknownRoleException {
+		TaskGenerator tg = getTaskGenerator();
+		if (entity == null ||
+			newTask.getTask().getServer() == null && !tg.isEnabled() ||
+			newTask.getTask().getServer() != null &&
+			!newTask.getTask().getServer().equals(hostname))
+		{
+			// Ignorar la transaccion
+		}
+		else if (newTask.getTask()
+				.getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD) &&
+			entity.getHash() == null)
+		{
+			if (newTask.getPassword() != null)
 			{
-				// Ignorar la transaccion
-			}
-			else if (newTask.getTask()
-					.getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD) &&
-				entity.getHash() == null)
-			{
-				if (newTask.getPassword() != null)
-				{
-					InternalPasswordService ps = getInternalPasswordService();
-					UserEntityDao usuariDao = getUserEntityDao();
-					UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
-					if (usuari == null) // Ignorar
-					{
-						newTask.cancel();
-						pushTaskToPersist(newTask);
-						return;
-					}
-					PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
-					PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getPasswordDomain());
-					if (dc == null)
-					{
-						newTask.cancel();
-						pushTaskToPersist(newTask);
-						return; // Ignorar
-					}
-	
-					storeDomainPassword (newTask);
-					
-					addAndNotifyDispatchers(newTask, entity);
-				}
-				else
+				InternalPasswordService ps = getInternalPasswordService();
+				UserEntityDao usuariDao = getUserEntityDao();
+				UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
+				if (usuari == null) // Ignorar
 				{
 					newTask.cancel();
 					pushTaskToPersist(newTask);
+					return;
 				}
-			}
-			else if (newTask.getTask().getTransaction()
-							.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD))
-			{
-				if (newTask.getPassword() != null)
-				{
-					InternalPasswordService ps = getInternalPasswordService();
-					UserEntityDao usuariDao = getUserEntityDao();
-					UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
-					if (usuari == null) // Ignorar
-					{
-						newTask.cancel();
-						pushTaskToPersist(newTask);
-						return;
-					}
-					
-					PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
-					PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getPasswordDomain());
-					if (dc == null)
-					{
-						newTask.cancel();
-						pushTaskToPersist(newTask);
-						return; // Ignorar
-					}
-	
-					if (ps.checkPassword(usuari, dc, newTask.getPassword(),
-							false, false) == PasswordValidation.PASSWORD_WRONG)
-					{
-						ps.storePassword(usuari, dc, newTask.getPassword(), false);
-	
-						storeDomainPassword (newTask);
-	
-						addAndNotifyDispatchers(newTask, entity);
-					}
-					else
-					{
-						newTask.cancel();
-						pushTaskToPersist(newTask);
-					}
-				}
-				else
+				PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
+				PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getPasswordDomain());
+				if (dc == null)
 				{
 					newTask.cancel();
 					pushTaskToPersist(newTask);
+					return; // Ignorar
 				}
-			}
-			else if (newTask.getTask().getTransaction()
-							.equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD))
-			{
-				if (newTask.getPassword() != null)
-				{
-					InternalPasswordService ps = getInternalPasswordService();
-					AccountEntityDao accDao = getAccountEntityDao();
-					AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
-					if (account == null)
-					{
-						newTask.cancel();
-						pushTaskToPersist(newTask);
-						return;
-					}
-	
-					if (ps.checkAccountPassword(account, newTask.getPassword(),
-							false, false) == PasswordValidation.PASSWORD_WRONG)
-					{
-						ps.storeAccountPassword(account, newTask.getPassword(),
-							"S".equalsIgnoreCase(newTask.getTask().getPasswordChange()),
-							null);
-					}
-					// Update for virtual dispatchers
-					DispatcherHandler dispatcher =
-						getTaskGenerator().getDispatcher(
-							newTask.getTask().getSystemName());
-					if (dispatcher != null && dispatcher.isActive()) 
-					{
-						addAndNotifyDispatchers(newTask, entity);
-					}
-					else
-					{
-						newTask.cancel();
-						pushTaskToPersist(newTask);
-						
-						storeAccountPassword(newTask, account);
-					}
-				}
-				else
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-				}
-			}
-			else if (newTask.getTask().getTransaction()
-							.equals(TaskHandler.UPDATE_ACCOUNT))
-			{
-				// Update for virtual dispatchers
-				DispatcherHandler dispatcher =
-					getTaskGenerator().getDispatcher(newTask.getTask().getSystemName());
-				if (dispatcher == null || ! dispatcher.isActive()) 
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-				}
-				else
-					addAndNotifyDispatchers(newTask, entity);
-			}
-			else if (newTask.getTask()
-						.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
-					newTask.getTask()
-						.getTransaction().equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
-					newTask.getTask()
-						.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD))
-			{
-				if (newTask.getPassword() != null)
-				{
-					addAndNotifyDispatchers(newTask, entity);
-				}
-				else
-				{
-					newTask.cancel();
-					pushTaskToPersist(newTask);
-				}
-			}
-			else if (newTask.getTask()
-						.getTransaction().equals(TaskHandler.UPDATE_USER) )
-			{
-				getAccountService()
-					.generateUserAccounts(newTask.getTask().getUser());
-				addAndNotifyDispatchers(newTask, entity);
-			}
-			
-			else if (newTask.getTask().getTransaction()
-				.equals(TaskHandler.NOTIFY_PASSWORD_CHANGE))
-			{
-				newTask.cancel();
-				pushTaskToPersist(newTask);
-				notifyChangePassword(entity);
+
+				storeDomainPassword (newTask);
 				
-				return;
+				addAndNotifyDispatchers(newTask, entity);
 			}
 			else
 			{
+				newTask.cancel();
+				pushTaskToPersist(newTask);
+			}
+		}
+		else if (newTask.getTask().getTransaction()
+						.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD))
+		{
+			if (newTask.getPassword() != null)
+			{
+				InternalPasswordService ps = getInternalPasswordService();
+				UserEntityDao usuariDao = getUserEntityDao();
+				UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
+				if (usuari == null) // Ignorar
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+					return;
+				}
+				
+				PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
+				PasswordDomainEntity dc = dcDao.findByName(newTask.getTask().getPasswordDomain());
+				if (dc == null)
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+					return; // Ignorar
+				}
+
+				if (ps.checkPassword(usuari, dc, newTask.getPassword(),
+						false, false) == PasswordValidation.PASSWORD_WRONG)
+				{
+					ps.storePassword(usuari, dc, newTask.getPassword(), false);
+
+					storeDomainPassword (newTask);
+
+					addAndNotifyDispatchers(newTask, entity);
+				}
+				else
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+				}
+			}
+			else
+			{
+				newTask.cancel();
+				pushTaskToPersist(newTask);
+			}
+		}
+		else if (newTask.getTask().getTransaction()
+						.equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD))
+		{
+			if (newTask.getPassword() != null)
+			{
+				InternalPasswordService ps = getInternalPasswordService();
+				AccountEntityDao accDao = getAccountEntityDao();
+				AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
+				if (account == null)
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+					return;
+				}
+
+				if (ps.checkAccountPassword(account, newTask.getPassword(),
+						false, false) == PasswordValidation.PASSWORD_WRONG)
+				{
+					ps.storeAccountPassword(account, newTask.getPassword(),
+						"S".equalsIgnoreCase(newTask.getTask().getPasswordChange()),
+						null);
+				}
+				// Update for virtual dispatchers
+				DispatcherHandler dispatcher =
+					getTaskGenerator().getDispatcher(
+						newTask.getTask().getSystemName());
+				if (dispatcher != null && dispatcher.isActive()) 
+				{
+					addAndNotifyDispatchers(newTask, entity);
+				}
+				else
+				{
+					newTask.cancel();
+					pushTaskToPersist(newTask);
+					
+					storeAccountPassword(newTask, account);
+				}
+			}
+			else
+			{
+				newTask.cancel();
+				pushTaskToPersist(newTask);
+			}
+		}
+		else if (newTask.getTask().getTransaction()
+						.equals(TaskHandler.UPDATE_ACCOUNT))
+		{
+			// Update for virtual dispatchers
+			DispatcherHandler dispatcher =
+				getTaskGenerator().getDispatcher(newTask.getTask().getSystemName());
+			if (dispatcher == null || ! dispatcher.isActive()) 
+			{
+				newTask.cancel();
+				pushTaskToPersist(newTask);
+			}
+			else
+				addAndNotifyDispatchers(newTask, entity);
+		}
+		else if (newTask.getTask()
+					.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
+				newTask.getTask()
+					.getTransaction().equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
+				newTask.getTask()
+					.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD))
+		{
+			if (newTask.getPassword() != null)
+			{
 				addAndNotifyDispatchers(newTask, entity);
 			}
-		} finally {
-			Security.nestedLogoff();
+			else
+			{
+				newTask.cancel();
+				pushTaskToPersist(newTask);
+			}
+		}
+		else if (newTask.getTask()
+					.getTransaction().equals(TaskHandler.UPDATE_USER) )
+		{
+			getAccountService()
+				.generateUserAccounts(newTask.getTask().getUser());
+			addAndNotifyDispatchers(newTask, entity);
+		}
+		
+		else if (newTask.getTask().getTransaction()
+			.equals(TaskHandler.NOTIFY_PASSWORD_CHANGE))
+		{
+			newTask.cancel();
+			pushTaskToPersist(newTask);
+			notifyChangePassword(entity);
+			
+			return;
+		}
+		else
+		{
+			addAndNotifyDispatchers(newTask, entity);
 		}
 	}
 
@@ -599,23 +603,51 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	@Override
     protected TaskHandler handleAddTask(TaskEntity newTask) throws Exception {
+		
 		if (newTask.getId() == null)
 		{
 			newTask.setServer(hostname);
 			newTask.setStatus("P");
 			newTask.setDate(new Timestamp(System.currentTimeMillis()));
-			getTaskEntityDao().create(newTask);
+			if ( newTask.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD))
+				getTaskEntityDao().createForce(newTask);
+			else
+				getTaskEntityDao().create(newTask);
+		} else {
+			
+			Long tenantId = newTask.getTenant().getId();
+			String tenantName = Security.getTenantName (tenantId);  // Workaround lazy tenant loader
+			Security.nestedLogin(tenantName, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
+			try
+			{
+				Long taskId = newTask.getId();
+				newTask = getTaskEntityDao().load(taskId);
+				if (newTask == null)
+				{
+					log.warn("Unable to load task {}",taskId,null);
+					return null;
+				}
+			} finally {
+				Security.nestedLogoff();
+			}
 		}
-		TaskHandler th = new TaskHandler();
-		Long id = newTask.getTenant().getId();
-		th.setTenantId(id);
-		th.setTenant( Security.getTenantName ( id ) );
-		th.setTask(getTaskEntityDao().toTask(newTask));
-		th.setTimeout(null);
-		th.setValidated(false);
-		if (newTask.getId() != null)
-			addTask(th);
-		return th;
+		 
+		Security.nestedLogin(newTask.getTenant().getName(), Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
+		try
+		{
+			TaskHandler th = new TaskHandler();
+			Long id = newTask.getTenant().getId();
+			th.setTenantId(id);
+			th.setTenant( Security.getTenantName ( id ) );
+			th.setTask(getTaskEntityDao().toTask(newTask));
+			th.setTimeout(null);
+			th.setValidated(false);
+			if (newTask.getId() != null)
+				addTask(th, newTask);
+			return th;
+		} finally {
+			Security.nestedLogoff();
+		}
 	}
 
 	/**
