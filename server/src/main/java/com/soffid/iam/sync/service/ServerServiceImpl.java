@@ -51,6 +51,7 @@ import com.soffid.iam.model.RoleEntity;
 import com.soffid.iam.model.RoleEntityDao;
 import com.soffid.iam.model.RoleGroupEntity;
 import com.soffid.iam.model.RoleGroupEntityDao;
+import com.soffid.iam.model.ServerEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.SystemEntityDao;
 import com.soffid.iam.model.UserAccountEntity;
@@ -202,7 +203,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 		for (Iterator<UserGroupEntity> it = daoUserGroup.findByGroupName(
 				entity.getName()).iterator(); it.hasNext();) {
 			UserGroupEntity ugEntity = it.next();
-			if (!nomesUsersActius || "S".equals(ugEntity.getUser().getActive())) {
+			if (!nomesUsersActius || "S".equals(ugEntity.getUser().getActive()) && 
+					!Boolean.TRUE.equals(ugEntity.getDisabled())) {
 				if (dispatcher == null
 						|| getDispatcherService().isUserAllowed(dispatcher,
 								ugEntity.getUser().getUserName()))
@@ -296,7 +298,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 			for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
 					.iterator(); it.hasNext();) {
 				UserGroupEntity uge = it.next();
-				if (!grups.containsKey(uge.getGroup().getName()))
+				if (!grups.containsKey(uge.getGroup().getName()) &&  ! Boolean.TRUE.equals(uge.getDisabled()))
 					grups.put(uge.getGroup().getName(), uge.getGroup());
 			}
 		} else {
@@ -320,7 +322,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 							.getSecondaryGroups().iterator(); it.hasNext();) {
 						UserGroupEntity uge = it.next();
 						if (getDispatcherService().isGroupAllowed(dispatcher,
-								uge.getGroup().getName()))
+								uge.getGroup().getName()) &&
+								! Boolean.TRUE.equals(uge.getDisabled()))
 							if (!grups.containsKey(uge.getGroup().getName()))
 								grups.put(uge.getGroup().getName(),
 										uge.getGroup());
@@ -643,7 +646,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 			for (Iterator<UserEmailEntity> it = entity.getUserMailLists()
 					.iterator(); it.hasNext();) {
 				UserEmailEntity lcu = it.next();
-				members.add(getUserEntityDao().toUser(lcu.getUser()));
+				if (! Boolean.TRUE.equals(lcu.getDisabled()))
+					members.add(getUserEntityDao().toUser(lcu.getUser()));
 			}
 
 			for (Iterator<ExternEmailEntity> it = entity.getExternals()
@@ -1255,7 +1259,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 		for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
 				.iterator(); it.hasNext();) {
 			UserGroupEntity uge = it.next();
-			if (!grups.containsKey(uge.getGroup().getName()))
+			if (! Boolean.TRUE.equals(uge.getDisabled()) && !grups.containsKey(uge.getGroup().getName()))
 				grups.put(uge.getGroup().getName(), uge.getGroup());
 		}
 
@@ -1281,7 +1285,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 		for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
 				.iterator(); it.hasNext();) {
 			UserGroupEntity uge = it.next();
-			if (!grups.containsKey(uge.getGroup().getName()))
+			if (! Boolean.TRUE.equals(uge.getDisabled()) && !grups.containsKey(uge.getGroup().getName()))
 				grups.put(uge.getGroup().getName(), uge.getGroup());
 		}
 
@@ -1493,5 +1497,25 @@ public class ServerServiceImpl extends ServerServiceBase {
 		if (u == null)
 			return new HashMap<String, Object>();
 		return getUserService().findUserAttributes(u.getUserName());
+	}
+
+	@Override
+	protected Collection<Map<String, Object>> handleInvoke(String agent, String verb, String command,
+			Map<String, Object> params) throws Exception {
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(agent);
+		if (handler == null || !handler.isActive())
+			return null;
+
+		return handler.invoke(verb, command, params);
+		
+	}
+
+	@Override
+	protected Server handleFindRemoteServerByUrl(String url) throws Exception {
+		ServerEntity s = getServerEntityDao().findRemoteByUrl(url);
+		if (s == null)
+			return null;
+		else
+			return getServerEntityDao().toServer(s);
 	}
 }
