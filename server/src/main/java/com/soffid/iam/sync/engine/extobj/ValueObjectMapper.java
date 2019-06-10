@@ -336,6 +336,14 @@ public class ValueObjectMapper
 				account.setType(AccountType.SHARED);
 			else
 				account.setType(AccountType.USER);
+			Object t = object.getAttribute("type");
+			if (t != null)
+			{
+				if (t instanceof AccountType)
+					account.setType((AccountType) t);
+				else
+					account.setType(AccountType.fromString(t.toString()));
+			}
 			account.setLastUpdated(toCalendar (object.getAttribute("lastUpdate")));
 			account.setLastLogin(toCalendar (object.getAttribute("lastLogin")));
 			account.setLastPasswordSet(toCalendar (object.getAttribute("lastPasswordUpdate")));
