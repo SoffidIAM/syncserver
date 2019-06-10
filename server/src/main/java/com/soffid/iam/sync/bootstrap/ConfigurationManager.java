@@ -64,7 +64,7 @@ public class ConfigurationManager
     											prop.getProperty(Config.SERVERLIST_PROPERTY)+","+rset.getString(1));
     							}
     						});
-    		qh.select("SELECT SRV_USEMDB, SRV_TYPE, SRV_JVMOPT FROM SC_SERVER WHERE SRV_NOM=?",
+    		qh.select("SELECT SRV_USEMDB, SRV_TYPE, SRV_JVMOPT, SRV_URL FROM SC_SERVER WHERE SRV_NOM=?",
 					new Object[] {serverName},
 					new QueryAction()
 					{
@@ -88,6 +88,7 @@ public class ConfigurationManager
 								prop.put(Config.JAVA_OPT_PROPERTY, "-Xmx512m");
 							else
 								prop.put(Config.JAVA_OPT_PROPERTY, "-Xmx128m");
+							prop.put(Config.URL_PROPERTY, rset.getString(4));
 						}
 
 					});
