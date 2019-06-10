@@ -9,6 +9,7 @@ package com.soffid.iam.sync.agent;
 import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.slf4j.LoggerFactory;
 
@@ -23,6 +24,7 @@ import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFatory;
+import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFinder;
 import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
@@ -77,6 +79,7 @@ public abstract class Agent implements AgentInterface {
     public org.slf4j.Logger log = null;
     private JettyServer jettyServer;
     com.soffid.iam.api.System dispatcher;
+	private Runnable onClose = null;
 
     public com.soffid.iam.api.System getSystem() {
         return dispatcher;
@@ -191,4 +194,25 @@ public abstract class Agent implements AgentInterface {
 	public void setDebug(boolean debug) {
 		this.debug = debug;
 	}
+
+	public Collection<Map<String, Object>> invoke(String verb, String command,
+				Map<String, Object> params) throws RemoteException, InternalErrorException 
+	{
+		throw new InternalErrorException ("Not implemented on agent "+getAgentName());
+	}
+	
+	public void close () {
+		if (onClose != null)
+			onClose.run();
+	}
+
+	public Runnable getOnClose() {
+		return onClose ;
+	}
+
+	public void setOnClose(Runnable onClose) {
+		this.onClose = onClose;
+	}
+
+
 }

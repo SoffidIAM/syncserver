@@ -432,6 +432,7 @@ public abstract class ReconcileEngine
 			else
 				log.append ("Fetching password attributes for ").append (accountName).append ('\n');
 			
+			
 			try {
 				if (isUnmanaged)
 				{
@@ -445,7 +446,9 @@ public abstract class ReconcileEngine
 					accountService.updateAccount2(acc);
 				}
 				else
+				{
 					accountService.updateAccount2(acc);
+				}
 
 				executeTriggers(postUpdate, 
 						new AccountExtensibleObject(acc2, serverService),

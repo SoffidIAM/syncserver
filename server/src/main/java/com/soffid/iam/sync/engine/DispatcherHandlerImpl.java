@@ -2,7 +2,6 @@ package com.soffid.iam.sync.engine;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -60,12 +59,8 @@ import com.soffid.iam.reconcile.service.ReconcileService;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.AccountService;
-import com.soffid.iam.service.CustomObjectService;
-import com.soffid.iam.service.DispatcherService;
-import com.soffid.iam.service.GroupService;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.service.UserDomainService;
-import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
@@ -210,7 +205,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         boolean readOnly = getSystem().isReadOnly();
         // Verificar el nom del dipatcher
         if (t.getTask().getSystemName() != null &&
-        		( mirroredAgent != null && !mirroredAgent.equals(t.getTask().getSystemName()))) {
+        		( mirroredAgent != null && 
+        				!mirroredAgent.equals(t.getTask().getSystemName()) &&
+        				! getSystem().getName().equals(t.getTask().getSystemName()))) {
             return false;
 
             // Verificar el domini de contrasenyes
@@ -524,7 +521,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private void runLoopStart() throws InternalErrorException {
 		if (reconfigure) {
 			if (agent != null)
+			{
 				log.info ("Disconnecting agent in order to apply new configuration");
+				closeAgent(agent);
+			}
 		    agent = null;
 		    nextConnect = 0;
 		    reconfigure = false;
@@ -550,10 +550,18 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
         boolean ok = true;
         setStatus("Getting Task");
-//        log.info("Getting tasks");
 
-    	ConnectionPool pool = ConnectionPool.getPool();
-    	
+	}
+
+	private void closeAgent(Object agent) {
+		try {
+			if (agent == null)
+				return;
+			if (agent instanceof AgentInterface)
+				((AgentInterface) agent).close();
+			else if (agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface)
+				((es.caib.seycon.ng.sync.agent.AgentInterface) agent).close();
+		} catch (Exception e) {}
 	}
 
 	private void runInit() throws InternalErrorException {
@@ -581,7 +589,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	private boolean processAndLogTask () throws InternalErrorException
 	{
-		ConnectionPool pool = ConnectionPool.getPool();
 		String reason = "";
 		boolean ok = false;
 		TaskHandler t = taskqueue.getPendingTask(this);
@@ -1162,6 +1169,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	   		if (log == null) log = "";
 	   		String stackTrace = SoffidStackTrace.getStackTrace(e);
 	   		r.setLog(log + "\n" + stackTrace);
+		} finally {
+			closeAgent(agent);
 		}
         return r;
     }
@@ -1217,11 +1226,40 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	   		if (log == null) log = "";
 	   		String stackTrace = SoffidStackTrace.getStackTrace(e);
 	   		r.setLog(log + "\n" + stackTrace);
+		} finally {
+			closeAgent(agent);
 		}
         return r;
     }
 
-    private void createFolder(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+	public Collection<Map<String, Object>> invoke(String verb, String command,
+			Map<String, Object> params) throws Exception 
+	{
+		if (! isConnected())
+		{
+			throw new InternalErrorException("System "+getName()+" is offline");
+		}
+		Collection<Map<String, Object>> r = null;
+		Object agent;
+		try
+		{
+			agent = connect(false, true);
+		}
+		catch (Exception e)
+		{
+			throw new InternalErrorException ("Unable to connect to "+getName(), e);
+		}
+
+		try {
+	        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
+	        r = objectMgr.invoke (verb, command, params);
+		} finally {
+			closeAgent(agent);
+		}
+        return r;
+    }
+
+	private void createFolder(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
         SharedFolderMgr sharedFolderMgr = InterfaceWrapper.getSharedFolderMgr ( agent );
         if (sharedFolderMgr == null)
         	return ;
@@ -1975,7 +2013,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				reconcileThread = new ReconcileThread();
 				reconcileThread.setName("Reconcile thread for "+getSystem().getName());
 				try {
-					ManualReconcileEngine engine = new ManualReconcileEngine(Security.getCurrentTenantName(), getSystem(), InterfaceWrapper.getReconcileMgr2(connect(false, false)), null);
+					Object tempAgent = connect(false, false);
+					ManualReconcileEngine engine = new ManualReconcileEngine(Security.getCurrentTenantName(), getSystem(), InterfaceWrapper.getReconcileMgr2(tempAgent), null);
 					engine.setReconcileProcessId(Long.decode(taskHandler.getTask().getHost()));
 					reconcileThread.setEngine(
 							engine);
@@ -2395,10 +2434,17 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	{
 		try
 		{
-			Object agent = connect(false, false);
-			if (applies(agent, task))
+			if (applies(null, task))
 			{
-				processTask(agent, task);
+				Object agent = connect(false, false);
+				try {
+					if (applies(agent, task))
+					{
+						processTask(agent, task);
+					}
+				} finally {
+					closeAgent(agent);
+				}
 			}
 		}
 		catch (Exception e)
@@ -2422,7 +2468,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				r.setStatus("Connection error");
 				r.setLog(SoffidStackTrace.getStackTrace(e));
 				return r;
-			}
+			} 
 			if (applies(agent, task))
 			{
 				processTask(agent, task);
@@ -2439,6 +2485,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			String log = agent.endCaptureLog();
 			if (log == null) log = "";
 			r.setLog(log + SoffidStackTrace.getStackTrace(e));
+		} finally {
+			closeAgent(agent);
 		}
 		return r;
 	}
@@ -2446,23 +2494,35 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.engine.DispatcherHandler#doReconcile()
 	 */
+	boolean ongoingReconcile = false;
 	@Override
 	public void doReconcile (ScheduledTask task, PrintWriter out)
 	{
+		synchronized (this)
+		{
+			if (ongoingReconcile)
+				throw new RuntimeException("Another reconciliation is in process");
+			ongoingReconcile = true;
+		}
 		try {
     		Object agent = connect(false, false);
-			ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
-			ReconcileMgr2 reconMgr2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
-    		if (reconMgr != null)
-    		{
-    			new ReconcileEngine1 (getSystem(), reconMgr, out).reconcile();
-    		} 
-    		else if (reconMgr2 != null)
-        	{
-        		new ReconcileEngine2 (getSystem(), reconMgr2, out).reconcile();
-    		} 
-    		else {
-    			out.append ("This agent does not support account reconciliation");
+    		try {
+				ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
+				ReconcileMgr2 reconMgr2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
+	    		if (reconMgr != null)
+	    		{
+	    			new ReconcileEngine1 (getSystem(), reconMgr, out).reconcile();
+	    		} 
+	    		else if (reconMgr2 != null)
+	        	{
+	        		new ReconcileEngine2 (getSystem(), reconMgr2, out).reconcile();
+	    		} 
+	    		else {
+	    			out.append ("This agent does not support account reconciliation");
+	    		}
+    		} finally {
+    			ongoingReconcile = false;
+    			closeAgent(agent);
     		}
 		} 
 		catch (Exception e)

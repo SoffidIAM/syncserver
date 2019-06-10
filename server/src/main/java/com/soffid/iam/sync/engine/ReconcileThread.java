@@ -1,5 +1,9 @@
 package com.soffid.iam.sync.engine;
 
+import com.soffid.iam.sync.agent.AgentInterface;
+import com.soffid.iam.sync.intf.AgentMgr;
+import com.soffid.iam.sync.intf.ReconcileMgr2;
+
 public class ReconcileThread extends Thread {
 	ManualReconcileEngine engine;
 	
@@ -12,6 +16,10 @@ public class ReconcileThread extends Thread {
 			engine.reconcile();
 		} catch (Throwable e) {
 			exception = e;
+		} finally {
+			ReconcileMgr2 agent = engine.getAgent();
+			if (agent != null && agent instanceof AgentInterface)
+				((AgentInterface)agent).close();
 		}
 		finished = true;
 	}

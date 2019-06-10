@@ -9,6 +9,7 @@ package es.caib.seycon.ng.sync.agent;
 import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
 
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +51,7 @@ public abstract class Agent implements AgentInterface {
     String agentVersion;
     String serverName;
     boolean debug = false;
+    Runnable onClose = null;
     
     public String getServerName ()
 	{
@@ -207,4 +209,24 @@ public abstract class Agent implements AgentInterface {
 	public void setDebug(boolean debug) {
 		this.debug = debug;
 	}
+
+	public Collection<Map<String, Object>> invoke(String verb, String command,
+			Map<String, Object> params) throws RemoteException, InternalErrorException 
+	{
+		throw new InternalErrorException ("Not implemented on agent "+getCodi());
+	}
+
+	public void close () {
+		if (onClose != null)
+			onClose.run();
+	}
+
+	public Runnable getOnClose() {
+		return onClose;
+	}
+
+	public void setOnClose(Runnable onClose) {
+		this.onClose = onClose;
+	}
+
 }
