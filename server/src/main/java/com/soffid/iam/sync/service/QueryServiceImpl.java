@@ -278,9 +278,9 @@ public class QueryServiceImpl extends QueryServiceBase {
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
                 stmt.setString(3, (String) v.elementAt(1));
-                stmt.setLong(4, Security.getCurrentTenantId());
                 Invoker invoker = Invoker.getInvoker();
-                stmt.setString(3, invoker.getAddr().getHostAddress());
+                stmt.setString(4, invoker.getAddr().getHostAddress());
+                stmt.setLong(5, Security.getCurrentTenantId());
 
                 ResultSet rset = stmt.executeQuery();
                 if (!rset.next())
