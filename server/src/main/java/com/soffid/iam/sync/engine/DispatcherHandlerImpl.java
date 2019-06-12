@@ -2521,7 +2521,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	    			out.append ("This agent does not support account reconciliation");
 	    		}
     		} finally {
-    			ongoingReconcile = false;
     			closeAgent(agent);
     		}
 		} 
@@ -2536,6 +2535,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				log.warn("Error during reconcile process", e);
 				SoffidStackTrace.printStackTrace(e, out);
 			} catch (Exception e2) {}
+		} finally {
+			ongoingReconcile = false;
 		}
 	}
 	
