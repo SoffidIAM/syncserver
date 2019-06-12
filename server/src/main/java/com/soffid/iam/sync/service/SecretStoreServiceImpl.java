@@ -24,6 +24,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -33,6 +34,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -379,14 +381,20 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 				secret.setValue(p);
 				secrets.add(secret);
 			}
-			for (AccountAttributeEntity data: acc.getAttributes())
+			
+			Map<String, Object> attributes = account.getAttributes();
+			if ( ! attributes.containsKey("SSO:URL"))
+				attributes.put("SSO:URL", account.getLoginUrl());
+			attributes.put("SSO:0", "_="+URLEncoder.encode(account.getLoginName(), "UTF-8"));
+			
+			for (String key: attributes.keySet())
 			{
-				if (data.getMetadata().getName().startsWith("SSO:") && 
-						data.getValue()!= null && data.getValue().length() > 0)
+				Object v = attributes.get(key);
+				if (key.startsWith("SSO:") &&  v != null && v.toString().length() > 0)
 				{
 					Secret secret = new Secret ();
-					secret.setName("sso."+account.getSystem()+"."+account.getName()+"."+data.getMetadata().getName().substring(4));
-					secret.setValue( new Password ( data.getValue() ) );
+					secret.setName("sso."+account.getSystem()+"."+account.getName()+"."+key.substring(4));
+					secret.setValue( new Password ( v.toString() ) );
 					secrets.add (secret);
 				}
 			}
