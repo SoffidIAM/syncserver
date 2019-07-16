@@ -427,6 +427,15 @@ public class InterfaceWrapper {
 						throws RemoteException, InternalErrorException {
 					return Role.toRoleList(agent.getAccountRoles(userAccount));
 				}
+
+				public List<String[]> getAccountChangesToApply(Account account)
+						throws RemoteException, InternalErrorException {
+					return agent.getAccountChangesToApply(es.caib.seycon.ng.comu.Account.toAccount(account));
+				}
+
+				public List<String[]> getRoleChangesToApply(Role role) throws RemoteException, InternalErrorException {
+					return agent.getRoleChangesToApply(Rol.toRol(role));
+				}
 			};
 		}
 		else
@@ -465,6 +474,14 @@ public class InterfaceWrapper {
 				public List<RoleGrant> getAccountGrants(String userAccount)
 						throws RemoteException, InternalErrorException {
 					return RoleGrant.toRoleGrantList(agent.getAccountGrants(userAccount));
+				}
+				public List<String[]> getAccountChangesToApply(Account account)
+						throws RemoteException, InternalErrorException {
+					return agent.getAccountChangesToApply(es.caib.seycon.ng.comu.Account.toAccount(account));
+				}
+
+				public List<String[]> getRoleChangesToApply(Role role) throws RemoteException, InternalErrorException {
+					return agent.getRoleChangesToApply(Rol.toRol(role));
 				}
 			};
 		}
