@@ -674,6 +674,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				TasksQueue priorityQueue = priorities.get(priority);
 				synchronized (priorityQueue)
 				{
+//					log.info("Getting tasks for priority {}", priority, null);
 					Iterator<TaskHandler> iterator = priorityQueue.iterator();
 					while (iterator.hasNext())
 					{
@@ -705,9 +706,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 						else if (tl.getNext() < System.currentTimeMillis())
 						{
 			    			iterator.remove();
+//							log.info("Got task {}", task.toString(), null);
 							return task;
 						}
 	    			} 
+//					log.info("No tasks for priority {}", priority, null);
 	    		}
 			}
 		} finally {
@@ -921,6 +924,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			TasksQueue queue = prioQueue.get(nextPriority);
 			synchronized (queue)
 			{
+//				log.info("Returning task {} to the queue", task.toString(), null);
 				queue.addLast(task);
 			}
 		}
