@@ -9,6 +9,8 @@ package es.caib.seycon.ng.sync.agent;
 import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
 
 import org.slf4j.LoggerFactory;
 
@@ -20,8 +22,10 @@ import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFatory;
 import es.caib.seycon.ng.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
 
+import es.caib.seycon.ng.comu.Account;
 import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.Grup;
+import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.comu.RolGrant;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -50,6 +54,7 @@ public abstract class Agent implements AgentInterface {
     String agentVersion;
     String serverName;
     boolean debug = false;
+    Runnable onClose = null;
     
     public String getServerName ()
 	{
@@ -206,5 +211,32 @@ public abstract class Agent implements AgentInterface {
 
 	public void setDebug(boolean debug) {
 		this.debug = debug;
+	}
+
+	public Collection<Map<String, Object>> invoke(String verb, String command,
+			Map<String, Object> params) throws RemoteException, InternalErrorException 
+	{
+		throw new InternalErrorException ("Not implemented on agent "+getCodi());
+	}
+
+	public void close () {
+		if (onClose != null)
+			onClose.run();
+	}
+
+	public Runnable getOnClose() {
+		return onClose;
+	}
+
+	public void setOnClose(Runnable onClose) {
+		this.onClose = onClose;
+	}
+
+	public List<String[]> getAccountChangesToApply (Account account) throws RemoteException, InternalErrorException {
+		return null;
+	}
+
+	public List<String[]> getRoleChangesToApply (Rol role) throws RemoteException, InternalErrorException {
+		return null;
 	}
 }

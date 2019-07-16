@@ -29,6 +29,7 @@ import com.soffid.iam.sync.agent.AgentManagerImpl;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.kerberos.ChainConfiguration;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
+import com.soffid.iam.sync.hub.client.RemoteThread;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.jetty.SecurityHeaderFactory;
 import com.soffid.iam.sync.jetty.SeyconLog;
@@ -297,6 +298,16 @@ public class SoffidApplication extends Object {
             log.info("Soffid IAM Sync Server version {} starting", config.getVersion());
             if ("server".equals(config.getRole()))
             	log.info("Running as a SYNC SERVER");
+            else if ("gateway".equals(config.getRole()))
+            {
+            	log.info("Running as a SYNC SERVER GATEWAY");
+            	Security.onSyncProxy();
+            }
+            else if ("remote".equals(config.getRole()))
+            {
+            	log.info("Running as a REMOTE PROXY SERVER");
+            	Security.onSyncProxy();
+            }
             else
             {
             	log.info("Running as a PROXY SERVER");
@@ -310,42 +321,74 @@ public class SoffidApplication extends Object {
             configureSecurityHeaders();
             configureSecurity ();
             configureSystemOut();
-
-            // Establecemos el cacerts (copiamos el de JVM a conf si no existe)
+            
             configureCerts(config);
-            // Configure login auth
-            Configuration.setConfiguration(new ChainConfiguration());
 
-            // enableIPTables(config);
-            if ("server".equals (config.getRole())) {
-                ServerApplication.configure ();
-            }
-
-            URLManager url = config.getURL();
-            if (config.isBroadcastListen())
+            if ("gateway".equals(config.getRole()))
             {
-               	jetty = new JettyServer(null, Integer.parseInt(config.getPort()));
-            } else {
-            	jetty = new JettyServer(config.getHostName(), Integer.parseInt(config.getPort()));
+	            URLManager url = config.getURL();
+	            if (config.isBroadcastListen())
+	            {
+	               	jetty = new JettyServer(null, Integer.parseInt(config.getPort()));
+	            } else {
+	            	jetty = new JettyServer(config.getHostName(), Integer.parseInt(config.getPort()));
+	            }
+	            jetty.startGateway();
             }
-            jetty.start();
+            else if ("remote".equals(config.getRole()))
+            {
+            	// Configure login auth
+            	Configuration.setConfiguration(new ChainConfiguration());
 
-            // Iniciar diagnósticos remotos
-            jetty.bindDiagnostics();
+           		jetty = new JettyServer(config.getHostName(), Integer.parseInt(config.getPort()));
 
-            // Configurar el servidor
-            if (config.isServer()) {
-                ServerApplication.start();
-            } else {
-                // Iniciar el Agente
-                agentManager = new AgentManagerImpl();
-                agentManagerV1 = new AgentManagerBaseProxy();
-                agentManagerV1.setAgentManager(agentManager);
-                jetty.bind("/seycon/AgentManager-en", agentManager, "server");
-                jetty.bind("/seycon/AgentManager", agentManagerV1, "server");
+           		// Iniciar el Agente
+        		agentManager = new AgentManagerImpl();
+        		agentManagerV1 = new AgentManagerBaseProxy();
+        		agentManagerV1.setAgentManager(agentManager);
+        		jetty.bind("/seycon/AgentManager-en", agentManager, "server");
+        		jetty.bind("/seycon/AgentManager", agentManagerV1, "server");
+            	// Notificar el arranque
+            	notifyStart();
+            	
+            	new RemoteThread(jetty).run();
             }
-            // Notificar el arranque
-            notifyStart();
+            else
+            {
+            	// Configure login auth
+            	Configuration.setConfiguration(new ChainConfiguration());
+
+            	// enableIPTables(config);
+            	if ("server".equals (config.getRole())) {
+            		ServerApplication.configure ();
+            	}
+
+            	URLManager url = config.getURL();
+            	if (config.isBroadcastListen())
+            	{
+            		jetty = new JettyServer(null, Integer.parseInt(config.getPort()));
+            	} else {
+            		jetty = new JettyServer(config.getHostName(), Integer.parseInt(config.getPort()));
+            	}
+            	jetty.start();
+
+            	// Iniciar diagnósticos remotos
+            	jetty.bindDiagnostics();
+
+            	// Configurar el servidor
+            	if (config.isServer()) {
+            		ServerApplication.start();
+            	} else {
+            		// Iniciar el Agente
+            		agentManager = new AgentManagerImpl();
+            		agentManagerV1 = new AgentManagerBaseProxy();
+            		agentManagerV1.setAgentManager(agentManager);
+            		jetty.bind("/seycon/AgentManager-en", agentManager, "server");
+            		jetty.bind("/seycon/AgentManager", agentManagerV1, "server");
+            	}
+            	// Notificar el arranque
+            	notifyStart();
+            }
         } catch (Throwable e) {
             log.warn("Unrecoverable error", e);
             // out.println (e.getMessage() );
@@ -509,11 +552,14 @@ public class SoffidApplication extends Object {
 	                    Engine.getEngine().shutDown ();
 	                    sso.shutDown();
 	                    ssoDaemon.shutDown();
+	                    sleep (5000);
 	                } else {
 	                	System.exit(2);
 	                }
 				} catch (Exception e) {
 					e.printStackTrace();
+				} finally {
+					System.exit(2);
 				}
             };
         }.start();

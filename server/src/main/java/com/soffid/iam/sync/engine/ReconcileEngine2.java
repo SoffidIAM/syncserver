@@ -108,4 +108,16 @@ public class ReconcileEngine2 extends ReconcileEngine
 		return agent.getAccountGrants(acc.getName());
 	}
 
+
+
+	public ReconcileMgr2 getAgent() {
+		return agent;
+	}
+
+
+
+	public void setAgent(ReconcileMgr2 agent) {
+		this.agent = agent;
+	}
+
 }

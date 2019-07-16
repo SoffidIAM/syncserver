@@ -66,6 +66,8 @@ public class Configure {
                     .println("  -main [-force] -hostname .. -dbuser .. -dbpass .. -dburl ..");
             System.out
             	.println("  -hostname .. -server .. -tenant .. -user .. -pass ..");
+            System.out
+            	.println("  -remote  -hostname .. -server .. -tenant .. -user .. -pass ..");
             System.exit(1);
         }
 
@@ -101,11 +103,14 @@ public class Configure {
         Password adminPassword = null;
         String serverUrl = "";
         String adminDomain = null;
-
+        boolean remote = false;
+        String hostName = null;
         int i;
         for (i = 0; i < args.length - 1; i++) {
-			if ("-hostname".equals(args[i]))
-                config.setHostName(args[++i]);
+			if ("-remote".equals(args[i]))
+                remote = true;
+			else if ("-hostname".equals(args[i]))
+                hostName = (args[++i]);
             else if ("-tenant".equals(args[i]))
             	adminTenant = args[++i];
             else if ("-user".equals(args[i]))
@@ -128,6 +133,9 @@ public class Configure {
         	adminPassword = new Password(new String(pass));
         }
         
+        if (hostName != null)
+        	config.setHostName( remote ? adminTenant+":"+hostName: hostName );
+        
         try {
             /*
              * // Configurar servidor java.io.Console cons = System.console();
@@ -140,10 +148,10 @@ public class Configure {
              * adminPassword = new Password (new String(passwd)); } serverUrl =
              * read (cons, "Server URL", serverUrl, ""); }
              */
-            config.setRole("agent");
+            config.setRole( remote? "remote": "agent");
             CertificateServer cs = new CertificateServer();
             if (!cs.hasServerKey())
-                cs.obtainCertificate(serverUrl, adminTenant, adminUser, adminPassword, null);
+                cs.obtainCertificate(serverUrl, adminTenant, adminUser, adminPassword, null, remote);
             else
             {
                 System.out.println ("This node was already configured. To regenerate security keys, you should remove conf directory to reconfigure.");
@@ -159,7 +167,7 @@ public class Configure {
             System.out.println("Warning: JAVA 6 required");
         }
 
-        configureAgent(adminTenant, adminUser, adminPassword, adminDomain, serverUrl);
+        configureAgent(adminTenant, adminUser, adminPassword, adminDomain, serverUrl, remote);
 
     }
     
@@ -266,7 +274,7 @@ public class Configure {
     }
 
     private static void configureAgent(String adminTenant, String adminUser,
-            Password adminPassword, String adminDomain, String serverUrl)
+            Password adminPassword, String adminDomain, String serverUrl, boolean remote)
             throws NoSuchAlgorithmException, NoSuchProviderException,
             KeyStoreException, FileNotFoundException, CertificateException,
             IOException, InternalErrorException, InvalidKeyException,
@@ -278,7 +286,7 @@ public class Configure {
         
         if (!cs.hasServerKey()) {
             cs.obtainCertificate(serverUrl, adminTenant, adminUser,
-                    adminPassword, adminDomain);
+                    adminPassword, adminDomain, remote);
             ConnectionFactory.reloadKeys();
         }
         RemoteServiceLocator rsl = new RemoteServiceLocator(serverUrl);

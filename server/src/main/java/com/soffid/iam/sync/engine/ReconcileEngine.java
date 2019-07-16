@@ -138,6 +138,8 @@ public abstract class ReconcileEngine
 	private void removeRoles() throws InternalErrorException, Exception {
 		HashSet<String> existingRoleNames = new HashSet<String> (
 				appService.findRoleNames(dispatcher.getName()));
+		if (roles == null)
+			return;
 		for (String role: roles)
 			existingRoleNames.remove(role);
 		
@@ -184,7 +186,7 @@ public abstract class ReconcileEngine
 		for (String accountName: existingAccountNames)
 		{
 			Account account = accountService.findAccount(accountName, dispatcher.getName());
-			if (account != null)
+			if (account != null && ! account.getStatus().equals(AccountStatus.REMOVED))
 			{
 				boolean ok = account.getType().equals(AccountType.IGNORED);
 				AccountExtensibleObject eo = new AccountExtensibleObject(account, serverService);
@@ -432,6 +434,7 @@ public abstract class ReconcileEngine
 			else
 				log.append ("Fetching password attributes for ").append (accountName).append ('\n');
 			
+			
 			try {
 				if (isUnmanaged)
 				{
@@ -445,7 +448,9 @@ public abstract class ReconcileEngine
 					accountService.updateAccount2(acc);
 				}
 				else
+				{
 					accountService.updateAccount2(acc);
+				}
 
 				executeTriggers(postUpdate, 
 						new AccountExtensibleObject(acc2, serverService),
@@ -913,9 +918,12 @@ public abstract class ReconcileEngine
 				return null;				
 			}
 			role2.setSystem(dispatcher.getName());
+			if (role2.getName() == null)
+				role2.setName(existingGrant.getRoleName());
+			if (role2.getDescription() == null)
+				role2.setDescription(role2.getName());
 			if (role2.getDescription().length() > 150)
 				role2.setDescription(role2.getDescription().substring(0, 150));
-			boolean ok = true;
 
 			if (!preInsertRole.isEmpty())
 			{

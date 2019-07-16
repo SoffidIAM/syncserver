@@ -235,7 +235,7 @@ public class KerberosManager {
         String keytabFile = null;
         LoginContext lc = null;
 
-        ChainConfiguration.addConfiguration(new KerberosLoginConfiguration(domain));
+        ChainConfiguration.addConfiguration(domain, new KerberosLoginConfiguration(domain));
         // First try using cache
         try {
             user = properties.getProperty(domain + ".user");

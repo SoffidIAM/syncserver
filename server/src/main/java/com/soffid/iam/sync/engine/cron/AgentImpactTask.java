@@ -18,7 +18,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
  * @author bubu
  *
  */
-public class ReconcileAgentTask implements TaskHandler
+public class AgentImpactTask implements TaskHandler
 {
 	
 	
@@ -36,7 +36,7 @@ public class ReconcileAgentTask implements TaskHandler
 			if (dispatcher.getSystem().getId().toString().equals (task.getParams()))
 			{
 				found = true;
-				dispatcher.doReconcile(task, out);
+				dispatcher.doImpact(task, out);
 				break;
 			}
 		}

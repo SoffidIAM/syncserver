@@ -54,7 +54,6 @@ public class AgentManagerImpl extends AgentManagerBase {
     static Hashtable serverTable = new Hashtable();
     static Hashtable<String, PluginInfo> pluginsLoader = new Hashtable<String, PluginInfo>();
     static HashMap<String,Object> singletons = new HashMap<String, Object>();
-
     /**
      * Constructor
      * 
@@ -91,8 +90,8 @@ public class AgentManagerImpl extends AgentManagerBase {
     	}
     	
         try {
-            AgentInterface agent = performCreateAgent(system);
-            String url = "/seycon/Agent/" + agent.hashCode();
+            final AgentInterface agent = performCreateAgent(system);
+            final String url = "/seycon/Agent/" + agent.hashCode();
             SoffidApplication.getJetty().bind(url, agent, "server");
             String serverName = Invoker.getInvoker().getUser();
             if (serverName.indexOf('\\') > 0)
@@ -103,7 +102,17 @@ public class AgentManagerImpl extends AgentManagerBase {
             	agent.startCaptureLog();
             	agent.setDebug(true);
             }
-            
+   
+            final Runnable onClose = new Runnable ()
+            		{
+						public void run() {
+				            try {
+								SoffidApplication.getJetty().unbind(url);
+							} catch (IOException e) {
+							}
+						}
+            	
+            		};
             if (agent instanceof es.caib.seycon.ng.sync.agent.Agent)
             {
                 es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
@@ -111,6 +120,7 @@ public class AgentManagerImpl extends AgentManagerBase {
             	es.caib.seycon.ng.sync.agent.Agent v1Agent = (es.caib.seycon.ng.sync.agent.Agent) agent;
             	v1Agent.setServerName(serverName);
             	v1Agent.setServer(rsl.getServerService());
+            	v1Agent.setOnClose(onClose);
             	v1Agent.init();
             } else {
                 RemoteServiceLocator rsl = new RemoteServiceLocator();
@@ -118,6 +128,7 @@ public class AgentManagerImpl extends AgentManagerBase {
             	com.soffid.iam.sync.agent.Agent v2Agent = (com.soffid.iam.sync.agent.Agent) agent;
             	v2Agent.setServerName(serverName);
             	v2Agent.setServer(rsl.getServerService());
+            	v2Agent.setOnClose(onClose);
             	v2Agent.init();
             	if (v2Agent.isSingleton())
             		singletons.put(system.getName(), v2Agent);
@@ -272,7 +283,7 @@ public class AgentManagerImpl extends AgentManagerBase {
 	            pi.classLoader = new AgentClassLoader(new URL[] { f.toURI().toURL() });
 	    		pluginsLoader.put(agentClass, pi);
 	    	} 
-	    	else if (new Date().after(pi.expiration))
+	    	else if (new Date().after(pi.expiration) && false)
 	    	{
 	    		Plugin sp = getAnyServer().getPlugin(agentClass);
 	            if (sp == null || sp.getContent() == null) {

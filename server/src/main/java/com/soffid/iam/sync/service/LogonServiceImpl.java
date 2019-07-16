@@ -265,13 +265,18 @@ public class LogonServiceImpl extends LogonServiceBase {
     @Override
     protected PasswordValidation handleValidatePassword(String user, String passwordDomain,
             String password) throws Exception {
+    	log.info("Validating password for {} / {}", user, passwordDomain);
     	Resolver r;
     	try {
     		r = new Resolver(user, passwordDomain);
     	} catch (UnknownUserException e) {
     		return PasswordValidation.PASSWORD_WRONG;
     	}
-        PasswordValidation v = getInternalPasswordService().checkPassword(r.getUserEntity(),
+    	PasswordValidation v;
+    	if (r.getUserEntity() == null)
+    		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), false, true);
+    	else
+        	v = getInternalPasswordService().checkPassword(r.getUserEntity(),
                 r.getDominiContrasenyaEntity(), new Password(password), false, true);
         if (v == PasswordValidation.PASSWORD_WRONG)
         {

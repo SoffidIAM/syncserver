@@ -57,6 +57,8 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getId();
     		else if ("accountName".equals(attribute))
     			obj = account.getName();
+    		else if ("oldAccountName".equals(attribute) )
+    			obj = account.getOldName();
     		else if ("passwordPolicy".equals(attribute))
     			obj = account.getPasswordPolicy();
     		else if ("system".equals(attribute))
@@ -75,6 +77,24 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getLastPasswordSet();
     		else if ("passwordExpiration".equals(attribute))
     			obj = account.getPasswordExpiration();
+    		else if ("ownerUsers".equals(attribute))
+    			obj = account.getOwnerUsers();
+    		else if ("ownerGroups".equals(attribute))
+    			obj = account.getOwnerGroups();
+    		else if ("ownerRoles".equals(attribute))
+    			obj = account.getOwnerRoles();
+    		else if ("grantedUsers".equals(attribute))
+    			obj = account.getGrantedUsers();
+//    		else if ("grantedGroups".equals(attribute))
+//    			obj = account.getGrantedGroups();
+//    		else if ("grantedRoles".equals(attribute))
+//    			obj = account.getGrantedRoles();
+//    		else if ("managerUsers".equals(attribute))
+//    			obj = account.getManagerUsers();
+    		else if ("managerGroups".equals(attribute))
+    			obj = account.getManagerGroups();
+    		else if ("managerRoles".equals(attribute))
+    			obj = account.getManagerRoles();
     		else if ("grantedRoles".equals(attribute))
     		{
     			Collection<RoleGrant> grants = serverService.getAccountExplicitRoles(account.getName(), account.getSystem());

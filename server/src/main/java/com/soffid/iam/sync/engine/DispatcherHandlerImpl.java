@@ -2,7 +2,6 @@ package com.soffid.iam.sync.engine;
 
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.io.StringWriter;
 import java.lang.reflect.InvocationTargetException;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
@@ -60,12 +59,8 @@ import com.soffid.iam.reconcile.service.ReconcileService;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.AccountService;
-import com.soffid.iam.service.CustomObjectService;
-import com.soffid.iam.service.DispatcherService;
-import com.soffid.iam.service.GroupService;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.service.UserDomainService;
-import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
@@ -116,9 +111,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	Logger log = LoggerFactory.getLogger(DispatcherHandler.class);
     boolean active = true;
     private boolean reconfigure = false;
-    private Object agent;
-    private Object objectClass;
-    private long lastConnect;
+    private ThreadLocal<Object> agents = new ThreadLocal<Object>();
+    private Object staticAgent = null;
     private boolean actionStop;
     private long nextConnect;
     private Exception connectException;
@@ -127,7 +121,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     private TaskGenerator taskgenerator;
     private SecretStoreService secretStoreService;
     private String targetHost;
-    private Thread currentThread;
     private ChangePasswordNotificationQueue changePasswordNotificationQueue;
     private TaskEntityDao tasqueEntityDao;
 	private ReconcileService reconcileService;
@@ -136,7 +129,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private static final int MAX_LENGTH = 150;
 	private static final int MAX_ROLE_CODE_LENGTH = 50;
 	private PasswordDomain passwordDomain = null;
-	private AuthoritativeChangeService authoritativeService;
 
 	private enum DispatcherStatus {
 		STARTING,
@@ -193,16 +185,38 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditEntityDao");
         tenantDao = (TenantEntityDao) ServerServiceLocator.instance().getService("tenantEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
-        authoritativeService = ServerServiceLocator.instance().getAuthoritativeChangeService();
         
         active = true;
     }
 
     @Override
     public boolean applies(TaskHandler t) {
-    	return applies (agent, t);
+    	return applies ( getCurrentAgent(), t);
     }
+
+	private Object getCurrentAgent() {
+		if (Boolean.TRUE.equals(system.getSharedDispatcher()))
+			return staticAgent;
+		else
+			return agents.get();
+	}
     	
+	private void clearCurrentAgent() {
+		if (Boolean.TRUE.equals(system.getSharedDispatcher()))
+			staticAgent = null;
+		else
+			agents.remove();
+		lastAgent = null;
+	}
+
+	private void setCurrentAgent(Object agent) {
+		if (Boolean.TRUE.equals(system.getSharedDispatcher()))
+			staticAgent = agent;
+		else
+			agents.set(agent);
+		lastAgent = agent;
+	}
+
     public boolean applies(Object agent, TaskHandler t) {
     	    
         String trans = t.getTask().getTransaction();
@@ -210,7 +224,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         boolean readOnly = getSystem().isReadOnly();
         // Verificar el nom del dipatcher
         if (t.getTask().getSystemName() != null &&
-        		( mirroredAgent != null && !mirroredAgent.equals(t.getTask().getSystemName()))) {
+        		( mirroredAgent != null && 
+        				!mirroredAgent.equals(t.getTask().getSystemName()) &&
+        				! getSystem().getName().equals(t.getTask().getSystemName()))) {
             return false;
 
             // Verificar el domini de contrasenyes
@@ -392,8 +408,38 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     @Override
     public void reconfigure() {
         reconfigure = true;
-        if (currentThread != null)
-        	currentThread.interrupt();
+        int max = getSystem().getThreads() == null ||
+        		getSystem().getThreads().longValue() < 2 ?
+        				1 :
+        				getSystem().getThreads().intValue();
+        int n = 0;
+        for (Thread thread: new LinkedList<Thread>(activeThreads))
+        {
+        	if (n >= max) 
+        		activeThreads.remove(thread);
+        	else if (max > 1)
+    			thread.setName(getSystem().getTenant()+"\\"+getSystem().getName()+"#"+(n+1));
+    		else
+    			thread.setName(getSystem().getTenant()+"\\"+getSystem().getName());
+    		thread.interrupt();
+        	n++;
+        }
+        while (n < max)
+        {
+    		Thread th = new Thread(this);
+    		if (max > 1)
+    			th.setName(getSystem().getTenant()+"\\"+getSystem().getName()+"#"+(n+1));
+    		else
+    			th.setName(getSystem().getTenant()+"\\"+getSystem().getName());
+    		activeThreads.add (th);
+    		th.start();
+    		try {
+				Thread.sleep(500);
+			} catch (InterruptedException e) {
+			}
+    		n++;
+    	}
+
         passwordDomain = null;
     }
 
@@ -417,8 +463,33 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         active = false;
     }
 
+    
+
+    List<Thread> activeThreads;
     public void start() {
-        new Thread(this).start();
+        int max = getSystem().getThreads() == null ||
+        		getSystem().getThreads().longValue() < 2 ?
+        				1 :
+        				getSystem().getThreads().intValue();
+    	activeThreads = Collections.synchronizedList ( new LinkedList<Thread>() );
+    	int n = 0;
+    	do {
+    		if (n > 0)
+    		{
+    			try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+				}
+    		}
+    		Thread th = new Thread(this);
+    		activeThreads.add (th);
+    		if (max > 1)
+    			th.setName(getSystem().getTenant()+"\\"+getSystem().getName()+"#"+(n+1));
+    		else
+    			th.setName(getSystem().getTenant()+"\\"+getSystem().getName());
+    		th.start();
+    		n++;
+    	} while (n < max);
     }
 
     int delay, timeoutDelay;
@@ -428,6 +499,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> postInsertTrigger;
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> preUpdateTrigger;
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> postUpdateTrigger;
+	private Object lastAgent;
 
 
     public void run() {
@@ -443,13 +515,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         try {
         	ConnectionPool pool = ConnectionPool.getPool();
         	
-            currentThread = Thread.currentThread();
-            Thread.currentThread().setName(getSystem().getTenant()+"\\"+getSystem().getName());
+            Thread currentThread = Thread.currentThread();
+            
             // boolean runTimedOutTasks = true;
             log.info("Registered dispatcher thread", null, null);
             runInit();
             // setName (agentName);
-            while (active) {
+            while (active && activeThreads.contains(currentThread)) {
                 // Actualiza información del último bucle realizado
 //                taskQueueStartTime = new java.util.Date().getTime();
 
@@ -461,7 +533,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                     runLoopStart();
                     boolean ok = true;
                     setStatus("Getting Task");
-                    while (!abort && !actionStop && !reconfigure && agent != null) {
+                    while (!abort && !actionStop && !reconfigure && getCurrentAgent() != null) {
                         if (!runLoopNext())
                         	break;
                     }
@@ -481,8 +553,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             } // Fin del bucle infinito (qué paradoja!)
         } catch (Throwable e) {
             log.warn("Distpacher dead", e);
-        } finally {
             active = false;
+        } finally {
             setStatus("Stopped");
             log.info("Stopped", null, null);
             Security.nestedLogoff();
@@ -491,7 +563,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	private void runGetLogs() throws InternalErrorException {
-		if (!actionStop && !abort && agent != null && taskgenerator.canGetLog(this)) {
+		if (!actionStop && !abort && getCurrentAgent() != null && taskgenerator.canGetLog(this)) {
 		    setStatus("Retrieving logs");
 		    try {
 		    	startTask(true);
@@ -523,22 +595,27 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	private void runLoopStart() throws InternalErrorException {
 		if (reconfigure) {
-			if (agent != null)
+			if (getCurrentAgent() != null)
+			{
 				log.info ("Disconnecting agent in order to apply new configuration");
-		    agent = null;
+				closeAgent(getCurrentAgent());
+			}
+		    clearCurrentAgent();
+		    lastAgent = null;
 		    nextConnect = 0;
 		    reconfigure = false;
 		}
 		// //////////////////////////////////////////////////////////
 		// Contactar con el agente
 		//
-		if (agent == null && nextConnect < new java.util.Date().getTime()) {
+		if (getCurrentAgent() == null && nextConnect < new java.util.Date().getTime()) {
 		    try {
 		        setStatus("Looking up server");
 		        log.info("Connecting ...");
-		        agent = connect(true, false);
-		        nextConnect = new java.util.Date().getTime() + timeoutDelay;
+		        Object newAgent = connect(true, false);
+				setCurrentAgent( newAgent );
 		    } catch (Throwable e) {
+		    	nextConnect = new java.util.Date().getTime() + timeoutDelay;
 		        delay = timeoutDelay;
 		        if (e instanceof Exception)
 		        	connectException = (Exception) e;
@@ -550,10 +627,18 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
         boolean ok = true;
         setStatus("Getting Task");
-//        log.info("Getting tasks");
 
-    	ConnectionPool pool = ConnectionPool.getPool();
-    	
+	}
+
+	private void closeAgent(Object agent) {
+		try {
+			if (agent == null)
+				return;
+			if (agent instanceof AgentInterface)
+				((AgentInterface) agent).close();
+			else if (agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface)
+				((es.caib.seycon.ng.sync.agent.AgentInterface) agent).close();
+		} catch (Exception e) {}
 	}
 
 	private void runInit() throws InternalErrorException {
@@ -581,7 +666,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	private boolean processAndLogTask () throws InternalErrorException
 	{
-		ConnectionPool pool = ConnectionPool.getPool();
 		String reason = "";
 		boolean ok = false;
 		TaskHandler t = taskqueue.getPendingTask(this);
@@ -596,7 +680,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			setStatus("Execute " + t.toString());
 			log.info("Executing {} ", t.toString(), null);
 			try {
-				processTask(agent, t);
+				processTask(getCurrentAgent(), t);
 				ok = true;
 				statsService.register("tasks-success", getName(), 1);
 				log.debug("Task {} DONE", t.toString(), null);
@@ -633,9 +717,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      *            error producido
      */
     void handleRMIError(Exception e) {
-        if (agent != null) {
+        if (getCurrentAgent() != null) {
             log.info("Connection error {}", e.toString(), null);
-            agent = null;
+            clearCurrentAgent();
+            lastAgent = null;
             nextConnect = 0;
         }
     }
@@ -1162,6 +1247,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	   		if (log == null) log = "";
 	   		String stackTrace = SoffidStackTrace.getStackTrace(e);
 	   		r.setLog(log + "\n" + stackTrace);
+		} finally {
+			closeAgent(agent);
 		}
         return r;
     }
@@ -1217,11 +1304,40 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	   		if (log == null) log = "";
 	   		String stackTrace = SoffidStackTrace.getStackTrace(e);
 	   		r.setLog(log + "\n" + stackTrace);
+		} finally {
+			closeAgent(agent);
 		}
         return r;
     }
 
-    private void createFolder(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+	public Collection<Map<String, Object>> invoke(String verb, String command,
+			Map<String, Object> params) throws Exception 
+	{
+		if (! isConnected())
+		{
+			throw new InternalErrorException("System "+getName()+" is offline");
+		}
+		Collection<Map<String, Object>> r = null;
+		Object agent;
+		try
+		{
+			agent = connect(false, true);
+		}
+		catch (Exception e)
+		{
+			throw new InternalErrorException ("Unable to connect to "+getName(), e);
+		}
+
+		try {
+	        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
+	        r = objectMgr.invoke (verb, command, params);
+		} finally {
+			closeAgent(agent);
+		}
+        return r;
+    }
+
+	private void createFolder(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
         SharedFolderMgr sharedFolderMgr = InterfaceWrapper.getSharedFolderMgr ( agent );
         if (sharedFolderMgr == null)
         	return ;
@@ -1526,7 +1642,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     private void updateUserPassword(Object agent2, TaskHandler t) throws InternalErrorException, RemoteException {
-        UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
+        UserMgr userMgr = InterfaceWrapper.getUserMgr(agent2);
         if (userMgr == null)
         	return;
 
@@ -1629,6 +1745,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     private Date lastLog = null;
 	private boolean supportsRename;
 	private String status;
+	private Object kerberosAgent;
 
     /**
      * Recuperar los registros de acceso del agente remoto
@@ -1641,7 +1758,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      *             error de comunicaciones
      */
     public void getLog() throws InternalErrorException, RemoteException {
-        AccessLogMgr logmgr = InterfaceWrapper.getAccessLogMgr(agent);
+        AccessLogMgr logmgr = InterfaceWrapper.getAccessLogMgr(getCurrentAgent());
         if (logmgr == null)
         	return;
         Date date;
@@ -1704,7 +1821,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     @Override
     public boolean isConnected() {
-        return !reconfigure && agent != null;
+        return !reconfigure && lastAgent != null;
     }
 
     /**
@@ -1812,11 +1929,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             		agentVersion = "Unknown";
             		supportsRename = false;
             	}
-            	objectClass = agent.getClass();
-            	lastConnect = new java.util.Date().getTime();
             	KerberosAgent krb = InterfaceWrapper.getKerberosAgent (agent);
             	if (krb != null) {
-            		this.agent = agent;
+            		this.kerberosAgent = agent;
                 	String domain = krb.getRealmName();
                 	KerberosManager m = new KerberosManager();
                 	try {
@@ -1883,10 +1998,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     @Override
     public KerberosAgent getKerberosAgent() {
-    	if (agent == null)
+    	if (kerberosAgent == null)
     		return null;
     	else
-    		return InterfaceWrapper.getKerberosAgent (agent);
+    		return InterfaceWrapper.getKerberosAgent (kerberosAgent);
     }
 
     public Date getCertificateNotValidAfter() {
@@ -1910,7 +2025,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     @Override
     public Object getRemoteAgent() {
-        return agent;
+        return lastAgent;
     }
 
 	protected static JbpmConfiguration getConfig ()
@@ -1975,7 +2090,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				reconcileThread = new ReconcileThread();
 				reconcileThread.setName("Reconcile thread for "+getSystem().getName());
 				try {
-					ManualReconcileEngine engine = new ManualReconcileEngine(Security.getCurrentTenantName(), getSystem(), InterfaceWrapper.getReconcileMgr2(connect(false, false)), null);
+					Object tempAgent = connect(false, false);
+					ManualReconcileEngine engine = new ManualReconcileEngine(Security.getCurrentTenantName(), getSystem(), InterfaceWrapper.getReconcileMgr2(tempAgent), null);
 					engine.setReconcileProcessId(Long.decode(taskHandler.getTask().getHost()));
 					reconcileThread.setEngine(
 							engine);
@@ -2395,10 +2511,17 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	{
 		try
 		{
-			Object agent = connect(false, false);
-			if (applies(agent, task))
+			if (applies(null, task))
 			{
-				processTask(agent, task);
+				Object agent = connect(false, false);
+				try {
+					if (applies(agent, task))
+					{
+						processTask(agent, task);
+					}
+				} finally {
+					closeAgent(agent);
+				}
 			}
 		}
 		catch (Exception e)
@@ -2422,7 +2545,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				r.setStatus("Connection error");
 				r.setLog(SoffidStackTrace.getStackTrace(e));
 				return r;
-			}
+			} 
 			if (applies(agent, task))
 			{
 				processTask(agent, task);
@@ -2439,6 +2562,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			String log = agent.endCaptureLog();
 			if (log == null) log = "";
 			r.setLog(log + SoffidStackTrace.getStackTrace(e));
+		} finally {
+			closeAgent(agent);
 		}
 		return r;
 	}
@@ -2447,6 +2572,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.engine.DispatcherHandler#doReconcile()
 	 */
+	boolean ongoingReconcile = false;
 	@Override
 	public void doReconcile (ScheduledTask task, PrintWriter out)
 	{
@@ -2458,18 +2584,68 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 		try {
     		Object agent = connect(false, false);
-			ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
-			ReconcileMgr2 reconMgr2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
-    		if (reconMgr != null)
-    		{
-    			new ReconcileEngine1 (getSystem(), reconMgr, out).reconcile();
-    		} 
-    		else if (reconMgr2 != null)
-        	{
-        		new ReconcileEngine2 (getSystem(), reconMgr2, out).reconcile();
-    		} 
-    		else {
-    			out.append ("This agent does not support account reconciliation");
+    		try {
+				ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
+				ReconcileMgr2 reconMgr2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
+	    		if (reconMgr != null)
+	    		{
+	    			new ReconcileEngine1 (getSystem(), reconMgr, out).reconcile();
+	    		} 
+	    		else if (reconMgr2 != null)
+	        	{
+	        		new ReconcileEngine2 (getSystem(), reconMgr2, out).reconcile();
+	    		} 
+	    		else {
+	    			out.append ("This agent does not support account reconciliation");
+	    		}
+    		} finally {
+    			closeAgent(agent);
+    		}
+		} 
+		catch (Exception e)
+		{
+			task.setError(true);
+			out.println ("*************");
+			out.println ("**  ERROR **");
+			out.println ("*************");
+			out.println (e.toString());
+			try {
+				log.warn("Error during reconcile process", e);
+				SoffidStackTrace.printStackTrace(e, out);
+			} catch (Exception e2) {}
+		} finally {
+			ongoingReconcile = false;
+		}
+	}
+	
+	@Override
+	public void doImpact (ScheduledTask task, PrintWriter out)
+	{
+		synchronized (this)
+		{
+			if (ongoingReconcile)
+				throw new RuntimeException("Another reconciliation is in process");
+			ongoingReconcile = true;
+		}
+		try {
+    		Object agent = connect(false, false);
+    		try {
+				ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
+				ReconcileMgr2 reconMgr2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
+	    		if (reconMgr != null)
+	    		{
+	    			new PreviewChangesEngine1(getSystem(), reconMgr, out).execute();
+	    		} 
+	    		else if (reconMgr2 != null)
+	        	{
+	    			new PreviewChangesEngine2(getSystem(), reconMgr2, out).execute();
+	    		} 
+	    		else 
+	    		{
+	    			out.append ("This agent does not support account reconciliation");
+	    		}
+    		} finally {
+    			closeAgent(agent);
     		}
 		} 
 		catch (Exception e)
@@ -2485,6 +2661,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			} catch (Exception e2) {}
    		} finally {
    			ongoingReconcile = false;
+		} finally {
+			ongoingReconcile = false;
 		}
 	}
 	

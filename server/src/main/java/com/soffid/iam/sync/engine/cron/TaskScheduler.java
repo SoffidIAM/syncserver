@@ -101,6 +101,9 @@ public class TaskScheduler
 								else
 									runningTasks.add(task.getId());
 							}
+							ScheduledTask t = findTask(task.getId());
+							if (t.isActive())
+								ignore = true;
 							if (!ignore) {
 								log.info("Executing task " + task.getName());
 								taskSvc.registerStartTask(task);

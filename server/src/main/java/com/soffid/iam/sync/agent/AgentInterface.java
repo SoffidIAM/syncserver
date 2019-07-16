@@ -22,4 +22,7 @@ public interface AgentInterface
 	boolean isSingleton ();
 	
 	void setDebug(boolean debug);
+	
+	void close();
+
 }

@@ -773,7 +773,11 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
     	
     	ScheduledTask task = ts.findTask(t.getId());
     	if (task != null)
-       			ts.runNow(task, null, false);
+    	{
+    		if (task.isActive())
+    			throw new InternalErrorException ("This task is aleady running");
+   			ts.runNow(task, null, false);
+    	}
 	}
 
 	@Override
