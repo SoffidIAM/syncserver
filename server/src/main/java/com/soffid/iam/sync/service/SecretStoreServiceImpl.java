@@ -385,7 +385,8 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 			Map<String, Object> attributes = account.getAttributes();
 			if ( ! attributes.containsKey("SSO:URL"))
 				attributes.put("SSO:URL", account.getLoginUrl());
-			attributes.put("SSO:0", "_="+URLEncoder.encode(account.getLoginName(), "UTF-8"));
+			if (account.getLoginName() != null)
+				attributes.put("SSO:0", "_="+URLEncoder.encode(account.getLoginName(), "UTF-8"));
 			
 			for (String key: attributes.keySet())
 			{
