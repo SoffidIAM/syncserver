@@ -9,6 +9,7 @@ package com.soffid.iam.sync.agent;
 import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.LoggerFactory;
@@ -32,6 +33,7 @@ import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.ServerService;
 
+import es.caib.seycon.ng.comu.Rol;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
@@ -202,7 +204,7 @@ public abstract class Agent implements AgentInterface {
 	}
 	
 	public void close () {
-		if (onClose != null)
+		if (onClose != null &&  ! isSingleton())
 			onClose.run();
 	}
 
@@ -214,5 +216,12 @@ public abstract class Agent implements AgentInterface {
 		this.onClose = onClose;
 	}
 
+	public List<String[]> getAccountChangesToApply (Account account) throws RemoteException, InternalErrorException {
+		return null;
+	}
+
+	public List<String[]> getRoleChangesToApply (Role role) throws RemoteException, InternalErrorException {
+		return null;
+	}
 
 }
