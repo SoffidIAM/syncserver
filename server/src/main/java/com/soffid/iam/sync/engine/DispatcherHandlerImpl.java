@@ -2572,7 +2572,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.engine.DispatcherHandler#doReconcile()
 	 */
-	boolean ongoingReconcile = false;
 	@Override
 	public void doReconcile (ScheduledTask task, PrintWriter out)
 	{
@@ -2661,8 +2660,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			} catch (Exception e2) {}
    		} finally {
    			ongoingReconcile = false;
-		} finally {
-			ongoingReconcile = false;
 		}
 	}
 	
