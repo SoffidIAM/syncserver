@@ -63,9 +63,9 @@ public class Configure {
         if (args.length == 0) {
             System.out.println("Parameters:");
             System.out
-                    .println("  -main [-force] -hostname .. -dbuser .. -dbpass .. -dburl ..");
+                    .println("  -main [-force] -hostname .. [-port ...] -dbuser .. -dbpass .. -dburl ..");
             System.out
-            	.println("  -hostname .. -server .. -tenant .. -user .. -pass ..");
+            	.println("  -hostname ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
             System.out
             	.println("  -remote  -hostname .. -server .. -tenant .. -user .. -pass ..");
             System.exit(1);
@@ -105,12 +105,15 @@ public class Configure {
         String adminDomain = null;
         boolean remote = false;
         String hostName = null;
+        String port = null;
         int i;
         for (i = 0; i < args.length - 1; i++) {
 			if ("-remote".equals(args[i]))
                 remote = true;
 			else if ("-hostname".equals(args[i]))
                 hostName = (args[++i]);
+			else if ("-port".equals(args[i]))
+                port = (args[++i]);
             else if ("-tenant".equals(args[i]))
             	adminTenant = args[++i];
             else if ("-user".equals(args[i]))
@@ -135,6 +138,8 @@ public class Configure {
         
         if (hostName != null)
         	config.setHostName( remote ? adminTenant+":"+hostName: hostName );
+        if (port != null)
+        	config.setPort(port);
         
         try {
             /*
@@ -180,6 +185,7 @@ public class Configure {
         String hostName = config.getHostName();
         String db = config.getDB();
         String dbuser = config.getDbUser();
+        String port = config.getPort();
         int i;
         Password password = null;
         for (i = 1; i < args.length; i++) {
@@ -187,6 +193,8 @@ public class Configure {
             	hostName = args[++i];
             else if ("-dbuser".equals(args[i]))
             	dbuser = args[++i];
+            else if ("-port".equals(args[i]))
+            	port = args[++i];
             else if ("-dbpass".equals(args[i]))
                 password = new Password(args[++i]);
             else if ("-dburl".equals(args[i]))
@@ -213,6 +221,7 @@ public class Configure {
         config.setPassword(password);
         config.setDB(db);
         config.setDbUser(dbuser);
+        config.setPort(port);
         
         // Create database
         updateDatabase();

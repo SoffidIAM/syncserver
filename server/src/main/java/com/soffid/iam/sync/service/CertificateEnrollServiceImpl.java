@@ -2,6 +2,7 @@ package com.soffid.iam.sync.service;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.URL;
 import java.rmi.RemoteException;
 import java.security.PublicKey;
 import java.security.cert.X509Certificate;
@@ -62,12 +63,21 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     	Security.nestedLogin(tenant, user, Security.ALL_PERMISSIONS);
     	try
     	{
+    		
+    		String port = "760";
+    		String subject = hostName;
+    		int i = hostName.indexOf(":");
+    		if (i >= 0)
+    		{
+    			port = hostName.substring(i+1);
+    			subject = hostName.substring(0, i);
+    		}
 	        PasswordValidation vs;
 	        vs = validatePassword(user, password, domain);
 	        if (vs == PasswordValidation.PASSWORD_GOOD) {
 	        	if (isAllowedAutoRegister (user, domain))
 	        	{
-	        		return autoCreateRequest (tenant, hostName, key);
+	        		return autoCreateRequest (tenant, subject, key);
 	        	}
 	        	else
 	        	{
@@ -166,7 +176,15 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     	Security.nestedLogin(tenant, user, Security.ALL_PERMISSIONS);
     	try 
     	{
-	        LogonService logonService = getLogonService();
+    		String port = "760";
+    		String subject = hostName;
+    		int i = hostName.indexOf(":");
+    		if (i >= 0)
+    		{
+    			port = hostName.substring(i+1);
+    			subject = hostName.substring(0, i);
+    		}
+
 	        PasswordValidation vs = validatePassword(user, password, domain);
 	        if (vs == PasswordValidation.PASSWORD_GOOD) {
 	        	PublicKey pk;
@@ -216,7 +234,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        		pk = (PublicKey) ctxInstance.getVariable("publicKey");
 	        		if (certificateServer == null)
 	        			certificateServer = new CertificateServer();
-	        		cert = certificateServer.createCertificate(tenant, hostName, pk);
+	        		cert = certificateServer.createCertificate(tenant, subject, pk);
 	        		pi.signal();
 	        		ctx.save(pi);
 	        		ctx.close();
@@ -238,12 +256,19 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        		{
 	        			server.setType(ServerType.REMOTESERVER);
 	        			String gateway = getDispatcherService().createRemoteServer(hostName, tenant);
-	        			server.setUrl("https://"+gateway+":"+Config.getConfig().getPort()+"/");
+	        			for ( Server gatewayServer: getDispatcherService().findAllServers())
+	        			{
+	        				if ( gatewayServer.getUrl() != null && gateway.endsWith(gatewayServer.getName()))
+	        				{
+	        					port = Integer.toString( new URL(server.getUrl()).getPort() );
+	        				}
+	        			}
+	        			server.setUrl("https://"+gateway+":"+port+"/");
 	        		}
 	        		else
 	        		{
 	        			server.setType(ServerType.PROXYSERVER);
-	        			server.setUrl("https://"+hostName+":"+Config.getConfig().getPort()+"/");
+	        			server.setUrl("https://"+hostName+":"+port+"/");
 	        		}
 	        		server.setUseMasterDatabase(Boolean.FALSE);
 	        		server = getDispatcherService().create(server);
