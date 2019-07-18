@@ -105,7 +105,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        			ctxInstance.setVariable("name", user);
 	        			ctxInstance.setVariable("surname", "");
 	        		}
-	        		ctxInstance.setVariable("hostname", hostName);
+	        		ctxInstance.setVariable("hostname", subject);
 	        		ctxInstance.setVariable("publicKey", key);
 	        		Invoker invoker = Invoker.getInvoker();
 	        		ctxInstance.setVariable("remoteAddress", invoker.getAddr().getHostAddress());
