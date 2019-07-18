@@ -57,8 +57,10 @@ public class SeyconApplication {
 			throws FileNotFoundException, IOException, InternalErrorException, RemoteException, Exception {
 		System.out.println("Missing core java classes. Downloading "+module+".jar");
 		Config config = Config.getConfig();
-		String sourceURL = "https://" + config.getSeyconServerHostList()[0] + ":" + config.getPort()
-				+ "/downloadLibrary?component="+module;
+
+		String host = config.getServerList().split("[, ]+")[0];
+		
+		String sourceURL = host + "downloadLibrary?component="+module;
 		String targetFile = new File(config.getHomeDir(), "lib/"+module+"-LATEST.jar").getPath();
 		System.out.println("Download URL: "+sourceURL);
 		System.out.println("Target file:  "+targetFile);

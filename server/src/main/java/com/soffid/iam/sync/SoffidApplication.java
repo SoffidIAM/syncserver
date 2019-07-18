@@ -340,7 +340,7 @@ public class SoffidApplication extends Object {
             	// Configure login auth
             	Configuration.setConfiguration(new ChainConfiguration());
 
-           		jetty = new JettyServer(config.getHostName(), Integer.parseInt(config.getPort()));
+           		jetty = new JettyServer(config.getHostName(), 443);
 
            		// Iniciar el Agente
         		agentManager = new AgentManagerImpl();

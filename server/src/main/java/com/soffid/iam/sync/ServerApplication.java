@@ -174,9 +174,8 @@ public class ServerApplication extends SoffidApplication {
     }
 
     private static void resetAgents() throws IOException, InternalErrorException {
-        String taskDispatcherURL = "";
         Config config = Config.getConfig();
-        String servidors[] = config.getSeyconServerHostList();
+        String servidors[] = config.getServerList().split("[, ]+");
 
         LinkedList<String> v = new LinkedList<String>();
         v.add(servidors[0]);

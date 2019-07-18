@@ -29,7 +29,7 @@ public class HttpInvokerProxyFactoryBean implements FactoryBean{
     }
 
     public Object getObject() throws Exception {
-        String[] servers = Config.getConfig().getSeyconServerHostList();
+        String[] servers =  Config.getConfig().getServerList().split("[, ]+");
         RemoteInvokerFactory factory = new RemoteInvokerFactory();
         int next = roundRobin;
         Exception lastException = null;;
