@@ -349,7 +349,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
     protected Collection<SyncServerInfo> handleGetServerAgentHostsURL() throws Exception {
         HashMap<String, SyncServerInfo> hosts = new HashMap<String, SyncServerInfo>();
         Config config = Config.getConfig();
-        String servidors[] = config.getSeyconServerHostList();
+        String servidors[] = config.getServerList().split("[, ]+");
         for (int i = 0; i < servidors.length; i++) {
             String host = new URLManager(servidors[i]).getAgentURL().getHost();
             if (!hosts.containsKey(host))

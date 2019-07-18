@@ -26,8 +26,8 @@ public class SeyconLoader {
 			throws FileNotFoundException, IOException, InternalErrorException, RemoteException, Exception {
 		System.out.println("Missing core java classes. Downloading iam-core.jar");
 		Config config = Config.getConfig();
-		String sourceURL = "https://" + config.getSeyconServerHostList()[0] + ":" + config.getPort()
-				+ "/downloadLibrary?component=iam-core";
+		String host = config.getServerList().split("[, ]+")[0];
+		String sourceURL = host + "downloadLibrary?component=iam-core";
 		String targetFile = new File(config.getHomeDir(), "lib/iam-core.jar").getPath();
 		com.soffid.iam.sync.bootstrap.SeyconLoader.downloadFile(sourceURL, targetFile);
 		System.out.println("Restarting .....");
