@@ -46,13 +46,6 @@ public class ConfigurationManager
 							masterTenant = rset.getLong(1);
 						}
 					});
-    		qh.select("SELECT CON_VALOR FROM SC_CONFIG WHERE CON_IDXAR IS NULL AND CON_CODI='seycon.https.port' AND CON_TEN_ID=?",
-    				new Object[] {masterTenant},
-    				new QueryAction() {
-						public void perform(ResultSet rset) throws SQLException, IOException {
-							prop.setProperty(Config.PORT_PROPERTY, rset.getString(1));
-						}
-					});
     		qh.select("select SRV_URL from SC_TENSER, SC_SERVER WHERE TNS_TEN_ID=? AND TNS_SRV_ID=SRV_ID AND SRV_TYPE='server'",
     	    				new Object[] {masterTenant},
     	    				new QueryAction() {
