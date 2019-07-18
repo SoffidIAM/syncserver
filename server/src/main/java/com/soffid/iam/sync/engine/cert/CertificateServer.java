@@ -217,6 +217,7 @@ public class CertificateServer {
         System.out.println("Connecting to " + serverUrl);
         CertificateEnrollService enrollService = rsl.getCertificateEnrollService();
         String hostName = config.getHostName();
+        String port = config.getPort();
 
         if (publicKey == null || privateKey == null) {
             KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
@@ -241,7 +242,7 @@ public class CertificateServer {
         
         if (config.getRequestId() == null) {
             long id = enrollService.createRequest(adminTenant, adminUser, adminPassword.getPassword(), domain,
-            				hostName, publicKey);
+            				hostName+":"+port, publicKey);
             config.setRequestId(Long.toString(id));
             System.out.println ("The certificate request has been issued.");
         } 
@@ -252,7 +253,7 @@ public class CertificateServer {
                 Long l = Long.decode(config.getRequestId());
                 X509Certificate root = enrollService.getRootCertificate();
                 X509Certificate cert = enrollService.getCertificate(adminTenant, adminUser,
-                        adminPassword.getPassword(), domain, hostName, l, remote);
+                        adminPassword.getPassword(), domain, hostName+":"+port, l, remote);
                 ks.setKeyEntry(SeyconKeyStore.MY_KEY, privateKey, SeyconKeyStore
                         .getKeyStorePassword().getPassword().toCharArray(), new X509Certificate[] {
                         cert, root });
