@@ -35,8 +35,13 @@ function configuremain {
 		SOFFID_HOSTNAME=$(hostname)
 	fi
     
+	if [[ "$SOFFID_PORT" == "" ]]
+	then
+		SOFFID_PORT=760
+	fi
+    
     echo "Configuring as main server"
-	/opt/soffid/iam-sync/bin/configure -main -hostname "$SOFFID_HOSTNAME" -dbuser "${DB_USER:-$MARIADB_USER}" -dbpass "${DB_PASSWORD:-$MARIADB_PASS}" -dburl "$DB_URL" && 
+	/opt/soffid/iam-sync/bin/configure -main -hostname "$SOFFID_HOSTNAME" -port "$SOFFID_PORT" -dbuser "${DB_USER:-$MARIADB_USER}" -dbpass "${DB_PASSWORD:-$MARIADB_PASS}" -dburl "$DB_URL" && 
 	touch /opt/soffid/iam-sync/conf/configured &&
 	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
 	
@@ -67,13 +72,18 @@ function configureproxy {
 		SOFFID_HOSTNAME=$(hostname)
 	fi
     
+	if [[ "$SOFFID_PORT" == "" ]]
+	then
+		SOFFID_PORT=760
+	fi
+    
 	if [[ "$SOFFID_TENANT" == "" ]]
 	then
 		SOFFID_TENANT=master
 	fi
     
     echo "Configuring as secondary or proxy server"
-	/opt/soffid/iam-sync/bin/configure -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"  && 
+	/opt/soffid/iam-sync/bin/configure -hostname "$SOFFID_HOSTNAME" -port "$SOFFID_PORT" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"  && 
 	touch /opt/soffid/iam-sync/conf/configured &&
 	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
 }

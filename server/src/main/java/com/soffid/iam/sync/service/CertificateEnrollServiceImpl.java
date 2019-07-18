@@ -194,7 +194,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        		pk = preapprovedRequests.get(request);
 	        		if (certificateServer == null)
 	        			certificateServer = new CertificateServer();
-	        		cert = certificateServer.createCertificate(tenant, hostName, pk);
+	        		cert = certificateServer.createCertificate(tenant, subject, pk);
 	        		preapprovedRequests.remove(request);
 	        	}
 	        	else
@@ -216,7 +216,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        		
 	        		if (! ctxInstance.getVariable("user").equals(userData.getUserName()))
 	        			throw new InternalErrorException (String.format("Certificate must be retrieved by %s",ctxInstance.getVariable("user")));
-	        		if (! ctxInstance.getVariable("hostname").equals(hostName))
+	        		if (! ctxInstance.getVariable("hostname").equals(subject))
 	        			throw new InternalErrorException (String.format("Certificate belongs to host %s",ctxInstance.getVariable("hostname")));
 	        		if (! ctxInstance.getVariable("remoteAddress").equals(invoker.getAddr().getHostAddress()))
 	        			throw new InternalErrorException (String.format("Certificate not accesible from %s",ctxInstance.getVariable(invoker.getAddr().getHostAddress())));
@@ -242,7 +242,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        	boolean found = false;
 	        	for (Server server: getDispatcherService().findAllServers())
 	        	{
-	        		if (server.getName().equals(hostName))
+	        		if (server.getName().equals(subject))
 	        		{
 	        			found = true;
 	        		}
@@ -250,12 +250,12 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        	if (! found)
 	        	{
 	        		Server server = new Server();
-	        		server.setName(hostName);
+	        		server.setName(subject);
 	        		server.setBackupDatabase(null);
 	        		if (remote)
 	        		{
 	        			server.setType(ServerType.REMOTESERVER);
-	        			String gateway = getDispatcherService().createRemoteServer(hostName, tenant);
+	        			String gateway = getDispatcherService().createRemoteServer(subject, tenant);
 	        			for ( Server gatewayServer: getDispatcherService().findAllServers())
 	        			{
 	        				if ( gatewayServer.getUrl() != null && gateway.endsWith(gatewayServer.getName()))
@@ -268,7 +268,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        		else
 	        		{
 	        			server.setType(ServerType.PROXYSERVER);
-	        			server.setUrl("https://"+hostName+":"+port+"/");
+	        			server.setUrl("https://"+subject+":"+port+"/");
 	        		}
 	        		server.setUseMasterDatabase(Boolean.FALSE);
 	        		server = getDispatcherService().create(server);
