@@ -115,19 +115,13 @@ public class AgentManagerImpl extends AgentManagerBase {
             		};
             if (agent instanceof es.caib.seycon.ng.sync.agent.Agent)
             {
-                es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
-                rsl.setServer(serverName);
             	es.caib.seycon.ng.sync.agent.Agent v1Agent = (es.caib.seycon.ng.sync.agent.Agent) agent;
             	v1Agent.setServerName(serverName);
-            	v1Agent.setServer(rsl.getServerService());
             	v1Agent.setOnClose(onClose);
             	v1Agent.init();
             } else {
-                RemoteServiceLocator rsl = new RemoteServiceLocator();
-                rsl.setServer(serverName);
             	com.soffid.iam.sync.agent.Agent v2Agent = (com.soffid.iam.sync.agent.Agent) agent;
             	v2Agent.setServerName(serverName);
-            	v2Agent.setServer(rsl.getServerService());
             	v2Agent.setOnClose(onClose);
             	v2Agent.init();
             	if (v2Agent.isSingleton())
@@ -218,7 +212,18 @@ public class AgentManagerImpl extends AgentManagerBase {
             } else {
                 Invoker invoker = Invoker.getInvoker();
                 try {
-                	es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator(invoker.getUser());
+                	String user = invoker.getUser();
+                	String host = user.contains("\\") ? user.substring(user.indexOf("\\")+1) : user;
+                	es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
+                	for ( String server: Config.getConfig().getServerList().split("[, ]+"))
+                	{
+                		try {
+							URL url = new URL(server);
+							if ( url.getHost().equalsIgnoreCase(host))
+								rsl.setServer(server);
+						} catch (Exception e) {
+						}
+                	}
     	            v1Agent.setServer(rsl.getServerService());
                 } catch (Exception e) {
                 	es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
@@ -237,10 +242,18 @@ public class AgentManagerImpl extends AgentManagerBase {
             } else {
                 Invoker invoker = Invoker.getInvoker();
                 try {
-                	String serverName = invoker.getUser();
-                    if (serverName.indexOf('\\') > 0)
-                    	serverName = serverName.substring(serverName.indexOf('\\')+1);
-    	            RemoteServiceLocator rsl = new RemoteServiceLocator(serverName);
+                	String user = invoker.getUser();
+                	String host = user.contains("\\") ? user.substring(user.indexOf("\\")+1) : user;
+                	RemoteServiceLocator rsl = new RemoteServiceLocator();
+                	for ( String server: Config.getConfig().getServerList().split("[, ]+"))
+                	{
+                		try {
+							URL url = new URL(server);
+							if ( url.getHost().equalsIgnoreCase(host))
+								rsl.setServer(server);
+						} catch (Exception e) {
+						}
+                	}
     	            v2Agent.setServer(rsl.getServerService());
                 } catch (Exception e) {
     	            RemoteServiceLocator rsl = new RemoteServiceLocator();
