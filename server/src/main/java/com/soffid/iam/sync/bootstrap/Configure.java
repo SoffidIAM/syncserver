@@ -173,6 +173,8 @@ public class Configure {
         }
 
         configureAgent(adminTenant, adminUser, adminPassword, adminDomain, serverUrl, remote);
+        if (port != null)
+        	config.setPort(port);
 
     }
     

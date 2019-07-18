@@ -125,9 +125,8 @@ public class SeyconLoader extends Object {
                 je.extractModules(modulesDir);
                 generateJAR();
             } else {
-                String sourceURL = "https://"
-                        + config.getSeyconServerHostList()[0] + ":"
-                        + config.getPort() + "/downloadLibrary";
+            	String host = config.getSeyconServerHostList()[0];
+                String sourceURL = host + "/downloadLibrary";
                 downloadJAR(sourceURL);
             }
         } catch (Exception e) {

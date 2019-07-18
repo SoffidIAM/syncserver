@@ -631,8 +631,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				Security.nestedLogoff();
 			}
 		}
-		 
-		Security.nestedLogin(newTask.getTenant().getName(), Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
+
+		String tenant = newTask.getTenant() == null || newTask.getTenant().getName() == null ? "master" : newTask.getTenant().getName();
+		Security.nestedLogin(tenant, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
 		try
 		{
 			TaskHandler th = new TaskHandler();

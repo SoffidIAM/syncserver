@@ -260,7 +260,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        			{
 	        				if ( gatewayServer.getUrl() != null && gateway.endsWith(gatewayServer.getName()))
 	        				{
-	        					port = Integer.toString( new URL(server.getUrl()).getPort() );
+	        					port = Integer.toString( new URL(gatewayServer.getUrl()).getPort() );
 	        				}
 	        			}
 	        			server.setUrl("https://"+gateway+":"+port+"/");
