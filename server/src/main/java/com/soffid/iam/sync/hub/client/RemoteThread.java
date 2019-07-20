@@ -58,7 +58,12 @@ public class RemoteThread  {
 		conn.setDoInput(true);
 		conn.setDoOutput(false);
 		conn.setRequestMethod("GET");
-		conn.connect();
+		try {
+			conn.connect();
+		} catch (Exception e ) {
+			log.info(e.toString());
+			return null;
+		}
 		InputStream in = conn.getInputStream();
 		if (conn.getResponseCode() == HttpURLConnection.HTTP_OK)
 		{
