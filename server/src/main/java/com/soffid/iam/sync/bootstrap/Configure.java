@@ -65,9 +65,9 @@ public class Configure {
             System.out
                     .println("  -main [-force] -hostname .. [-port ...] -dbuser .. -dbpass .. -dburl ..");
             System.out
-            	.println("  -hostname ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
+            	.println("  -hostname [-force] ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
             System.out
-            	.println("  -remote  -hostname .. -server .. -tenant .. -user .. -pass ..");
+            	.println("  -remote  -hostname [-force] .. -server .. -tenant .. -user .. -pass ..");
             System.exit(1);
         }
 
@@ -97,7 +97,7 @@ public class Configure {
             InternalErrorException, UnknownUserException,
             KeyManagementException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied {
         Config config = Config.getConfig();
-
+        boolean force = false;
         String adminTenant="master";
         String adminUser = "";
         Password adminPassword = null;
@@ -124,6 +124,8 @@ public class Configure {
                 adminPassword = (new Password(args[++i]));
             else if ("-server".equals(args[i]))
                 serverUrl = args[++i];
+            else if ("-force".equals(args[i]))
+            	force = true;
             else
                 throw new RuntimeException("Unknown parameter " + args[i]);
         }
@@ -137,7 +139,7 @@ public class Configure {
         }
         
         if (hostName != null)
-        	config.setHostName( remote ? adminTenant+":"+hostName: hostName );
+        	config.setHostName( remote ? adminTenant+"_"+hostName: hostName );
         if (port != null)
         	config.setPort(port);
         
@@ -155,7 +157,7 @@ public class Configure {
              */
             config.setRole( remote? "remote": "agent");
             CertificateServer cs = new CertificateServer();
-            if (!cs.hasServerKey())
+            if (force || !cs.hasServerKey())
                 cs.obtainCertificate(serverUrl, adminTenant, adminUser, adminPassword, null, remote);
             else
             {
