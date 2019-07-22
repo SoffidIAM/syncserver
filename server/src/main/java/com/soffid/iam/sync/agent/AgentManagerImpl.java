@@ -33,6 +33,7 @@ import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerApplication;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.SoffidApplication;
+import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.ServerService;
@@ -464,6 +465,32 @@ public class AgentManagerImpl extends AgentManagerBase {
         }
         return null;
     }
+
+    private static KeyPair temporaryKey = null;
+    
+	@Override
+	protected PublicKey handleGenerateNewKey() throws Exception {
+		temporaryKey = new CertificateServer().generateNewKey();
+		return temporaryKey.getPublic();
+	}
+
+	@Override
+	protected void handleStoreNewCertificate(X509Certificate cert, X509Certificate root) throws Exception {
+		if (temporaryKey == null)
+			throw new InternalErrorException ("Error storing certificate. No private key has been generated. Maybe the agent has been restarted since the private key was generated");
+		new CertificateServer().storeCertificate(temporaryKey, cert, root);
+		new Thread(new Runnable() {
+			public void run() {
+				try {
+					Thread.sleep(30000);
+				} catch (InterruptedException e) {
+				}
+				log.info("Restarting after installing new certificate", null, null);
+				java.lang.System.exit(1);
+			}
+			
+		}).start();
+	}
 
 }
 

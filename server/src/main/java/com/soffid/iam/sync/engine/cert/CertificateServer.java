@@ -2,6 +2,7 @@ package com.soffid.iam.sync.engine.cert;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.security.InvalidKeyException;
@@ -26,6 +27,8 @@ import java.security.cert.X509Certificate;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Vector;
 
 import org.apache.commons.logging.LogFactory;
@@ -38,16 +41,21 @@ import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Password;
+import com.soffid.iam.api.Server;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteInvokerFactory;
 import com.soffid.iam.remote.RemoteServiceLocator;
+import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.ssl.SeyconKeyStore;
+import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.service.CertificateEnrollService;
-
 import es.caib.seycon.ng.exception.CertificateEnrollDenied;
 import es.caib.seycon.ng.exception.CertificateEnrollWaitingForAproval;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.remote.URLManager;
+import es.caib.seycon.ng.utils.Security;
 
 @SuppressWarnings("deprecation")
 public class CertificateServer {
@@ -220,13 +228,7 @@ public class CertificateServer {
         String port = config.getPort();
 
         if (publicKey == null || privateKey == null) {
-            KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
-            SecureRandom random = new SecureRandom();
-
-            keyGen.initialize(2048, random);
-
-            // Generar clave para agente o servidor secundario
-            KeyPair pair = keyGen.generateKeyPair();
+            KeyPair pair = generateNewKey();
             publicKey = pair.getPublic();
             privateKey = pair.getPrivate();
             RemoteInvokerFactory factory = new RemoteInvokerFactory();
@@ -283,6 +285,17 @@ public class CertificateServer {
 
     }
 
+	public KeyPair generateNewKey() throws NoSuchAlgorithmException, NoSuchProviderException {
+		KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
+		SecureRandom random = new SecureRandom();
+
+		keyGen.initialize(2048, random);
+
+		// Generar clave para agente o servidor secundario
+		KeyPair pair = keyGen.generateKeyPair();
+		return pair;
+	}
+
     private X509V3CertificateGenerator getX509Generator(X509Certificate rootCert) {
 
         long now = System.currentTimeMillis() - 1000 * 60 * 10; // 10 minutos
@@ -312,4 +325,115 @@ public class CertificateServer {
             NoSuchAlgorithmException {
         return (rootks.getKey(SeyconKeyStore.ROOT_KEY, password.getPassword().toCharArray()) != null);
     }
+
+	public void storeCertificate(KeyPair temporaryKey, X509Certificate cert, X509Certificate root) throws KeyStoreException, KeyManagementException, UnrecoverableKeyException, FileNotFoundException, NoSuchAlgorithmException, CertificateException, IOException {
+		File f = SeyconKeyStore.getKeyStoreFile();
+		File oldFile = new File (f.getPath()+"-"+new Date().toString());
+        SeyconKeyStore.saveKeyStore(ks, oldFile);
+		
+        ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, root);
+        SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
+
+        PrivateKey privateKey = temporaryKey.getPrivate();
+        ks.setKeyEntry(SeyconKeyStore.MY_KEY, privateKey, SeyconKeyStore
+                .getKeyStorePassword().getPassword().toCharArray(), new X509Certificate[] {
+                cert, root });
+        ks.deleteEntry(PRIVATE_KEY);
+        // Guardar certificado
+        SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
+	}
+	
+	public void regenerateCertificates(boolean force)  throws Exception
+	{
+		Config config = Config.getConfig();
+		Map<String, PublicKey> keys = new HashMap<String, PublicKey>();
+		Map<String, AgentManager> managers = new HashMap<String, AgentManager>();
+		// Generate new root ca
+		File f = SeyconKeyStore.getRootKeyStoreFile();
+		if ( !f.canRead())
+		{
+			if (force)
+			{
+				log.warn("Generating certificate on server "+config.getHostName()+". Now this is the main syncserver");
+			}
+			else
+			{
+				log.warn("Only main syncserver can regenerate certificates. Add -force flag to promote this one as the main syncserver");
+				return;
+			}
+		}
+		File oldFile = new File (f.getPath()+"-"+new Date().toString());
+		File newFile = new File (f.getPath()+".new");
+
+		log.info("Storing root certificate copy into "+oldFile.getPath());
+        SeyconKeyStore.saveKeyStore(rootks, oldFile);
+
+		log.info("Generating new root certificate into "+newFile.getPath()+" ...");
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
+        SecureRandom random = new SecureRandom();
+        
+        keyGen.initialize(2048, random);
+    	KeyPair caRootPair = keyGen.generateKeyPair();
+    	X509Certificate rootCert = createCertificate("master", "RootCA", caRootPair.getPublic(), caRootPair.getPrivate(), null, true);
+    	rootks.setKeyEntry(SeyconKeyStore.ROOT_KEY, caRootPair.getPrivate(), password.getPassword()
+    			.toCharArray(), new X509Certificate[] { rootCert });
+
+        SeyconKeyStore.saveKeyStore(rootks, newFile);
+    	
+    	// Generate new agent keys
+        DispatcherService dispatcherService = ServiceLocator.instance().getDispatcherService();
+		for ( Server server: dispatcherService.findAllServers())
+        {
+        	log.info("Generating key for "+server.getUrl());
+        	RemoteServiceLocator rsl = new RemoteServiceLocator(server.getUrl());
+        	AgentManager agentManager = rsl.getAgentManager();
+        	PublicKey key = agentManager.generateNewKey();
+        	keys.put(server.getUrl(), key);
+        	managers.put(server.getUrl(), agentManager);
+        }
+
+        log.info("Generating certificates");
+    	// Generate new agent certificates
+        for ( Server server: dispatcherService.findAllServers())
+        {
+        	log.info("Generating certificate for "+server.getUrl());
+        	
+        	String tenants[] = dispatcherService.getServerTenants(server);
+        	PublicKey key = keys.get(server.getUrl());
+        	
+        	String tenant = tenants != null && tenants.length == 1? tenants[0]: Security.getMasterTenantName();
+        	
+       		X509Certificate serverCert = createCertificate(tenant, server.getName(),  key, caRootPair.getPrivate(), rootCert, false);
+        	
+        	AgentManager agentManager = managers.get(server.getUrl());
+        	
+        	boolean success = false;
+        	int retries = 0;
+        	do {
+        		try {
+        			agentManager.storeNewCertificate(serverCert, rootCert);
+        			success = true;
+        		} catch (Exception e) {
+        			if (retries > 10)
+        			{
+        				log.warn("Unable to install certificate for server "+ server.getUrl(), e);
+        				break;
+        			}
+        			else
+        			{
+        				log.warn("Error trying to install certificate in server "+server.getUrl()+": " +e.toString() );
+        				log.warn("Retrying in 15 seconds...");
+        				Thread.sleep(15000);
+        			}
+        		}
+        	} while (! success);
+        }
+        
+        log.info("All sync servers recertified. Commiting new certificate authority");
+        
+        SeyconKeyStore.saveKeyStore(rootks, f);
+        
+        log.info("DONE");
+        
+	}
 }
