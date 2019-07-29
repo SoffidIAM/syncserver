@@ -632,14 +632,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			}
 		}
 
-		String tenant = newTask.getTenant() == null || newTask.getTenant().getName() == null ? "master" : newTask.getTenant().getName();
+		String tenant = newTask.getTenant() == null || newTask.getTenant().getName() == null ? 
+				Security.getCurrentTenantName(): 
+				newTask.getTenant().getName();
 		Security.nestedLogin(tenant, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
 		try
 		{
 			TaskHandler th = new TaskHandler();
-			Long id = newTask.getTenant().getId();
-			th.setTenantId(id);
-			th.setTenant( Security.getTenantName ( id ) );
+			th.setTenant( tenant );
 			th.setTask(getTaskEntityDao().toTask(newTask));
 			th.setTimeout(null);
 			th.setValidated(false);
