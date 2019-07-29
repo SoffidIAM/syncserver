@@ -218,6 +218,8 @@ public class JettyServer implements PublisherInterface
 	private void addConnector(String ip) throws IOException, FileNotFoundException {
 		MySslSocketConnector connector = new MySslSocketConnector();
         connector.setPort(port);
+        connector.setRequestBufferSize( 32 * 1024);
+        connector.setHeaderBufferSize(32 * 1024);
         if (ip != null) 
         {
         	connector.setHost(ip);
