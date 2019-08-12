@@ -127,6 +127,7 @@ public class HubFromServerServlet extends HttpServlet {
 			            } catch (InvocationTargetException e) {
 			                response.setStatus(HttpServletResponse.SC_OK);
 			                response.setHeader("Success", "false");
+			                ((Request) request).setHandled(true);
 			                result = e.getCause();
 			            } finally {
 			            	MessageFactory.setThreadLocale(previousLocale);

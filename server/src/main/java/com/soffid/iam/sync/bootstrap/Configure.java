@@ -85,6 +85,7 @@ public class Configure {
 			System.err.println("Your certificate is pending for administrator aproval.");
 		} catch (InternalErrorException e) {
 			System.err.println("Internal error: " + e.toString());
+			e.printStackTrace();
 		}
 		System.exit(1);
 

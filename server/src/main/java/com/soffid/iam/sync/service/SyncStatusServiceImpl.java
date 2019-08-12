@@ -82,11 +82,13 @@ import java.util.Vector;
 import javax.servlet.ServletException;
 
 import org.apache.commons.logging.LogFactory;
+import org.jfree.util.Log;
 
 public class SyncStatusServiceImpl extends SyncStatusServiceBase {
+	org.apache.commons.logging.Log log = LogFactory.getLog(getClass());
+	
     @Override
     protected Collection<AgentStatusInfo> handleGetSyncAgentsInfo(String tenant) throws Exception {
-    	
     	Security.nestedLogin(tenant, Security.getCurrentAccount(), Security.ALL_PERMISSIONS);
     	try
     	{
@@ -379,6 +381,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 
     @Override
     protected String handleResetServerAgents(String server) throws Exception {
+    	log.info("Reseting agent "+server);
         StringBuffer res = new StringBuffer(""); //$NON-NLS-1$
         try {
             RemoteServiceLocator rsl = new RemoteServiceLocator(server);

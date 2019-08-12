@@ -446,6 +446,7 @@ public class AgentManagerImpl extends AgentManagerBase {
 
     @Override
     protected void handleReset() throws Exception {
+    	log.info("Received reset request", null, null);
         SoffidApplication.shutDown();
     }
 

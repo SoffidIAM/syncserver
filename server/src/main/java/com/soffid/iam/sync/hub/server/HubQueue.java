@@ -1,11 +1,15 @@
 package com.soffid.iam.sync.hub.server;
 
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 
 import com.soffid.iam.api.Server;
 import com.soffid.iam.remote.RemoteServiceLocator;
@@ -20,6 +24,7 @@ public class HubQueue {
 	public final static int LONG_ACTION_TIMEOUT = LONG_ACTION_KEEPALIVE * 2;
 
 	final static private HubQueue instance = new HubQueue();
+	Log log = LogFactory.getLog(getClass());
 	
 	long requestId = System.currentTimeMillis();
 	
@@ -76,6 +81,7 @@ public class HubQueue {
 			throws Throwable
 	{
 		Request req = new Request();
+//		log.info("Invoking "+url);
 		req.setSource(user);
 		req.setTarget(host);
 		req.setUrl(url);
@@ -109,7 +115,10 @@ public class HubQueue {
 				if ( req.isSuccess())
 					return req.getResponse();
 				else
-					throw (Throwable) req.getResponse();
+				{
+//					log.info ("Received error "+req.getResponse().toString());
+					throw  new InvocationTargetException( (Throwable) req.getResponse() );
+				}
 			}
 			else
 				throw new IOException ("Connection reset");

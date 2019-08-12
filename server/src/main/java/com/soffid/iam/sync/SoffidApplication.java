@@ -540,6 +540,7 @@ public class SoffidApplication extends Object {
         new Thread () {
             public void run() {
                 try {
+                	log.info("Shutting down....");
                     sleep(3000);
                 } catch (InterruptedException e) {
                 }
