@@ -19,6 +19,8 @@ import com.soffid.iam.sync.hub.server.Request;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.jetty.JettyServer;
 
+import es.caib.seycon.ng.exception.InternalErrorException;
+
 public class ProcessRequestThread extends Thread{
 	Log log = LogFactory.getLog(getClass());
 	
@@ -98,7 +100,7 @@ public class ProcessRequestThread extends Thread{
                     result = method.invoke(handler, request.getArgs());
                     sendResult(true, result);
                 } catch (InvocationTargetException e) {
-                	sendResult(false, e.getCause());
+                	sendResult(false, new InternalErrorException(e.getMessage(), e.getCause()));
                 } finally {
                 	MessageFactory.setThreadLocale(previousLocale);
                 	Invoker.setInvoker(null);
