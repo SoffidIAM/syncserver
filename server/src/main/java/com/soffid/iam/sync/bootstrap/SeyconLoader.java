@@ -477,7 +477,7 @@ public class SeyconLoader extends Object {
             javaopts = javaopts.replaceAll("%d",
                     Long.toString(System.currentTimeMillis()));
 
-            String opts[] = javaopts.split(" +");
+            String opts[] = javaopts.trim().split(" +");
             String execArguments[] = new String[4 + opts.length + args.length];
             execArguments[0] = jreExec;
             int argument = 1;
