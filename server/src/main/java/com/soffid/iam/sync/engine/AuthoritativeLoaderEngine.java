@@ -338,6 +338,7 @@ public class AuthoritativeLoaderEngine {
 						AuthoritativeChange change = new AuthoritativeChange();
 						change.setObjectType(SoffidObjectType.OBJECT_GROUP);
 						change.setGroup(group);
+						change.setSourceSystem(getSystem().getName());
 						if (authoritativeService
 								.startAuthoritativeChange(change))
 						{
