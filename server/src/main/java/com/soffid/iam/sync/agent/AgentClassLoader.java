@@ -23,7 +23,7 @@ public class AgentClassLoader extends URLClassLoader {
     }
 
     @Override
-    public Class<?> loadClass(String name) throws ClassNotFoundException {
+    public synchronized Class<?> loadClass(String name) throws ClassNotFoundException {
         synchronized (lock) {
 	        // First, check if the class has already been loaded
 	        Class c = findLoadedClass(name);
