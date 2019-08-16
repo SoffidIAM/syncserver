@@ -73,10 +73,9 @@ public class ConnectionPool {
 	{
 		qci.cancelled = true;
 		try {
-			qci.connection.close();
+			qci.connection.realClose();
 		} catch (SQLException e) 
 		{
-			
 		}
 	}
 	/**
