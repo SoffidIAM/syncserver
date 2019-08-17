@@ -37,6 +37,7 @@ import com.soffid.iam.sync.agent.Plugin;
 import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFinder;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
+import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.CustomObjectMgr;
 import com.soffid.iam.sync.intf.CustomTaskMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
@@ -387,6 +388,11 @@ public class InterfaceWrapper {
 
 				public String[] getRealmServers() throws InternalErrorException {
 					return agent.getRealmServers();
+				}
+
+				public String parseKerberosToken(String serverPrincipal, byte[] keytab, byte[] token)
+						throws InternalErrorException {
+					return agent.parseKerberosToken(serverPrincipal, keytab, token);
 				}
 			};
 		}
@@ -882,6 +888,15 @@ public class InterfaceWrapper {
 				}
 				public Server findRemoteServerByUrl(String url) throws InternalErrorException {
 					return  Server.toServer( agent.findRemoteServerByUrl(url) );
+				}
+				public String parseKerberosToken(String domain, String serviceName, byte[] keytab, byte[] token)
+						throws InternalErrorException, InternalErrorException {
+					return agent.parseKerberosToken(domain, serviceName, keytab, token);
+				}
+				public void processAuthoritativeChange(AuthoritativeChange change, boolean remove)
+						throws InternalErrorException {
+					agent.processAuthoritativeChange(es.caib.seycon.ng.sync.intf.AuthoritativeChange.toAuthoritativeChange(change), remove);
+					
 				}
 			};
 	}

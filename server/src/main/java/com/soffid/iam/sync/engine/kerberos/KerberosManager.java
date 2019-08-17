@@ -45,11 +45,14 @@ public class KerberosManager {
     private TaskGenerator taskGenerator;
 
     public KerberosManager() throws FileNotFoundException, IOException {
-        taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
-        properties = new Properties();
-        File propertiesFile = getPropertiesFile();
-        if (propertiesFile.canRead())
-            properties.load(new FileInputStream(propertiesFile));
+    	properties = new Properties();
+    	if (  Config.getConfig().isServer())
+    	{
+    		taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
+	        File propertiesFile = getPropertiesFile();
+	        if (propertiesFile.canRead())
+	            properties.load(new FileInputStream(propertiesFile));
+    	}
     }
     
 
@@ -123,9 +126,8 @@ public class KerberosManager {
     private void generateKrbConfig() throws IOException, InternalErrorException {
         File config = getConfigFile();
 
-        java.lang.System.setProperty("java.security.krb5.conf", config.getAbsolutePath());
-        java.lang.System.setProperty("sun.security.krb5.debug", "true");
-        java.lang.System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+        generateSystemProperties(config);
+
         StringBuffer realms = new StringBuffer();
         boolean reconfig = false;
         String defaultRealm = null;
@@ -167,19 +169,45 @@ public class KerberosManager {
         }
         
         if (reconfig) {
-            PrintWriter writer = new PrintWriter(config);
-            writer.println("[libdefaults]");
-            writer.println("kdc_timeout=3000");
-            writer.println("max_retries=2");
-            writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
-            writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
-            writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc");
-            writer.println("default_realm="+defaultRealm);
-            writer.println();
-            writer.println("[realms]");
-            writer.println(realms.toString());
-            writer.close();
+            generateKrb5ConfFile(config, realms, defaultRealm);
             storeProperties();
+        }
+    }
+
+
+	public void generateSystemProperties(File config) {
+		java.lang.System.setProperty("java.security.krb5.conf", config.getAbsolutePath());
+        java.lang.System.setProperty("sun.security.krb5.debug", "true");
+        java.lang.System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+	}
+
+
+	public void generateKrb5ConfFile(File config, StringBuffer realms, String defaultRealm)
+			throws FileNotFoundException {
+		PrintWriter writer = new PrintWriter(config);
+		writer.println("[libdefaults]");
+		writer.println("kdc_timeout=3000");
+		writer.println("max_retries=2");
+		writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
+		writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
+		writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc");
+		writer.println("default_realm="+defaultRealm);
+		writer.println();
+		writer.println("[realms]");
+		writer.println(realms.toString());
+		writer.close();
+	}
+    
+    public void generatDefaultKerberosConfig () throws FileNotFoundException, IOException
+    {
+        File config = getConfigFile();
+
+        generateSystemProperties(config);
+
+        if ( ! config.canRead())
+        {
+	        StringBuffer realms = new StringBuffer();
+	        generateKrb5ConfFile(config, realms, "");
         }
     }
 

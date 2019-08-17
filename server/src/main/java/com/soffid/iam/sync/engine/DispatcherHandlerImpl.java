@@ -2714,4 +2714,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		Watchdog.instance().dontDisturb();
 	}
 
+	@Override
+	public String parseKerberosToken(String domain, String serviceName, byte[] keytab, byte[] token) throws Exception {
+		if (isConnected() && kerberosAgent != null)
+		{
+			Object agent = connect( false, false );
+			KerberosAgent krbAgent = InterfaceWrapper.getKerberosAgent(agent);
+			if (krbAgent != null)
+			{
+				String krbDomain = krbAgent.getRealmName();
+				if (domain.equalsIgnoreCase(krbDomain))
+					return krbAgent.parseKerberosToken(serviceName, keytab, token);
+			}
+		}
+		return null;
+				
+	}
 }

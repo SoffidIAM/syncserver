@@ -616,6 +616,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		} else {
 			
 			Long tenantId = newTask.getTenant().getId();
+//			log.info("Loading task {} tenant {}", newTask.toString(), tenantId);
 			String tenantName = Security.getTenantName (tenantId);  // Workaround lazy tenant loader
 			Security.nestedLogin(tenantName, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
 			try
@@ -635,6 +636,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		String tenant = newTask.getTenant() == null || newTask.getTenant().getName() == null ? 
 				Security.getCurrentTenantName(): 
 				newTask.getTenant().getName();
+		log.info("Tenant name {}", tenant, null);		
 		Security.nestedLogin(tenant, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
 		try
 		{
@@ -643,6 +645,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			th.setTask(getTaskEntityDao().toTask(newTask));
 			th.setTimeout(null);
 			th.setValidated(false);
+			if (newTask.getTenant() == null || newTask.getTenant().getName() == null)
+				th.setTenantId(Security.getCurrentTenantId());
+			else
+				th.setTenantId( newTask.getTenant().getId());
 			if (newTask.getId() != null)
 				addTask(th, newTask);
 			return th;
@@ -798,6 +804,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected void handleExpireTasks () throws Exception
 	{
+//		log.info("Expiring tasks", null, null);
 		Set<Long> currentTenants = getTaskGenerator().getActiveTenants();
 		Date now = new Date();
 		for (Long tenant: globalCurrentTasks.keySet() )
@@ -853,7 +860,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 						{
 							task.reject();
 							pushTaskToPersist(task);
-							log.debug("Removing task {} from queue", task, null);
+//							log.info("Removing task {} from queue", task, null);
+//							log.info("Tenant task = {}", task.getTenantId(), null);
+//							for ( Long t: currentTenants)
+//								log.info(" Current tenant = {}", t, null);
 							iterator.remove();
 						}
 					}
@@ -933,6 +943,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		boolean allOk = true;
 		StringBuffer message = new StringBuffer();
 		String status = "P";
+//		log.info("Notify task status {} {}", task.toString(), bOK);
 		synchronized (task)
 		{
 			for (DispatcherHandler dh : getTaskGenerator().getDispatchers())
@@ -943,8 +954,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 							task.getTask().getSystemName()
 								.equals(dh.getSystem().getName()))
 					{
+//						log.info("Dispatcher {} ", dh.getSystem().getName(), null);
 						if (task.getLogs().size() <= dh.getInternalId())
 						{
+//							log.info("No log present ", null, null);
 							allOk = false;
 						}
 						else
@@ -952,10 +965,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 							TaskHandlerLog tasklog = task.getLogs().get(dh.getInternalId());
 							if (tasklog == null)
 							{
+//								log.info("Log is empty ", null, null);
 								allOk = false;
 							}
 							else if (!tasklog.isComplete())
 							{
+//								log.info("Log is not finished ", null, null);
 								allOk = false;
 								if (tasklog.getNumber() >= 3)
 									status = "E";
@@ -976,6 +991,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		// //////////////// TASK COMPLETE
 		if (allOk)
 		{
+//			log.info("Task is finished ", null, null);
 			Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 
 			task.cancel();
@@ -1370,10 +1386,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected void handlePersistTask (TaskHandler newTask) throws Exception
 	{
+//		log.info("Persist task {}", newTask.toString(), null);
 		if (newTask.isRejected())
 		{
 			getSyncServerStatsService().register("queue", "rejected", 1);
-			log.info("Task is rejected", null, null);
+			log.info("Task {} is rejected", newTask.toString(), null);
     		TaskEntityDao dao = getTaskEntityDao();
     		newTask.setChanged(false);
     		TaskEntity tasque = dao.load(newTask.getTask().getId());
@@ -1393,7 +1410,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    		if (tasque == null)
 	    		{
 	    			newTask.cancel();
-//	    			log.info("Task was previously removed", null, null);
+	    			log.info("Task {} was previously removed", newTask.toString(), null);
 	    		}
 	    		else if (newTask.isComplete())
 	    		{
@@ -1403,7 +1420,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	        			dao.remove(tasque);
 	        			getSyncServerStatsService().register("queue", "finished", 1);
 	    			}
-//	    			log.info("Task is complete", null, null);
+//	    			log.info("Task {} is complete", newTask.toString(), null);
 	    		}
 	    		else
 	    		{
@@ -1414,7 +1431,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			dao.update(tasque);
 	    
 	    			Collection<TaskLogEntity> daoEntities = tasque.getLogs();
-//	    			log.info("Task is pending", null, null);
+//	    			log.info("Task {} is pending", newTask.toString(), null);
 	    			if (newTask.getLogs() != null)
 	    			{
 	        			for (TaskHandlerLog tasklog : newTask.getLogs()) {
@@ -1434,7 +1451,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
 	                                persistLog(tasque, tasklog, logEntity);
 	                            }
-//	                            log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
+	                            log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
 	        				}
                         }
 	    			}
