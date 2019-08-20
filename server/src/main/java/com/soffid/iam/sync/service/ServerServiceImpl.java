@@ -2107,13 +2107,15 @@ public class ServerServiceImpl extends ServerServiceBase {
 	}
 
 	@Override
-	protected String handleParseKerberosToken(String domain, String serviceName, byte keytab[], byte token[]) throws Exception {
+	protected Account handleParseKerberosToken(String domain, String serviceName, byte keytab[], byte token[]) throws Exception {
 		for ( DispatcherHandler dispatcherHandler: getTaskGenerator().getDispatchers())
 		{
 			try {
-				String principal = dispatcherHandler.parseKerberosToken (domain, serviceName, keytab, token);
-				if (principal != null)
-					return principal;
+				String account = dispatcherHandler.parseKerberosToken (domain, serviceName, keytab, token);
+				if (account != null)
+				{
+					return handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
+				}
 			} catch (Exception e) {
 				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName());
 			}
