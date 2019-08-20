@@ -889,9 +889,9 @@ public class InterfaceWrapper {
 				public Server findRemoteServerByUrl(String url) throws InternalErrorException {
 					return  Server.toServer( agent.findRemoteServerByUrl(url) );
 				}
-				public String parseKerberosToken(String domain, String serviceName, byte[] keytab, byte[] token)
+				public Account parseKerberosToken(String domain, String serviceName, byte[] keytab, byte[] token)
 						throws InternalErrorException, InternalErrorException {
-					return agent.parseKerberosToken(domain, serviceName, keytab, token);
+					return Account.toAccount( agent.parseKerberosToken(domain, serviceName, keytab, token) );
 				}
 				public void processAuthoritativeChange(AuthoritativeChange change, boolean remove)
 						throws InternalErrorException {
