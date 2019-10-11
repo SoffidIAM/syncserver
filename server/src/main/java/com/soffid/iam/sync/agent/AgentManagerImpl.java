@@ -493,6 +493,21 @@ public class AgentManagerImpl extends AgentManagerBase {
 		}).start();
 	}
 
+	@Override
+	protected String[] handleTailServerLog() throws Exception {
+		String logPath = Config.getConfig().getLogFile().getAbsolutePath();
+		LinkedList<String> s = new LinkedList<String>();
+		
+		BufferedReader r = new BufferedReader( new FileReader(logPath));
+		for ( String line = r.readLine(); line != null; line = r.readLine())
+		{
+			s.add(line);
+			if (s.size() > 10000)
+				s.removeFirst();
+		}
+		return s.toArray(new String[0]);
+	}
+
 }
 
 class ServerInfo {
