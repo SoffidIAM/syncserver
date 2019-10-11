@@ -285,7 +285,7 @@
 				<artifactId>maven-jar-plugin</artifactId>
 				<configuration>
 					<archive>
-						<index>true</index>
+						<index>false</index>
 						<manifest>
 							<addClasspath>true</addClasspath>
 						</manifest>
