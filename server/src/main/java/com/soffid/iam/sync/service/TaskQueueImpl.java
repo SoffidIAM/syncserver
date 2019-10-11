@@ -489,7 +489,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 
 		populateTaskLog(newTask, tasqueEntity);
-
 		log.info("Added task {}", newTask.toString(), null);
 
 		// Register new tasks
@@ -1451,7 +1450,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
 	                                persistLog(tasque, tasklog, logEntity);
 	                            }
-	                            log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
+//	                            log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
 	        				}
                         }
 	    			}
