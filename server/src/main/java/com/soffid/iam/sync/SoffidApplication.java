@@ -364,11 +364,18 @@ public class SoffidApplication extends Object {
             	}
 
             	URLManager url = config.getURL();
+            	int port = 760;
+            	try
+            	{
+            		port = Integer.parseInt(config.getPort());
+            	} catch (Exception e ) {
+            		log.info("Error parsing port "+config.getPort());
+            	}
             	if (config.isBroadcastListen())
             	{
-            		jetty = new JettyServer(null, Integer.parseInt(config.getPort()));
+            		jetty = new JettyServer(null, port);
             	} else {
-            		jetty = new JettyServer(config.getHostName(), Integer.parseInt(config.getPort()));
+            		jetty = new JettyServer(config.getHostName(), port);
             	}
             	jetty.start();
 
