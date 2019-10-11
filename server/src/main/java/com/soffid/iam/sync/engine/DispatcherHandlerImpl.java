@@ -42,7 +42,6 @@ import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserType;
-import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AuditEntity;
 import com.soffid.iam.model.AuditEntityDao;
@@ -92,6 +91,7 @@ import com.soffid.iam.sync.service.SyncServerStatsService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.util.Syslogger;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -241,9 +241,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             return false;
 
         } else if (t.getTask().getTransaction().equals(TaskHandler.UPDATE_USER)) {
-            return !readOnly && (
-            				implemented(agent, UserMgr.class) ||
-            				implemented(agent, es.caib.seycon.ng.sync.intf.UserMgr.class));
+        	if (readOnly)
+        		return false;
+        	if (agent != null)
+        		return implemented(agent, UserMgr.class) ||
+        				implemented(agent, es.caib.seycon.ng.sync.intf.UserMgr.class);
+	        try {
+				User user = getUserInfo(t);
+				if (isUnmanagedType ( user.getUserType()))
+					return false;
+				
+				if (getAccounts(t).isEmpty())
+					return false;
+			} catch (Exception e) {
+			}
+	        
+	        return true;
         }
         ///////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.UPDATE_ACCOUNT)) {
@@ -1017,7 +1030,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				if (tu.isUnmanaged())
 					unmanagedTypes.add(tu.getCode());
 			}
-			unmanagedTypesTS = System.currentTimeMillis() + 60000; // Requery every minute 
+			unmanagedTypesTS = System.currentTimeMillis() + 5000; // Requery every five seconds 
 		}
 		return unmanagedTypes.contains(passwordPolicy);
 	}
@@ -1399,6 +1412,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
         if (acc != null && !acc.isDisabled() )
         {
+        	if ( isPasswordTraceEnabled())
+        		log.info("Checking password {} for {}", t.getPassword().getPassword(), acc.getName());
+        			
         	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
         	{
 	            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
@@ -1471,20 +1487,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     private void propagateUserPassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
-    	log.info("En propagateUserPassword");
         if (!isTrusted())
             return;
 
-    	log.info("En propagateUserPassword 2");
         UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
         if (userMgr == null)
         	return;
 
-    	log.info("En propagateUserPassword 3 "+t.getTask().getUser());
     	for (Account acc: accountService.findUsersAccounts(t.getTask().getUser(), mirroredAgent))
     	{
 	        if (!acc.isDisabled() )
 	        {
+	        	if ( isPasswordTraceEnabled())
+	        		log.info("Checking password {} for {}", t.getPassword().getPassword(), acc.getName());
 	        	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
 	        	{
 		            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
@@ -1596,8 +1611,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		{
 		        boolean ok = userMgr.validateUserPassword(acc.getName(), t.getPassword());
 	            Password p = getTaskPassword(t);
-		        if (!ok) {
-		            log.debug("Updating propagated password for account {}/{}",
+		        if (!ok) 
+		        {
+		        	if ( isPasswordTraceEnabled())
+		        		log.info("Checking password {} for {}", t.getPassword().getPassword(), acc.getName());
+
+		        	log.debug("Updating propagated password for account {}/{}",
 		            				t.getTask().getUser(), getSystem().getName());
 		            userMgr.updateUserPassword(acc.getName(), user, p, false);
             		auditAccountPasswordChange(acc, user, false);
@@ -1627,6 +1646,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
            	changePasswordNotificationQueue.addNotification(t.getTask().getUser());
     	}
     }
+
+	public boolean isPasswordTraceEnabled() {
+		return "true".equals(ConfigurationCache.getProperty("soffid.server.trace-passwords"));
+	}
     
     private void auditAccountPasswordChange (Account account, User user, boolean random)
     {
@@ -2730,4 +2753,5 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		return null;
 				
 	}
+
 }
