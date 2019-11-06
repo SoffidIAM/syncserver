@@ -112,6 +112,8 @@ public class AgentManagerImpl extends AgentManagerBase {
             	v1Agent.setServerName(serverName);
             	v1Agent.setServer(rsl.getServerService());
             	v1Agent.init();
+            	if (v1Agent.isSingleton())
+            		singletons.put(system.getName(), v1Agent);
             } else {
                 RemoteServiceLocator rsl = new RemoteServiceLocator();
                 rsl.setServer(serverName);
@@ -167,7 +169,9 @@ public class AgentManagerImpl extends AgentManagerBase {
             	es.caib.seycon.ng.sync.agent.Agent v1Agent = (es.caib.seycon.ng.sync.agent.Agent) agent;
 	            v1Agent.setServerName(Config.getConfig().getHostName());
 	            v1Agent.setServer(es.caib.seycon.ng.sync.ServerServiceLocator.instance().getServerService());
-	            v1Agent.init();            	
+	            v1Agent.init();
+	            if (v1Agent.isSingleton())
+	            	singletons.put(system.getName(), v1Agent);
             }
             if (debug)
             	agent.setDebug(true);
