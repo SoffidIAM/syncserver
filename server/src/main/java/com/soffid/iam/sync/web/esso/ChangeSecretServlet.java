@@ -8,7 +8,9 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -42,6 +44,7 @@ import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
+import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.TypeEnumeration;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
@@ -66,7 +69,8 @@ public class ChangeSecretServlet extends HttpServlet {
      */
     private static final long serialVersionUID = 1L;
     Logger log = Log.getLogger("GetSecretsServlet"); //$NON-NLS-1$
-
+    static Map<String,String> defaultDispatcher = new HashMap<String, String>();
+    
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
 
@@ -84,11 +88,19 @@ public class ChangeSecretServlet extends HttpServlet {
         
         User usuari;
 		try {
+			log.info("Searching user {}", user, null);
 			usuari = usuariService.findUserByUserName(user);
 			if (usuari == null)
 				throw new UnknownUserException(user);
 			String userAccount = user;
-			for ( UserAccount ua: accountSvc.getUserAccounts(usuari))
+			log.info("Getting accounts {}", user, null);
+			String dispatcher = defaultDispatcher.get(Security.getCurrentTenantName());
+			if (dispatcher == null)
+			{
+				dispatcher = ServiceLocator.instance().getDispatcherService().findSoffidDispatcher().getName();
+				defaultDispatcher.put(Security.getCurrentTenantName(), dispatcher);
+			}
+			for ( UserAccount ua: accountSvc.findUsersAccounts(usuari.getUserName(), dispatcher))
 			{
 				userAccount = ua.getName();
 			}
@@ -99,11 +111,14 @@ public class ChangeSecretServlet extends HttpServlet {
 	        		Security.AUTO_ACCOUNT_CREATE+Security.AUTO_ALL
 	        });
 	        try {
-	
+				log.info("Searching sessions for user {}", user, null);
+
 	            for (Session sessio : ss.getActiveSessions(usuari.getId())) {
 	                if (sessio.getKey().equals(key) ) {
+	        			log.info("Found session for user {}", user, null);
 	                    writer.write(doChangeSecret(usuari, userAccount, secret, account, system, ssoAttribute, description, value));
 	                    writer.close();
+	        			log.info("Finished user {}", user, null);
 	                    return;
 	                }
 	            }
@@ -144,7 +159,10 @@ public class ChangeSecretServlet extends HttpServlet {
 		{
 	        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
 	        if (secret != null)
+	        {
+				log.info("Storing secret {} for user {}", secret, usuari.getUserName());
 	        	sss.putSecret(usuari, secret, new Password(value));
+	        }
 	        else if (account == null || account.trim().length() == 0)
 	        {
 	        	log.info("Creating account for {}", usuari.getUserName(), null);
@@ -160,6 +178,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	        }
 	        else if (system != null && account != null && system.length() > 0 && account.length() > 0)
 	        {
+				log.info("Search account {} atr {}", account, system);
 	        	Account acc = ServiceLocator.instance().getAccountService().findAccount(account, system);
 	        	
 	        	if (acc == null)
@@ -167,6 +186,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
 	        	}
 	        	
+				log.info("Got account {} atr {}", account, system);
 	        	if (acc instanceof UserAccount)
 	        	{
 	        		if (! ((UserAccount) acc).getUser().equals(usuari.getUserName()))
@@ -175,9 +195,10 @@ public class ChangeSecretServlet extends HttpServlet {
 	        	else
 	        	{
 	        		boolean found = false;
-	        		for (Account acc2: ServiceLocator.instance().getAccountService().getUserGrantedAccounts(usuari))
+	        		log.info("Checking access 2 to {} atr {}", account, system);
+	        		for ( String user: ServiceLocator.instance().getAccountService().getAccountUsers(acc, AccountAccessLevelEnum.ACCESS_USER))
 	        		{
-	        			if (acc2.getId().equals(acc.getId()))
+	        			if (user.equals(usuari.getUserName()))
 	        			{
 	        				found = true;
 	        				break;
@@ -185,12 +206,14 @@ public class ChangeSecretServlet extends HttpServlet {
 	        		}
 	        		if (! found)
 	        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+					log.info("Authorised access to {} at {}", account, system);
 	        	}
 	           	
 	           	AccountService acs = ServiceLocator.instance().getAccountService();
 	
 	           	if (ssoAttribute == null || ssoAttribute.length() == 0)
 	           	{
+					log.info("Setting password for {} at {}", account, system);
 	               	sss.setPassword(acc.getId(), new Password(value));
 	
 	               	UserDomainService dominiService = ServiceLocator.instance().getUserDomainService();
@@ -209,6 +232,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	           	} else {
 	           		if ( value.length() < 1024)
 	           		{
+						log.info("Setting attribute for {} at {}", account, system);
 		           		String actualAttribute = "SSO:"+ssoAttribute;
 		           		for ( UserData du: accountSvc.getAccountAttributes(acc))
 		           		{
