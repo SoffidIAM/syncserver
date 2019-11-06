@@ -8,6 +8,7 @@ import java.util.Map;
 
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteServiceLocator;
+import com.soffid.iam.sync.bootstrap.NullSqlObjet;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 
@@ -76,7 +77,7 @@ public class ExtensibleObjectNamespace extends ExternalNameSpace2
 			else if ("THIS".equalsIgnoreCase(name) )
 				externalMap.put(name,  object);
 			else if (object.containsKey(name)){
-				if (value == null)
+				if (value == null || value instanceof NullSqlObjet || value instanceof es.caib.seycon.ng.sync.bootstrap.NullSqlObjet)
 					externalMap.put(name,  Primitive.NULL);
 				else
 					externalMap.put(name,  value);				

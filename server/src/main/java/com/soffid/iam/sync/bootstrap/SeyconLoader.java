@@ -620,7 +620,7 @@ public class SeyconLoader extends Object {
             File log = Config.getConfig().getLogFile();
             log.renameTo(new File(dir, "syncserver.log-" + logDate));
             // Borrar archivos antiguos de hace más de cinco días
-            long deleteBefore = System.currentTimeMillis() - 5 * 24 * 60 * 60
+            long deleteBefore = System.currentTimeMillis() - 90 * 24 * 60 * 60
                     * 1000;
             for (File f : dir.listFiles()) {
                 if (f.getName().startsWith("syncserver.log")

@@ -576,23 +576,52 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	private void runGetLogs() throws InternalErrorException {
-		if (!actionStop && !abort && getCurrentAgent() != null && taskgenerator.canGetLog(this)) {
-		    setStatus("Retrieving logs");
-		    try {
-		    	startTask(true);
-		        getLog();
-		    } catch (RemoteException e) {
-		        handleRMIError(e);
-		    } catch (InternalErrorException e) {
-		        log.info("Cannot retrieve logs: {}", e.getMessage(), null);
-		    } catch (Throwable e) {
-		        log.warn("Cannot retrieve logs: {}", e);
-		    } finally {
-		    	endTask();
-		        taskgenerator.finishGetLog(this);
-		    }
+		if (!actionStop && !abort && agent != null)
+		{
+			if (agent instanceof AgentInterface && ((AgentInterface) agent).isSingleton() || 
+					agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface && ((es.caib.seycon.ng.sync.agent.AgentInterface) agent).isSingleton())
+			{
+				try {
+					Object agent1 = connect (false, false, system.getUrl());
+				    getLogsStep(agent1);
+				} catch (Exception e) {
+					log.info("Service "+system.getName()+" is offline at "+system.getUrl());
+				}
+				// Check for backup server
+				if (system.getUrl2() != null && ! system.getUrl2().trim().isEmpty()) {
+					try {
+						Object agent2 = connect (false, false, system.getUrl2());
+						getLogsStep(agent2);
+					} catch (Exception e) {
+						log.info("Service "+system.getName()+" is offline at "+system.getUrl2());
+					}
+				}
+			}
+			else
+			{
+			    getLogsStep(agent);
+			}
 		}
 		waitUntil = System.currentTimeMillis() + delay;
+	}
+
+	public void getLogsStep(Object agent) throws InternalErrorException {
+		if (taskgenerator.canGetLog(this)) {
+			setStatus("Retrieving logs");
+			try {
+				startTask(true);
+			    getLog(agent);
+			} catch (RemoteException e) {
+			    handleRMIError(e);
+			} catch (InternalErrorException e) {
+			    log.info("Cannot retrieve logs: {}", e.getMessage(), null);
+			} catch (Throwable e) {
+			    log.warn("Cannot retrieve logs: {}", e);
+			} finally {
+				endTask();
+			    taskgenerator.finishGetLog(this);
+			}
+		}
 	}
 
 	private boolean runLoopNext()
@@ -1772,6 +1801,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     /**
      * Recuperar los registros de acceso del agente remoto
+     * @param agent 
      * 
      * @throws InternalErrorException
      *             error de lógica interna
@@ -1780,8 +1810,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      * @throws RemoteException
      *             error de comunicaciones
      */
-    public void getLog() throws InternalErrorException, RemoteException {
-        AccessLogMgr logmgr = InterfaceWrapper.getAccessLogMgr(getCurrentAgent());
+    public void getLog(Object agent) throws InternalErrorException, RemoteException {
+        AccessLogMgr logmgr = InterfaceWrapper.getAccessLogMgr(agent);
         if (logmgr == null)
         	return;
         Date date;
@@ -1874,7 +1904,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     public Object connect(boolean mainAgent, boolean debug) throws Exception {
         URLManager um = new URLManager(getSystem().getUrl());
     	try {
-    		return connect (mainAgent, debug, getSystem().getUrl());
+    		Object o = connect (mainAgent, debug, getSystem().getUrl());
+    		if (mainAgent && !debug && o != null && getSystem().getUrl2() != null && ! getSystem().getUrl2().trim().isEmpty())
+    		{
+    			if (o instanceof AgentInterface && ((AgentInterface)o).isSingleton())
+    				agentBackup = connect (mainAgent, debug, getSystem().getUrl2());
+    			if (o instanceof es.caib.seycon.ng.sync.agent.AgentInterface && ((es.caib.seycon.ng.sync.agent.AgentInterface)o).isSingleton())
+    				agentBackup = connect (mainAgent, debug, getSystem().getUrl2());
+
+    		}
+    		return o;
     	} catch (Exception e) {
     		if (getSystem().getUrl2() != null && !getSystem().getUrl2().isEmpty())
     		{
