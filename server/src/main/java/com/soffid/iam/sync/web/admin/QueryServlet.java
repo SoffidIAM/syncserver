@@ -34,9 +34,8 @@ public class QueryServlet extends HttpServlet {
             queryService.query(path, format, writer);
         } catch (InternalErrorException e) {
             if (e.getMessage().equals ("not found") && nofail != null) {
-		log ("No data found on "+path);
                 resp.setStatus(HttpServletResponse.SC_NO_CONTENT);
-	    }
+            }
             else
             {
                 log ("Error consultando path "+path, e);

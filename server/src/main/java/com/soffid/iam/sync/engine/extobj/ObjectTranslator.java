@@ -15,6 +15,7 @@ import com.soffid.iam.api.ObjectMapping;
 import com.soffid.iam.api.ObjectMappingProperty;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.service.DispatcherService;
+import com.soffid.iam.sync.bootstrap.NullSqlObjet;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMapping;
 import com.soffid.iam.sync.intf.ExtensibleObjects;
@@ -217,7 +218,13 @@ public class ObjectTranslator
 	{
 		try { 
 			AttributeReference ar = AttributeReferenceParser.parse(sourceObject, attributeExpression);
-			AttributeReferenceParser.parse(targetObject, attribute).setValue( ar.getValue() );
+			Object value = ar.getValue();
+			if (value == null || 
+					value instanceof NullSqlObjet || 
+					value instanceof es.caib.seycon.ng.sync.bootstrap.NullSqlObjet)
+				AttributeReferenceParser.parse(targetObject, attribute).setValue( null );
+			else
+				AttributeReferenceParser.parse(targetObject, attribute).setValue( ar.getValue() );
 		} catch (Exception ear) {
 			Interpreter interpret = new Interpreter();
 			NameSpace ns = interpret.getNameSpace();

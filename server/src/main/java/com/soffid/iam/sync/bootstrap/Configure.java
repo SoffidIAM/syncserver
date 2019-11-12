@@ -104,7 +104,7 @@ public class Configure {
 		String adminDomain = null;
 		boolean remote = false;
 		String hostName = null;
-		String port = null;
+		String port = "760";
 		int i;
 		for (i = 0; i < args.length - 1; i++) {
 			if ("-remote".equals(args[i]))

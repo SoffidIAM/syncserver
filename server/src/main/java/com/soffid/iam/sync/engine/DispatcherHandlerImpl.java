@@ -42,7 +42,6 @@ import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserType;
-import com.soffid.iam.authoritative.service.AuthoritativeChangeService;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AuditEntity;
 import com.soffid.iam.model.AuditEntityDao;
@@ -92,6 +91,7 @@ import com.soffid.iam.sync.service.SyncServerStatsService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.util.Syslogger;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -241,9 +241,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             return false;
 
         } else if (t.getTask().getTransaction().equals(TaskHandler.UPDATE_USER)) {
-            return !readOnly && (
-            				implemented(agent, UserMgr.class) ||
-            				implemented(agent, es.caib.seycon.ng.sync.intf.UserMgr.class));
+        	if (readOnly)
+        		return false;
+        	if (agent != null)
+        		return implemented(agent, UserMgr.class) ||
+        				implemented(agent, es.caib.seycon.ng.sync.intf.UserMgr.class);
+	        try {
+				User user = getUserInfo(t);
+				if (isUnmanagedType ( user.getUserType()))
+					return false;
+				
+				if (getAccounts(t).isEmpty())
+					return false;
+			} catch (Exception e) {
+			}
+	        
+	        return true;
         }
         ///////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.UPDATE_ACCOUNT)) {
@@ -563,23 +576,53 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	private void runGetLogs() throws InternalErrorException {
-		if (!actionStop && !abort && getCurrentAgent() != null && taskgenerator.canGetLog(this)) {
-		    setStatus("Retrieving logs");
-		    try {
-		    	startTask(true);
-		        getLog();
-		    } catch (RemoteException e) {
-		        handleRMIError(e);
-		    } catch (InternalErrorException e) {
-		        log.info("Cannot retrieve logs: {}", e.getMessage(), null);
-		    } catch (Throwable e) {
-		        log.warn("Cannot retrieve logs: {}", e);
-		    } finally {
-		    	endTask();
-		        taskgenerator.finishGetLog(this);
-		    }
+		Object agent = getCurrentAgent();
+		if (!actionStop && !abort && agent != null)
+		{
+			if (agent instanceof AgentInterface && ((AgentInterface) agent).isSingleton() || 
+					agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface && ((es.caib.seycon.ng.sync.agent.AgentInterface) agent).isSingleton())
+			{
+				try {
+					Object agent1 = connect (false, false, system.getUrl());
+				    getLogsStep(agent1);
+				} catch (Exception e) {
+					log.info("Service "+system.getName()+" is offline at "+system.getUrl());
+				}
+				// Check for backup server
+				if (system.getUrl2() != null && ! system.getUrl2().trim().isEmpty()) {
+					try {
+						Object agent2 = connect (false, false, system.getUrl2());
+						getLogsStep(agent2);
+					} catch (Exception e) {
+						log.info("Service "+system.getName()+" is offline at "+system.getUrl2());
+					}
+				}
+			}
+			else
+			{
+			    getLogsStep(agent);
+			}
 		}
 		waitUntil = System.currentTimeMillis() + delay;
+	}
+
+	public void getLogsStep(Object agent) throws InternalErrorException {
+		if (taskgenerator.canGetLog(this)) {
+			setStatus("Retrieving logs");
+			try {
+				startTask(true);
+			    getLog(agent);
+			} catch (RemoteException e) {
+			    handleRMIError(e);
+			} catch (InternalErrorException e) {
+			    log.info("Cannot retrieve logs: {}", e.getMessage(), null);
+			} catch (Throwable e) {
+			    log.warn("Cannot retrieve logs: {}", e);
+			} finally {
+				endTask();
+			    taskgenerator.finishGetLog(this);
+			}
+		}
 	}
 
 	private boolean runLoopNext()
@@ -1017,7 +1060,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				if (tu.isUnmanaged())
 					unmanagedTypes.add(tu.getCode());
 			}
-			unmanagedTypesTS = System.currentTimeMillis() + 60000; // Requery every minute 
+			unmanagedTypesTS = System.currentTimeMillis() + 5000; // Requery every five seconds 
 		}
 		return unmanagedTypes.contains(passwordPolicy);
 	}
@@ -1399,6 +1442,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
         if (acc != null && !acc.isDisabled() )
         {
+        	if ( isPasswordTraceEnabled())
+        		log.info("Checking password {} for {}", t.getPassword().getPassword(), acc.getName());
+        			
         	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
         	{
 	            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
@@ -1471,20 +1517,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     private void propagateUserPassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
-    	log.info("En propagateUserPassword");
         if (!isTrusted())
             return;
 
-    	log.info("En propagateUserPassword 2");
         UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
         if (userMgr == null)
         	return;
 
-    	log.info("En propagateUserPassword 3 "+t.getTask().getUser());
     	for (Account acc: accountService.findUsersAccounts(t.getTask().getUser(), mirroredAgent))
     	{
 	        if (!acc.isDisabled() )
 	        {
+	        	if ( isPasswordTraceEnabled())
+	        		log.info("Checking password {} for {}", t.getPassword().getPassword(), acc.getName());
 	        	if ( userMgr.validateUserPassword(acc.getName(), t.getPassword())) 
 	        	{
 		            Syslogger.send(getName() + ":PropagatePassword", "user: " + acc.getName() + " password:"
@@ -1596,8 +1641,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		{
 		        boolean ok = userMgr.validateUserPassword(acc.getName(), t.getPassword());
 	            Password p = getTaskPassword(t);
-		        if (!ok) {
-		            log.debug("Updating propagated password for account {}/{}",
+		        if (!ok) 
+		        {
+		        	if ( isPasswordTraceEnabled())
+		        		log.info("Checking password {} for {}", t.getPassword().getPassword(), acc.getName());
+
+		        	log.debug("Updating propagated password for account {}/{}",
 		            				t.getTask().getUser(), getSystem().getName());
 		            userMgr.updateUserPassword(acc.getName(), user, p, false);
             		auditAccountPasswordChange(acc, user, false);
@@ -1627,6 +1676,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
            	changePasswordNotificationQueue.addNotification(t.getTask().getUser());
     	}
     }
+
+	public boolean isPasswordTraceEnabled() {
+		return "true".equals(ConfigurationCache.getProperty("soffid.server.trace-passwords"));
+	}
     
     private void auditAccountPasswordChange (Account account, User user, boolean random)
     {
@@ -1749,6 +1802,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     /**
      * Recuperar los registros de acceso del agente remoto
+     * @param agent 
      * 
      * @throws InternalErrorException
      *             error de lógica interna
@@ -1757,8 +1811,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      * @throws RemoteException
      *             error de comunicaciones
      */
-    public void getLog() throws InternalErrorException, RemoteException {
-        AccessLogMgr logmgr = InterfaceWrapper.getAccessLogMgr(getCurrentAgent());
+    public void getLog(Object agent) throws InternalErrorException, RemoteException {
+        AccessLogMgr logmgr = InterfaceWrapper.getAccessLogMgr(agent);
         if (logmgr == null)
         	return;
         Date date;
@@ -1851,7 +1905,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     public Object connect(boolean mainAgent, boolean debug) throws Exception {
         URLManager um = new URLManager(getSystem().getUrl());
     	try {
-    		return connect (mainAgent, debug, getSystem().getUrl());
+    		Object o = connect (mainAgent, debug, getSystem().getUrl());
+    		if (mainAgent && !debug && o != null && getSystem().getUrl2() != null && ! getSystem().getUrl2().trim().isEmpty())
+    		{
+    			if (o instanceof AgentInterface && ((AgentInterface)o).isSingleton() ||
+    					o instanceof es.caib.seycon.ng.sync.agent.AgentInterface && ((es.caib.seycon.ng.sync.agent.AgentInterface)o).isSingleton())
+    				connect (mainAgent, debug, getSystem().getUrl2());
+    		}
+    		return o;
     	} catch (Exception e) {
     		if (getSystem().getUrl2() != null && !getSystem().getUrl2().isEmpty())
     		{
@@ -2730,4 +2791,5 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		return null;
 				
 	}
+
 }

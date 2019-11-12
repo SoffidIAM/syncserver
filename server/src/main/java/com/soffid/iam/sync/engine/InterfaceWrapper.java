@@ -394,6 +394,7 @@ public class InterfaceWrapper {
 						throws InternalErrorException {
 					return agent.parseKerberosToken(serverPrincipal, keytab, token);
 				}
+
 			};
 		}
 		else

@@ -85,12 +85,16 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getOwnerRoles();
     		else if ("grantedUsers".equals(attribute))
     			obj = account.getGrantedUsers();
-//    		else if ("grantedGroups".equals(attribute))
-//    			obj = account.getGrantedGroups();
-//    		else if ("grantedRoles".equals(attribute))
-//    			obj = account.getGrantedRoles();
-//    		else if ("managerUsers".equals(attribute))
-//    			obj = account.getManagerUsers();
+    		else if ("granteeUsers".equals(attribute))
+    			obj = account.getGrantedUsers();
+    		else if ("grantedGroups".equals(attribute))
+    			obj = account.getGrantedGroups();
+    		else if ("granteeGroups".equals(attribute))
+    			obj = account.getGrantedGroups();
+    		else if ("granteeRoles".equals(attribute))
+    			obj = account.getGrantedRoles();
+    		else if ("managerUsers".equals(attribute))
+    			obj = account.getManagerUsers();
     		else if ("managerGroups".equals(attribute))
     			obj = account.getManagerGroups();
     		else if ("managerRoles".equals(attribute))

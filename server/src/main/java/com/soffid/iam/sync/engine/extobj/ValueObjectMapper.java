@@ -275,7 +275,8 @@ public class ValueObjectMapper
 					else if ("accountName".equals(attribute)) ;
 					else if ("secondaryGroups". equals(attribute))
 					{
-						change.setGroups(new HashSet<String>((Collection<String>) value));
+						if (value != null)
+							change.setGroups(new HashSet<String>((Collection<String>) value));
 					}
 					else
 					{

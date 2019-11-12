@@ -805,4 +805,10 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		return handler.getSoffidObject(systemName, type, object1, object2);
 	}
 
+	public String[] handleTailServerLog(String server) throws Exception {
+        RemoteServiceLocator rsl = new RemoteServiceLocator(server);
+        AgentManager agentMgr = rsl.getAgentManager();
+        return agentMgr.tailServerLog();
+	}
+
 }

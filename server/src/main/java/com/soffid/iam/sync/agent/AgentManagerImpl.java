@@ -120,6 +120,8 @@ public class AgentManagerImpl extends AgentManagerBase {
             	v1Agent.setServerName(serverName);
             	v1Agent.setOnClose(onClose);
             	v1Agent.init();
+            	if (v1Agent.isSingleton())
+            		singletons.put(system.getName(), v1Agent);
             } else {
             	com.soffid.iam.sync.agent.Agent v2Agent = (com.soffid.iam.sync.agent.Agent) agent;
             	v2Agent.setServerName(serverName);
@@ -173,7 +175,9 @@ public class AgentManagerImpl extends AgentManagerBase {
             	es.caib.seycon.ng.sync.agent.Agent v1Agent = (es.caib.seycon.ng.sync.agent.Agent) agent;
 	            v1Agent.setServerName(Config.getConfig().getHostName());
 	            v1Agent.setServer(es.caib.seycon.ng.sync.ServerServiceLocator.instance().getServerService());
-	            v1Agent.init();            	
+	            v1Agent.init();
+	            if (v1Agent.isSingleton())
+	            	singletons.put(system.getName(), v1Agent);
             }
             if (debug)
             	agent.setDebug(true);
@@ -491,6 +495,21 @@ public class AgentManagerImpl extends AgentManagerBase {
 			}
 			
 		}).start();
+	}
+
+	@Override
+	protected String[] handleTailServerLog() throws Exception {
+		String logPath = Config.getConfig().getLogFile().getAbsolutePath();
+		LinkedList<String> s = new LinkedList<String>();
+		
+		BufferedReader r = new BufferedReader( new FileReader(logPath));
+		for ( String line = r.readLine(); line != null; line = r.readLine())
+		{
+			s.add(line);
+			if (s.size() > 10000)
+				s.removeFirst();
+		}
+		return s.toArray(new String[0]);
 	}
 
 }
