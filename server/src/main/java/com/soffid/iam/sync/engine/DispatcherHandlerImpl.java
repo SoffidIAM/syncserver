@@ -576,6 +576,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	private void runGetLogs() throws InternalErrorException {
+		Object agent = getCurrentAgent();
 		if (!actionStop && !abort && agent != null)
 		{
 			if (agent instanceof AgentInterface && ((AgentInterface) agent).isSingleton() || 
@@ -1907,11 +1908,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		Object o = connect (mainAgent, debug, getSystem().getUrl());
     		if (mainAgent && !debug && o != null && getSystem().getUrl2() != null && ! getSystem().getUrl2().trim().isEmpty())
     		{
-    			if (o instanceof AgentInterface && ((AgentInterface)o).isSingleton())
-    				agentBackup = connect (mainAgent, debug, getSystem().getUrl2());
-    			if (o instanceof es.caib.seycon.ng.sync.agent.AgentInterface && ((es.caib.seycon.ng.sync.agent.AgentInterface)o).isSingleton())
-    				agentBackup = connect (mainAgent, debug, getSystem().getUrl2());
-
+    			if (o instanceof AgentInterface && ((AgentInterface)o).isSingleton() ||
+    					o instanceof es.caib.seycon.ng.sync.agent.AgentInterface && ((es.caib.seycon.ng.sync.agent.AgentInterface)o).isSingleton())
+    				connect (mainAgent, debug, getSystem().getUrl2());
     		}
     		return o;
     	} catch (Exception e) {
