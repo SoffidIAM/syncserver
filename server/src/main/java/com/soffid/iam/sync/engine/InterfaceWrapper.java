@@ -395,6 +395,11 @@ public class InterfaceWrapper {
 					return agent.parseKerberosToken(serverPrincipal, keytab, token);
 				}
 
+				public String findPrincipalAccount(String principal) throws InternalErrorException {
+					// TODO Auto-generated method stub
+					return null;
+				}
+
 			};
 		}
 		else

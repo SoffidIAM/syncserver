@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.service;
 
+import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Audit;
 import com.soffid.iam.api.Challenge;
 import com.soffid.iam.api.Host;
@@ -336,12 +337,14 @@ public class LogonServiceImpl extends LogonServiceBase {
 			} catch (IOException e) {
 				throw new UnknownUserException("Unknown realm for "+user);
 			}
-			int i = user.lastIndexOf('@');
-			com.soffid.iam.api.System dispatcher = km.getSystemForRealm(user.substring(i+1));
-			if (dispatcher == null)
-				throw new UnknownUserException("Unknown realm for "+user);
-			domain = dispatcher.getName();
-			user = user.substring(0, i);
+			Account account = km.findAccountForPrincipal(user);
+			if (account != null)
+			{
+				domain = account.getSystem();
+				user = account.getName();
+			}
+			else
+				throw new InternalErrorException ("Cannot find kerberos domain for principal "+user);
 		}
 		Resolver resolver = new Resolver(user, domain);
 

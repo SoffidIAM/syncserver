@@ -26,6 +26,8 @@ import javax.security.auth.login.LoginException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.System;
 import com.soffid.iam.config.Config;
@@ -112,6 +114,38 @@ public class KerberosManager {
     		result.add(handler.getKerberosAgent());
 		return result;
     }
+
+    public Account findAccountForPrincipal (String principalName) throws InternalErrorException 
+    {
+//    	log.info("Getting systems for realm {}", domain, null);
+        Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
+        for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
+            DispatcherHandler handler = it.next();
+            if (handler != null) {
+                KerberosAgent krb = handler.getKerberosAgent();
+                try {
+                	if (krb != null)
+                	{
+                		String accountName = krb.findPrincipalAccount(principalName);
+                		Account account;
+						if (accountName != null)
+                		{
+                			account = ServiceLocator
+                					.instance()
+                					.getAccountService()
+                					.findAccount(accountName, handler.getSystem().getName());
+                			if (account != null)
+                				return account;
+                		}
+                	}
+                } catch (InternalErrorException e) {
+                    log.warn("Error getting kerberos name in "+handler.getSystem().getName(), e);
+                }
+            }
+        }
+		return null;
+    }
+
 
     private File getConfigFile() throws FileNotFoundException, IOException {
         File home = Config.getConfig().getHomeDir();
