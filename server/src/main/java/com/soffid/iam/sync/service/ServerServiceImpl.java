@@ -3,6 +3,7 @@ package com.soffid.iam.sync.service;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.URL;
 import java.security.cert.X509Certificate;
@@ -98,6 +99,7 @@ import com.soffid.iam.sync.agent.Plugin;
 import com.soffid.iam.sync.bootstrap.ConfigurationManager;
 import com.soffid.iam.sync.bootstrap.JarExtractor;
 import com.soffid.iam.sync.engine.DispatcherHandler;
+import com.soffid.iam.sync.engine.LogWriter;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
@@ -1162,7 +1164,9 @@ public class ServerServiceImpl extends ServerServiceBase {
 		if (secret == null) {
 			AccountEntity acc = getAccountEntityDao().findByNameAndSystem(
 					account, dispatcherId);
-			if (acc.getType().equals(AccountType.USER)) {
+			if (acc == null)
+				secret = null;
+			else if (acc.getType().equals(AccountType.USER)) {
 				for (UserAccountEntity uae : acc.getUsers()) {
 					PasswordDomainEntity dce = acc.getSystem()
 							.getPasswordDomain();
@@ -2121,6 +2125,16 @@ public class ServerServiceImpl extends ServerServiceBase {
 			}
 		}
 		return null;
+	}
+
+	@Override
+	protected void handleReconcileAccount(String system, String account) throws Exception {
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(system);
+		if (handler == null || !handler.isActive())
+			return;
+
+		handler.doReconcile(account, new PrintWriter(new LogWriter()), false);		
+		
 	}
 }
 
