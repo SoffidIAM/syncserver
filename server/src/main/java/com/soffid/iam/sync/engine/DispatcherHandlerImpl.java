@@ -513,6 +513,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> preUpdateTrigger;
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> postUpdateTrigger;
 	private Object lastAgent;
+	private TaskHandler currentTask;
 
 
     public void run() {
@@ -579,28 +580,32 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		Object agent = getCurrentAgent();
 		if (!actionStop && !abort && agent != null)
 		{
-			if (agent instanceof AgentInterface && ((AgentInterface) agent).isSingleton() || 
-					agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface && ((es.caib.seycon.ng.sync.agent.AgentInterface) agent).isSingleton())
-			{
-				try {
-					Object agent1 = connect (false, false, system.getUrl());
-				    getLogsStep(agent1);
-				} catch (Exception e) {
-					log.info("Service "+system.getName()+" is offline at "+system.getUrl());
-				}
-				// Check for backup server
-				if (system.getUrl2() != null && ! system.getUrl2().trim().isEmpty()) {
+			try {
+				if (agent instanceof AgentInterface && ((AgentInterface) agent).isSingleton() || 
+						agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface && ((es.caib.seycon.ng.sync.agent.AgentInterface) agent).isSingleton())
+				{
 					try {
-						Object agent2 = connect (false, false, system.getUrl2());
-						getLogsStep(agent2);
+						Object agent1 = connect (false, false, system.getUrl());
+					    getLogsStep(agent1);
 					} catch (Exception e) {
-						log.info("Service "+system.getName()+" is offline at "+system.getUrl2());
+						log.info("Service "+system.getName()+" is offline at "+system.getUrl());
+					}
+					// Check for backup server
+					if (system.getUrl2() != null && ! system.getUrl2().trim().isEmpty()) {
+						try {
+							Object agent2 = connect (false, false, system.getUrl2());
+							getLogsStep(agent2);
+						} catch (Exception e) {
+							log.info("Service "+system.getName()+" is offline at "+system.getUrl2());
+						}
 					}
 				}
-			}
-			else
-			{
-			    getLogsStep(agent);
+				else
+				{
+				    getLogsStep(agent);
+				}
+			} catch (Throwable th) {
+				log.info("Error getting logs: "+th);
 			}
 		}
 		waitUntil = System.currentTimeMillis() + delay;
@@ -711,22 +716,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	{
 		String reason = "";
 		boolean ok = false;
-		TaskHandler t = taskqueue.getPendingTask(this);
-		if (t == null)
+		currentTask = taskqueue.getPendingTask(this);
+		if (currentTask == null)
 			return false;
 		Throwable throwable = null;
 		try
 		{
 			
-			TaskHandlerLog thl = t.getLog(getInternalId());
+			TaskHandlerLog thl = currentTask.getLog(getInternalId());
 			reason = "";
-			setStatus("Execute " + t.toString());
-			log.info("Executing {} ", t.toString(), null);
+			setStatus("Execute " + currentTask.toString());
+			log.info("Executing {} ", currentTask.toString(), null);
 			try {
-				processTask(getCurrentAgent(), t);
+				processTask(getCurrentAgent(), currentTask);
 				ok = true;
 				statsService.register("tasks-success", getName(), 1);
-				log.debug("Task {} DONE", t.toString(), null);
+				log.debug("Task {} DONE", currentTask.toString(), null);
 			} catch (RemoteException e) {
 				handleRMIError(e);
 				ok = false;
@@ -744,11 +749,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					log.warn("Error interno: "+error);
 				}
 				ok = false;
-				reason = e.toString();
+				Throwable e2 = e;
+				while (e2.getCause() != null && e2.getCause() != e2)
+				{
+					e2 = e2.getCause();
+				}
+				if (e2.getClass() == InternalErrorException.class)
+					reason = e2.getMessage();
+				else
+					reason = e2.toString();
 				throwable = e;
 			}
 		} finally {
-			taskqueue.notifyTaskStatus(t, this, ok, reason, throwable);
+			taskqueue.notifyTaskStatus(currentTask, this, ok, reason, throwable);
 		}
 		return true;
 	}
@@ -2790,6 +2803,81 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 		return null;
 				
+	}
+
+	@Override
+	public void doReconcile(String account, PrintWriter out, boolean debug) throws Exception {
+		
+		// Check that no task is affecting this user
+		if ( ! taskInProgress (account))
+		{
+			Object agent = connect(false, false);
+			es.caib.seycon.ng.sync.agent.AgentInterface agentV1 = 
+					agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface ?
+							(es.caib.seycon.ng.sync.agent.AgentInterface) agent:
+							null;
+			AgentInterface agentV2 = agent instanceof AgentInterface ? (AgentInterface) agent : null;
+			if (debug) {
+				if (agentV2 != null)
+				{
+					agentV2.setDebug(true);
+					agentV2.startCaptureLog();
+				}
+				if (agentV1 != null)
+				{
+					agentV1.setDebug(true);
+					agentV1.startCaptureLog();
+				}
+			}
+			try {
+				ReconcileMgr reconMgr = InterfaceWrapper.getReconcileMgr(agent);	// Reconcile manager
+				ReconcileMgr2 reconMgr2 = InterfaceWrapper.getReconcileMgr2(agent);	// Reconcile manager
+				if (reconMgr != null)
+				{
+					new ReconcileEngine1 (getSystem(), reconMgr, out).reconcileAccount(account);
+				} 
+				else if (reconMgr2 != null)
+				{
+					new ReconcileEngine2 (getSystem(), reconMgr2, out).reconcileAccount(account);
+				} 
+				else {
+					out.println ("This agent does not support account reconciliation");
+				}
+			} finally {
+				closeAgent(agent);
+			}
+			if (debug)
+			{
+				if (agentV1 != null)
+				{
+					out.println ( agentV1.endCaptureLog());
+				}
+				if (agentV2 != null)
+				{
+					out.println ( agentV2.endCaptureLog());
+				}
+			}
+		}
+		else
+		{
+			out.println("Discarding reconcile process as account "+account+" is not synchronized yet");
+		}
+	}
+
+	private boolean taskInProgress(String accountName) throws InternalErrorException {
+		Account account = ServiceLocator.instance().getAccountService().findAccount(accountName, getName());
+		if (account == null)
+			return false;
+		if (account.getLastUpdated() != null && 
+				System.currentTimeMillis() - account.getLastUpdated().getTime().getTime() < 60000 ) // 1 minute
+		{
+			return true;
+		}
+
+		if (ServiceLocator.instance().getAccountService().isUpdatePending(account))
+			return true;
+		
+		return false;
 	}
 
 }

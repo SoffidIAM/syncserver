@@ -66,6 +66,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
@@ -809,6 +810,38 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
         RemoteServiceLocator rsl = new RemoteServiceLocator(server);
         AgentManager agentMgr = rsl.getAgentManager();
         return agentMgr.tailServerLog();
+	}
+
+	@Override
+	protected GetObjectResults handleReconcile(String system, String accountName) throws Exception {
+		GetObjectResults r = new GetObjectResults();
+		r.setStatus("Error");
+		r.setObject(new HashMap<String, Object>());
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(system);
+		if (handler == null || !handler.isActive())
+		{
+			r.setLog("System is offline");
+		}
+		else
+		{
+			StringWriter w = new StringWriter();
+			PrintWriter out = new PrintWriter(w);
+			try {
+				handler.doReconcile(accountName, out, true);
+				out.flush();
+				r.setStatus("Success");
+				r.setLog(w.toString());
+			} catch (Exception e) {
+				out.flush();
+				r.setStatus("Error");
+				r.setLog(w.toString()+"\n"+
+						SoffidStackTrace.getStackTrace(e));
+			}
+		}
+		
+		return r;
+
+		
 	}
 
 }

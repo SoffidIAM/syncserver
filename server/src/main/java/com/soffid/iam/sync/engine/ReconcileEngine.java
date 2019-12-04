@@ -135,6 +135,43 @@ public abstract class ReconcileEngine
 		}
 	}
 
+	/**
+	 * @throws Exception 
+	 * 
+	 */
+	public void reconcileAccount (String accountName) throws Exception
+	{
+		log.println("Reconciling account "+accountName);
+		triggers = dispatcherService.findReconcileTriggersByDispatcher(dispatcher.getId());
+		objectTranslator = new ObjectTranslator (dispatcher);
+		vom = new ValueObjectMapper();
+		
+		String virtualTransactionId = taskGenerator.startVirtualSourceTransaction(!dispatcher.isGenerateTasksOnLoad());
+		try {
+			String passwordPolicy = guessPasswordPolicy ();
+
+			List<ReconcileTrigger> preUpdate = findTriggers(SoffidObjectType.OBJECT_ACCOUNT, SoffidObjectTrigger.PRE_UPDATE);
+			List<ReconcileTrigger> preInsert = findTriggers(SoffidObjectType.OBJECT_ACCOUNT, SoffidObjectTrigger.PRE_INSERT);
+			List<ReconcileTrigger> postInsert = findTriggers(SoffidObjectType.OBJECT_ACCOUNT, SoffidObjectTrigger.POST_INSERT);
+			List<ReconcileTrigger> postUpdate = findTriggers(SoffidObjectType.OBJECT_ACCOUNT, SoffidObjectTrigger.POST_UPDATE);
+
+			preUpdateRole = findTriggers(SoffidObjectType.OBJECT_ROLE, SoffidObjectTrigger.PRE_UPDATE);
+			preInsertRole = findTriggers(SoffidObjectType.OBJECT_ROLE, SoffidObjectTrigger.PRE_INSERT);
+			postInsertRole = findTriggers(SoffidObjectType.OBJECT_ROLE, SoffidObjectTrigger.POST_INSERT);
+			postUpdateRole = findTriggers(SoffidObjectType.OBJECT_ROLE, SoffidObjectTrigger.POST_UPDATE);
+
+			preDeleteGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.PRE_DELETE);
+			preInsertGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.PRE_INSERT);
+			postInsertGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.POST_INSERT);
+			postDeleteGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.POST_DELETE);
+
+
+			reconcileAccount(preInsert, postInsert, preUpdate, postUpdate, accountName, passwordPolicy);			
+		} finally {
+			taskGenerator.finishVirtualSourceTransaction(virtualTransactionId);
+		}
+	}
+
 	private void removeRoles() throws InternalErrorException, Exception {
 		HashSet<String> existingRoleNames = new HashSet<String> (
 				appService.findRoleNames(dispatcher.getName()));
@@ -278,11 +315,14 @@ public abstract class ReconcileEngine
 		boolean isUnmanaged = acc != null && acc.getId() != null && 
 				(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
 		
+//		log.println("In update account "+accountName);
+		
 		if (! preUpdate.isEmpty())
 		{
 			boolean isManaged2 = isUnmanaged;
 			AccountExtensibleObject eo = new AccountExtensibleObject(existingAccount, serverService);
 			isUnmanaged = executeTriggers(preUpdate, new AccountExtensibleObject(acc, serverService), eo);
+//			log.println("Pre update trigger returns "+isUnmanaged);
 			if (isUnmanaged != isManaged2)
 			{
 				if (isUnmanaged)
@@ -748,6 +788,7 @@ public abstract class ReconcileEngine
 	 */
 	protected void reconcileRoles (Account acc) throws RemoteException, InternalErrorException
 	{
+		log.println("Checking roles for account "+acc.getName());
 		Collection<RoleGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getSystem());
 		List<RoleGrant> accountGrants;
 		Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
@@ -782,6 +823,7 @@ public abstract class ReconcileEngine
 		}
 		for (RoleGrant existingGrant: accountGrants)
 		{
+			log.println("Loading grant "+ existingGrant.getRoleName());
 			if (existingGrant.getSystem() == null)
 				existingGrant.setSystem(dispatcher.getName());
 			if (existingGrant.getRoleName() == null)
@@ -793,6 +835,7 @@ public abstract class ReconcileEngine
 		// Now remove not present roles
 		for (RoleGrant grant: grants)
 		{
+			log.println("Removing grant "+ grant.getRoleName());
 			if (grant.getOwnerGroup() == null &&
 					grant.getOwnerRole() == null &&
 					grant.getId() != null)
@@ -887,6 +930,8 @@ public abstract class ReconcileEngine
 					log.append (" to ").append(acc.getName()).append('\n');
 					grant (acc, existingGrant, role2);
 				}
+			} else {
+				log.print("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());
 			}
 		}
 	}

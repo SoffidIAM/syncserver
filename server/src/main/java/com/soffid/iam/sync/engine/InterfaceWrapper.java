@@ -899,6 +899,9 @@ public class InterfaceWrapper {
 					agent.processAuthoritativeChange(es.caib.seycon.ng.sync.intf.AuthoritativeChange.toAuthoritativeChange(change), remove);
 					
 				}
+				public void reconcileAccount(String system, String account) throws InternalErrorException {
+					agent.reconcileAccount(system, account);
+				}
 			};
 	}
 
