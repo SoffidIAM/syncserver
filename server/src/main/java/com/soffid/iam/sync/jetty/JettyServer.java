@@ -274,7 +274,9 @@ public class JettyServer implements PublisherInterface
 
         connector.setRequestBufferSize( 64 * 1024);
         connector.setHeaderBufferSize( 64 * 1024);
-        String s = ConfigurationCache.getMasterProperty("soffid.syncserver.bufferSize");
+        String s =  "server".equals(Config.getConfig().getRole()) ?
+        		ConfigurationCache.getMasterProperty("soffid.syncserver.bufferSize") :
+        		null ;
         if (s != null) {
         	connector.setRequestBufferSize( Integer.parseInt(s));
             connector.setHeaderBufferSize( Integer.parseInt(s));
