@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.service;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Audit;
 import com.soffid.iam.api.Challenge;
 import com.soffid.iam.api.Host;
@@ -336,9 +337,16 @@ public class LogonServiceImpl extends LogonServiceBase {
 			} catch (IOException e) {
 				throw new UnknownUserException("Unknown realm for "+user);
 			}
+			com.soffid.iam.api.System dispatcher;
+			String dn = ConfigurationCache.getProperty("soffid.kerberos.agent");
 			int i = user.lastIndexOf('@');
-			com.soffid.iam.api.System dispatcher = km.getSystemForRealm(user.substring(i+1));
-			if (dispatcher == null)
+			if (dn != null)
+				dispatcher = ServiceLocator.instance().getDispatcherService().findDispatcherByName(dn);
+			else
+			{
+				dispatcher = km.getSystemForRealm(user.substring(i+1));
+			}
+			if (dispatcher == null) 
 				throw new UnknownUserException("Unknown realm for "+user);
 			domain = dispatcher.getName();
 			user = user.substring(0, i);
