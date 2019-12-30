@@ -26,6 +26,7 @@ import javax.security.auth.login.LoginException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.System;
 import com.soffid.iam.config.Config;
@@ -34,6 +35,7 @@ import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.intf.KerberosAgent;
 import com.soffid.iam.sync.intf.KerberosPrincipalInfo;
 import com.soffid.iam.sync.service.TaskGenerator;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 
@@ -59,6 +61,7 @@ public class KerberosManager {
     private Collection<DispatcherHandler> getDispatcherHandlerForRealm (String domain) throws InternalErrorException 
     {
 //    	log.info("Getting systems for realm {}", domain, null);
+		String dn = ConfigurationCache.getProperty("soffid.kerberos.agent");
         Collection<DispatcherHandler> result = new LinkedList<DispatcherHandler>();
         Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
         for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
@@ -69,7 +72,8 @@ public class KerberosManager {
                 	if (krb != null)
                 	{
 	                	String actualDomain = krb.getRealmName();
-	                    if (domain.equals(actualDomain)) {
+	                    if (domain.equals(actualDomain) || 
+	                    		handler.getSystem().getName().equals(dn)) {
 	                        result.add(handler);
 	                    }
                 	}
