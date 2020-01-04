@@ -1205,7 +1205,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    				try {
 	    					dispatcher.processOBTask(task);
 	    				} catch (Exception e) {
-	    					m.put(dispatcherName, dispatcher.getConnectException());
+	    					if (task.getTask().getSystemName() == null)
+	    						m.put(dispatcherName, dispatcher.getConnectException());
+	    					else
+	    						m.put(dispatcherName, e);
 	    					r.setException(e);
 	    				}
 					}

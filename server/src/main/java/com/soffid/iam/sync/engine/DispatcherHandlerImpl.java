@@ -34,6 +34,7 @@ import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.PasswordPolicy;
+import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
@@ -2598,6 +2599,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				}
 			}
 		}
+		catch (InternalErrorException e)
+		{
+			throw e;
+		}
 		catch (Exception e)
 		{
 			throw new InternalErrorException ("Unable to process out of band task", e);
@@ -2878,6 +2883,28 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			return true;
 		
 		return false;
+	}
+
+	@Override
+	public PasswordValidation checkPasswordSynchronizationStatus(String accountName) throws Exception {
+		Collection<Map<String, Object>> s = invoke("checkPassword", accountName, new HashMap<String, Object>());
+		for (Map<String, Object> ss: s) {
+			PasswordValidation status = (PasswordValidation) ss.get("passwordStatus");
+			if (status != null) {
+				Account account = accountService.findAccount(accountName, getName());
+				if (account != null)
+				{
+					Object oldStatus = account.getAttributes().get("passwordStatus");
+					if ( ! status.toString().equals(oldStatus))
+					{
+						account.setPasswordStatus(status);
+						accountService.updateAccount(account);
+					}
+				}
+				return status;
+			}
+		}
+		return null;
 	}
 
 }

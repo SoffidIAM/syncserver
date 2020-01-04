@@ -7,6 +7,7 @@ import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
+import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.ScheduledTask;
@@ -52,6 +53,7 @@ import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.ServiceLocator;
+import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
@@ -396,10 +398,15 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
         return res.toString();
     }
 
+	public Password handleGetAccountPassword (String user, Long accountId)
+			throws InternalErrorException
+	{
+		return handleGetAccountPassword(user, accountId, AccountAccessLevelEnum.ACCESS_OWNER);
+	}
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.servei.SyncStatusService#getAccountPassword(java.lang.String, es.caib.seycon.ng.comu.Account)
 	 */
-	public Password handleGetAccountPassword (String user, Long accountId)
+	public Password handleGetAccountPassword (String user, Long accountId, AccountAccessLevelEnum level)
 					throws InternalErrorException
 	{
 		AccountService svc = getAccountService();
@@ -446,7 +453,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		} 
 		else  
 		{
-			Collection<String> owners = svc.getAccountUsers(account);
+			Collection<String> owners = svc.getAccountUsers(account, level);
 			if (! owners.contains(user))
 				throw new SecurityException(String.format(Messages.getString("SyncStatusServiceImpl.NotAuthorized"))); //$NON-NLS-1$
 		}
@@ -842,6 +849,21 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		return r;
 
 		
+	}
+
+	@Override
+	protected PasswordValidation handleCheckPasswordSynchronizationStatus(String accountName, String serverName) throws Exception {
+		DispatcherHandler d = getTaskGenerator().getDispatcher(serverName);
+		return d.checkPasswordSynchronizationStatus(accountName);
+	}
+
+	@Override
+	protected void handleSetAccountPassword(String accountName, String serverName, Password password, boolean mustChange) throws Exception {
+		AccountEntity account = getAccountEntityDao().findByNameAndSystem(accountName, serverName);
+		if ( account.getType() != AccountType.IGNORED)
+		{
+			getInternalPasswordService().storeAndSynchronizeAccountPassword(account, password, mustChange, null);
+		}
 	}
 
 }
