@@ -269,42 +269,4 @@ public class PasswordLoginServlet extends HttpServlet {
         return challenge;
     }
 
-    private String tryLogin(final Challenge challenge, final String token) throws Exception {
-        // Ahora intentar hacer login kerberos
-        final KerberosManager km = new KerberosManager();
-        log.info("Kerberos accept challenge {}\n{}", challenge.getChallengeId(), token);
-        Subject serverSubject = km.getServerSubject(challenge.getKerberosDomain());
-        Object result = Subject.doAs(serverSubject, new PrivilegedAction<Object>() {
-            public Object run() {
-                try {
-                    byte inToken[] = Base64.decode(token);
-                    byte outToken[] = challenge.getKerberosContext().acceptSecContext(inToken, 0,
-                            inToken.length);
-                    GSSContext ctx = challenge.getKerberosContext();
-
-                    String resultToken = "";
-                    if (outToken != null) {
-                        resultToken = Base64.encodeBytes(outToken, Base64.DONT_BREAK_LINES);
-                    }
-                    if (ctx.isEstablished()) {
-                        log.info("Login desde {} hacia {}", ctx.getSrcName().toString(), ctx
-                                .getTargName().toString());
-                        return "OK|" + challenge.getChallengeId() + "|" + resultToken + "|"
-                                + challenge.getCardNumber() + "|" + challenge.getCell();
-                    } else {
-                        return "MoreDataReq|" + challenge.getChallengeId() + "|" + resultToken;
-                    }
-                } catch (Exception e) {
-                    return e;
-                }
-            }
-        });
-
-        if (result instanceof Exception)
-            throw (Exception) result;
-        else {
-            log.info("Result is {}", result, null);
-            return (String) result;
-        }
-    }
 }
