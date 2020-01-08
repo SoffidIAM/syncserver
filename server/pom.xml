@@ -8,7 +8,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.soffid.iam.sync</groupId>
 	<artifactId>syncserver</artifactId>
-	<version>2.7.3-SNAPSHOT</version>
+	<version>2.7.3</version>
 	<packaging>jar</packaging>
 	<name>Soffid IAM Sync server</name>
 	<properties>
@@ -18,7 +18,7 @@
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
-		<tag>HEAD</tag>
+		<tag>syncserver-2.7.3</tag>
 	</scm>
 	<licenses>
 		<license>
