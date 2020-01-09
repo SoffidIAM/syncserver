@@ -273,7 +273,7 @@ public class KerberosManager {
         	String domainName = agent.getRealmName();
         	String cfgName = dispatcher.getTenant()+"/"+dispatcher.getName();
 			ChainConfiguration.addConfiguration(cfgName, 
-        			new KerberosLoginConfiguration(domainName));
+        			new KerberosLoginConfiguration(cfgName));
 	        // First try using cache
 	        try {
 	            user = properties.getProperty(domainName + ".user");
