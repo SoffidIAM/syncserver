@@ -2010,7 +2010,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 	String domain = krb.getRealmName();
                 	KerberosManager m = new KerberosManager();
                 	try {
-                    	log.info("Using server principal {} for realm {}", m.getServerPrincipal(domain),
+                    	log.info("Using server principal {} for realm {}", m.getServerPrincipal(getSystem()),
                             	domain);
                 	} catch (Exception e) {
                     	log.warn("Unable to create Kerberos principal", e);

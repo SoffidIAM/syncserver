@@ -189,7 +189,7 @@ public class KerberosLoginServlet extends HttpServlet {
 
         LogonService logonService = ServerServiceLocator.instance().getLogonService();
 
-        System dispatcher = km.getSystemForRealm(domain); 
+        final System dispatcher = km.getSystemForRealm(domain); 
         if (dispatcher == null)
         {
         	log.warn("Cannot guess agent for principal "+principal+" (domain "+domain+")");
@@ -210,7 +210,7 @@ public class KerberosLoginServlet extends HttpServlet {
         }
 
 
-        Subject serverSubject = km.getServerSubject(challenge.getKerberosDomain());
+        Subject serverSubject = km.getServerSubject(dispatcher);
 
         // Crear el context de servidor
         Object result = Subject.doAs(serverSubject, new PrivilegedAction<Object>() {
@@ -218,7 +218,7 @@ public class KerberosLoginServlet extends HttpServlet {
                 try {
                     GSSManager manager = GSSManager.getInstance();
                     GSSName serverName = manager.createName(
-                            km.getServerPrincipal(challenge.getKerberosDomain()), null);
+                            km.getServerPrincipal(dispatcher), null);
                     Oid desiredMechs = new Oid("1.2.840.113554.1.2.2"); // Kerberos
                                                                         // V5
                     // Oid desiredMechs = new Oid("1.3.6.1.5.5.2"); // SPNEGO
@@ -270,7 +270,8 @@ public class KerberosLoginServlet extends HttpServlet {
     private String tryLogin(final Challenge challenge, final String token) throws Exception {
         // Ahora intentar hacer login kerberos
         final KerberosManager km = new KerberosManager();
-        Subject serverSubject = km.getServerSubject(challenge.getKerberosDomain());
+        System system = km.getSystemForRealm(challenge.getKerberosDomain());
+        Subject serverSubject = km.getServerSubject(system);
         Object result = Subject.doAs(serverSubject, new PrivilegedAction<Object>() {
             public Object run() {
                 try {

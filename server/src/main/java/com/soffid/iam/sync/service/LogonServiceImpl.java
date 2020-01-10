@@ -1,6 +1,7 @@
 package com.soffid.iam.sync.service;
 
 import com.soffid.iam.api.Account;
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Audit;
 import com.soffid.iam.api.Challenge;
 import com.soffid.iam.api.Host;
