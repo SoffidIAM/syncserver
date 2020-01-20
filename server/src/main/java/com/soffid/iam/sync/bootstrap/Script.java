@@ -67,6 +67,7 @@ public class Script {
         LogConfigurator.configureMinimalLogging();
         Security.onSyncServer();
         ServiceLocator serviceLocator = ServerServiceLocator.instance();
+		System.setProperty("org.apache.cxf.useSpringClassHelpers", "0");
 
         if (args.length == 0) {
             System.out.println("Missing script name");
