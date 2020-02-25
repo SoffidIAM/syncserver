@@ -1378,7 +1378,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		Object agent;
 		try
 		{
-			agent = connect(false, true);
+			agent = connect(false, false);
 		}
 		catch (Exception e)
 		{

@@ -1507,9 +1507,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected Collection<Map<String, Object>> handleInvoke(String agent, String verb, String command,
 			Map<String, Object> params) throws Exception {
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(agent);
-		if (handler == null || !handler.isActive())
-			return null;
-
+		if (handler == null)
+			throw new InternalErrorException("System "+agent+" is not available");
+		if (!handler.isActive())
+			throw new InternalErrorException("System "+agent+" is offline");
 		return handler.invoke(verb, command, params);
 		
 	}

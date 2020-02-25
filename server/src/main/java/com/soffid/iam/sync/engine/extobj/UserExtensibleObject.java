@@ -159,11 +159,15 @@ public class UserExtensibleObject extends ExtensibleObject
     		}
     		else if ("userAttributes".equals(attribute))
     		{
+    			if (usuari.getId() == null)
+    				return new HashMap<String, Object>();
     			Map<String, Object> dades = serverService.getUserAttributes(usuari.getId());
     			obj = dades;
     		}
     		else if ("attributes".equals(attribute))
     		{
+    			if (usuari.getId() == null)
+    				return new HashMap<String, Object>();
     			Map<String, Object> dades = serverService.getUserAttributes(usuari.getId());
     			Map<String, Object> dadesMap = new HashMap<String, Object>();
    				if (account != null && account.getAttributes() != null)
