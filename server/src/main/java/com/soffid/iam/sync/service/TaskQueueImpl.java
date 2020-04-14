@@ -4,8 +4,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -29,6 +32,7 @@ import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
 
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.Task;
 import com.soffid.iam.api.User;
@@ -58,6 +62,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
+import jcifs.util.Base64;
 
 public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAware
 {
@@ -130,7 +135,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	private void addTask(TaskHandler newTask, TaskEntity entity)
-			throws InternalErrorException, UnknownGroupException, UnknownRoleException {
+			throws InternalErrorException, UnknownGroupException, UnknownRoleException, NoSuchAlgorithmException, UnsupportedEncodingException {
 		TaskGenerator tg = getTaskGenerator();
 		if (entity == null ||
 			newTask.getTask().getServer() == null && !tg.isEnabled() ||
@@ -285,6 +290,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			if (newTask.getPassword() != null)
 			{
+				// Check there is no other task in progress
 				addAndNotifyDispatchers(newTask, entity);
 			}
 			else
@@ -608,7 +614,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			newTask.setServer(hostname);
 			newTask.setStatus("P");
 			newTask.setDate(new Timestamp(System.currentTimeMillis()));
-			if ( newTask.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD))
+			if ( newTask.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD) ||
+					newTask.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
+					newTask.getTransaction().equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD) ||
+					newTask.getTransaction().equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD_SINCRONO))
 				getTaskEntityDao().createForce(newTask);
 			else
 				getTaskEntityDao().create(newTask);
@@ -688,6 +697,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 						TaskHandlerLog tl = task.getLog(internalId);
 		    			if (tl != null && tl.isComplete()) {
 		    				// Already processed
+		    				iterator.remove();
 		    			}
 		    			else if (task.isExpired())
 			    		{
