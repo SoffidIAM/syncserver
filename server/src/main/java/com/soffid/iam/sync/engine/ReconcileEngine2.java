@@ -59,7 +59,7 @@ public class ReconcileEngine2 extends ReconcileEngine
 			if (h != null)
 			{
 				try {
-					agent = (ReconcileMgr2) h.connect(false, false);
+					agent = InterfaceWrapper.getReconcileMgr2( h.connect(false, false) );
 				} catch (Exception e) {
 					log.println("WARNING. Cannot reconnect: "+e.toString());
 				}
