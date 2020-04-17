@@ -115,11 +115,11 @@ public class TaskScheduler
 								actualOut = new PrintWriter(
 										new DocumentOutputStream(ds)
 										);
-								if (out != null)
-									actualOut = new SplitPrintWriter(actualOut, out);
+//								if (out != null)
+//									actualOut = new SplitPrintWriter(out, actualOut);
 
 								handler.run(actualOut);
-								log.info("Task finished");
+								log.info("Task " + task.getName()+ " finished");
 							} 
 							else 
 							{
@@ -152,11 +152,14 @@ public class TaskScheduler
 	      
 						try
 						{
+							log.info("Sending log");
 							if (actualOut != null)
 							{
 								actualOut.close();
 								task.setLogReferenceID( ds.getReference().toString() );
 							}
+							if (out != null)
+								out.close();
 							if (! ignore)
 								taskSvc.registerEndTask(task);
 						}
