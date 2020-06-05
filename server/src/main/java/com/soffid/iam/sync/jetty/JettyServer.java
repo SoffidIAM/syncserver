@@ -8,8 +8,6 @@ import java.net.URL;
 import java.util.Hashtable;
 import java.util.Map;
 
-import javax.servlet.Servlet;
-
 import org.mortbay.jetty.Handler;
 import org.mortbay.jetty.Server;
 import org.mortbay.jetty.handler.DefaultHandler;
@@ -32,22 +30,13 @@ import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.bootstrap.FileVersionManager;
 import com.soffid.iam.sync.hub.server.HubFromServerServlet;
+import com.soffid.iam.sync.hub.server.HubMonitorThread;
 import com.soffid.iam.sync.hub.server.HubServlet;
-import com.soffid.iam.sync.web.admin.AdministrationServlet;
-import com.soffid.iam.sync.web.admin.AgentsServlet;
-import com.soffid.iam.sync.web.admin.DatabaseStatusServlet;
 import com.soffid.iam.sync.web.admin.DiagnosticServlet;
-import com.soffid.iam.sync.web.admin.PlainLogServlet;
-import com.soffid.iam.sync.web.admin.QueryHQL;
 import com.soffid.iam.sync.web.admin.QueryServlet;
-import com.soffid.iam.sync.web.admin.RedirectServlet;
-import com.soffid.iam.sync.web.admin.ReencodeSecretsServlet;
 import com.soffid.iam.sync.web.admin.ResetServlet;
-import com.soffid.iam.sync.web.admin.ScheduledTasksServlet;
 import com.soffid.iam.sync.web.admin.StatusServlet;
-import com.soffid.iam.sync.web.admin.StressTest;
-import com.soffid.iam.sync.web.admin.TasquesPendentsServlet;
-import com.soffid.iam.sync.web.admin.TestSecretsServlet;
+import com.soffid.iam.sync.web.admin.TraceIPServlet;
 import com.soffid.iam.sync.web.admin.ViewLogServlet;
 import com.soffid.iam.sync.web.esso.AuditPasswordQueryServlet;
 import com.soffid.iam.sync.web.esso.CertificateLoginServlet;
@@ -223,6 +212,12 @@ public class JettyServer implements PublisherInterface
     }
 
     public void startGateway() throws Exception {
+        if ("true".equals(System.getProperty("soffid.gateway.debug")))
+        {
+        	log.info("Starting hub mointor", null, null);
+        	new HubMonitorThread().start();
+        }
+
         server = new Server();
 
         String threads = System.getProperty("seycon.jetty.threads");
@@ -266,6 +261,7 @@ public class JettyServer implements PublisherInterface
         bindServlet("/hub",  Constraint.__CERT_AUTH, new String[] { "agent", "server", "remote"} ,  ctx, HubServlet.class);
 
         server.start();
+        
     }
 
     private void addConnector(String ip) throws IOException, FileNotFoundException {
@@ -453,29 +449,12 @@ public class JettyServer implements PublisherInterface
     public void bindAdministrationWeb() throws FileNotFoundException, IOException {
         if (Config.getConfig().isServer())
         {
-            bindAdministrationServlet("/main", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    AdministrationServlet.class);
-            bindAdministrationServlet("/admin", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    AdministrationServlet.class);
-            bindAdministrationServlet("/scheduledTasks", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    ScheduledTasksServlet.class);
-            bindAdministrationServlet("/admin/main", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    AdministrationServlet.class);
-            bindAdministrationServlet("/", null, RedirectServlet.class);
-            bindAdministrationServlet("/tasquesPendents", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    TasquesPendentsServlet.class);
-            bindAdministrationServlet("/dbpool", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    DatabaseStatusServlet.class);
-            bindAdministrationServlet("/agents", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"}, AgentsServlet.class);
             bindAdministrationServlet("/viewLog", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"}, ViewLogServlet.class);
-            bindAdministrationServlet("/log", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"}, PlainLogServlet.class);
             bindAdministrationServlet("/reset", new String[]{"SEU_ADMINISTRADOR"}, ResetServlet.class);
-            bindAdministrationServlet("/reencodesecrets", new String[]{"SEU_ADMINISTRADOR"}, ReencodeSecretsServlet.class);
-            if (ConfigurationCache.getMasterProperty("seycon.secret.debug") != null)
-                bindAdministrationServlet("/testSecrets", new String[]{"SEU_ADMINISTRADOR"}, TestSecretsServlet.class);
             bindPublicWeb();
         }
         bindAdministrationServlet("/status", null, StatusServlet.class);
+        bindAdministrationServlet("/trace-ip", null, TraceIPServlet.class);
     }
 
     private void bindPublicWeb() throws FileNotFoundException, IOException {
@@ -501,10 +480,6 @@ public class JettyServer implements PublisherInterface
             bindAdministrationServlet("/setSecret", null, ChangeSecretServlet.class);
             bindAdministrationServlet("/generatePassword", null, GeneratePasswordServlet.class);
             bindAdministrationServlet("/auditPassword", null, AuditPasswordQueryServlet.class);
-            if (Config .getConfig().isDebug()) {
-                bindAdministrationServlet("/queryhql", null, QueryHQL.class);
-            	bindAdministrationServlet("/stress", null, StressTest.class);
-            }
             bindAdministrationServlet("/sethostadmin", null, SetHostAdministrationServlet.class);
             bindAdministrationServlet("/websession", null, WebSessionServlet.class);
             bindAdministrationServlet("/cert", null, PublicCertServlet.class);
