@@ -39,6 +39,9 @@ public class InvokerFilter implements Filter {
         		}
         		Security.nestedLogin(tenant, "anonymous", Security.ALL_PERMISSIONS);
         		try {
+        			try {
+        				Security.setClientRequest((HttpServletRequest) request);
+        			} catch (Exception e) {}
         			chain.doFilter(request, response);
         		} finally {
         			Security.nestedLogoff();
@@ -54,6 +57,9 @@ public class InvokerFilter implements Filter {
 	            	Security.nestedLogin(user.substring(0, i), user.substring(i+1), Security.ALL_PERMISSIONS);
 	            	try
 	            	{
+	        			try {
+	        				Security.setClientRequest((HttpServletRequest) request);
+	        			} catch (Exception e) {}
 	                	chain.doFilter(request, response);
 	            	}
 	            	finally
