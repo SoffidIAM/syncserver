@@ -15,7 +15,6 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.soffid.iam.ServiceLocator;
-import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
@@ -179,7 +178,10 @@ public class AuthoritativeLoaderEngine {
 		    			cfgId = "soffid.sync.authoritative.change."+getSystem().getName();
 		    			cfg = cfgSvc.findParameterByNameAndNetworkName(cfgId, null);
 		    			if (cfg != null)
+		    			{
+		    				log.info("Loading changes since "+lastId);
 		    				lastId = cfg.getValue();
+		    			}
 	    			}
 					boolean anyError = false;
 					boolean moreData;
