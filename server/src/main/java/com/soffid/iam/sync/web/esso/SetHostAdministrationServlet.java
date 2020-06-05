@@ -40,7 +40,7 @@ public class SetHostAdministrationServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
 
-        String hostIP = req.getRemoteAddr();
+        String hostIP = com.soffid.iam.utils.Security.getClientIp();
 
         String hostName = req.getParameter("host");
         String adminUser = req.getParameter("user");

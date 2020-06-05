@@ -225,7 +225,7 @@ public class CertificateLoginServlet extends HttpServlet {
     
     private String doStartAction (HttpServletRequest req,
             HttpServletResponse resp) throws Exception {
-        String hostIP = req.getRemoteAddr();
+        String hostIP = com.soffid.iam.utils.Security.getClientIp();
         SecureRandom random = new SecureRandom();
         
         byte b[] = new byte[32];
@@ -295,7 +295,7 @@ public class CertificateLoginServlet extends HttpServlet {
             SecretStoreService secretStoreService = ServiceLocator.instance().getSecretStoreService();
             
             LogonService ls = ServiceLocator.instance().getLogonService();
-            Challenge ch = ls.requestChallenge(Challenge.TYPE_CERT, user.getUserName(), null, req.getRemoteAddr(), "", Challenge.CARD_DISABLED);
+            Challenge ch = ls.requestChallenge(Challenge.TYPE_CERT, user.getUserName(), null, com.soffid.iam.utils.Security.getClientIp(), "", Challenge.CARD_DISABLED);
             ls.responseChallenge(ch);
             
             for (Secret secret: secretStoreService.getAllSecrets(user)) {

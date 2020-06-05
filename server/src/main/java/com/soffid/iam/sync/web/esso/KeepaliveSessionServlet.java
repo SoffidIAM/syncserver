@@ -93,15 +93,15 @@ public class KeepaliveSessionServlet extends HttpServlet {
                     }
                 }
                 if (sessio == null) {
-                	log ("User "+user+" trying to keep alive an expired session from "+req.getRemoteAddr());
+                	log ("User "+user+" trying to keep alive an expired session from "+com.soffid.iam.utils.Security.getClientIp());
                 	writer.write("EXPIRED|Invalid session");
                 }
                 else
                 {
                     Host maq = xarxaService.findHostByName(sessio.getServerHostName());
                     if (maq == null || (maq.getIp() != null &&
-                    		!maq.getIp().equals(req.getRemoteAddr()))) {
-                    	log ("User "+user+" trying to keep alive session created on "+maq.getIp()+" from host "+req.getRemoteAddr());
+                    		!maq.getIp().equals(com.soffid.iam.utils.Security.getClientIp()))) {
+                    	log ("User "+user+" trying to keep alive session created on "+maq.getIp()+" from host "+com.soffid.iam.utils.Security.getClientIp());
                         writer.write("EXPIRED|Invalid host");
                     } else {
                     	sessioService.sessionKeepAlive(sessio);

@@ -31,7 +31,7 @@ public class LogoutServlet extends HttpServlet {
         BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
         try {
             SessionService sessioService = ServerServiceLocator.instance().getSessionService();
-            Session sessio = sessioService.getSessionByHost(Long.decode(session), req.getRemoteAddr());
+            Session sessio = sessioService.getSessionByHost(Long.decode(session), com.soffid.iam.utils.Security.getClientIp());
             if (sessio != null)
             	sessioService.destroySession(sessio);
         } catch (Exception e) {

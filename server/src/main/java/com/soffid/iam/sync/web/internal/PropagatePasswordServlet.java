@@ -49,9 +49,9 @@ public class PropagatePasswordServlet extends HttpServlet {
             
             resp.setContentType("text/plain; charset=UTF-8");
             if (testOnly)
-            	log.info("CheckPasswordPolicy: user={} domain={} source="+req.getRemoteHost()+"("+req.getRemoteAddr()+")", user, domain);
+            	log.info("CheckPasswordPolicy: user={} domain={} source="+req.getRemoteHost()+"("+com.soffid.iam.utils.Security.getClientIp()+")", user, domain);
             else
-            	log.info("PropagatePassword: user={} domain={} source="+req.getRemoteHost()+"("+req.getRemoteAddr()+")", user, domain);
+            	log.info("PropagatePassword: user={} domain={} source="+req.getRemoteHost()+"("+com.soffid.iam.utils.Security.getClientIp()+")", user, domain);
             BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
             try {
         		Account acc = accountService.findAccount(user, domain);

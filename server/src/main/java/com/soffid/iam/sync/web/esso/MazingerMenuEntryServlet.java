@@ -91,7 +91,7 @@ public class MazingerMenuEntryServlet extends HttpServlet {
                     throw new InternalErrorException("Invalid session key");
                 }
                 Host maq = xarxaService.findHostByName(sessio.getServerHostName());
-                if (maq == null || !maq.getIp().equals(req.getRemoteAddr())) {
+                if (maq == null || !maq.getIp().equals(com.soffid.iam.utils.Security.getClientIp())) {
                     throw new InternalErrorException("Invalid session key");
                 }
                 AccessTree pue = null;
@@ -110,7 +110,7 @@ public class MazingerMenuEntryServlet extends HttpServlet {
                     throw new InternalErrorException("Not authorized to execute application");
                 else
                 {
-	                String result = generatePuntEntrada(pue, req.getRemoteAddr());
+	                String result = generatePuntEntrada(pue, com.soffid.iam.utils.Security.getClientIp());
 	                writer.write("OK|");
 	                writer.write(result);
                 }
