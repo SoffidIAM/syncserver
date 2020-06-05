@@ -860,7 +860,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	@Override
 	protected void handleSetAccountPassword(String accountName, String serverName, Password password, boolean mustChange) throws Exception {
 		AccountEntity account = getAccountEntityDao().findByNameAndSystem(accountName, serverName);
-		if ( account.getType() != AccountType.IGNORED)
+		if ( account != null)
 		{
 			getInternalPasswordService().storeAndSynchronizeAccountPassword(account, password, mustChange, null);
 		}
