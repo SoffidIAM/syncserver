@@ -148,6 +148,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private TenantEntityDao tenantDao;
 	private String mirroredAgent;
 	private SyncServerStatsService statsService = ServiceLocator.instance().getSyncServerStatsService();
+	private boolean debugEnabled;
 	
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
@@ -173,6 +174,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     public DispatcherHandlerImpl() {
+    	debugEnabled = "true".equals(ConfigurationCache.getProperty("soffid.debug.dispatcher"));
         server = ServerServiceLocator.instance().getServerService();
         taskqueue = ServerServiceLocator.instance().getTaskQueue();
         taskgenerator = ServerServiceLocator.instance().getTaskGenerator();
@@ -719,7 +721,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		boolean ok = false;
 		currentTask = taskqueue.getPendingTask(this);
 		if (currentTask == null)
+		{
+			if (debugEnabled)
+				log.info("No task to do ", null, null);
 			return false;
+
+		}
 		Throwable throwable = null;
 		try
 		{
@@ -727,12 +734,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			TaskHandlerLog thl = currentTask.getLog(getInternalId());
 			reason = "";
 			setStatus("Execute " + currentTask.toString());
-			log.info("Executing {} ", currentTask.toString(), null);
+			if (debugEnabled)
+				log.info("Executing {} ", currentTask.toString(), null);
 			try {
 				processTask(getCurrentAgent(), currentTask);
 				ok = true;
 				statsService.register("tasks-success", getName(), 1);
-				log.debug("Task {} DONE", currentTask.toString(), null);
+				if (debugEnabled)
+					log.debug("Task {} DONE", currentTask.toString(), null);
 			} catch (RemoteException e) {
 				handleRMIError(e);
 				ok = false;
@@ -740,6 +749,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				throwable = e;
 				// abort = true ;
 			} catch (Throwable e) {
+				if (debugEnabled)
+					log.info("Failed {} ", currentTask.toString(), null);
 				statsService.register("tasks-error", getName(), 1);
 				if ("local".equals(system.getUrl()))
 				{
@@ -1092,9 +1103,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	return;
         
        	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
-       	if (acc != null && !acc.isDisabled() &&
-       			! acc.getType().equals (AccountType.IGNORED) &&
-       			! isUnmanagedType(acc.getPasswordPolicy()))
+       	if (acc == null || acc.isDisabled())
+       		return;
+       	if (acc.getType().equals (AccountType.IGNORED) ||
+       		isUnmanagedType(acc.getPasswordPolicy())) 
+       	{
+       		if ( getSystem().getName().equals(ConfigurationCache.getProperty("AutoSSOSystem"))) {
+	            Password p;
+	            p = getTaskPassword(t);
+        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), p,
+       				 "S".equals((t.getTask().getPasswordChange())),
+       				 t.getTask().getExpirationDate() == null ? null: t.getTask().getExpirationDate().getTime());
+       		}
+       	}
+       	else
        	{
 	        if ("S".equals(t.getTask().getPasswordChange()) && !getSystem().getTrusted().booleanValue()) {
 	            Password p = server.generateFakePassword(acc.getName(), mirroredAgent);
@@ -1801,6 +1823,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 
     private void cancelTask(TaskHandler t) throws InternalErrorException {
+    	if (debugEnabled)
+    		log.info("Cancelling task "+t.toString());
     	t.cancel();
         taskqueue.cancelTask(t.getTask().getId());
     }
@@ -2753,6 +2777,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		switch (dispatcherStatus)
 		{
 		case STARTING:
+			if (debugEnabled) log.info("Starting dispatcher "+getName());
 			runInit();
 			dispatcherStatus = DispatcherStatus.LOOP_START;
 			break;
@@ -2764,6 +2789,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			}
 			// Go on with loop_start
 		case LOOP_START:
+			if (debugEnabled) log.info("Connecting agent "+getName());
 			runLoopStart();
 			dispatcherStatus = DispatcherStatus.NEXT_TASK;
 			break;
@@ -2774,6 +2800,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				dispatcherStatus = DispatcherStatus.GET_LOGS;
 			break;
 		case GET_LOGS:
+			if (debugEnabled) log.info("Getting logs "+getName());
 			runGetLogs();
 			dispatcherStatus = DispatcherStatus.WAIT;
 			break;
