@@ -56,6 +56,7 @@ import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.intf.DebugTaskResults;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -80,7 +81,15 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	String hostname;
 	private final Logger log = Log.getLogger("TaskQueue");
 	private ApplicationContext applicationContext;
+	private Boolean debug;
 
+	boolean isDebug() {
+		if (debug == null) {
+			debug = "true".equals(ConfigurationCache.getProperty("soffid.debug.taskpersist"));
+		}
+		return debug.booleanValue();
+	}
+	
 	private Hashtable<String,TaskHandler> getCurrentTasks ()
 	{
 		Long l = Security.getCurrentTenantId();
@@ -155,6 +164,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				UserEntity usuari = usuariDao.findByUserName(newTask.getTask().getUser());
 				if (usuari == null) // Ignorar
 				{
+					if (isDebug())
+						log.info("Cancelling task {}", newTask.toString(), null);
 					newTask.cancel();
 					pushTaskToPersist(newTask);
 					return;
@@ -465,6 +476,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			oldTask = currentTasks.get(hash);
 			if (oldTask != null && !oldTask.getTask().getId().equals(newTask.getTask().getId()))
 			{
+				if (isDebug())
+					log.info("Cancelling old task {}", oldTask.toString(), null);
 				oldTask.cancel();
 				pushTaskToPersist(oldTask);
 			}
@@ -521,6 +534,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		if (p == null)
 		{
 			p = new PrioritiesList();
+			p.debug = "true".equals(ConfigurationCache.getProperty("soffid.debug.tasks"));
 			for (int i = 0; i < MAX_PRIORITY; i++)
 				p.add(new TasksQueue());
 			globalTaskList.put(dispatcherHandler.getSystem().getId(), p);
@@ -582,6 +596,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		th.setTask(getTaskEntityDao().toTask(task));
 		th.setTenantId(Security.getCurrentTenantId());
 		th.setTenant(Security.getCurrentTenantName());
+		if (isDebug())
+			log.info("Cancelling remote task {}", th.toString(), null);
 		th.cancel();
 		pushTaskToPersist(th);
 		
@@ -592,6 +608,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			{
 				rsl.setServer(task.getServer());
 				ServerService server = rsl.getServerService();
+				if (isDebug())
+					log.info("Cancelling remote task {}", task.getId(), null);
 				server.cancelTask(task.getId());
 			}
 			catch (Exception e)
@@ -616,6 +634,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			newTask.setDate(new Timestamp(System.currentTimeMillis()));
 			if ( newTask.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD) ||
 					newTask.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
+					newTask.getTransaction().equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD) ||
+					newTask.getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD) ||
 					newTask.getTransaction().equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD) ||
 					newTask.getTransaction().equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD_SINCRONO))
 				getTaskEntityDao().createForce(newTask);
@@ -689,38 +709,51 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				TasksQueue priorityQueue = priorities.get(priority);
 				synchronized (priorityQueue)
 				{
-//					log.info("Getting tasks for priority {}", priority, null);
+					if (priorities.debug)
+						log.info("Getting tasks for priority {}", priority, null);
 					Iterator<TaskHandler> iterator = priorityQueue.iterator();
 					while (iterator.hasNext())
 					{
 						task = iterator.next();
 						TaskHandlerLog tl = task.getLog(internalId);
 		    			if (tl != null && tl.isComplete()) {
+							if (priorities.debug)
+								log.info("Already done task {}", task.toString(), null);
 		    				// Already processed
 		    				iterator.remove();
 		    			}
 		    			else if (task.isExpired())
 			    		{
+							if (priorities.debug)
+								log.info("Exprired task task {}", task.toString(), null);
 		    				iterator.remove();
 			    			tasksToRemove.add(task);
 			    		}
 			    		else if (task.isComplete())
 			    		{
+							if (priorities.debug)
+								log.info("Completed task {}", task.toString(), null);
 			    			tasksToNotify.add(task);
 			    			iterator.remove();
 			    		}
 			    		else if (taskDispatcher.isComplete(task))
 			    		{
+							if (priorities.debug)
+								log.info("Already done task {}", task.toString(), null);
 			    			iterator.remove();
 			    			tasksToNotify.add(task);
 			    		}
 			    		else if (!taskDispatcher.applies(task))
 		    			{
+							if (priorities.debug)
+								log.info("Task does not apply {}", task.toString(), null);
 			    			iterator.remove();
 			    			tasksToNotify.add(task);
 						}
 						else if (tl.getNext() < System.currentTimeMillis())
 						{
+							if (priorities.debug)
+								log.info("Task to process: {}", task.toString(), null);
 			    			iterator.remove();
 //							log.info("Got task {}", task.toString(), null);
 							return task;
@@ -813,7 +846,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected void handleExpireTasks () throws Exception
 	{
-//		log.info("Expiring tasks", null, null);
+		if (isDebug())
+			log.info("Expiring tasks", null, null);
 		Set<Long> currentTenants = getTaskGenerator().getActiveTenants();
 		Date now = new Date();
 		for (Long tenant: globalCurrentTasks.keySet() )
@@ -826,6 +860,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					TaskHandler task = entry.getValue();
 					if (task.getTimeout() != null && task.getTimeout().before(now))
 					{
+						if (isDebug())
+							log.info("Cancelling expired task {}", task.toString(), null);
 						task.cancel();
 						iterator.remove();
 						pushTaskToPersist(task);
@@ -837,9 +873,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					else
 					{
 						boolean allOk = true;
-						for (DispatcherHandler dh : getTaskGenerator().getDispatchers())
+						
+						for (DispatcherHandler dh : getTaskGenerator().getAllTenantsDispatchers())
 						{
-							if (dh != null && dh.isActive())
+							if (dh != null && dh.isActive() && dh.getSystem().getTenant().equals(task.getTenant()))
 							{
 								if (task.getLogs().size() <= dh.getInternalId())
 								{
@@ -861,12 +898,15 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 						
 						if (allOk)
 						{
+							if (isDebug())
+								log.info("Cancelling finished task {}", task.toString(), null);
 							task.cancel();
 							pushTaskToPersist(task);
 							iterator.remove();
-							log.debug("Removing task {} from queue", task, null);
 						} else if ( ! currentTenants.contains(  task.getTenantId() ) )
 						{
+							if (isDebug())
+								log.info("Rejecting not served task {}", task.toString(), null);
 							task.reject();
 							pushTaskToPersist(task);
 //							log.info("Removing task {} from queue", task, null);
@@ -1000,8 +1040,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		// //////////////// TASK COMPLETE
 		if (allOk)
 		{
-//			log.info("Task is finished ", null, null);
 			Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
+
+			if (isDebug())
+				log.info("Cancelling fiinshed task {}", task.toString(), null);
 
 			task.cancel();
 			pushTaskToPersist(task);
@@ -1108,6 +1150,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				{
 					if (task.getTask().getId().longValue() == taskId)
 					{
+						if (isDebug())
+							log.info("Cancelling task on demand {}", task.toString(), null);
 						task.cancel();
 						pushTaskToPersist(task);
 						ct.remove(taskEntity.getHash());
@@ -1398,11 +1442,13 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected void handlePersistTask (TaskHandler newTask) throws Exception
 	{
-//		log.info("Persist task {}", newTask.toString(), null);
+		if (isDebug())
+			log.info("Persist task {}", newTask.toString(), null);
 		if (newTask.isRejected())
 		{
 			getSyncServerStatsService().register("queue", "rejected", 1);
-			log.info("Task {} is rejected", newTask.toString(), null);
+			if (isDebug())
+				log.info("Task {} is rejected", newTask.toString(), null);
     		TaskEntityDao dao = getTaskEntityDao();
     		newTask.setChanged(false);
     		TaskEntity tasque = dao.load(newTask.getTask().getId());
@@ -1422,17 +1468,28 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    		if (tasque == null)
 	    		{
 	    			newTask.cancel();
-	    			log.info("Task {} was previously removed", newTask.toString(), null);
+	    			if (isDebug())
+	    				log.info("Task {} was previously removed", newTask.toString(), null);
 	    		}
 	    		else if (newTask.isComplete())
 	    		{
+	    			if (isDebug()) {
+	    				if (newTask.isExpired())
+	    					log.info("Task {} is expired", newTask.toString(), null);
+	    				else if (newTask.getTask().getStatus() != null && 
+	    						!"P".equals(newTask.getTask().getStatus()) && 
+	    						!"E".equals(newTask.getTask().getStatus()))
+	    					log.info("Task {} is complete. Status is", newTask.toString(), newTask.getTask().getStatus());
+	    				else 
+	    					log.info("Task {} is cancelled", newTask.toString(), null);
+	    				
+	    			}
 	    			if (tasque != null)
 	    			{
 	        			tlDao.remove(tasque.getLogs());
 	        			dao.remove(tasque);
 	        			getSyncServerStatsService().register("queue", "finished", 1);
 	    			}
-//	    			log.info("Task {} is complete", newTask.toString(), null);
 	    		}
 	    		else
 	    		{
@@ -1443,7 +1500,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			dao.update(tasque);
 	    
 	    			Collection<TaskLogEntity> daoEntities = tasque.getLogs();
-//	    			log.info("Task {} is pending", newTask.toString(), null);
+	    			if (isDebug())
+	    				log.info("Task {} is pending", newTask.toString(), null);
 	    			if (newTask.getLogs() != null)
 	    			{
 	        			for (TaskHandlerLog tasklog : newTask.getLogs()) {
@@ -1463,12 +1521,15 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
 	                                persistLog(tasque, tasklog, logEntity);
 	                            }
-//	                            log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
+	                            if (isDebug())
+	                            	log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
 	        				}
                         }
 	    			}
 	    		}
 			} catch (Exception e) {
+				if (isDebug())
+					log.info("Error persisting task {}", newTask.toString(), null);
 	    		newTask.setChanged(true);
 	    		synchronized (tasksToPersist) {
 	    			tasksToPersist.addFirst(newTask);
@@ -1509,5 +1570,5 @@ class TasksQueue extends LinkedList<TaskHandler> {
 }
 
 class PrioritiesList extends ArrayList<TasksQueue>{
-	
+	boolean debug;
 }
