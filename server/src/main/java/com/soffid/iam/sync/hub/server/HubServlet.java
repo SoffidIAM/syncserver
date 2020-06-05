@@ -12,6 +12,9 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import es.caib.seycon.ng.exception.InternalErrorException;
 
 /**
@@ -22,6 +25,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
  *
  */
 public class HubServlet extends HttpServlet {
+	Log log = LogFactory.getLog(getClass());
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		String user = req.getRemoteUser();

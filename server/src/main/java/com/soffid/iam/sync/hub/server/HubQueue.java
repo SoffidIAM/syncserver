@@ -22,7 +22,8 @@ public class HubQueue {
 	public final static int SECONDS_TO_WAIT = 3;
 	public final static int LONG_ACTION_KEEPALIVE = 20;
 	public final static int LONG_ACTION_TIMEOUT = LONG_ACTION_KEEPALIVE * 2;
-
+	boolean debug = false;
+	
 	final static private HubQueue instance = new HubQueue();
 	Log log = LogFactory.getLog(getClass());
 	
@@ -38,9 +39,16 @@ public class HubQueue {
 	 * @return
 	 */
 	public Request get ( String server) {
+		if (debug) {
+			log.info("Fetching requests for "+server);
+		}
 		LinkedList<Request> list = pendingRequests.get(server);
 		if (list == null)
+		{
+			if (debug) 
+				log.info("NO requests for "+server);
 			return null;
+		}
 		
 		synchronized (list)
 		{
@@ -51,12 +59,16 @@ public class HubQueue {
 				} catch (InterruptedException e) {
 				}
 			}
-			if (list.isEmpty())
+			if (list.isEmpty()) {
+				if (debug) 
+					log.info("NO requests for "+server);
 				return null;
+			}
 			Request request = list.pollFirst();
 			request.setId ( new Long (requestId++) );
 			request.setAccepted(true);
 			activeRequests.put(request.getId(), request);
+			log.info("Sent request for "+server);
 			return request;
 		}
 	}
@@ -161,5 +173,27 @@ public class HubQueue {
 			return null;
 		else
 			return s.getName();
+	}
+
+	public void dump() {
+		debug = true;
+		log.info("------------------------------------");
+		synchronized (pendingRequests) {
+			log.info("Pending requests");
+			for ( String server: pendingRequests.keySet()) {
+				log.info(">> "+server);
+				LinkedList<Request> l = pendingRequests.get(server);
+				for (Request r: l) {
+					log.info(">>   "+r.getSource()+" -> "+r.getTarget()+" : "+r.getUrl());
+				}
+			}
+		}
+		synchronized (activeRequests) {
+			log.info("Active requests");
+			for ( Request r: activeRequests.values()) {
+				log.info(">>   "+r.getSource()+" -> "+r.getTarget()+" : "+r.getUrl());
+			}
+		}
+		log.info("------------------------------------");
 	}
 }
