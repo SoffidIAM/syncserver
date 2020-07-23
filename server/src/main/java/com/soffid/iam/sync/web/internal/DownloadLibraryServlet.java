@@ -63,6 +63,8 @@ public class DownloadLibraryServlet extends HttpServlet {
                 {
                     mergeFile = merge();
                 }
+                long size = mergeFile.length();
+                response.setContentLength((int)size);
                 InputStream in = new FileInputStream(mergeFile);
                 byte b [] = new byte[4096];
                 int read;

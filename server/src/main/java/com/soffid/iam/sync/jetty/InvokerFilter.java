@@ -59,7 +59,7 @@ public class InvokerFilter implements Filter {
 	            	{
 	        			try {
 	        				Security.setClientRequest((HttpServletRequest) request);
-	        			} catch (Exception e) {}
+	        			} catch (Throwable e) {}
 	                	chain.doFilter(request, response);
 	            	}
 	            	finally

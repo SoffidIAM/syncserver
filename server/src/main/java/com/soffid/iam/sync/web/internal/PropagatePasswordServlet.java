@@ -54,34 +54,42 @@ public class PropagatePasswordServlet extends HttpServlet {
             	log.info("PropagatePassword: user={} domain={} source="+req.getRemoteHost()+"("+com.soffid.iam.utils.Security.getClientIp()+")", user, domain);
             BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
             try {
-        		Account acc = accountService.findAccount(user, domain);
-        		if (acc == null) {
-    	       		String prefix = ConfigurationCache.getProperty("soffid.propagatepassword.prefix");
-    	       		if (prefix != null)
-    	       			user = prefix + user;
-        		}
-            	if (testOnly)
-            	{
-            		// When modifying a.d. passwod, a.d. will ask for password correctnes, but this password
-            		// does not apply to password policy as it is the current password
-            		if ( passwordService.checkPassword(user, domain, new Password(pass), false, true) )
-            			writer.write ("OK");
-            		// 
-            		else
-            		{
-	            		PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
-	            		if (r == null)
-	            			writer.write("IGNORE");
-	            		else if (r.isValid())
+            	if (domain == null) {
+            		log.info("Ignoring request without domain name for account {}", user, null);
+            	} else {
+	        		Account acc = accountService.findAccount(user, domain);
+	        		if (acc == null) {
+	    	       		String prefix = ConfigurationCache.getProperty("soffid.propagatepassword.prefix");
+	    	       		if (prefix != null)
+	    	       			user = prefix + user;
+		        		acc = accountService.findAccount(user, domain);
+	        		}
+	            	if (testOnly)
+	            	{
+	            		// When modifying a.d. passwod, a.d. will ask for password correctnes, but this password
+	            		// does not apply to password policy as it is the current password
+	            		if ( passwordService.checkPassword(user, domain, new Password(pass), false, true) )
 	            			writer.write ("OK");
+	            		// 
 	            		else
-	            			writer.write ("ERROR|"+r.getReason());
-            		}
-            	}
-            	else
-            	{
-            		logonService.propagatePassword(user, domain, pass);
-            		writer.write("ok");
+	            		{
+		            		PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
+		            		if (r == null)
+		            			writer.write("IGNORE");
+		            		else if (r.isValid())
+		            			writer.write ("OK");
+		            		else
+		            			writer.write ("ERROR|"+r.getReason());
+	            		}
+	            	}
+	            	else if (acc == null) {
+	            		log.info("Ignoring request for unknown account {} at {}", user, domain);
+	            	}
+	            	else
+	            	{
+	            		logonService.propagatePassword(user, domain, pass);
+	            		writer.write("ok");
+	            	}
             	}
             } catch (InternalErrorException e) {
                 resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

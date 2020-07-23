@@ -1532,17 +1532,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	        	}
         		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), t.getPassword(), false, null);
 	        } else {
-	        	String timeout = System.getProperty("soffid.propagate.timeout");
+	        	String timeout = ConfigurationCache.getProperty("soffid.propagate.timeout");
+	        	if (timeout == null) timeout = "5";
 	        	if (timeout != null)
 	        	{
-	        		long timeoutLong = Long.decode(timeout)*1000;
-		        	TaskHandlerLog tasklog = t.getLog(getInternalId());
-		        	if (tasklog == null || tasklog.first == 0 ||
-		        			System.currentTimeMillis() < tasklog.first + timeoutLong)
-		        	{
-		                log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
-		                throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
-		        	}
+        			long timeoutLong;
+					try {
+						timeoutLong = Long.decode(timeout)*1000;
+						TaskHandlerLog tasklog = t.getLog(getInternalId());
+						if (tasklog == null || tasklog.first == 0 ||
+								System.currentTimeMillis() < tasklog.first + timeoutLong)
+						{
+							log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
+							throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
+						}
+					} catch (NumberFormatException e) {
+					}
 	        	}
 	        	
 	       		log.info("Rejected proposed password for {}", t.getTask().getUser(), null);
@@ -1617,17 +1622,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		        	}
 	        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), t.getPassword(), false, null);
 		        } else {
-		        	String timeout = System.getProperty("soffid.propagate.timeout");
+		        	String timeout = ConfigurationCache.getProperty("soffid.propagate.timeout");
+		        	if (timeout == null) timeout = "5";
 		        	if (timeout != null)
 		        	{
-		        		long timeoutLong = Long.decode(timeout)*1000;
-			        	TaskHandlerLog tasklog = t.getLog(getInternalId());
-			        	if (tasklog == null || tasklog.first == 0 ||
-			        			System.currentTimeMillis() < tasklog.first + timeoutLong)
-			        	{
-			                log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
-			                throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
-			        	}
+		        		long timeoutLong;
+						try {
+							timeoutLong = Long.decode(timeout)*1000;
+							TaskHandlerLog tasklog = t.getLog(getInternalId());
+							if (tasklog == null || tasklog.first == 0 ||
+									System.currentTimeMillis() < tasklog.first + timeoutLong)
+							{
+								log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
+								throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
+							}
+						} catch (NumberFormatException e) {
+						}
 		        	}
 		        	
 		       		log.info("Rejected proposed password for {}", t.getTask().getUser(), null);
