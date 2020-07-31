@@ -33,6 +33,8 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
 import com.soffid.iam.api.VaultFolder;
+import com.soffid.iam.common.security.SoffidPrincipal;
+import com.soffid.iam.security.SoffidPrincipalImpl;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.AdditionalDataService;
 import com.soffid.iam.service.DispatcherService;
@@ -155,8 +157,9 @@ public class ChangeSecretServlet extends HttpServlet {
 					String system, String ssoAttribute, String description, String value) throws InternalErrorException, RemoteException,
 					AccountAlreadyExistsException, UnsupportedEncodingException
 	{
-
-		Security.nestedLogin(userAccount, Security.getAuthorizations().toArray(new String [0]));
+		
+		SoffidPrincipal p = new SoffidPrincipalImpl(userAccount, usuari.getUserName(), usuari.getFullName(), null, Security.getAuthorizations(), null,  null);
+		Security.nestedLogin(p);
 		try
 		{
 	        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
