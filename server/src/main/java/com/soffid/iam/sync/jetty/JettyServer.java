@@ -33,6 +33,7 @@ import com.soffid.iam.sync.hub.server.HubFromServerServlet;
 import com.soffid.iam.sync.hub.server.HubMonitorThread;
 import com.soffid.iam.sync.hub.server.HubServlet;
 import com.soffid.iam.sync.web.admin.DiagnosticServlet;
+import com.soffid.iam.sync.web.admin.PlainLogServlet;
 import com.soffid.iam.sync.web.admin.QueryServlet;
 import com.soffid.iam.sync.web.admin.ResetServlet;
 import com.soffid.iam.sync.web.admin.StatusServlet;
@@ -494,7 +495,7 @@ public class JettyServer implements PublisherInterface
 
     public void bindDiagnostics() {
         bindAdministrationServlet("/diag", null, DiagnosticServlet.class);
-//        bindAdministrationServlet("/log", null, PlainLogServlet.class);
+        bindAdministrationServlet("/log", null, PlainLogServlet.class);
     }
 
 

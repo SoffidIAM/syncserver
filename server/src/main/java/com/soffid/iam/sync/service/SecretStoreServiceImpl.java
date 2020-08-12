@@ -14,6 +14,7 @@ import com.soffid.iam.model.SecretEntity;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntity;
 import com.soffid.iam.sync.service.SecretStoreServiceBase;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -336,8 +337,13 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 
 		AccountEntity acc = getAccountEntityDao().load(account.getId());
 
+		String ssoSystem = ConfigurationCache.getProperty("AutoSSOSystem");
+		if (ssoSystem == null)
+			ssoSystem = "SSO";
+				
 		if (account.getType().equals(AccountType.USER) ||
-						account.getType().equals(AccountType.SHARED))
+						account.getType().equals(AccountType.SHARED) ||
+						account.getSystem().equals(ssoSystem))
 			visible = true;
 		else if (account.getType().equals(AccountType.PRIVILEGED))
 		{
