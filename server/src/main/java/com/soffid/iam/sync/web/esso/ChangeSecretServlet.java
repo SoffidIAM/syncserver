@@ -344,7 +344,7 @@ public class ChangeSecretServlet extends HttpServlet {
 		String ssoPolicy = ConfigurationCache.getProperty("AutoSSOPolicy"); //$NON-NLS-1$
 		if (ssoPolicy == null)
 			throw new InternalErrorException (Messages.getString("ChangeSecretServlet.22")); //$NON-NLS-1$
-		acc.setType(AccountType.SHARED);
+		acc.setType(AccountType.IGNORED);
 		acc.setPasswordPolicy(ssoPolicy);
 		// Search for personal folder
 		VaultFolder vf = ServiceLocator.instance().getVaultService().getPersonalFolder();

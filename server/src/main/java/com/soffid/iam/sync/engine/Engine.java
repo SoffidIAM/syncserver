@@ -82,7 +82,8 @@ public class Engine extends Thread {
 
 			boolean firstSchedulerLoop = true;
             while (!shutDownPending) {
-                setStatus("Expiring tasks");
+                setStatus("Reconfiguring");
+                enabled = config.isActiveServer() && config.isMainServer();
                 try {
 					if (firstSchedulerLoop)
                        taskScheduler.init();
@@ -91,8 +92,9 @@ public class Engine extends Thread {
 					firstSchedulerLoop = false;
                 } catch (Throwable t) {
                     log.warn("Error scheduling tasks", t);
-                    
                 }
+                
+                setStatus("Expiring tasks");
                 try {
                     taskQueue.expireTasks();
                 } catch (Throwable t) {
