@@ -53,6 +53,7 @@ public class AuthoritativeLoaderEngine {
 	private HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> preDeleteTrigger;
 	private HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> postDeleteTrigger;
 	private HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> preUpdateTrigger;
+	ChangeDetector changeDetector = new ChangeDetector();
 	private com.soffid.iam.api.System system;
 	DispatcherHandlerImpl handler;
 	private DispatcherService dispatcherService;
@@ -490,6 +491,15 @@ public class AuthoritativeLoaderEngine {
 						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger");
 						ok = false;
 					}
+				}
+			}
+			if (ok) {
+				if (! changeDetector.anyChange (change)) {
+					out.append(
+							"Ignoring user ")
+							.append(change.getUser().getUserName())
+							.append(": no changes found\n");
+					ok = false; // No further processing
 				}
 			}
 			if (ok)
