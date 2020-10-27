@@ -119,7 +119,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	                    }
 	                } else {
 	                    agent.setStatus(Messages.getString("SyncStatusServiceImpl.Connected")); //$NON-NLS-1$
-	                    agent.setStatusMessage("NULL");
+	                    agent.setStatusMessage(null);
 	                }
 	
 	                agent.setClassName(taskDispatcher.getSystem().getClassName());
