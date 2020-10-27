@@ -13,6 +13,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.User;
@@ -23,6 +26,8 @@ import com.soffid.iam.sync.intf.AuthoritativeChange;
 import es.caib.seycon.ng.exception.InternalErrorException;
 
 public class ChangeDetector {
+
+	Log log = LogFactory.getLog(ChangeDetector.class);
 	UserService userService = ServiceLocator.instance().getUserService();
 	GroupService groupService = ServiceLocator.instance().getGroupService();
 	
@@ -68,27 +73,42 @@ public class ChangeDetector {
 		for (String att: change.getAttributes().keySet()) {
 			Object o1 = change.getAttributes().get(att);
 			Object o2 = currentAtts.get(att);
+
+			if (o1 != null && o2 == null) {
+				log.info("User "+change.getUser().getUserName()+" with att "+att+" null in Soffid");
+				return true;
+			}
+
+			if (o1 == null && o2 != null) {
+				log.info("User "+change.getUser().getUserName()+" with att "+att+" null from system");
+				return true;
+			}
+
 			if (o1 != null && o2 != null) {
-				if (o1 == null || o2 == null)
-					return true;
 				if (o1 instanceof Collection && o2 instanceof Collection) {
 					List<Object> l1 = new LinkedList<Object> ((Collection)o1);
 					List<Object> l2 = new LinkedList<Object> ((Collection)o2);
-					if (l1.size() != l2.size())
+					if (l1.size() != l2.size()) {
+						log.info("User "+change.getUser().getUserName()+" with att "+att+" with size different");
 						return true;
+					}
 					Collections.sort(l1, comparator);
 					Collections.sort(l2, comparator);
 					Iterator<Object> it1 = l1.iterator();
 					Iterator<Object> it2 = l2.iterator();
 					while (it1.hasNext() && it2.hasNext()) {
-						if (comparator.compare(it1.next(), it2.next()) != 0)
+						if (comparator.compare(it1.next(), it2.next()) != 0) {
+							log.info("User "+change.getUser().getUserName()+" with att "+att+" different comparator in Collection");
 							return true;
+						}
 					}
 				}
 				else
 				{
-					if (comparator.compare(o1, o2) != 0)
+					if (comparator.compare(o1, o2) != 0) {
+						log.info("User "+change.getUser().getUserName()+" with att "+att+" different comparator");
 						return true;
+					}
 				}
 			}
 		}
