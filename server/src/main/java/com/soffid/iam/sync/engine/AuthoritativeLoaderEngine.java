@@ -180,12 +180,12 @@ public class AuthoritativeLoaderEngine {
 		    			cfg = cfgSvc.findParameterByNameAndNetworkName(cfgId, null);
 		    			if (cfg != null)
 		    			{
-		    				log.info("Loading changes since "+lastId);
 		    				lastId = cfg.getValue();
 		    			}
 	    			}
 					boolean anyError = false;
 					boolean moreData;
+					log.info("Loading changes since "+lastId);
 					do
 					{
 						Collection<com.soffid.iam.sync.intf.AuthoritativeChange> changes;
@@ -500,6 +500,8 @@ public class AuthoritativeLoaderEngine {
 							.append(change.getUser().getUserName())
 							.append(": no changes found\n");
 					ok = false; // No further processing
+					if (source != null && change != null && change.getId() != null)
+						source.commitChange(change.getId());
 				}
 			}
 			if (ok)
