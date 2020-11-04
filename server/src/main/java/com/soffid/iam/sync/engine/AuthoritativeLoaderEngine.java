@@ -18,6 +18,7 @@ import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.SoffidObjectType;
@@ -31,6 +32,7 @@ import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.GroupUserExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
@@ -462,8 +464,7 @@ public class AuthoritativeLoaderEngine {
 					UserExtensibleObject eo = buildExtensibleObject(change);
 					if (executeTriggers(pi, null, eo, objectTranslator))
 					{
-						change.setUser( vom.parseUser(eo));
-						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom);
 					}
 					else
 					{
@@ -482,8 +483,7 @@ public class AuthoritativeLoaderEngine {
 							new UserExtensibleObject(previousUser, previousAtts, server), 
 							eo, objectTranslator))
 					{
-						change.setUser( vom.parseUser(eo));
-						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom);
 					}
 					else
 					{
@@ -565,6 +565,21 @@ public class AuthoritativeLoaderEngine {
 				out.println(change.getUser());
 		}
 		return error;
+	}
+	public void updateAuthoritativeChangeFromExtensibleObject(com.soffid.iam.sync.intf.AuthoritativeChange change, UserExtensibleObject eo,
+			ValueObjectMapper vom) throws InternalErrorException {
+		change.setUser( vom.parseUser(eo));
+		change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+		change.setGroups((Set<String>) eo.getAttribute("secondaryGroups"));
+		if (eo.getAttribute("secondaryGroups2") != null ) {
+			Collection<GroupUser> l = new LinkedList<GroupUser>();
+			for (Map<String,Object> eug: (Collection<Map<String,Object>>) eo.getAttribute("secondaryGroups2") ) {
+				GroupUser ug = vom.parseGroupUserFromMap(eug);
+				if (ug != null)
+					l.add(ug);
+			}
+			change.setGroups2(l);
+		}
 	}
 
 	private boolean processGroupChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
@@ -855,6 +870,14 @@ public class AuthoritativeLoaderEngine {
 			}
 		}
 		eo.setAttribute("secondaryGroups", l);
+		if (change.getGroups2() != null)
+		{
+			for (GroupUser s: change.getGroups2())
+			{
+				l.add( new GroupUserExtensibleObject(s, system.getName(), server));
+			}
+		}
+		eo.setAttribute("secondaryGroups2", l);
 		return eo;
 	}
 

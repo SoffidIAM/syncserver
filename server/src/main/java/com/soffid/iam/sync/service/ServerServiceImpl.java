@@ -30,6 +30,7 @@ import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.AttributeTranslation;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Network;
@@ -2136,6 +2137,43 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 		handler.doReconcile(account, new PrintWriter(new LogWriter()), false);		
 		
+	}
+
+	@Override
+	protected Collection<GroupUser> handleGetUserMemberships(String accountName, String dispatcherId) throws Exception {
+		UserEntityDao dao = getUserEntityDao();
+		GroupEntityDao grupDao = getGroupEntityDao();
+		Collection<GroupUser> r = new LinkedList<GroupUser>();
+
+		if (dispatcherId == null) {
+			UserEntity user = dao.findByUserName(accountName);
+			for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
+					.iterator(); it.hasNext();) {
+				UserGroupEntity uge = it.next();
+				r.add( getUserGroupEntityDao().toGroupUser(uge));
+			}
+		} else {
+			AccountEntity account = getAccountEntityDao().findByNameAndSystem(
+					accountName, dispatcherId);
+			if (account == null)
+				throw new UnknownUserException(accountName + "/" + dispatcherId); //$NON-NLS-1$
+
+			if (account.getType().equals(AccountType.USER)) {
+				com.soffid.iam.api.System dispatcher = getSystem(dispatcherId);
+				for (UserAccountEntity ua : account.getUsers()) {
+					UserEntity user = ua.getUser();
+					for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
+							.iterator(); it.hasNext();) {
+						UserGroupEntity uge = it.next();
+						if (getDispatcherService().isGroupAllowed(dispatcher,
+								uge.getGroup().getName())) {
+							r.add( getUserGroupEntityDao().toGroupUser(uge));
+						}
+					}
+				}
+			}
+		}
+		return r;
 	}
 }
 

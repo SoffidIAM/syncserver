@@ -5,6 +5,7 @@ import com.soffid.iam.api.AgentStatusInfo;
 import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordValidation;
@@ -39,6 +40,7 @@ import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GrantExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.GroupUserExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.MailListExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.MembershipExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
@@ -535,7 +537,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 
 	private ExtensibleObject generateSourceObject(String dispatcher, SoffidObjectType type,
 			String object1, String object2) throws InternalErrorException {
-		ExtensibleObject source;
+		ExtensibleObject source = null;
 		if (type.equals(SoffidObjectType.OBJECT_ACCOUNT))
 		{
 			Account acc = getServerService().getAccountInfo(object1, dispatcher);
@@ -561,13 +563,23 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			User u;
 			try {
 				u = getServerService().getUserInfo(object1, dispatcher);
+				Collection<GroupUser> userGroups = getServerService().getUserMemberships(object1, dispatcher);
+				if (userGroups != null) {
+					for ( GroupUser ug: userGroups) {
+						if (ug.getGroup().equals(object2)) 
+							source = new GroupUserExtensibleObject(ug, dispatcher, getServerService());
+					}
+				}
 			} catch (UnknownUserException e) {
 				u = new User();
 				u.setUserName(object1);
 				u.setActive(false);
 			}
-			Account acc = getServerService().getAccountInfo(object1, dispatcher);
-			source = new MembershipExtensibleObject(acc, u, g, getServerService());
+			
+			if (source == null) {
+				Account acc = getServerService().getAccountInfo(object1, dispatcher);
+				source = new MembershipExtensibleObject(acc, u, g, getServerService());
+			}
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE) ||

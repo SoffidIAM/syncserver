@@ -17,6 +17,7 @@ import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Domain;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.SoffidObjectType;
@@ -278,6 +279,18 @@ public class ValueObjectMapper
 						if (value != null)
 							change.setGroups(new HashSet<String>((Collection<String>) value));
 					}
+					else if ("secondaryGroups2". equals(attribute))
+					{
+						if (value != null) {
+							Collection<GroupUser> l = new LinkedList<GroupUser>();
+							for (Map<String,Object> eug: (Collection<Map<String,Object>>) value ) {
+								GroupUser ug = parseGroupUserFromMap(eug);
+								if (ug != null)
+									l.add(ug);
+							}
+							change.setGroups2(l);
+						}
+					}
 					else
 					{
 						if (change.getAttributes() == null)
@@ -431,6 +444,30 @@ public class ValueObjectMapper
 		return grup;
 	}
 	
+	public GroupUser parseGroupUser (ExtensibleObject object) throws InternalErrorException
+	{
+		GroupUser grup = null;
+		if (object.getObjectType().equals("grantedGroup"))
+		{
+			grup = parseGroupUserFromMap(object);
+		}
+		return grup;
+	}
+
+	public GroupUser parseGroupUserFromMap (Map<String,Object> object)
+	{
+		GroupUser grup;
+		grup = new GroupUser();
+		grup.setId(toLong(toSingleton(object.get("id"))));
+		grup.setUser(toSingleString(object.get("user")));
+		grup.setGroup(toSingleString(object.get("group")));
+		Object map = object.get("attributes");
+		if (map != null && map instanceof Map)
+			grup.setAttributes((Map<String, Object>) map);
+		return grup;
+	}
+	
+
 	public Role parseRole (ExtensibleObject object) throws InternalErrorException
 	{
 		Role rol = null;
