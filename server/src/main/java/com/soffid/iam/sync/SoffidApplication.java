@@ -492,6 +492,9 @@ public class SoffidApplication extends Object {
         if (config.getServerList()==null || config.getServerList().trim().isEmpty()) {
         	String m = "Server list not found, please: 1) stop syncserver, 2) unpublish syncserver in IAM, 3) configure again, 4) start service";
         	log.error(m);
+		try {
+	                Thread.sleep(60000);
+		} catch (InterruptedException e) {}
         	throw new InternalErrorException(m);
         }
 
