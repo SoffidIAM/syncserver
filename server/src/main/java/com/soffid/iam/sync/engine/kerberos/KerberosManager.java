@@ -300,10 +300,12 @@ public class KerberosManager {
         Password password = null;
         String keytabFile = null;
         LoginContext lc = null;
+        
+        String domainName = null;
 
         for ( KerberosAgent agent: krbList)
         {
-        	String domainName = agent.getRealmName();
+        	domainName = agent.getRealmName();
         	String cfgName = dispatcher.getTenant()+"/"+dispatcher.getName();
 			ChainConfiguration.addConfiguration(cfgName, 
         			new KerberosLoginConfiguration(cfgName));
@@ -333,7 +335,7 @@ public class KerberosManager {
                 {
 	                try {
 	                	String cfgName = dispatcher.getTenant()+"/"+dispatcher.getName();
-	                	String domainName = krb.getRealmName();
+	                	domainName = krb.getRealmName();
 	                    hostName = Config.getConfig().getHostName();
 	                    KerberosPrincipalInfo p = krb.createServerPrincipal(hostName);
 	                    if (p != null)
@@ -371,9 +373,9 @@ public class KerberosManager {
         kc.lastSet = new Date();
         kc.principal = principal;
         kc.user = user;
-        properties.setProperty(dispatcher + ".principal", principal);
-        properties.setProperty(dispatcher + ".user", user);
-        properties.setProperty(dispatcher + ".password", password.toString());
+        properties.setProperty(domainName + ".principal", principal);
+        properties.setProperty(domainName + ".user", user);
+        properties.setProperty(domainName + ".password", password.toString());
         storeProperties();
 
     }
