@@ -300,6 +300,10 @@ public class QueryServiceImpl extends QueryServiceBase {
 							}
                     	}
                     }
+                    if ( "seycon.server.list".equals(v.elementAt(1)))
+                    {
+                    	r  = Config.getConfig().getServerList();
+                    }
                     boolean xml = "text/xml".equals(contentType);
                     if (xml)
                         writer.append("<data>")
