@@ -29,8 +29,11 @@ public class InvokerFilter implements Filter {
             String user = Invoker.getInvoker().getUser();
             if (user == null)
             {
-            	String host = Config.getConfig().getHostName();
-            	String tenant = Security.getMasterTenantName();
+            	Config config = Config.getConfig();
+				String host = config.getHostName();
+            	String tenant = config.getCustomProperty("tenant") != null ?
+            		config.getCustomProperty("tenant") : 
+            		Security.getMasterTenantName();
         		if (request.getServerName() != null &&
         				request.getServerName().endsWith("."+host))
         		{
