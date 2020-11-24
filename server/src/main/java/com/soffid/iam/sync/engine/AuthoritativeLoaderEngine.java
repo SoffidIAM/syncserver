@@ -570,7 +570,8 @@ public class AuthoritativeLoaderEngine {
 			ValueObjectMapper vom) throws InternalErrorException {
 		change.setUser( vom.parseUser(eo));
 		change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
-		change.setGroups((Set<String>) eo.getAttribute("secondaryGroups"));
+		
+		change.setGroups( new HashSet<String>( (Collection<String>) eo.getAttribute("secondaryGroups")) );
 		if (eo.getAttribute("secondaryGroups2") != null ) {
 			Collection<GroupUser> l = new LinkedList<GroupUser>();
 			for (Map<String,Object> eug: (Collection<Map<String,Object>>) eo.getAttribute("secondaryGroups2") ) {
