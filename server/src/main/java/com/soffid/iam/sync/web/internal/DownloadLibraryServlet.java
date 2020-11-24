@@ -59,7 +59,7 @@ public class DownloadLibraryServlet extends HttpServlet {
         	}
         	else if (component == null || component.equals("seycon-base") ) 
         	{
-                if (mergeFile == null)
+                if (mergeFile == null || ! mergeFile.canRead())
                 {
                     mergeFile = merge();
                 }
