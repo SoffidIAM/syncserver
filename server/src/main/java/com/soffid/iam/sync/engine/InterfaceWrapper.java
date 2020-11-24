@@ -15,6 +15,7 @@ import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AttributeTranslation;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Network;
@@ -906,6 +907,11 @@ public class InterfaceWrapper {
 				}
 				public void reconcileAccount(String system, String account) throws InternalErrorException {
 					agent.reconcileAccount(system, account);
+				}
+				public Collection<GroupUser> getUserMemberships(String accountName, String dispatcherId)
+						throws InternalErrorException, InternalErrorException, InternalErrorException,
+						UnknownUserException {
+					return GroupUser.toGroupUserList( agent.getUserMemberships(accountName, dispatcherId));
 				}
 			};
 	}
