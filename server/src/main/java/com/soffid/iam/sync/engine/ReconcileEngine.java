@@ -311,6 +311,10 @@ public abstract class ReconcileEngine
 		boolean isUnmanaged = acc != null && acc.getId() != null && 
 				(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
 		
+		if (!dispatcher.isReadOnly() && accountService.isUpdatePending(acc)) {
+			log.append ("Account "+acc.getName()+" is not loaded due to active synchronization task\n");			
+		}
+		
 		if (! preUpdate.isEmpty())
 		{
 			boolean isManaged2 = isUnmanaged;
