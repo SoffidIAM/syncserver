@@ -18,6 +18,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
  * 
  * @author DGTIC
  */
+@Deprecated
 public class SSOServer extends Thread {
     boolean shutDownPending = false;
     /**
