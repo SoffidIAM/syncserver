@@ -516,7 +516,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> preUpdateTrigger;
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> postUpdateTrigger;
 	private Object lastAgent;
-	private TaskHandler currentTask;
 
 
     public void run() {
@@ -719,7 +718,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	{
 		String reason = "";
 		boolean ok = false;
-		currentTask = taskqueue.getPendingTask(this);
+		TaskHandler currentTask = taskqueue.getPendingTask(this);
 		if (currentTask == null)
 		{
 			if (debugEnabled)
