@@ -728,8 +728,10 @@ DECLSPEC_EXPORT BOOL configureEris(LPWSTR url, BOOL allowUnknownCA, LPWSTR domai
 
 	//Afegir el domini
 	int tamany = wcslen(domain);
-	if(!setDomain(domain, (tamany + 2) * sizeof (wchar_t)))
+	if(!setDomain(domain, (tamany + 2) * sizeof (wchar_t))) {
+		printf ("E-001: Cannot set domain");
 		return false;
+	}
 	// Specify an HTTP server.
 	if (hSession)
 	{
@@ -763,7 +765,10 @@ DECLSPEC_EXPORT BOOL configureEris(LPWSTR url, BOOL allowUnknownCA, LPWSTR domai
 			return TRUE;
 		}
 		else
+		{
+			printf ("E-001: Cannot retrieve servers list");
 			return FALSE;
+		}
 	}
 	if (strncmp (hosts, "OK|", 3) != 0 )
 	{
