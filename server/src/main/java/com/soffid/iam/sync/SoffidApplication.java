@@ -487,6 +487,14 @@ public class SoffidApplication extends Object {
 
     public static void notifyStart() throws FileNotFoundException, IOException, InternalErrorException {
         Config config = Config.getConfig();
+
+        // Check server list
+        if (config.getServerList()==null || config.getServerList().trim().isEmpty()) {
+        	String m = "Server list not found, please: 1) stop syncserver, 2) unpublish syncserver in IAM, 3) configure again, 4) start service";
+        	log.error(m);
+        	throw new InternalErrorException(m);
+        }
+
         String serverList[] = config.getServerList().split("[, ]+");
         for (int i = 0; i < serverList.length; i++) {
         	if (! config.getHostName().equals(serverList[i]))
