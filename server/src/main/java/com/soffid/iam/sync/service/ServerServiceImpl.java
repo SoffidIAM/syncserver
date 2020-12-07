@@ -883,8 +883,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 			c = new Compile();
 		else if ("2".equals(version)) //$NON-NLS-1$
 			c = new Compile2();
-		else
+		else if ("3".equals(version))
 			c = new Compile3();
+		else
+			c = new Compile4();
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		try {

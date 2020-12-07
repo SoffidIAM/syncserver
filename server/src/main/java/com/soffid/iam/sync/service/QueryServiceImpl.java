@@ -46,20 +46,26 @@ public class QueryServiceImpl extends QueryServiceBase {
             }
             if (v.elementAt(0).equals("user") && v.size() == 2) {
                 stmt = conn
-                        .prepareStatement("SELECT USU_NOM, USU_PRILLI, NVL(USU_SEGLLI,'') USU_SEGLLI, GRU_CODI, USU_NOMCUR, DCO_CODI, "
-                                + "M1.MAQ_NOM MAQUSU_NOM, M2.MAQ_NOM MAQCOR_NOM, M3.MAQ_NOM MAQPRO_NOM, USU_ALCOAN, USU_UNOFES, USU_ACTIU "
-                                + "FROM SC_USUARI, SC_MAQUIN M1, SC_MAQUIN M2, SC_MAQUIN M3, SC_DOMCOR, SC_GRUPS "
-                                + "WHERE USU_IDDCO = DCO_ID(+) AND USU_IDMAQ = M1.MAQ_ID AND USU_IDMACO = M2.MAQ_ID AND USU_IDMAPR=M3.MAQ_ID AND "
-                                + "USU_IDGRU = GRU_ID AND USU_CODI = ? AND USU_TEN_ID = ?");
+                        .prepareStatement("SELECT USU_NOM, USU_PRILLI, USU_SEGLLI, GRU_CODI, USU_NOMCUR, DCO_CODI, "
+                                + "M1.MAQ_NOM MAQUSU_NOM, M2.MAQ_NOM MAQCOR_NOM, M3.MAQ_NOM MAQPRO_NOM, USU_ACTIU "
+                                + "FROM SC_GRUPS, SC_USUARI "
+                                + "LEFT OUTER JOIN SC_DOMCOR ON DCO_ID=USU_IDDCO "
+                                + "LEFT OUTER JOIN SC_MAQUIN AS M1 ON USU_IDMAQ = M1.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN AS M2 ON USU_IDMACO = M2.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN AS M3 ON  USU_IDMAPR=M3.MAQ_ID "
+                                + "WHERE USU_IDGRU = GRU_ID AND USU_CODI = ? AND USU_TEN_ID = ?");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("user-v2") && v.size() == 2) {
                 stmt = conn
-                        .prepareStatement("SELECT USU_ID, USU_NOM, USU_PRILLI, NVL(USU_SEGLLI,'') USU_SEGLLI, GRU_CODI, USU_NOMCUR, DCO_CODI, "
-                                + "M1.MAQ_NOM MAQUSU_NOM, M2.MAQ_NOM MAQCOR_NOM, M3.MAQ_NOM MAQPRO_NOM, USU_ALCOAN, USU_UNOFES, USU_ACTIU "
-                                + "FROM SC_USUARI, SC_MAQUIN M1, SC_MAQUIN M2, SC_MAQUIN M3, SC_DOMCOR, SC_GRUPS "
-                                + "WHERE USU_IDDCO = DCO_ID(+) AND USU_IDMAQ = M1.MAQ_ID AND USU_IDMACO = M2.MAQ_ID AND USU_IDMAPR=M3.MAQ_ID AND "
-                                + "USU_IDGRU = GRU_ID AND USU_CODI = ? AND USU_TEN_ID=?");
+                        .prepareStatement("SELECT USU_ID, USU_NOM, USU_PRILLI, USU_SEGLLI, GRU_CODI, USU_NOMCUR, DCO_CODI, "
+                                + "M1.MAQ_NOM MAQUSU_NOM, M2.MAQ_NOM MAQCOR_NOM, M3.MAQ_NOM MAQPRO_NOM, USU_ACTIU "
+                                + "FROM SC_GRUPS, SC_USUARI "
+                                + "LEFT OUTER JOIN SC_DOMCOR ON DCO_ID=USU_IDDCO "
+                                + "LEFT OUTER JOIN SC_MAQUIN AS M1 ON USU_IDMAQ = M1.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN AS M2 ON USU_IDMACO = M2.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN AS M3 ON  USU_IDMAPR=M3.MAQ_ID "
+                                + "WHERE USU_IDGRU = GRU_ID AND USU_CODI = ? AND USU_TEN_ID=?");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("user") && v.size() == 3
@@ -364,7 +370,8 @@ public class QueryServiceImpl extends QueryServiceBase {
                     s.append( "<");
                     s.append (md.getColumnName(i));
                     s.append (">");
-                    s.append(rset.getString(i));
+                    if (rset.getString(i) != null)
+                    	s.append(rset.getString(i));
                     s.append("</");
                     s.append(md.getColumnName(i));
                     s.append(">");
@@ -374,7 +381,8 @@ public class QueryServiceImpl extends QueryServiceBase {
             } else {
                 for (int i = 1; i <= md.getColumnCount(); i++) {
                     s.append( "|");
-                    s.append( rset.getString(i) );
+                    if (rset.getString(i) != null)
+                    	s.append(rset.getString(i));
                 }
            } while (rset.next());
             writer.write(s.toString());
