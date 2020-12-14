@@ -114,6 +114,7 @@ import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.server.Compile;
 import com.soffid.iam.sync.service.server.Compile2;
 import com.soffid.iam.sync.service.server.Compile3;
+import com.soffid.iam.sync.service.server.Compile4;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
