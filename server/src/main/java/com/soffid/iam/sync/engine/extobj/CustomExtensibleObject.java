@@ -3,19 +3,8 @@
  */
 package com.soffid.iam.sync.engine.extobj;
 
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
-
-import com.soffid.iam.api.Account;
 import com.soffid.iam.api.CustomObject;
-import com.soffid.iam.api.Group;
-import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.SoffidObjectType;
-import com.soffid.iam.api.User;
-import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 
 

@@ -1,15 +1,11 @@
 package com.soffid.iam.sync.engine;
 
-import java.io.FileNotFoundException;
-import java.io.IOException;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.config.Config;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cron.TaskScheduler;
-import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
 
@@ -86,7 +82,8 @@ public class Engine extends Thread {
 
 			boolean firstSchedulerLoop = true;
             while (!shutDownPending) {
-                setStatus("Expiring tasks");
+                setStatus("Reconfiguring");
+                enabled = config.isActiveServer() && config.isMainServer();
                 try {
 					if (firstSchedulerLoop)
                        taskScheduler.init();
@@ -95,8 +92,9 @@ public class Engine extends Thread {
 					firstSchedulerLoop = false;
                 } catch (Throwable t) {
                     log.warn("Error scheduling tasks", t);
-                    
                 }
+                
+                setStatus("Expiring tasks");
                 try {
                     taskQueue.expireTasks();
                 } catch (Throwable t) {

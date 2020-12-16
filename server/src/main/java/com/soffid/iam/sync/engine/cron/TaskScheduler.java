@@ -101,6 +101,9 @@ public class TaskScheduler
 								else
 									runningTasks.add(task.getId());
 							}
+							ScheduledTask t = findTask(task.getId());
+							if (t.isActive())
+								ignore = true;
 							if (!ignore) {
 								log.info("Executing task " + task.getName());
 								taskSvc.registerStartTask(task);
@@ -112,11 +115,11 @@ public class TaskScheduler
 								actualOut = new PrintWriter(
 										new DocumentOutputStream(ds)
 										);
-								if (out != null)
-									actualOut = new SplitPrintWriter(actualOut, out);
+//								if (out != null)
+//									actualOut = new SplitPrintWriter(out, actualOut);
 
 								handler.run(actualOut);
-								log.info("Task finished");
+								log.info("Task " + task.getName()+ " finished");
 							} 
 							else 
 							{
@@ -149,11 +152,14 @@ public class TaskScheduler
 	      
 						try
 						{
+							log.info("Sending log");
 							if (actualOut != null)
 							{
 								actualOut.close();
 								task.setLogReferenceID( ds.getReference().toString() );
 							}
+							if (out != null)
+								out.close();
 							if (! ignore)
 								taskSvc.registerEndTask(task);
 						}
@@ -242,7 +248,25 @@ public class TaskScheduler
 		return result;
 	}
 
-	public void init () throws InternalErrorException, FileNotFoundException, IOException
+	public ScheduledTask findTask (long id) throws ClassNotFoundException, InstantiationException, IllegalAccessException, InternalErrorException, FileNotFoundException, IOException
+	{
+		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
+		
+		List<ScheduledTask> list = taskSvc.listTasks();
+		List<ScheduledTask> result = new LinkedList<ScheduledTask>();
+		String hostName = Config.getConfig().getHostName();
+		
+		for (final ScheduledTask task: list)
+		{
+			if (task.getId().equals(id))
+			{
+				return task;
+			}
+		}
+		return null;
+	}
+
+	public void init () throws InternalErrorException, FileNotFoundException, IOException, DocumentBeanException
 	{
 		final ScheduledTaskService taskSvc = ServiceLocator.instance().getScheduledTaskService();
 		List<ScheduledTask> list = taskSvc.listServerTasks(Config.getConfig().getHostName());
@@ -257,9 +281,13 @@ public class TaskScheduler
 				try {
 					task.setActive(false);
 					task.setError(true);
-					StringBuffer sb = new StringBuffer();
-					sb.append ("Server restarted during execution");
-					task.setLogReferenceID(null);
+					DocumentService ds = ServiceLocator.instance().getDocumentService();
+					ds.createDocument("text/plain", task.getName(), "taskmgr");
+					ds.openUploadTransfer();
+					byte[] sb = ("Server restarted during execution").getBytes();
+					ds.nextUploadPackage(sb, sb.length);
+					ds.endUploadTransfer();
+					task.setLogReferenceID( ds.getReference().toString() );
 					task.setLastEnd(Calendar.getInstance());
 					taskSvc.registerEndTask(task);
 				} finally {

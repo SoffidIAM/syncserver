@@ -5,11 +5,8 @@ package com.soffid.iam.sync.engine.extobj;
 
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Group;
@@ -61,6 +58,8 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getId();
     		else if ("accountName".equals(attribute))
     			obj = account.getName();
+    		else if ("oldAccountName".equals(attribute) )
+    			obj = account.getOldName();
     		else if ("passwordPolicy".equals(attribute))
     			obj = account.getPasswordPolicy();
     		else if ("system".equals(attribute))
@@ -79,6 +78,28 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getLastPasswordSet();
     		else if ("passwordExpiration".equals(attribute))
     			obj = account.getPasswordExpiration();
+    		else if ("ownerUsers".equals(attribute))
+    			obj = account.getOwnerUsers();
+    		else if ("ownerGroups".equals(attribute))
+    			obj = account.getOwnerGroups();
+    		else if ("ownerRoles".equals(attribute))
+    			obj = account.getOwnerRoles();
+    		else if ("grantedUsers".equals(attribute))
+    			obj = account.getGrantedUsers();
+    		else if ("granteeUsers".equals(attribute))
+    			obj = account.getGrantedUsers();
+    		else if ("grantedGroups".equals(attribute))
+    			obj = account.getGrantedGroups();
+    		else if ("granteeGroups".equals(attribute))
+    			obj = account.getGrantedGroups();
+    		else if ("granteeRoles".equals(attribute))
+    			obj = account.getGrantedRoles();
+    		else if ("managerUsers".equals(attribute))
+    			obj = account.getManagerUsers();
+    		else if ("managerGroups".equals(attribute))
+    			obj = account.getManagerGroups();
+    		else if ("managerRoles".equals(attribute))
+    			obj = account.getManagerRoles();
     		else if ("grantedRoles".equals(attribute))
     		{
     			Collection<RoleGrant> grants = serverService.getAccountExplicitRoles(account.getName(), account.getSystem());
@@ -128,7 +149,7 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = dadesList;
     		}
     		else if ("attributes".equals(attribute) || "accountAttributes".equals(attribute))
-    			return account.getAttributes();
+    			obj = account.getAttributes() == null ? new HashMap<String, Object>(): account.getAttributes();
     		else
     			return null;
     		

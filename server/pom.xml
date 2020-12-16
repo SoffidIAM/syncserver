@@ -8,13 +8,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.soffid.iam.sync</groupId>
 	<artifactId>syncserver</artifactId>
-	<version>2.0.0-SNAPSHOT</version>
+	<version>2.9.1-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>Soffid IAM Sync server</name>
 	<properties>
 		<maven.compile.source>1.5</maven.compile.source>
 		<maven.compile.target>1.5</maven.compile.target>
-		<iam.version>2.0.0-SNAPSHOT</iam.version>
+		<iam.version>2.8.17-SNAPSHOT</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -70,6 +70,7 @@
 			</plugin>
 			<plugin>
 				<artifactId>maven-dependency-plugin</artifactId>
+				<version>2.4</version>
 				<executions>
 					<execution>
 						<id>unpack-meta</id>
@@ -151,10 +152,10 @@
 								${project.build.directory}/server-only/lib
 							</outputDirectory>
 							<includeGroupIds>
-								com.oracle,mysql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
+								com.oracle,org.mariadb.jdbc,org.postgresql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
 								org.hibernate,javax.mail,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
 								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
-								org.json,org.w3c
+								org.json,org.w3c,org.apache.cxf
 							</includeGroupIds>
 							<excludeArtifactIds>
 								iam-tomee,iam-common,dbtools,signaturaapi,
@@ -165,6 +166,24 @@
 							<overWriteReleases>false</overWriteReleases>
 							<overWriteSnapshots>true
 							</overWriteSnapshots>
+							<overWriteIfNewer>true</overWriteIfNewer>
+							<stripVersion>false</stripVersion>
+						</configuration>
+					</execution>
+					<execution>
+						<id>copy-server-extra-2</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>
+								${project.build.directory}/server-only/lib
+							</outputDirectory>
+							<includeGroupIds>org.apache.commons</includeGroupIds>
+							<includeArtifactIds>commons-jcs-core</includeArtifactIds>
+							<overWriteReleases>false</overWriteReleases>
+							<overWriteSnapshots>true</overWriteSnapshots>
 							<overWriteIfNewer>true</overWriteIfNewer>
 							<stripVersion>false</stripVersion>
 						</configuration>
@@ -250,6 +269,12 @@
 									</file>
 									<type>deb</type>
 								</artifact>
+								<artifact>
+									<file>
+										target/install4j/SoffidIAMSync_unix_nojre.tar.gz
+									</file>
+									<type>tar.gz</type>
+								</artifact>
 							</artifacts>
 						</configuration>
 					</execution>
@@ -260,7 +285,7 @@
 				<artifactId>maven-jar-plugin</artifactId>
 				<configuration>
 					<archive>
-						<index>true</index>
+						<index>false</index>
 						<manifest>
 							<addClasspath>true</addClasspath>
 						</manifest>
@@ -425,8 +450,12 @@
 		</pluginManagement>
 	</build>
 	<dependencies>
-		<!--dependency> <groupId>mysql</groupId> <artifactId>mysql-connector-java</artifactId> 
-			<version>5.0.4</version> <scope>provided</scope> </dependency -->
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.0.4</version>
+			<scope>provided</scope>
+		</dependency>
 		<dependency>
 			<groupId>commons-fileupload</groupId>
 			<artifactId>commons-fileupload</artifactId>
@@ -454,21 +483,6 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>jboss</groupId>
-			<artifactId>jboss-j2ee</artifactId>
-			<version>3.2.8-5</version>
-		</dependency>
-		<dependency>
-			<groupId>bouncycastle</groupId>
-			<artifactId>bcprov-jdk16</artifactId>
-			<version>140</version>
-		</dependency>
-		<dependency>
-			<groupId>bouncycastle</groupId>
-			<artifactId>bcmail-jdk16</artifactId>
-			<version>140</version>
-		</dependency>
-		<dependency>
 			<groupId>javax.mail</groupId>
 			<artifactId>mail</artifactId>
 			<version>1.4</version>
@@ -476,9 +490,8 @@
 		</dependency>
 		<dependency>
 			<groupId>com.oracle</groupId>
-			<artifactId>ojdbc14</artifactId>
-			<version>10.2.0.4.0</version>
-			<classifier>noseal</classifier>
+			<artifactId>ojdbc7</artifactId>
+			<version>12.1.0.1.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
@@ -488,16 +501,16 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>mysql</groupId>
-			<artifactId>mysql-connector-java</artifactId>
-			<version>5.1.21</version>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>42.2.5.jre7</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>axis</groupId>
-			<artifactId>axis</artifactId>
-			<version>1.4</version>
-			<scope>compile</scope>
+			<groupId>org.mariadb.jdbc</groupId>
+			<artifactId>mariadb-java-client</artifactId>
+			<version>1.8.0</version>
+			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>java.sun.com</groupId>
@@ -508,6 +521,11 @@
 		<dependency>
 			<groupId>org.mortbay.jetty</groupId>
 			<artifactId>jetty</artifactId>
+			<version>6.1.11-soffid-1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.mortbay.jetty</groupId>
+			<artifactId>jetty-util</artifactId>
 			<version>6.1.11</version>
 		</dependency>
 		<dependency>
@@ -521,52 +539,32 @@
 				</exclusion>
 			</exclusions>
 		</dependency>
-		<!-- Validació de certificats -->
-		<dependency>
-			<groupId>es.caib.signatura.valcert</groupId>
-			<artifactId>valcert-client-axis</artifactId>
-			<version>1.6.1</version>
-			<type>jar</type>
-			<scope>provided</scope>
-			<exclusions>
-				<exclusion>
-					<groupId>bouncycastle</groupId>
-					<artifactId>bcprov-jdk14</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>bouncycastle</groupId>
-					<artifactId>bctsp-jdk14</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>bouncycastle</groupId>
-					<artifactId>bcmail-jdk14</artifactId>
-				</exclusion>
-				<exclusion>
-					<groupId>axis</groupId>
-					<artifactId>axis-wsdl4j</artifactId>
-				</exclusion>
-			</exclusions>
-		</dependency>
 		<dependency>
 			<artifactId>iam-common</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0-M1</version>
+			<version>2.9.0</version>
 		</dependency>
 		<dependency>
 			<artifactId>iam-tomee</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0-M1</version>
+			<version>2.9.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.apache.tomee</groupId>
+					<artifactId>openejb-core</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<dependency>
 			<artifactId>iam-core</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0-M1</version>
+			<version>2.9.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
 			<artifactId>iam-webservice</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>2.0.0-M1</version>
+			<version>2.9.0</version>
 			<type>war</type>
 			<scope>provided</scope>
 		</dependency>
@@ -658,7 +656,7 @@
 		<dependency>
 			<groupId>com.soffid.iam.console</groupId>
 			<artifactId>dbtools</artifactId>
-			<version>1.10</version>
+			<version>1.17</version>
 		</dependency>
 		<dependency>
 			<groupId>junit</groupId>
@@ -687,6 +685,27 @@
 			<groupId>commons-beanutils</groupId>
 			<artifactId>commons-beanutils</artifactId>
 			<version>1.7.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.bouncycastle</groupId>
+			<artifactId>bcpkix-jdk15on</artifactId>
+			<version>1.51</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tomee</groupId>
+			<artifactId>javaee-api</artifactId>
+			<version>7.0-1</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.geronimo.javamail</groupId>
+			<artifactId>geronimo-javamail_1.4_mail</artifactId>
+			<version>1.9.0-alpha-2</version>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.cxf</groupId>
+			<artifactId>cxf-rt-rs-client</artifactId>
+			<version>3.1.10</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 	<reporting>

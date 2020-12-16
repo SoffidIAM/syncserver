@@ -14,7 +14,6 @@ import com.soffid.iam.api.Group;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
-import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 
 import es.caib.seycon.ng.exception.InternalErrorException;

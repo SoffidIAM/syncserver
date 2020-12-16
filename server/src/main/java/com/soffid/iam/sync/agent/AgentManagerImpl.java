@@ -33,6 +33,7 @@ import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerApplication;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.SoffidApplication;
+import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.ServerService;
@@ -53,7 +54,7 @@ public class AgentManagerImpl extends AgentManagerBase {
     private static Logger log = Log.getLogger("AgentManager");
     static Hashtable serverTable = new Hashtable();
     static Hashtable<String, PluginInfo> pluginsLoader = new Hashtable<String, PluginInfo>();
-
+    static HashMap<String,Object> singletons = new HashMap<String, Object>();
     /**
      * Constructor
      * 
@@ -71,59 +72,119 @@ public class AgentManagerImpl extends AgentManagerBase {
      * @return URL del agente creado
      * @see Agent
      */
-    public String handleCreateAgent(System System) throws java.rmi.RemoteException,
+    public String handleCreateAgent(System system) throws java.rmi.RemoteException,
             es.caib.seycon.ng.exception.InternalErrorException {
+    	return handleCreateAgent(system, false);
+    }
+    
+    public String handleCreateAgentDebug(System system) throws java.rmi.RemoteException,
+    	es.caib.seycon.ng.exception.InternalErrorException {
+    	return handleCreateAgent(system, true);
+    }
+
+    public String handleCreateAgent(System system, boolean debug) throws java.rmi.RemoteException,
+        es.caib.seycon.ng.exception.InternalErrorException {
+    	Object o = singletons.get(system.getName());
+    	if (o != null)
+    	{
+            return "/seycon/Agent/" + o.hashCode();    		
+    	}
+    	
         try {
-            AgentInterface agent = performCreateAgent(System);
-            String url = "/seycon/Agent/" + agent.hashCode();
+            final AgentInterface agent = performCreateAgent(system);
+            final String url = "/seycon/Agent/" + agent.hashCode();
             SoffidApplication.getJetty().bind(url, agent, "server");
             String serverName = Invoker.getInvoker().getUser();
             if (serverName.indexOf('\\') > 0)
             	serverName = serverName.substring(serverName.indexOf('\\')+1);
+            
+            if (debug)
+            {
+            	agent.startCaptureLog();
+            	agent.setDebug(true);
+            }
+   
+            final Runnable onClose = new Runnable ()
+            		{
+						public void run() {
+				            try {
+								SoffidApplication.getJetty().unbind(url);
+							} catch (IOException e) {
+							}
+						}
+            	
+            		};
             if (agent instanceof es.caib.seycon.ng.sync.agent.Agent)
             {
-                es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
-                rsl.setServer(serverName);
             	es.caib.seycon.ng.sync.agent.Agent v1Agent = (es.caib.seycon.ng.sync.agent.Agent) agent;
             	v1Agent.setServerName(serverName);
-            	v1Agent.setServer(rsl.getServerService());
+            	v1Agent.setOnClose(onClose);
             	v1Agent.init();
+            	if (v1Agent.isSingleton())
+            		singletons.put(system.getName(), v1Agent);
             } else {
-                RemoteServiceLocator rsl = new RemoteServiceLocator();
-                rsl.setServer(serverName);
             	com.soffid.iam.sync.agent.Agent v2Agent = (com.soffid.iam.sync.agent.Agent) agent;
             	v2Agent.setServerName(serverName);
-            	v2Agent.setServer(rsl.getServerService());
+            	v2Agent.setOnClose(onClose);
             	v2Agent.init();
+            	if (v2Agent.isSingleton())
+            		singletons.put(system.getName(), v2Agent);
             }
+            if (debug)
+            	agent.setDebug(true);
             return url;
         } catch (Exception e) {
-            log.warn("Error creating object " + System.getName(), e);
-            throw new InternalErrorException("Error creando objecto " + System.getClassName(), e);
+            log.warn("Error creating object " + system.getName(), e);
+            throw new InternalErrorException("Error creando objecto " + system.getClassName(), e);
         }
     }
 
-    public Object handleCreateLocalAgent(System System) throws ClassNotFoundException,
+    public Object handleCreateLocalAgent(System system) throws ClassNotFoundException,
             InstantiationException, IllegalAccessException, InvocationTargetException,
             InternalErrorException, IOException {
+    	return handleCreateLocalAgent(system, false);
+    }
+    
+    public Object handleCreateLocalAgentDebug(System system) throws ClassNotFoundException,
+        InstantiationException, IllegalAccessException, InvocationTargetException,
+        InternalErrorException, IOException {
+    	return handleCreateLocalAgent(system, true);
+
+    }
+    
+    public Object handleCreateLocalAgent(System system, boolean debug) throws ClassNotFoundException,
+        InstantiationException, IllegalAccessException, InvocationTargetException,
+        InternalErrorException, IOException {
         try {
-            Object agent = performCreateAgent(System);
+            AgentInterface agent = performCreateAgent(system);
+            if (debug)
+            {
+            	agent.startCaptureLog();
+            	agent.setDebug(true);
+            }
+            
             if (agent instanceof com.soffid.iam.sync.agent.Agent)
             {
             	com.soffid.iam.sync.agent.Agent v2Agent = (com.soffid.iam.sync.agent.Agent) agent;
 	            v2Agent.setServerName(Config.getConfig().getHostName());
 	            v2Agent.setServer(ServerServiceLocator.instance().getServerService());
 	            v2Agent.init();
+	            if (v2Agent.isSingleton())
+	            	singletons.put(system.getName(), v2Agent);
             } else {
             	es.caib.seycon.ng.sync.agent.Agent v1Agent = (es.caib.seycon.ng.sync.agent.Agent) agent;
 	            v1Agent.setServerName(Config.getConfig().getHostName());
 	            v1Agent.setServer(es.caib.seycon.ng.sync.ServerServiceLocator.instance().getServerService());
-	            v1Agent.init();            	
+	            v1Agent.init();
+	            if (v1Agent.isSingleton())
+	            	singletons.put(system.getName(), v1Agent);
             }
+            if (debug)
+            	agent.setDebug(true);
             return agent;
         } catch (Exception e) {
-            log.warn("Error creating object " + System.getName(), e);
-            throw new InternalErrorException("Error creando objecto " + System.getClassName(), e);
+            log.warn("Error creating object " + system.getName(), e);
+            throw new InternalErrorException("Error creando objecto " + system.getClassName(), e);
         }
     }
 
@@ -156,7 +217,18 @@ public class AgentManagerImpl extends AgentManagerBase {
             } else {
                 Invoker invoker = Invoker.getInvoker();
                 try {
-                	es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator(invoker.getUser());
+                	String user = invoker.getUser();
+                	String host = user.contains("\\") ? user.substring(user.indexOf("\\")+1) : user;
+                	es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
+                	for ( String server: Config.getConfig().getServerList().split("[, ]+"))
+                	{
+                		try {
+							URL url = new URL(server);
+							if ( url.getHost().equalsIgnoreCase(host))
+								rsl.setServer(server);
+						} catch (Exception e) {
+						}
+                	}
     	            v1Agent.setServer(rsl.getServerService());
                 } catch (Exception e) {
                 	es.caib.seycon.ng.remote.RemoteServiceLocator rsl = new es.caib.seycon.ng.remote.RemoteServiceLocator();
@@ -175,10 +247,18 @@ public class AgentManagerImpl extends AgentManagerBase {
             } else {
                 Invoker invoker = Invoker.getInvoker();
                 try {
-                	String serverName = invoker.getUser();
-                    if (serverName.indexOf('\\') > 0)
-                    	serverName = serverName.substring(serverName.indexOf('\\')+1);
-    	            RemoteServiceLocator rsl = new RemoteServiceLocator(serverName);
+                	String user = invoker.getUser();
+                	String host = user.contains("\\") ? user.substring(user.indexOf("\\")+1) : user;
+                	RemoteServiceLocator rsl = new RemoteServiceLocator();
+                	for ( String server: Config.getConfig().getServerList().split("[, ]+"))
+                	{
+                		try {
+							URL url = new URL(server);
+							if ( url.getHost().equalsIgnoreCase(host))
+								rsl.setServer(server);
+						} catch (Exception e) {
+						}
+                	}
     	            v2Agent.setServer(rsl.getServerService());
                 } catch (Exception e) {
     	            RemoteServiceLocator rsl = new RemoteServiceLocator();
@@ -221,7 +301,7 @@ public class AgentManagerImpl extends AgentManagerBase {
 	            pi.classLoader = new AgentClassLoader(new URL[] { f.toURI().toURL() });
 	    		pluginsLoader.put(agentClass, pi);
 	    	} 
-	    	else if (new Date().after(pi.expiration))
+	    	else if (new Date().after(pi.expiration) && false)
 	    	{
 	    		Plugin sp = getAnyServer().getPlugin(agentClass);
 	            if (sp == null || sp.getContent() == null) {
@@ -370,6 +450,7 @@ public class AgentManagerImpl extends AgentManagerBase {
 
     @Override
     protected void handleReset() throws Exception {
+    	log.info("Received reset request", null, null);
         SoffidApplication.shutDown();
     }
 
@@ -389,6 +470,47 @@ public class AgentManagerImpl extends AgentManagerBase {
         }
         return null;
     }
+
+    private static KeyPair temporaryKey = null;
+    
+	@Override
+	protected PublicKey handleGenerateNewKey() throws Exception {
+		temporaryKey = new CertificateServer().generateNewKey();
+		return temporaryKey.getPublic();
+	}
+
+	@Override
+	protected void handleStoreNewCertificate(X509Certificate cert, X509Certificate root) throws Exception {
+		if (temporaryKey == null)
+			throw new InternalErrorException ("Error storing certificate. No private key has been generated. Maybe the agent has been restarted since the private key was generated");
+		new CertificateServer().storeCertificate(temporaryKey, cert, root);
+		new Thread(new Runnable() {
+			public void run() {
+				try {
+					Thread.sleep(30000);
+				} catch (InterruptedException e) {
+				}
+				log.info("Restarting after installing new certificate", null, null);
+				java.lang.System.exit(1);
+			}
+			
+		}).start();
+	}
+
+	@Override
+	protected String[] handleTailServerLog() throws Exception {
+		String logPath = Config.getConfig().getLogFile().getAbsolutePath();
+		LinkedList<String> s = new LinkedList<String>();
+		
+		BufferedReader r = new BufferedReader( new FileReader(logPath));
+		for ( String line = r.readLine(); line != null; line = r.readLine())
+		{
+			s.add(line);
+			if (s.size() > 10000)
+				s.removeFirst();
+		}
+		return s.toArray(new String[0]);
+	}
 
 }
 

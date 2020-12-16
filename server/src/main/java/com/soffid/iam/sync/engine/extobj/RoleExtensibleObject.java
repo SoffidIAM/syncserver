@@ -4,10 +4,8 @@
 package com.soffid.iam.sync.engine.extobj;
 
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Set;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Group;
@@ -61,6 +59,8 @@ public class RoleExtensibleObject extends ExtensibleObject
     			obj = role.getPassword();
     		else if ("description".equals(attribute))
     			obj = role.getDescription();
+    		else if ("wfmanaged".equals(attribute))
+    			obj = role.getBpmEnforced();
     		else if ("ownedRoles".equals(attribute))
     		{
     			List<ExtensibleObject> ownedRoles = new LinkedList<ExtensibleObject>();
@@ -99,7 +99,9 @@ public class RoleExtensibleObject extends ExtensibleObject
     		}
     		else if ("domain".equals(attribute))
     		{
-    			if (role.getDomain().getExternalCode() == null)
+    			if (role.getDomain() == null)
+    				return null;
+    			else if (role.getDomain().getExternalCode() == null)
     				return role.getDomain().getName();
     			else
     				return role.getDomain().getExternalCode();

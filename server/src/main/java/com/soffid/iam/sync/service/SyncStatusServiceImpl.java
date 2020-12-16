@@ -2,9 +2,13 @@ package com.soffid.iam.sync.service;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AgentStatusInfo;
+import com.soffid.iam.api.Configuration;
+import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
+import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.ScheduledTask;
@@ -24,6 +28,7 @@ import com.soffid.iam.service.AccountService;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.agent.AgentManager;
+import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.InterfaceWrapper;
@@ -32,18 +37,25 @@ import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.cron.TaskScheduler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GrantExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.GroupUserExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.MailListExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.MembershipExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
+import com.soffid.iam.sync.engine.intf.GetObjectResults;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.SyncStatusServiceBase;
 import com.soffid.iam.sync.service.TaskQueue;
+import com.soffid.iam.utils.ConfigurationCache;
 
+import es.caib.seycon.ng.ServiceLocator;
+import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
@@ -58,6 +70,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.StringWriter;
 import java.net.URL;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
@@ -74,11 +87,13 @@ import java.util.Vector;
 import javax.servlet.ServletException;
 
 import org.apache.commons.logging.LogFactory;
+import org.jfree.util.Log;
 
 public class SyncStatusServiceImpl extends SyncStatusServiceBase {
+	org.apache.commons.logging.Log log = LogFactory.getLog(getClass());
+	
     @Override
     protected Collection<AgentStatusInfo> handleGetSyncAgentsInfo(String tenant) throws Exception {
-    	
     	Security.nestedLogin(tenant, Security.getCurrentAccount(), Security.ALL_PERMISSIONS);
     	try
     	{
@@ -106,7 +121,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	                    }
 	                } else {
 	                    agent.setStatus(Messages.getString("SyncStatusServiceImpl.Connected")); //$NON-NLS-1$
-	                    agent.setStatusMessage("NULL");
+	                    agent.setStatusMessage(null);
 	                }
 	
 	                agent.setClassName(taskDispatcher.getSystem().getClassName());
@@ -341,7 +356,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
     protected Collection<SyncServerInfo> handleGetServerAgentHostsURL() throws Exception {
         HashMap<String, SyncServerInfo> hosts = new HashMap<String, SyncServerInfo>();
         Config config = Config.getConfig();
-        String servidors[] = config.getSeyconServerHostList();
+        String servidors[] = config.getServerList().split("[, ]+");
         for (int i = 0; i < servidors.length; i++) {
             String host = new URLManager(servidors[i]).getAgentURL().getHost();
             if (!hosts.containsKey(host))
@@ -371,6 +386,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 
     @Override
     protected String handleResetServerAgents(String server) throws Exception {
+    	log.info("Reseting agent "+server);
         StringBuffer res = new StringBuffer(""); //$NON-NLS-1$
         try {
             RemoteServiceLocator rsl = new RemoteServiceLocator(server);
@@ -384,10 +400,15 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
         return res.toString();
     }
 
+	public Password handleGetAccountPassword (String user, Long accountId)
+			throws InternalErrorException
+	{
+		return handleGetAccountPassword(user, accountId, AccountAccessLevelEnum.ACCESS_OWNER);
+	}
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.servei.SyncStatusService#getAccountPassword(java.lang.String, es.caib.seycon.ng.comu.Account)
 	 */
-	public Password handleGetAccountPassword (String user, Long accountId)
+	public Password handleGetAccountPassword (String user, Long accountId, AccountAccessLevelEnum level)
 					throws InternalErrorException
 	{
 		AccountService svc = getAccountService();
@@ -434,7 +455,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		} 
 		else  
 		{
-			Collection<String> owners = svc.getAccountUsers(account);
+			Collection<String> owners = svc.getAccountUsers(account, level);
 			if (! owners.contains(user))
 				throw new SecurityException(String.format(Messages.getString("SyncStatusServiceImpl.NotAuthorized"))); //$NON-NLS-1$
 		}
@@ -476,6 +497,11 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 				try {
 					Thread.sleep(3000); // Wait 3 seconds for console transation to complete
 					getTaskGenerator().updateAgents();
+					for ( Configuration cfg:  com.soffid.iam.ServiceLocator.instance().getConfigurationService().findConfigurationByFilter("%", null, null, null))
+					{
+						if (cfg.getNetworkCode() == null || cfg.getNetworkCode().isEmpty())
+							ConfigurationCache.setProperty(cfg.getCode(), cfg.getValue());
+					}
 				} catch (Throwable e) {
 					LogFactory.getLog(SyncStatusServiceImpl.class).warn("Error updating configuration", e);
 				}
@@ -511,7 +537,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 
 	private ExtensibleObject generateSourceObject(String dispatcher, SoffidObjectType type,
 			String object1, String object2) throws InternalErrorException {
-		ExtensibleObject source;
+		ExtensibleObject source = null;
 		if (type.equals(SoffidObjectType.OBJECT_ACCOUNT))
 		{
 			Account acc = getServerService().getAccountInfo(object1, dispatcher);
@@ -537,13 +563,23 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			User u;
 			try {
 				u = getServerService().getUserInfo(object1, dispatcher);
+				Collection<GroupUser> userGroups = getServerService().getUserMemberships(object1, dispatcher);
+				if (userGroups != null) {
+					for ( GroupUser ug: userGroups) {
+						if (ug.getGroup().equals(object2)) 
+							source = new GroupUserExtensibleObject(ug, dispatcher, getServerService());
+					}
+				}
 			} catch (UnknownUserException e) {
 				u = new User();
 				u.setUserName(object1);
 				u.setActive(false);
 			}
-			Account acc = getServerService().getAccountInfo(object1, dispatcher);
-			source = new MembershipExtensibleObject(acc, u, g, getServerService());
+			
+			if (source == null) {
+				Account acc = getServerService().getAccountInfo(object1, dispatcher);
+				source = new MembershipExtensibleObject(acc, u, g, getServerService());
+			}
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE) ||
@@ -636,6 +672,20 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 				acc.setDisabled(true);
 			}
 			source = new UserExtensibleObject(acc, u, getServerService());
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_GROUP))
+		{
+			try {
+				Group g = getServerService().getGroupInfo(object1, dispatcher);
+				source = new GroupExtensibleObject(g, dispatcher, getServerService());
+			} catch (UnknownGroupException e) {
+				source = new ExtensibleObject();
+			}
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_CUSTOM))
+		{
+			CustomObject co = getServerService().getCustomObject(object1, object2);
+			source = new CustomExtensibleObject(co, getServerService());
 		} else {
 			source = new ExtensibleObject();
 		}
@@ -644,36 +694,37 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	}
 
 	@Override
-	public Exception handleTestPropagateObject(String dispatcher,
+	public DebugTaskResults handleTestPropagateObject(String dispatcher,
 			SoffidObjectType type, String object1, String object2)
 			throws InternalErrorException, InternalErrorException {
 		TaskHandler task = generateObjectTask(dispatcher, type, object1, object2);
-		Map map = getTaskQueue().processOBTask(task);
-		return (Exception) map.get(dispatcher);
+		Map<String, DebugTaskResults> map = getTaskQueue().debugTask(task);
+		return map.get(dispatcher);
 	}
 
 	private TaskHandler generateObjectTask(String dispatcher, SoffidObjectType type,
 			String object1, String object2) throws InternalErrorException {
 		Task tasca = new Task();
 		tasca.setTaskDate(Calendar.getInstance());
-		tasca.setServer(dispatcher);
+		tasca.setSystemName(dispatcher);
 		tasca.setExpirationDate(Calendar.getInstance());
 		tasca.getExpirationDate().add(Calendar.MINUTE, 5);
-		
+
 		TaskHandler th = new TaskHandler();
 		th.setTask(tasca);
+		th.setTenant(Security.getCurrentTenantName());
 		if (type.equals(SoffidObjectType.OBJECT_ACCOUNT))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_GROUP) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_GROUP))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_ALL_GRANTED_ROLES) ||
 				type.equals(SoffidObjectType.OBJECT_GRANTED_ROLE) ||
@@ -681,7 +732,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_MAIL_LIST))
 		{
@@ -693,15 +744,26 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ROLE);
 			tasca.setRole(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_USER))
 		{
 			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
 			tasca.setUser(object1);
-			tasca.setSystemName(dispatcher);
+			tasca.setDatabase(dispatcher);
 		}
-		
+		else if (type.equals(SoffidObjectType.OBJECT_GROUP))
+		{
+			tasca.setTransaction(TaskHandler.UPDATE_GROUP);
+			tasca.setGroup(object1);
+		}
+		else if (type.equals(SoffidObjectType.OBJECT_CUSTOM))
+		{
+			tasca.setTransaction(TaskHandler.UPDATE_OBJECT);
+			tasca.setCustomObjectName(object2);
+			tasca.setCustomObjectType(object1);
+		}
+
 		return th;
 	}
 
@@ -712,12 +774,13 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			for ( TaskHandlerLog log: th.getLogs())
 			{
-				if (!log.isComplete())
+				if (log != null && !log.isComplete())
 				{
 					log.setNext(java.lang.System.currentTimeMillis());
 				}
 			}
 			th.getTask().setTaskDate(Calendar.getInstance());
+			getTaskQueue().pushTaskToPersist(th);
 			
 		}
 	}
@@ -731,18 +794,17 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	protected void handleStartScheduledTask(ScheduledTask t) throws Exception {
     	TaskScheduler ts = TaskScheduler.getScheduler();
     	
-       	for (ScheduledTask task: ts.getTasks())
-       	{
-       		if (task.getId().equals(t.getId()) &&
-       				task.getTenant().equals(Security.getCurrentTenantName()))
-       		{
-       			ts.runNow(task, null, false);
-        	}
-        }
+    	ScheduledTask task = ts.findTask(t.getId());
+    	if (task != null)
+    	{
+    		if (task.isActive())
+    			throw new InternalErrorException ("This task is aleady running");
+   			ts.runNow(task, null, false);
+    	}
 	}
 
 	@Override
-	protected Map<String, Object> handleGetNativeObject(String systemName, SoffidObjectType type, String object1,
+	protected GetObjectResults handleGetNativeObject(String systemName, SoffidObjectType type, String object1,
 			String object2) throws Exception {
 
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(systemName);
@@ -753,21 +815,67 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	}
 
 	@Override
-	protected Map<String, Object> handleGetSoffidObject(String systemName, SoffidObjectType type, String object1,
+	protected GetObjectResults handleGetSoffidObject(String systemName, SoffidObjectType type, String object1,
 			String object2) throws Exception {
 
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(systemName);
 		if (handler == null || !handler.isActive())
 			return null;
 
-		Map<String,Object> r = new HashMap<String, Object>();
-		
-		Map<String, Object> eo = handler.getSoffidObject(systemName, type, object1, object2);
-		for (String key: eo.keySet())
+		return handler.getSoffidObject(systemName, type, object1, object2);
+	}
+
+	public String[] handleTailServerLog(String server) throws Exception {
+        RemoteServiceLocator rsl = new RemoteServiceLocator(server);
+        AgentManager agentMgr = rsl.getAgentManager();
+        return agentMgr.tailServerLog();
+	}
+
+	@Override
+	protected GetObjectResults handleReconcile(String system, String accountName) throws Exception {
+		GetObjectResults r = new GetObjectResults();
+		r.setStatus("Error");
+		r.setObject(new HashMap<String, Object>());
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(system);
+		if (handler == null || !handler.isActive())
 		{
-			r.put(key, eo.get(key));
+			r.setLog("System is offline");
 		}
+		else
+		{
+			StringWriter w = new StringWriter();
+			PrintWriter out = new PrintWriter(w);
+			try {
+				handler.doReconcile(accountName, out, true);
+				out.flush();
+				r.setStatus("Success");
+				r.setLog(w.toString());
+			} catch (Exception e) {
+				out.flush();
+				r.setStatus("Error");
+				r.setLog(w.toString()+"\n"+
+						SoffidStackTrace.getStackTrace(e));
+			}
+		}
+		
 		return r;
+
+		
+	}
+
+	@Override
+	protected PasswordValidation handleCheckPasswordSynchronizationStatus(String accountName, String serverName) throws Exception {
+		DispatcherHandler d = getTaskGenerator().getDispatcher(serverName);
+		return d.checkPasswordSynchronizationStatus(accountName);
+	}
+
+	@Override
+	protected void handleSetAccountPassword(String accountName, String serverName, Password password, boolean mustChange) throws Exception {
+		AccountEntity account = getAccountEntityDao().findByNameAndSystem(accountName, serverName);
+		if ( account != null)
+		{
+			getInternalPasswordService().storeAndSynchronizeAccountPassword(account, password, mustChange, null);
+		}
 	}
 
 }

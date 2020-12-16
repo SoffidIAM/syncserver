@@ -29,7 +29,6 @@ import com.soffid.iam.service.SessionService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.challenge.ChallengeStore;
 import com.soffid.iam.sync.engine.kerberos.KerberosManager;
-import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonService;
 import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
@@ -139,7 +138,7 @@ public class PasswordLoginServlet extends HttpServlet {
 
             boolean canAdmin;
 
-            Host maquinaAcces = serverService.getHostInfoByIP(req.getRemoteAddr());
+            Host maquinaAcces = serverService.getHostInfoByIP(com.soffid.iam.utils.Security.getClientIp());
             canAdmin = serverService.hasSupportAccessHost(maquinaAcces.getId(), challenge.getUser().getId());
 
             return "OK|" + challenge.getChallengeId() + "|" + Long.toString(s.getId())
@@ -195,7 +194,7 @@ public class PasswordLoginServlet extends HttpServlet {
 
     private String doStartAction(HttpServletRequest req, HttpServletResponse resp) throws Exception {
         String s = doPreStartAction(req, resp);
-        if (s.equals("OK")) {
+    	if (s.equals("OK")) {
             String clientIP = req.getParameter("clientIP");
             String domain = req.getParameter("domain");
             if (domain.isEmpty())
@@ -203,7 +202,7 @@ public class PasswordLoginServlet extends HttpServlet {
             String user = req.getParameter("user");
 
             String cardSupport = req.getParameter("cardSupport");
-            String hostIP = req.getRemoteAddr();
+            String hostIP = com.soffid.iam.utils.Security.getClientIp();
             int iCardSupport = Challenge.CARD_IFNEEDED;
             try {
                 iCardSupport = Integer.decode(cardSupport);
@@ -240,8 +239,9 @@ public class PasswordLoginServlet extends HttpServlet {
 
         PasswordValidation result = logonService.validatePassword(user, domain, pass);
         if (result == PasswordValidation.PASSWORD_GOOD) {
-            if (! usuari.getActive().booleanValue() || !"I".equals(usuari.getUserType())) {
-                log.debug("login {}: not authorized", user, null);
+        	log.info("Prestart action GOOD {} {}", user, domain);
+            if (! usuari.getActive().booleanValue()) {
+                log.info("login {} is disabled: not authorized", user, null);
                 return "ERROR";
             }
         } else if (result == PasswordValidation.PASSWORD_GOOD_EXPIRED) {
@@ -262,49 +262,11 @@ public class PasswordLoginServlet extends HttpServlet {
 
         if (challenge == null)
             throw new InternalErrorException("Invalid token " + challengeId);
-        if (!challenge.getHost().getIp().equals(req.getRemoteHost())) {
-            log.warn("Ticket spoofing detected from {}", req.getRemoteHost(), null);
+        if (!challenge.getHost().getIp().equals(com.soffid.iam.utils.Security.getClientIp())) {
+            log.warn("Ticket spoofing detected from {}. Expected {}", com.soffid.iam.utils.Security.getClientIp(), challenge.getHost().getIp());
             throw new InternalErrorException("Invalid token " + challengeId);
         }
         return challenge;
     }
 
-    private String tryLogin(final Challenge challenge, final String token) throws Exception {
-        // Ahora intentar hacer login kerberos
-        final KerberosManager km = new KerberosManager();
-        log.info("Kerberos accept challenge {}\n{}", challenge.getChallengeId(), token);
-        Subject serverSubject = km.getServerSubject(challenge.getKerberosDomain());
-        Object result = Subject.doAs(serverSubject, new PrivilegedAction<Object>() {
-            public Object run() {
-                try {
-                    byte inToken[] = Base64.decode(token);
-                    byte outToken[] = challenge.getKerberosContext().acceptSecContext(inToken, 0,
-                            inToken.length);
-                    GSSContext ctx = challenge.getKerberosContext();
-
-                    String resultToken = "";
-                    if (outToken != null) {
-                        resultToken = Base64.encodeBytes(outToken, Base64.DONT_BREAK_LINES);
-                    }
-                    if (ctx.isEstablished()) {
-                        log.info("Login desde {} hacia {}", ctx.getSrcName().toString(), ctx
-                                .getTargName().toString());
-                        return "OK|" + challenge.getChallengeId() + "|" + resultToken + "|"
-                                + challenge.getCardNumber() + "|" + challenge.getCell();
-                    } else {
-                        return "MoreDataReq|" + challenge.getChallengeId() + "|" + resultToken;
-                    }
-                } catch (Exception e) {
-                    return e;
-                }
-            }
-        });
-
-        if (result instanceof Exception)
-            throw (Exception) result;
-        else {
-            log.info("Result is {}", result, null);
-            return (String) result;
-        }
-    }
 }

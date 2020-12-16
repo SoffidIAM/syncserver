@@ -7,8 +7,12 @@ import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 
-public class FileVersionManager {
+import org.mortbay.log.Log;
+import org.mortbay.log.Logger;
 
+public class FileVersionManager {
+    private Logger log = Log.getLogger("Bootstrap");
+	
     private static String FILE_SEPARATOR = File.separator;
     private static String BASE_DIRECTORY = null;
 
@@ -84,6 +88,7 @@ public class FileVersionManager {
         File dir = new File(BASE_DIRECTORY + FILE_SEPARATOR + "lib");
         String[] children = dir.list();
         File lastDateFile = null;
+//        log.info("Removinge old copies of {}", pattern, null);
         // Delete old jar files
         for (int i = 0; i < children.length; i++) {
             String filename = children[i];
@@ -100,9 +105,11 @@ public class FileVersionManager {
             lastDateFile = newFile;
         } else {
             if (newFile.lastModified() >= lastDateFile.lastModified()) {
+//            	log.info("Removing {}. Overriden by {}", lastDateFile, newFile);
                 deleteFile(lastDateFile);
                 lastDateFile = newFile;
             } else {
+//            	log.info("Removing {}. Overriden by {}", newFile, lastDateFile);
                 deleteFile(newFile);
             }
         }

@@ -1,9 +1,36 @@
 package com.soffid.iam.sync.service;
 
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
+import java.io.PrintWriter;
+import java.net.InetAddress;
+import java.net.URL;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.AttributeTranslation;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Network;
@@ -11,17 +38,20 @@ import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.PasswordPolicy;
 import com.soffid.iam.api.PasswordValidation;
+import com.soffid.iam.api.PolicyCheckResult;
 import com.soffid.iam.api.PrinterUser;
+import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.Server;
+import com.soffid.iam.api.SoffidObjectType;
+import com.soffid.iam.api.System;
 import com.soffid.iam.api.SystemAccessControl;
 import com.soffid.iam.api.Task;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
 import com.soffid.iam.api.sso.Secret;
-import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AccessControlEntity;
 import com.soffid.iam.model.AccessControlEntityDao;
 import com.soffid.iam.model.AccountEntity;
@@ -49,6 +79,7 @@ import com.soffid.iam.model.RoleEntity;
 import com.soffid.iam.model.RoleEntityDao;
 import com.soffid.iam.model.RoleGroupEntity;
 import com.soffid.iam.model.RoleGroupEntityDao;
+import com.soffid.iam.model.ServerEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.SystemEntityDao;
 import com.soffid.iam.model.UserAccountEntity;
@@ -63,17 +94,23 @@ import com.soffid.iam.model.UserGroupEntityDao;
 import com.soffid.iam.model.UserPrinterEntityDao;
 import com.soffid.iam.service.CertificateValidationService;
 import com.soffid.iam.service.DispatcherService;
-import com.soffid.iam.service.TenantService;
 import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.Plugin;
 import com.soffid.iam.sync.bootstrap.ConfigurationManager;
 import com.soffid.iam.sync.bootstrap.JarExtractor;
 import com.soffid.iam.sync.engine.DispatcherHandler;
+import com.soffid.iam.sync.engine.LogWriter;
 import com.soffid.iam.sync.engine.TaskHandler;
+import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
+import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
+import com.soffid.iam.sync.intf.AuthoritativeChange;
+import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
+import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.Invoker;
-import com.soffid.iam.sync.service.SecretStoreService;
-import com.soffid.iam.sync.service.ServerServiceBase;
 import com.soffid.iam.sync.service.server.Compile;
 import com.soffid.iam.sync.service.server.Compile2;
 import com.soffid.iam.sync.service.server.Compile3;
@@ -81,8 +118,9 @@ import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.ServerType;
+import es.caib.seycon.ng.comu.SoffidObjectTrigger;
+import es.caib.seycon.ng.exception.BadPasswordException;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.ServerRedirectException;
 import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownMailListException;
@@ -90,40 +128,9 @@ import es.caib.seycon.ng.exception.UnknownNetworkException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.InputStream;
-import java.io.Reader;
-import java.net.InetAddress;
-import java.net.URL;
-import java.security.cert.X509Certificate;
-import java.sql.Clob;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-
-import javax.servlet.http.HttpServletRequest;
-
-import org.mortbay.log.Log;
-import org.mortbay.log.Logger;
 
 public class ServerServiceImpl extends ServerServiceBase {
-	Logger log = Log.getLogger("ServerServiceImpl"); //$NON-NLS-1$
+	Log log = LogFactory.getLog(getClass()); //$NON-NLS-1$
 
 	@Override
 	protected User handleGetUserInfo(String user, String dispatcherId)
@@ -199,7 +206,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 		for (Iterator<UserGroupEntity> it = daoUserGroup.findByGroupName(
 				entity.getName()).iterator(); it.hasNext();) {
 			UserGroupEntity ugEntity = it.next();
-			if (!nomesUsersActius || "S".equals(ugEntity.getUser().getActive())) {
+			if (!nomesUsersActius || "S".equals(ugEntity.getUser().getActive()) && 
+					!Boolean.TRUE.equals(ugEntity.getDisabled())) {
 				if (dispatcher == null
 						|| getDispatcherService().isUserAllowed(dispatcher,
 								ugEntity.getUser().getUserName()))
@@ -219,10 +227,14 @@ public class ServerServiceImpl extends ServerServiceBase {
 		Date now = new Date();
 		for (RoleGrant rg : rgs) {
 			if ((rg.getStartDate() == null || now.after(rg.getStartDate()))
-					&& (rg.getEndDate() == null || now.before(rg.getEndDate()))) {
+					&& (rg.getEndDate() == null || now.before(rg.getEndDate())) &&
+					rg.getOwnerAccountName() != null) {
 				AccountEntity account = getAccountEntityDao()
 						.findByNameAndSystem(rg.getOwnerAccountName(),
 								rg.getOwnerSystem());
+				if (account == null)
+					throw new InternalErrorException(String.format("Error getting accounts for role %d at %s: Account %s at %s does not exist",
+							roleId, dispatcherId, rg.getOwnerAccountName(), rg.getOwnerSystem()));
 				if (account.getUsers().isEmpty())
 					acc.add(getAccountEntityDao().toAccount(account));
 				else
@@ -289,7 +301,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 			for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
 					.iterator(); it.hasNext();) {
 				UserGroupEntity uge = it.next();
-				if (!grups.containsKey(uge.getGroup().getName()))
+				if (!grups.containsKey(uge.getGroup().getName()) &&  ! Boolean.TRUE.equals(uge.getDisabled()))
 					grups.put(uge.getGroup().getName(), uge.getGroup());
 			}
 		} else {
@@ -313,7 +325,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 							.getSecondaryGroups().iterator(); it.hasNext();) {
 						UserGroupEntity uge = it.next();
 						if (getDispatcherService().isGroupAllowed(dispatcher,
-								uge.getGroup().getName()))
+								uge.getGroup().getName()) &&
+								! Boolean.TRUE.equals(uge.getDisabled()))
 							if (!grups.containsKey(uge.getGroup().getName()))
 								grups.put(uge.getGroup().getName(),
 										uge.getGroup());
@@ -412,13 +425,13 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 		UserEntity usuari = getUserEntityDao().load(userId);
 
-		UserDataEntity dataEntity = dao.findByDataType(usuari.getUserName(),
-				data);
-		if (dataEntity == null)
-			return null;
-		else
+		for (UserDataEntity dataEntity: dao.findByDataType(usuari.getUserName(),
+				data))
+		{
+			
 			return dao.toUserData(dataEntity);
-
+		}
+		return null;
 	}
 
 	@Override
@@ -441,10 +454,11 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 	@Override
 	protected Host handleGetHostInfoByIP(String ip) throws Exception {
-		HostEntity host = getHostEntityDao().findByIP(ip);
-		if (host == null)
-			throw new UnknownHostException(ip);
-		return getHostEntityDao().toHost(host);
+		for (HostEntity host: getHostEntityDao().findByIP(ip))
+		{
+			return getHostEntityDao().toHost(host);
+		}
+		throw new UnknownHostException(ip);
 	}
 
 	@Override
@@ -635,7 +649,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 			for (Iterator<UserEmailEntity> it = entity.getUserMailLists()
 					.iterator(); it.hasNext();) {
 				UserEmailEntity lcu = it.next();
-				members.add(getUserEntityDao().toUser(lcu.getUser()));
+				if (! Boolean.TRUE.equals(lcu.getDisabled()))
+					members.add(getUserEntityDao().toUser(lcu.getUser()));
 			}
 
 			for (Iterator<ExternEmailEntity> it = entity.getExternals()
@@ -806,6 +821,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 			throw new InternalErrorException(String.format(
 					"Uknown user %s/%s", user, dispatcher)); //$NON-NLS-1$
 
+		PolicyCheckResult ppc = getPasswordService().checkPolicy(user, dispatcher, p);
+		if ( ! ppc.isValid())
+			throw new BadPasswordException(ppc.getReason());
+
 		if (acc.getType().equals(AccountType.USER)) {
 			for (UserAccountEntity uae : acc.getUsers()) {
 				getInternalPasswordService().storeAndForwardPassword(
@@ -831,6 +850,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 		if (acc == null)
 			throw new InternalErrorException(String.format(
 					"Uknown user %s/%s", user, dispatcher)); //$NON-NLS-1$
+
+		PolicyCheckResult ppc = getPasswordService().checkPolicy(user, dispatcher, p);
+		if ( ! ppc.isValid())
+			throw new BadPasswordException(ppc.getReason());
 
 		if (acc.getType().equals(AccountType.USER)) {
 			for (UserAccountEntity uae : acc.getUsers()) {
@@ -1061,8 +1084,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 				.getEnableAccessControl())));
 		Collection<AccessControlEntity> acl = dispatcher.getAccessControls();
 		AccessControlEntityDao aclDao = getAccessControlEntityDao();
-		dispatcherInfo.getControlAcces()
-				.addAll(aclDao.toAccessControlList(acl));
+		dispatcherInfo.setControlAcces(aclDao.toAccessControlList(acl));
 
 		return dispatcherInfo;
 	}
@@ -1143,7 +1165,9 @@ public class ServerServiceImpl extends ServerServiceBase {
 		if (secret == null) {
 			AccountEntity acc = getAccountEntityDao().findByNameAndSystem(
 					account, dispatcherId);
-			if (acc.getType().equals(AccountType.USER)) {
+			if (acc == null)
+				secret = null;
+			else if (acc.getType().equals(AccountType.USER)) {
 				for (UserAccountEntity uae : acc.getUsers()) {
 					PasswordDomainEntity dce = acc.getSystem()
 							.getPasswordDomain();
@@ -1197,7 +1221,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 		AccountEntity accountEntity = getAccountEntityDao()
 				.findByNameAndSystem(account, dispatcherId);
 
-		return getApplicationService().findRoleGrantByAccount(
+		if (accountEntity == null)
+			return new LinkedList<RoleGrant>();
+		else
+			return getApplicationService().findRoleGrantByAccount(
 				accountEntity.getId());
 	}
 
@@ -1237,7 +1264,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 		for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
 				.iterator(); it.hasNext();) {
 			UserGroupEntity uge = it.next();
-			if (!grups.containsKey(uge.getGroup().getName()))
+			if (! Boolean.TRUE.equals(uge.getDisabled()) && !grups.containsKey(uge.getGroup().getName()))
 				grups.put(uge.getGroup().getName(), uge.getGroup());
 		}
 
@@ -1263,7 +1290,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 		for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
 				.iterator(); it.hasNext();) {
 			UserGroupEntity uge = it.next();
-			if (!grups.containsKey(uge.getGroup().getName()))
+			if (! Boolean.TRUE.equals(uge.getDisabled()) && !grups.containsKey(uge.getGroup().getName()))
 				grups.put(uge.getGroup().getName(), uge.getGroup());
 		}
 
@@ -1457,11 +1484,713 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Account handleGetAccountInfo(String accountName,
 			String dispatcherId) throws Exception {
-		return getAccountService().findAccount(accountName, dispatcherId);
+		Account acc = getAccountService().findAccount(accountName, dispatcherId);
+		if ( acc == null || acc.getStatus() == AccountStatus.REMOVED)
+			return null;
+		else
+			return acc;
 	}
 
 	@Override
 	protected CustomObject handleGetCustomObject(String type, String name) throws Exception {
 		return getCustomObjectService().findCustomObjectByTypeAndName(type, name);
+	}
+
+	@Override
+	protected Map<String, Object> handleGetUserAttributes(long userId) throws Exception {
+		User u = getUserService().findUserByUserId(userId);
+		if (u == null)
+			return new HashMap<String, Object>();
+		return getUserService().findUserAttributes(u.getUserName());
+	}
+
+	@Override
+	protected Collection<Map<String, Object>> handleInvoke(String agent, String verb, String command,
+			Map<String, Object> params) throws Exception {
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(agent);
+		if (handler == null)
+			throw new InternalErrorException("System "+agent+" is not available");
+		if (!handler.isActive())
+			throw new InternalErrorException("System "+agent+" is offline");
+		return handler.invoke(verb, command, params);
+		
+	}
+
+	@Override
+	protected Server handleFindRemoteServerByUrl(String url) throws Exception {
+		ServerEntity s = getServerEntityDao().findRemoteByUrl(url);
+		if (s == null)
+			return null;
+		else
+			return getServerEntityDao().toServer(s);
+	}
+
+	
+	Map<String,TriggerCache> triggerCache = new HashMap<String, TriggerCache>();
+	
+	@Override
+	protected void handleProcessAuthoritativeChange(AuthoritativeChange change, boolean remove) throws Exception {
+		String source = change.getSourceSystem();
+		TriggerCache cache = triggerCache.get(source);
+		if (cache == null || java.lang.System.currentTimeMillis() - cache.time > 60000) // 1 minute cache
+		{
+			cache = new TriggerCache();
+			cache.system = getDispatcherService().findDispatcherByName(source);
+			if (!cache.system.isAuthoritative())
+				throw new InternalErrorException("Agent "+change.getSourceSystem()+" is not an authorised identity source");
+			cache.triggers = getDispatcherService().findReconcileTriggersByDispatcher(cache.system.getId());
+			cache.time = java.lang.System.currentTimeMillis();
+			triggerCache.put(source, cache);
+		}
+
+		ObjectTranslator objectTranslator = new ObjectTranslator (cache.system);
+		ValueObjectMapper vom = new ValueObjectMapper();
+
+		if (change.getId() == null)
+			change.setId(new AuthoritativeChangeIdentifier());
+		if (change.getId().getDate() == null)
+			change.getId().setDate(new Date());
+		
+		if (change.getUser() != null)
+		{
+			if (remove)
+				processRemoveUserChange(change, source, objectTranslator, vom, cache);
+			else
+				processUserChange(change, source, objectTranslator, vom, cache);
+		}
+		else if (change.getGroup() != null)
+		{
+			if (remove)
+				processRemoveGroupChange(change, source, objectTranslator, vom, cache);
+			else
+				processGroupChange(change, source, objectTranslator, vom, cache);
+		}
+		else if (change.getObject() != null)
+		{
+			if (remove)
+				processRemoveObjectChange(change, source, objectTranslator, vom, cache);
+			else
+				processObjectChange(change, source, objectTranslator, vom, cache);
+		}
+	}
+
+	private boolean processUserChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
+			String source, ObjectTranslator objectTranslator,
+			ValueObjectMapper vom, TriggerCache cache) throws Exception {
+		boolean error = false;
+		try {
+			User previousUser = change.getUser() == null ||
+					change.getUser().getUserName() == null ? null :
+						getUserService().findUserByUserName(change.getUser().getUserName());
+			Map<String, Object> previousAtts = null;
+			boolean ok = true;
+			if (previousUser == null)
+			{
+				Collection<ReconcileTrigger> pi = cache.getTriggers(SoffidObjectType.OBJECT_USER, SoffidObjectTrigger.PRE_INSERT);
+				if (pi != null && ! pi.isEmpty())
+				{
+					UserExtensibleObject eo = buildExtensibleObject(change);
+					if (executeTriggers(pi, null, eo, objectTranslator))
+					{
+						change.setUser( vom.parseUser(eo));
+						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+					}
+					else
+					{
+						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-insert trigger");
+						ok = false;
+					}
+				}
+			} else {
+				previousAtts = getUserService().findUserAttributes(previousUser.getUserName());
+				Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_USER, SoffidObjectTrigger.PRE_UPDATE);
+				if (pu != null && ! pu.isEmpty())
+				{
+					UserExtensibleObject eo = buildExtensibleObject(change);
+					if (executeTriggers(pu,
+							new UserExtensibleObject(previousUser, previousAtts, this), 
+							eo, objectTranslator))
+					{
+						change.setUser( vom.parseUser(eo));
+						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+					}
+					else
+					{
+						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger");
+						ok = false;
+					}
+				}
+			}
+			if (ok)
+			{
+				if (getAuthoritativeChangeService()
+						.startAuthoritativeChange(change))
+				{
+					log.info(
+							"Applied authoritative change for  "+change.getUser().getUserName());
+					log.info(change.toString());
+				}
+				else
+				{
+					log.info("Prepared authoritative change for  "+change.getUser().getUserName());
+				}
+
+				if (previousUser == null)
+				{
+					Collection<ReconcileTrigger> pi = cache.getTriggers(SoffidObjectType.OBJECT_USER, SoffidObjectTrigger.POST_INSERT);
+					if (pi != null && ! pi.isEmpty())
+					{
+						UserExtensibleObject eo = buildExtensibleObject(change);
+						executeTriggers(pi, null, eo, objectTranslator);
+					}
+				} else {
+					Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_USER, SoffidObjectTrigger.POST_UPDATE);
+					if (pu != null && ! pu.isEmpty())
+					{
+						UserExtensibleObject eo = buildExtensibleObject(change);
+						executeTriggers(pu, 
+								new UserExtensibleObject(previousUser, previousAtts, this), 
+								eo, objectTranslator);
+					}
+				}
+			}
+		} catch ( Exception e) {
+			error = true;
+			log.info("Error uploading change "+(change == null || change.getId() == null ? "": change.getId().toString()), e);
+			if (change.getUser() != null)
+				log.info("User information: "+change.getUser().toString());
+			log.warn("Exception: "+e.toString(), e);
+			log.info("User information: "+change.getUser());
+			throw e;
+		}
+		return error;
+	}
+
+	private boolean processGroupChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
+			String source, 
+			ObjectTranslator objectTranslator, ValueObjectMapper vom, TriggerCache cache) throws Exception {
+		boolean error = false;
+		try {
+			Group previousGroup = change.getGroup() == null ||
+					change.getGroup().getName() == null ? null :
+						handleGetGroupInfo(change.getGroup().getName(), change.getSourceSystem());
+			boolean ok = true;
+			if (previousGroup == null)
+			{
+				Collection<ReconcileTrigger> pi = cache.getTriggers(SoffidObjectType.OBJECT_GROUP, SoffidObjectTrigger.PRE_INSERT);
+				if (pi != null && ! pi.isEmpty())
+				{
+					GroupExtensibleObject eo = new GroupExtensibleObject(change.getGroup(),
+							change.getSourceSystem(),
+							this);
+					if (executeTriggers(pi, null, eo, objectTranslator))
+					{
+						change.setGroup( vom.parseGroup(eo));
+					}
+					else
+					{
+						log.info("Change to group "+change.getGroup().getName()+" is rejected by pre-insert trigger");
+						ok = false;
+					}
+				}
+			} else {
+				Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_GROUP, SoffidObjectTrigger.PRE_UPDATE);
+				if (pu != null && ! pu.isEmpty())
+				{
+					GroupExtensibleObject eo = new GroupExtensibleObject(change.getGroup(),
+							change.getSourceSystem(),
+							this);
+					if (executeTriggers(pu, 
+							new GroupExtensibleObject(previousGroup, change.getSourceSystem(), this), 
+							eo, objectTranslator))
+					{
+						change.setGroup(vom.parseGroup(eo));
+					}
+					else
+					{
+						log.info("Change to group "+change.getGroup().getName()+" is rejected by pre-update trigger");
+						ok = false;
+					}
+				}
+			}
+			if (ok)
+			{
+				if (getAuthoritativeChangeService()
+						.startAuthoritativeChange(change))
+				{
+					log.info(
+							"Applied authoritative change for  "+change.getGroup().getName());
+				}
+				else
+				{
+					log.info("Prepared authoritative change for  "+change.getGroup().getName());
+				}
+
+				if (previousGroup == null)
+				{
+					Collection<ReconcileTrigger> pi = cache.getTriggers(SoffidObjectType.OBJECT_GROUP, SoffidObjectTrigger.POST_INSERT);
+					if (pi != null && ! pi.isEmpty())
+					{
+						GroupExtensibleObject eo = new GroupExtensibleObject(change.getGroup(),
+								change.getSourceSystem(),
+								this);
+						executeTriggers(pi, null, eo, objectTranslator);
+					}
+				} else {
+					Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_GROUP, SoffidObjectTrigger.POST_UPDATE);
+					if (pu != null && ! pu.isEmpty())
+					{
+						GroupExtensibleObject eo = new GroupExtensibleObject(change.getGroup(),
+								change.getSourceSystem(),
+								this);
+						GroupExtensibleObject old = new GroupExtensibleObject(previousGroup,
+								change.getSourceSystem(),
+								this);
+						executeTriggers(pu, 
+								old, 
+								eo, objectTranslator);
+					}
+				}
+			}
+		} catch ( Exception e) {
+			error = true;
+			log.info("Error uploading change "+change.getId().toString(), e);
+			log.info("Group information: "+change.getGroup().toString());
+			log.warn("Exception: ", e);
+			throw e;
+		}
+		return error;
+	}
+
+	private boolean processObjectChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
+			String source, 
+			ObjectTranslator objectTranslator, ValueObjectMapper vom,
+			TriggerCache cache) throws Exception {
+		boolean error = false;
+		try {
+
+			CustomObject previousObject = change.getObject() == null ||
+					change.getObject().getName() == null ? null :
+						getCustomObjectService().findCustomObjectByTypeAndName(change.getObject().getType(),
+								change.getObject().getName());
+			boolean ok = true;
+			if (previousObject == null)
+			{
+				Collection<ReconcileTrigger> pi = cache.getTriggers(SoffidObjectType.OBJECT_CUSTOM, SoffidObjectTrigger.PRE_INSERT);
+				if (pi != null && ! pi.isEmpty())
+				{
+					CustomExtensibleObject eo = new CustomExtensibleObject(change.getObject(),
+							this);
+					if (executeTriggers(pi, null, eo, objectTranslator))
+					{
+						change.setGroup( vom.parseGroup(eo));
+					}
+					else
+					{
+						log.info("Change to object "+change.getObject().getType()+" "+
+								change.getObject().getName()+" is rejected by pre-insert trigger");
+						ok = false;
+					}
+				}
+			} else {
+				Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_CUSTOM, SoffidObjectTrigger.PRE_UPDATE);
+				if (pu != null && ! pu.isEmpty())
+				{
+					CustomExtensibleObject eo = new CustomExtensibleObject(change.getObject(),
+							this);
+					if (executeTriggers(pu, 
+							new CustomExtensibleObject(previousObject, this),
+							eo, objectTranslator))
+					{
+						change.setObject( vom.parseCustomObject (eo));
+					}
+					else
+					{
+						log.info("Change to object "+change.getObject().getType()+" "+
+								change.getObject().getName()+" is rejected by pre-update trigger");
+						ok = false;
+					}
+				}
+			}
+			if (ok)
+			{
+				if (getAuthoritativeChangeService()
+						.startAuthoritativeChange(change))
+				{
+					log.info(
+							"Applied authoritative change for  object "+change.getObject().getType()+" "+
+								change.getObject().getName());
+				}
+				else
+				{
+					log.info("Prepared authoritative change for object "+change.getObject().getType()+" "+
+								change.getObject().getName());
+				}
+
+				if (previousObject == null)
+				{
+					Collection<ReconcileTrigger> pi = cache.getTriggers(SoffidObjectType.OBJECT_CUSTOM, SoffidObjectTrigger.POST_INSERT);
+					if (pi != null && ! pi.isEmpty())
+					{
+						CustomExtensibleObject eo = new CustomExtensibleObject(change.getObject(),
+								this);
+						executeTriggers(pi, null, eo, objectTranslator);
+					}
+				} else {
+					Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_CUSTOM, SoffidObjectTrigger.POST_UPDATE);
+					if (pu != null && ! pu.isEmpty())
+					{
+						CustomExtensibleObject eo = new CustomExtensibleObject(change.getObject(),
+								this);
+						CustomExtensibleObject old = new CustomExtensibleObject(previousObject,
+								this);
+						executeTriggers(pu, 
+								old, 
+								eo, objectTranslator);
+					}
+				}
+			}
+		} catch ( Exception e) {
+			error = true;
+			if (change.getId() == null)
+				log.info("Error uploading change ", e);
+			else
+				log.info("Error uploading change "+ change.getId().toString(), e);
+			log.info("Group information: "+change.getObject().toString());
+			log.warn("Exception: ",e);
+			throw e;
+		}
+		return error;
+	}
+
+	private boolean processRemoveUserChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
+			String source, ObjectTranslator objectTranslator,
+			ValueObjectMapper vom, TriggerCache cache) throws Exception {
+		boolean error = false;
+		try {
+			User previousUser = change.getUser() == null ||
+					change.getUser().getUserName() == null ? null :
+						getUserService().findUserByUserName(change.getUser().getUserName());
+			Map<String, Object> previousAtts = null;
+			boolean ok = true;
+			if (previousUser != null)
+			{
+				change.getUser().setActive(false);
+				previousAtts = getUserService().findUserAttributes(previousUser.getUserName());
+				Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_USER, SoffidObjectTrigger.PRE_DELETE);
+				if (pu != null && ! pu.isEmpty())
+				{
+					UserExtensibleObject eo = buildExtensibleObject(change);
+					if (executeTriggers(pu,
+							new UserExtensibleObject(previousUser, previousAtts, this), 
+							eo, objectTranslator))
+					{
+						change.setUser( vom.parseUser(eo));
+						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+					}
+					else
+					{
+						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-delete trigger");
+						ok = false;
+					}
+				}
+				if (ok)
+				{
+					if (getAuthoritativeChangeService()
+							.startAuthoritativeChange(change))
+					{
+						log.info(
+								"Applied authoritative change for  "+change.getUser().getUserName());
+						log.info(change.toString());
+					}
+					else
+					{
+						log.info("Prepared authoritative change for  "+change.getUser().getUserName());
+					}
+					
+					Collection<ReconcileTrigger> pd = cache.getTriggers(SoffidObjectType.OBJECT_USER, SoffidObjectTrigger.POST_DELETE);
+					if (pd != null && ! pd.isEmpty())
+					{
+						UserExtensibleObject eo = buildExtensibleObject(change);
+						executeTriggers(pd, 
+								new UserExtensibleObject(previousUser, previousAtts, this), 
+								eo, objectTranslator);
+					}
+				}
+			}
+		} catch ( Exception e) {
+			error = true;
+			log.info("Error uploading change "+(change == null || change.getId() == null ? "": change.getId().toString()), e);
+			if (change.getUser() != null)
+				log.info("User information: "+change.getUser().toString());
+			log.warn("Exception: "+e.toString(), e);
+			log.info("User information: "+change.getUser());
+			throw e;
+		}
+		return error;
+	}
+
+	private boolean processRemoveGroupChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
+			String source, 
+			ObjectTranslator objectTranslator, ValueObjectMapper vom, TriggerCache cache) throws Exception {
+		boolean error = false;
+		try {
+			Group previousGroup = change.getGroup() == null ||
+					change.getGroup().getName() == null ? null :
+						handleGetGroupInfo(change.getGroup().getName(), change.getSourceSystem());
+			boolean ok = true;
+			change.getGroup().setObsolete(true);
+			if (previousGroup != null)
+			{
+				Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_GROUP, SoffidObjectTrigger.PRE_DELETE);
+				if (pu != null && ! pu.isEmpty())
+				{
+					GroupExtensibleObject eo = new GroupExtensibleObject(change.getGroup(),
+							change.getSourceSystem(),
+							this);
+					if (executeTriggers(pu, 
+							new GroupExtensibleObject(previousGroup, change.getSourceSystem(), this), 
+							eo, objectTranslator))
+					{
+						change.setGroup(vom.parseGroup(eo));
+					}
+					else
+					{
+						log.info("Change to group "+change.getGroup().getName()+" is rejected by pre-delete trigger");
+						ok = false;
+					}
+				}
+				if (ok)
+				{
+					if (getAuthoritativeChangeService()
+							.startAuthoritativeChange(change))
+					{
+						log.info(
+								"Applied authoritative change for  "+change.getGroup().getName());
+					}
+					else
+					{
+						log.info("Prepared authoritative change for  "+change.getGroup().getName());
+					}
+					
+					Collection<ReconcileTrigger> pu2 = cache.getTriggers(SoffidObjectType.OBJECT_GROUP, SoffidObjectTrigger.POST_DELETE);
+					if (pu2 != null && ! pu2.isEmpty())
+					{
+						GroupExtensibleObject eo = new GroupExtensibleObject(change.getGroup(),
+								change.getSourceSystem(),
+								this);
+						GroupExtensibleObject old = new GroupExtensibleObject(previousGroup,
+								change.getSourceSystem(),
+								this);
+						executeTriggers(pu2, 
+								old, 
+								eo, objectTranslator);
+					}
+				}
+			}
+		} catch ( Exception e) {
+			error = true;
+			log.info("Error uploading change "+change.getId().toString(), e);
+			log.info("Group information: "+change.getGroup().toString());
+			log.warn("Exception: ", e);
+			throw e;
+		}
+		return error;
+	}
+
+	private boolean processRemoveObjectChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
+			String source, 
+			ObjectTranslator objectTranslator, ValueObjectMapper vom,
+			TriggerCache cache) throws Exception {
+		boolean error = false;
+		try {
+
+			CustomObject previousObject = change.getObject() == null ||
+					change.getObject().getName() == null ? null :
+						getCustomObjectService().findCustomObjectByTypeAndName(change.getObject().getType(),
+								change.getObject().getName());
+			boolean ok = true;
+			if (previousObject != null)
+			{
+				Collection<ReconcileTrigger> pu = cache.getTriggers(SoffidObjectType.OBJECT_CUSTOM, SoffidObjectTrigger.PRE_DELETE);
+				if (pu != null && ! pu.isEmpty())
+				{
+					CustomExtensibleObject eo = new CustomExtensibleObject(change.getObject(),
+							this);
+					if (executeTriggers(pu, 
+							new CustomExtensibleObject(previousObject, this),
+							eo, objectTranslator))
+					{
+						change.setObject( vom.parseCustomObject (eo));
+					}
+					else
+					{
+						log.info("Change to object "+change.getObject().getType()+" "+
+								change.getObject().getName()+" is rejected by pre-delete trigger");
+						ok = false;
+					}
+				}
+				if (ok)
+				{
+					getCustomObjectService().deleteCustomObject(previousObject);
+					log.info(
+							"Applied authoritative change for  object "+change.getObject().getType()+" "+
+									change.getObject().getName());
+					
+					Collection<ReconcileTrigger> pu2 = cache.getTriggers(SoffidObjectType.OBJECT_CUSTOM, SoffidObjectTrigger.POST_DELETE);
+					if (pu2 != null && ! pu2.isEmpty())
+					{
+						CustomExtensibleObject eo = new CustomExtensibleObject(change.getObject(),
+								this);
+						CustomExtensibleObject old = new CustomExtensibleObject(previousObject,
+								this);
+						executeTriggers(pu2, 
+								old, 
+								eo, objectTranslator);
+					}
+				}
+			}
+		} catch ( Exception e) {
+			error = true;
+			if (change.getId() == null)
+				log.info("Error uploading change ", e);
+			else
+				log.info("Error uploading change "+ change.getId().toString(), e);
+			log.info("Group information: "+change.getObject().toString());
+			log.warn("Exception: ",e);
+			throw e;
+		}
+		return error;
+	}
+
+	private UserExtensibleObject buildExtensibleObject(
+			AuthoritativeChange change) throws InternalErrorException {
+		UserExtensibleObject eo = new UserExtensibleObject(change.getUser(), change.getAttributes(), this);
+		List<ExtensibleObject> l = new LinkedList<ExtensibleObject>();
+		if (change.getGroups() != null)
+		{
+			for (String s: change.getGroups())
+			{
+				Group g = null;
+				
+				try {
+					g = getGroupInfo(s, change.getSourceSystem());
+				} catch (UnknownGroupException e) {
+				}
+				
+				if (g == null)
+				{
+					ExtensibleObject eo2 = new ExtensibleObject();
+					eo2.setAttribute("name", s);
+					l.add(eo2);
+				}
+				else
+				{
+					l.add( new GroupExtensibleObject(g, change.getSourceSystem(), this));
+				}
+			}
+		}
+		eo.setAttribute("secondaryGroups", l);
+		return eo;
+	}
+
+	private boolean executeTriggers (Collection<ReconcileTrigger> triggerList, ExtensibleObject old, ExtensibleObject newObject, ObjectTranslator objectTranslator) throws InternalErrorException
+	{
+		if (triggerList == null )
+			return true;
+		
+		ExtensibleObject eo = new ExtensibleObject ();
+		eo.setAttribute("oldObject", old);
+		eo.setAttribute("newObject", newObject);
+		boolean ok = true;
+		for (ReconcileTrigger t: triggerList)
+		{
+			if (! objectTranslator.evalExpression(eo, t.getScript()))
+				ok = false;
+		}
+		
+		return ok;
+	}
+
+	@Override
+	protected Account handleParseKerberosToken(String domain, String serviceName, byte keytab[], byte token[]) throws Exception {
+		for ( DispatcherHandler dispatcherHandler: getTaskGenerator().getDispatchers())
+		{
+			try {
+				String account = dispatcherHandler.parseKerberosToken (domain, serviceName, keytab, token);
+				if (account != null)
+				{
+					return handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
+				}
+			} catch (Exception e) {
+				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName());
+			}
+		}
+		return null;
+	}
+
+	@Override
+	protected void handleReconcileAccount(String system, String account) throws Exception {
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(system);
+		if (handler == null || !handler.isActive())
+			return;
+
+		handler.doReconcile(account, new PrintWriter(new LogWriter()), false);		
+		
+	}
+
+	@Override
+	protected Collection<GroupUser> handleGetUserMemberships(String accountName, String dispatcherId) throws Exception {
+		UserEntityDao dao = getUserEntityDao();
+		GroupEntityDao grupDao = getGroupEntityDao();
+		Collection<GroupUser> r = new LinkedList<GroupUser>();
+
+		if (dispatcherId == null) {
+			UserEntity user = dao.findByUserName(accountName);
+			for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
+					.iterator(); it.hasNext();) {
+				UserGroupEntity uge = it.next();
+				r.add( getUserGroupEntityDao().toGroupUser(uge));
+			}
+		} else {
+			AccountEntity account = getAccountEntityDao().findByNameAndSystem(
+					accountName, dispatcherId);
+			if (account == null)
+				throw new UnknownUserException(accountName + "/" + dispatcherId); //$NON-NLS-1$
+
+			if (account.getType().equals(AccountType.USER)) {
+				com.soffid.iam.api.System dispatcher = getSystem(dispatcherId);
+				for (UserAccountEntity ua : account.getUsers()) {
+					UserEntity user = ua.getUser();
+					for (Iterator<UserGroupEntity> it = user.getSecondaryGroups()
+							.iterator(); it.hasNext();) {
+						UserGroupEntity uge = it.next();
+						if (getDispatcherService().isGroupAllowed(dispatcher,
+								uge.getGroup().getName())) {
+							r.add( getUserGroupEntityDao().toGroupUser(uge));
+						}
+					}
+				}
+			}
+		}
+		return r;
+	}
+}
+
+class TriggerCache {
+	long time;
+	System system;
+	Collection<ReconcileTrigger> triggers;
+	Collection<ReconcileTrigger> getTriggers ( SoffidObjectType objectType, SoffidObjectTrigger trigger)
+	{
+		LinkedList<ReconcileTrigger> l = new LinkedList<ReconcileTrigger>();
+		
+		for ( ReconcileTrigger t: triggers)
+		{
+			if (t.getObjectType().equals(objectType) && t.getTrigger().equals(trigger))
+				l.add(t);
+		}
+		
+		return l;
 	}
 }

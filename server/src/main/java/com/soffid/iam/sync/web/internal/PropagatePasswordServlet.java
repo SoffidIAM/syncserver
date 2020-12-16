@@ -12,24 +12,32 @@ import javax.servlet.http.HttpServletResponse;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PolicyCheckResult;
+import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.PasswordService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonService;
+import com.soffid.iam.sync.service.Messages;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.UnknownUserException;
 
 public class PropagatePasswordServlet extends HttpServlet {
     
     Logger log = Log.getLogger("PropagatePasswordServlet");
     private LogonService logonService;
 	private PasswordService passwordService;
+	private AccountService accountService;
     
     public PropagatePasswordServlet () {
-        logonService = ServerServiceLocator.instance().getLogonService();
-        passwordService = ServerServiceLocator.instance().getPasswordService();
+        logonService = ServiceLocator.instance().getLogonService();
+        accountService = ServiceLocator.instance().getAccountService();
+        passwordService = ServiceLocator.instance().getPasswordService();
     }
     
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
@@ -41,33 +49,47 @@ public class PropagatePasswordServlet extends HttpServlet {
             
             resp.setContentType("text/plain; charset=UTF-8");
             if (testOnly)
-            	log.info("CheckPasswordPolicy: user={} domain={} source="+req.getRemoteHost()+"("+req.getRemoteAddr()+")", user, domain);
+            	log.info("CheckPasswordPolicy: user={} domain={} source="+req.getRemoteHost()+"("+com.soffid.iam.utils.Security.getClientIp()+")", user, domain);
             else
-            	log.info("PropagatePassword: user={} domain={} source="+req.getRemoteHost()+"("+req.getRemoteAddr()+")", user, domain);
+            	log.info("PropagatePassword: user={} domain={} source="+req.getRemoteHost()+"("+com.soffid.iam.utils.Security.getClientIp()+")", user, domain);
             BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
             try {
-            	if (testOnly)
-            	{
-            		// When modifying a.d. passwod, a.d. will ask for password correctnes, but this password
-            		// does not apply to password policy as it is the current password
-            		if ( passwordService.checkPassword(user, domain, new Password(pass), false, true) )
-            			writer.write ("OK");
-            		// 
-            		else
-            		{
-	            		PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
-	            		if (r == null)
-	            			writer.write("IGNORE");
-	            		else if (r.isValid())
+            	if (domain == null) {
+            		log.info("Ignoring request without domain name for account {}", user, null);
+            	} else {
+	        		Account acc = accountService.findAccount(user, domain);
+	        		if (acc == null) {
+	    	       		String prefix = ConfigurationCache.getProperty("soffid.propagatepassword.prefix");
+	    	       		if (prefix != null)
+	    	       			user = prefix + user;
+		        		acc = accountService.findAccount(user, domain);
+	        		}
+	            	if (testOnly)
+	            	{
+	            		// When modifying a.d. passwod, a.d. will ask for password correctnes, but this password
+	            		// does not apply to password policy as it is the current password
+	            		if ( passwordService.checkPassword(user, domain, new Password(pass), false, true) )
 	            			writer.write ("OK");
+	            		// 
 	            		else
-	            			writer.write ("ERROR|"+r.getReason());
-            		}
-            	}
-            	else
-            	{
-            		logonService.propagatePassword(user, domain, pass);
-            		writer.write("ok");
+	            		{
+		            		PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
+		            		if (r == null)
+		            			writer.write("IGNORE");
+		            		else if (r.isValid())
+		            			writer.write ("OK");
+		            		else
+		            			writer.write ("ERROR|"+r.getReason());
+	            		}
+	            	}
+	            	else if (acc == null) {
+	            		log.info("Ignoring request for unknown account {} at {}", user, domain);
+	            	}
+	            	else
+	            	{
+	            		logonService.propagatePassword(user, domain, pass);
+	            		writer.write("ok");
+	            	}
             	}
             } catch (InternalErrorException e) {
                 resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);

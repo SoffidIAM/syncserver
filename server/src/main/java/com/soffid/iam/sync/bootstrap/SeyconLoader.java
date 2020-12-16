@@ -1,7 +1,6 @@
 // Copyright (c) 2000 Govern  de les Illes Balears
 package com.soffid.iam.sync.bootstrap;
 
-import java.io.EOFException;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
@@ -10,28 +9,17 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.sql.SQLException;
-import java.text.DateFormat;
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.GregorianCalendar;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Vector;
-import java.util.jar.Attributes;
 import java.util.jar.JarFile;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipFile;
 
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
@@ -39,7 +27,6 @@ import org.mortbay.log.Logger;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.ssl.ConnectionFactory;
-import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.jetty.DupOutputStream;
 import com.soffid.iam.sync.jetty.SeyconLog;
 import com.soffid.iam.sync.service.ServerService;
@@ -105,7 +92,7 @@ public class SeyconLoader extends Object {
 
         Config config = Config.getConfig();
         String role = config.getRole();
-        if (! "server".equals (role) && ! "agent".equals (role))
+        if (! "server".equals (role) && ! "agent".equals (role) && !"gateway".equals(role) && !"remote".equals(role))
         {
         	log.warn("Sync server is not configured.", null, null);
             do
@@ -120,10 +107,8 @@ public class SeyconLoader extends Object {
 				}
             	config.reload();
             	role = config.getRole();
-            } while (! "server".equals (role) && ! "agent".equals (role));
+            } while (! "server".equals (role) && ! "agent".equals (role) && !"gateway".equals(role) && !"remote".equals(role));
         }
-//        ServerService ss = ServerServiceLocator.instance().getServerService();
-//        config.setServerService(ss);
         
         modulesDir = new File(new File(BASE_DIRECTORY), "addons");
         modulesDir.mkdirs();
@@ -140,9 +125,8 @@ public class SeyconLoader extends Object {
                 je.extractModules(modulesDir);
                 generateJAR();
             } else {
-                String sourceURL = "https://"
-                        + config.getSeyconServerHostList()[0] + ":"
-                        + config.getPort() + "/downloadLibrary";
+            	String host = config.getServerList().split("[, ]+")[0];
+                String sourceURL = host + "downloadLibrary";
                 downloadJAR(sourceURL);
             }
         } catch (Exception e) {
@@ -182,6 +166,7 @@ public class SeyconLoader extends Object {
             generateEngineFile();
             downloadDependencies("syncserver");
             fvm.deleteAllCopies("seycon-library");
+            generateStandardJar("iam-tomee");
             generateStandardJar("iam-core");
             downloadDependencies("iam-core");
         }
@@ -275,8 +260,8 @@ public class SeyconLoader extends Object {
             } else {
                 out.close();
                 tmpFile.renameTo(targetFile);
-                fvm.deleteOldCopies(jarName);
                 log.info("Generated {}", fileName, null);
+                fvm.deleteOldCopies(jarName);
             }
         } catch (Exception e) {
             if (out != null)
@@ -347,7 +332,7 @@ public class SeyconLoader extends Object {
         }
     }
 
-    private void downloadFile(String sourceURL, String fileName)
+    public static void downloadFile(String sourceURL, String fileName)
             throws Exception, IOException {
         InputStream in = null;
         OutputStream out = null;
@@ -363,7 +348,10 @@ public class SeyconLoader extends Object {
                 throw e;
             }
             in = connection.getInputStream();
-            out = new FileOutputStream(fileName);
+            File f = new File(fileName);
+            boolean replacing = f.exists();
+            
+            out = new FileOutputStream(replacing? fileName+".new.jar": fileName);
             byte buffer[] = new byte[1024];
             int size = in.read(buffer);
             while (size >= 0) {
@@ -374,6 +362,17 @@ public class SeyconLoader extends Object {
             out.close();
             in.close();
             connection.disconnect();
+            if (replacing)
+            {
+            	FileInputStream in2 = new FileInputStream(fileName+".new.jar");
+            	FileOutputStream out2 = new FileOutputStream(fileName);
+            	int read;
+            	while ( (read = in2.read()) >= 0)
+            		out2.write(read);
+            	in2.close();
+            	out2.close();
+            	f.delete();
+            }
         } catch (Exception e) {
             throw e;
         } finally {
@@ -478,7 +477,7 @@ public class SeyconLoader extends Object {
             javaopts = javaopts.replaceAll("%d",
                     Long.toString(System.currentTimeMillis()));
 
-            String opts[] = javaopts.split(" +");
+            String opts[] = javaopts.trim().split(" +");
             String execArguments[] = new String[4 + opts.length + args.length];
             execArguments[0] = jreExec;
             int argument = 1;
@@ -604,11 +603,13 @@ public class SeyconLoader extends Object {
         s.append(c.get(Calendar.MONTH) + 1); // Els mesos comencen en 0 (ups...)
         s.append("-");
         s.append(c.get(Calendar.DAY_OF_MONTH));
+        
+        String l = Config.getConfig().getCustomProperty("log");
+        File logFile = l == null ? Config.getConfig().getLogFile(): new File(l);
         if (output == null) {
             logDate = s.toString();
             try {
-                OutputStream out = new FileOutputStream(Config.getConfig()
-                        .getLogFile(), true);
+                OutputStream out = new FileOutputStream(logFile, true);
                 output = new DupOutputStream(out, System.out);
             } catch (IOException e) {
                 log.warn("Imposible almacenar logs en {}: {}", Config
@@ -617,20 +618,18 @@ public class SeyconLoader extends Object {
             }
         } else if (logDate != null && !logDate.equals(s.toString())) {
             output.close();
-            File dir = Config.getConfig().getLogDir();
-            File log = Config.getConfig().getLogFile();
-            log.renameTo(new File(dir, "syncserver.log-" + logDate));
+            File dir = logFile.getParentFile();
+            logFile.renameTo(new File(dir, "syncserver.log-" + logDate));
             // Borrar archivos antiguos de hace más de cinco días
-            long deleteBefore = System.currentTimeMillis() - 5 * 24 * 60 * 60
-                    * 1000;
+            long deleteBefore = System.currentTimeMillis() - 90L * 24L * 60L * 60L
+                    * 1000L;
             for (File f : dir.listFiles()) {
                 if (f.getName().startsWith("syncserver.log")
                         && f.lastModified() < deleteBefore)
                     f.delete();
             }
             logDate = s.toString();
-            OutputStream out = new FileOutputStream(Config.getConfig()
-                    .getLogFile(), true);
+            OutputStream out = new FileOutputStream(logFile, true);
             output = new DupOutputStream(out, System.out);
         }
         return output;

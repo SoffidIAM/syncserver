@@ -47,6 +47,16 @@ public class UserExtensibleObject extends ExtensibleObject
 		}
 	}
 
+	public UserExtensibleObject (User usuari, Map<String,Object> attributes, ServerService serverService)
+	{
+		super();
+		this.account = null;
+		this.usuari = usuari;
+		this.serverService = serverService;
+		setObjectType(SoffidObjectType.OBJECT_USER.getValue());
+		setAttribute("attributes", attributes);
+	}
+
 	@Override
 	public Object getAttribute (String attribute)
 	{
@@ -56,15 +66,17 @@ public class UserExtensibleObject extends ExtensibleObject
     		if (obj != null)
     			return obj;
     		
-    		if ("accountId".equals(attribute))
+    		if ("accountId".equals(attribute) && account != null)
     			obj = account.getId();
-    		else if ("accountName".equals(attribute))
+    		else if ("accountName".equals(attribute)  && account != null)
     			obj = account.getName();
-    		else if ("system".equals(attribute))
+    		else if ("oldAccountName".equals(attribute)  && account != null)
+    			obj = account.getOldName();
+    		else if ("system".equals(attribute) && account != null)
     			obj = account.getSystem();
-    		else if ("accountDescription".equals(attribute))
+    		else if ("accountDescription".equals(attribute) && account != null)
     			obj = account.getDescription();
-    		else if ("accountDisabled".equals(attribute))
+    		else if ("accountDisabled".equals(attribute) && account != null)
     			obj = account.isDisabled();
     		else if ("active".equals(attribute))
     			obj = usuari.getActive();
@@ -96,6 +108,8 @@ public class UserExtensibleObject extends ExtensibleObject
     			obj = usuari.getLastName();
     		else if ("lastName2".equals(attribute))
     			obj = usuari.getMiddleName();
+    		else if ("middleName".equals(attribute))
+    			obj = usuari.getMiddleName();
     		else if ("mailServer".equals(attribute))
     			obj = usuari.getMailServer();
     		else if ("homeServer".equals(attribute))
@@ -125,47 +139,45 @@ public class UserExtensibleObject extends ExtensibleObject
     		else if ("secondaryGroups".equals(attribute))
     		{
     			Collection<Group> groups;
-    			groups = serverService.getUserGroups(account.getName(), account.getSystem());
-    			List<GroupExtensibleObject> list = new LinkedList<GroupExtensibleObject>();
-    			for ( Group group: groups)
+    			if (account == null || account.getName() == null || account.getName().trim().isEmpty() ||
+    					account.getSystem() == null || account.getSystem().trim().isEmpty())
+    				obj = new LinkedList<Group>();
+    			else
     			{
-    				list.add(new GroupExtensibleObject(group, account.getSystem(), serverService));
+	    			groups = serverService.getUserGroups(account.getName(), account.getSystem());
+	    			List<GroupExtensibleObject> list = new LinkedList<GroupExtensibleObject>();
+	    			for ( Group group: groups)
+	    			{
+	    				list.add(new GroupExtensibleObject(group, account.getSystem(), serverService));
+	    			}
+	    			obj = list;
     			}
-    			obj = list;
     		} 
-    		else if ("accountAttributes".equals(attribute))
+    		else if ("accountAttributes".equals(attribute) && account != null)
     		{
-    			return account.getAttributes();
+    			obj = account.getAttributes();
     		}
     		else if ("userAttributes".equals(attribute))
     		{
-    			Collection<UserData> dades = serverService.getUserData(usuari.getId());
-    			Map<String, Object> dadesMap = new HashMap<String, Object>();
-    			for (UserData dada: dades)
-    			{
-    				if (dada.getDateValue() != null)
-        				dadesMap.put(dada.getAttribute(), dada.getDateValue().getTime());
-    				else
-    					dadesMap.put(dada.getAttribute(), dada.getValue());
-    			}
-    			obj = dadesMap;
+    			if (usuari.getId() == null)
+    				return new HashMap<String, Object>();
+    			Map<String, Object> dades = serverService.getUserAttributes(usuari.getId());
+    			if (dades == null) dades = new HashMap<String, Object>();
+    			obj = dades;
     		}
     		else if ("attributes".equals(attribute))
     		{
-    			Collection<UserData> dades = serverService.getUserData(usuari.getId());
+    			if (usuari.getId() == null)
+    				return new HashMap<String, Object>();
+    			Map<String, Object> dades = serverService.getUserAttributes(usuari.getId());
     			Map<String, Object> dadesMap = new HashMap<String, Object>();
-   				if (account.getAttributes() != null)
+   				if (account != null && account.getAttributes() != null)
     				dadesMap.putAll(account.getAttributes());
-    			for (UserData dada: dades)
-    			{
-    				if (dada.getDateValue() != null)
-        				dadesMap.put(dada.getAttribute(), dada.getDateValue().getTime());
-    				else
-    					dadesMap.put(dada.getAttribute(), dada.getValue());
-    			}
+   				if (dades != null)
+   					dadesMap.putAll(dades);
     			obj = dadesMap;
     		}
-    		else if ("grantedRoles".equals(attribute))
+    		else if ("grantedRoles".equals(attribute) && account != null)
     		{
     			Collection<RoleGrant> grants = serverService.getAccountExplicitRoles(account.getName(), account.getSystem());
     			List<GrantExtensibleObject> dadesList = new LinkedList<GrantExtensibleObject>();
@@ -175,7 +187,7 @@ public class UserExtensibleObject extends ExtensibleObject
     			}
     			obj = dadesList;
     		}
-    		else if ("allGrantedRoles".equals(attribute))
+    		else if ("allGrantedRoles".equals(attribute) && account != null)
     		{
     			Collection<RoleGrant> grants = serverService.getAccountRoles(account.getName(), account.getSystem());
     			List<GrantExtensibleObject> dadesList = new LinkedList<GrantExtensibleObject>();
@@ -185,7 +197,7 @@ public class UserExtensibleObject extends ExtensibleObject
     			}
     			obj = dadesList;
     		}
-    		else if ("granted".equals(attribute))
+    		else if ("granted".equals(attribute) && account != null)
     		{
     			Collection<RoleGrant> grants = serverService.getAccountExplicitRoles(account.getName(), account.getSystem());
     			List<String> dadesList = new LinkedList<String>();
@@ -199,7 +211,7 @@ public class UserExtensibleObject extends ExtensibleObject
     			}
     			obj = dadesList;
     		}
-    		else if ("allGranted".equals(attribute))
+    		else if ("allGranted".equals(attribute) && account != null)
     		{
     			Collection<RoleGrant> grants = serverService.getAccountRoles(account.getName(), account.getSystem());
     			List<String> dadesList = new LinkedList<String>();

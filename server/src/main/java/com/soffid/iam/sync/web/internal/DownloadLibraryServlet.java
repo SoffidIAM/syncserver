@@ -59,10 +59,12 @@ public class DownloadLibraryServlet extends HttpServlet {
         	}
         	else if (component == null || component.equals("seycon-base") ) 
         	{
-                if (mergeFile == null)
+                if (mergeFile == null || ! mergeFile.canRead())
                 {
                     mergeFile = merge();
                 }
+                long size = mergeFile.length();
+                response.setContentLength((int)size);
                 InputStream in = new FileInputStream(mergeFile);
                 byte b [] = new byte[4096];
                 int read;
@@ -103,12 +105,15 @@ public class DownloadLibraryServlet extends HttpServlet {
         File tmpFile2 = File.createTempFile("iam-sync", ".jar");
         File tmpFileMerge = File.createTempFile("seycon-library", ".jar");
 
+		log.info ("Generating seycon-library.jar stream", null, null);
+
         FileOutputStream stream = new FileOutputStream(tmpFileMerge);
         ZipOutputStream out = new ZipOutputStream(stream);
 
         JarExtractor je = new JarExtractor();
         if (je.generateJar("component.iam-common", new FileOutputStream (tmpFile1)))
         {
+			log.info ("Dumping iam-common content", null, null);
         	dump (out, tmpFile1);
         }
         else
@@ -119,6 +124,7 @@ public class DownloadLibraryServlet extends HttpServlet {
         }
         if (je.generateBaseJar(new FileOutputStream (tmpFile2)))
         {
+			log.info ("Dumping syncserver content", null, null);
         	dump (out, tmpFile2);
         }
         else
@@ -133,7 +139,13 @@ public class DownloadLibraryServlet extends HttpServlet {
         {
 	        for (File module: modulesDir.listFiles())
 	        {
-	        	dump (out, module);
+	        	try {
+	        		dump (out, module);
+	        	} 
+	        	catch (Exception e)
+	        	{
+	        		log.warn("Error uncompressing file " + module.getAbsolutePath(), e);
+	        	}
 	        }
         }
 
@@ -165,8 +177,11 @@ public class DownloadLibraryServlet extends HttpServlet {
         	} catch (ZipException e ) {
         		// Ignorem les entrades duplicades
         		if (!e.getMessage().startsWith("duplicate entry:"))
-        			throw e;        				
-        		log.warn("Detectada una duplicate entry al proces dump - s'ignora: {} ", entry.getName(), null);
+        		{
+					log.warn("ZIP error in "+inFile.getPath()+" file: "+entry.getName()+" "+e.toString(), null, null);
+				} else {
+					log.warn("Duplicate entry in {} file: {} ", inFile.getPath(), entry.getName());
+				}
 				entry = in.getNextEntry(); // ignorem aquesta entrada
         	}            
         }

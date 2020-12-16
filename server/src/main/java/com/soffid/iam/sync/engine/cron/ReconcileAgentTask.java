@@ -10,11 +10,9 @@ import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.service.TaskHandler;
 import com.soffid.iam.sync.engine.DispatcherHandler;
-import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGenerator;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.servei.InternalPasswordService;
 
 /**
  * @author bubu

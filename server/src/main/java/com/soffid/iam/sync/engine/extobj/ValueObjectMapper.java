@@ -11,12 +11,13 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Set;
 
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Domain;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.SoffidObjectType;
@@ -25,13 +26,11 @@ import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjects;
-import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.util.DateParser;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.TipusDomini;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.UnknownRoleException;
 
 /**
  * @author bubu
@@ -141,6 +140,35 @@ public class ValueObjectMapper
 	}
 	
 	
+	final static String [] USER_ATTRIBUTES = new String [] {
+			"active",
+			"mailAlias",
+			"userName",
+			"primaryGroup",
+			"comments",
+			"createdOn",
+			"modifiedOn",
+			"mailDomain",
+			"fullName",
+			"id",
+			"multiSession",
+			"firstName",
+			"shortName",
+			"lastName",
+			"lastName2",
+			"mailServer",
+			"homeServer",
+			"profileServer",
+			"phone",
+			"userType",
+			"createdBy",
+			"modifiedBy",
+			"attributes",
+			"secondaryGroups",
+			"changeId",
+			"changeDate",
+			"employeeId"
+	};
 	
 	public User parseUser (ExtensibleObject object) throws InternalErrorException
 	{
@@ -148,7 +176,7 @@ public class ValueObjectMapper
 		if (object.getObjectType().equals(SoffidObjectType.OBJECT_USER.getValue()))
 		{
 			usuari = new User();
-			for (String attribute: object.getAttributes())
+			for (String attribute: USER_ATTRIBUTES)
 			{
 				try 
 				{
@@ -214,15 +242,15 @@ public class ValueObjectMapper
 				id = new AuthoritativeChangeIdentifier();
 				change.setId(id);
 			}
-			for (String attribute: object.getAttributes())
+			for (String attribute: USER_ATTRIBUTES)
 			{
 				try {
 					Object value = object.getAttribute(attribute);
 					if ("active".equals(attribute)) usuari.setActive(toBoolean(toSingleton(value)));
 					else if ("mailAlias".equals(attribute)) usuari.setMailAlias(toSingleString (value));
 					else if ("userName".equals(attribute)) usuari.setUserName(toSingleString( value) );
-					else if ("primaryGroup".equals(attribute)) usuari.setComments(toSingleString( value));
-					else if ("comments".equals(attribute)) usuari.setPrimaryGroup(toSingleString(value));
+					else if ("primaryGroup".equals(attribute)) usuari.setPrimaryGroup(toSingleString( value));
+					else if ("comments".equals(attribute)) usuari.setComments(toSingleString(value));
 					else if ("createdOn".equals(attribute)) usuari.setCreatedDate(toCalendar(toSingleton(value)));
 					else if ("modifiedOn".equals(attribute)) usuari.setModifiedDate(toCalendar(toSingleton(value)));
 					else if ("mailDomain".equals(attribute)) usuari.setMailDomain(toSingleString(value));
@@ -248,7 +276,20 @@ public class ValueObjectMapper
 					else if ("accountName".equals(attribute)) ;
 					else if ("secondaryGroups". equals(attribute))
 					{
-						change.setGroups(new HashSet<String>((Collection<String>) value));
+						if (value != null)
+							change.setGroups(new HashSet<String>((Collection<String>) value));
+					}
+					else if ("secondaryGroups2". equals(attribute))
+					{
+						if (value != null) {
+							Collection<GroupUser> l = new LinkedList<GroupUser>();
+							for (Map<String,Object> eug: (Collection<Map<String,Object>>) value ) {
+								GroupUser ug = parseGroupUserFromMap(eug);
+								if (ug != null)
+									l.add(ug);
+							}
+							change.setGroups2(l);
+						}
 					}
 					else
 					{
@@ -281,8 +322,8 @@ public class ValueObjectMapper
 		}
 		if (object.getObjectType().equals(SoffidObjectType.OBJECT_GROUP.getValue()))
 		{
-			change.setObjectType(SoffidObjectType.OBJECT_GROUP);
 			change = new AuthoritativeChange ();
+			change.setObjectType(SoffidObjectType.OBJECT_GROUP);
 			change.setGroup(parseGroup(object));
 		}
 		if (object.getObjectType().equals(SoffidObjectType.OBJECT_CUSTOM.getValue()))
@@ -309,15 +350,29 @@ public class ValueObjectMapper
 				account.setType(AccountType.SHARED);
 			else
 				account.setType(AccountType.USER);
+			Object t = object.getAttribute("type");
+			if (t != null)
+			{
+				if (t instanceof AccountType)
+					account.setType((AccountType) t);
+				else
+					account.setType(AccountType.fromString(t.toString()));
+			}
 			account.setLastUpdated(toCalendar (object.getAttribute("lastUpdate")));
 			account.setLastLogin(toCalendar (object.getAttribute("lastLogin")));
 			account.setLastPasswordSet(toCalendar (object.getAttribute("lastPasswordUpdate")));
 			account.setPasswordExpiration(toCalendar (object.getAttribute("passwordExpiration")));
 			if (object.getAttribute("accountDisabled") != null &&
 					object.getAttribute("accountDisabled").toString().equals("true"))
+			{
 				account.setDisabled(true);
+				account.setStatus(AccountStatus.DISABLED);
+			}
 			else
+			{
 				account.setDisabled(false);
+				account.setStatus(AccountStatus.ACTIVE);
+			}
 			if (object.getAttribute("type") != null )
 			{
 				if (object.getAttribute("type") instanceof AccountType)
@@ -327,6 +382,18 @@ public class ValueObjectMapper
 			}
 			else
 				account.setType(AccountType.IGNORED);
+
+			account.setOwnerUsers(parseList(object, "ownerUsers"));
+			account.setOwnerGroups(parseList(object, "ownerGroups"));
+			account.setOwnerRoles(parseList(object, "ownerRoles"));
+			//account.setGrantedUsers(parseList(object, "grantedUsers"));
+			//account.setGrantedGroups(parseList(object, "grantedGroups"));
+			//account.setGrantedRoles(parseList(object, "grantedRoles"));
+			account.setManagerUsers(parseList(object, "managerUsers"));
+			account.setManagerGroups(parseList(object, "managerGroups"));
+			account.setManagerRoles(parseList(object, "managerRoles"));
+
+			account.setPasswordPolicy( toSingleString(object.getAttribute("passwordPolicy")));
 			Object map = object.getAttribute("accountAttributes");
 			if (map != null && map instanceof Map)
 			{
@@ -340,6 +407,13 @@ public class ValueObjectMapper
 		return account;
 	}
 
+	private Collection parseList(ExtensibleObject object, String tag) {
+		Object value = object.get(tag);
+		if (value != null && value instanceof Collection)
+			return (Collection) value;
+		else
+			return null;
+	}
 	public Group parseGroup (ExtensibleObject object) throws InternalErrorException
 	{
 		Group grup = null;
@@ -370,6 +444,30 @@ public class ValueObjectMapper
 		return grup;
 	}
 	
+	public GroupUser parseGroupUser (ExtensibleObject object) throws InternalErrorException
+	{
+		GroupUser grup = null;
+		if (object.getObjectType().equals("grantedGroup"))
+		{
+			grup = parseGroupUserFromMap(object);
+		}
+		return grup;
+	}
+
+	public GroupUser parseGroupUserFromMap (Map<String,Object> object)
+	{
+		GroupUser grup;
+		grup = new GroupUser();
+		grup.setId(toLong(toSingleton(object.get("id"))));
+		grup.setUser(toSingleString(object.get("user")));
+		grup.setGroup(toSingleString(object.get("group")));
+		Object map = object.get("attributes");
+		if (map != null && map instanceof Map)
+			grup.setAttributes((Map<String, Object>) map);
+		return grup;
+	}
+	
+
 	public Role parseRole (ExtensibleObject object) throws InternalErrorException
 	{
 		Role rol = null;
@@ -426,8 +524,8 @@ public class ValueObjectMapper
 				}
 				rol.setOwnerRoles(ownerRoles);
 			}
-			Collection ownerGroupsMap = (Collection) object.getAttribute("ownerGroupss");
-			if (ownerRolesMap != null)
+			Collection ownerGroupsMap = (Collection) object.getAttribute("ownerGroups");
+			if (ownerGroupsMap != null)
 			{
 				LinkedList<Group> ownerGroups = new LinkedList<Group>();
 				for (Object ownerGroupMap: ownerGroupsMap)
@@ -464,8 +562,9 @@ public class ValueObjectMapper
 	public RoleGrant parseGrant (Map<String,Object> map)
 	{
 		RoleGrant rg = new RoleGrant();
-		rg.setSystem(toSingleString(map.get("grantedRolSystem")));
-		rg.setDomainValue(toSingleString(map.get("domainVaue")));
+		rg.setSystem(toSingleString(map.get("grantedRoleSystem")));
+		rg.setDomainValue(toSingleString(map.get("domainValue")));
+		rg.setHasDomain(rg.getDomainValue() != null);
 		rg.setId(toLong(toSingleton(map.get("id"))));
 		rg.setRoleId(toLong(toSingleton(map.get("grantedRoleId"))));
 		rg.setOwnerAccountName(toSingleString(map.get("ownerAccount")));
@@ -473,9 +572,11 @@ public class ValueObjectMapper
 		rg.setOwnerGroup(toSingleString(map.get("ownerGroup")));
 		rg.setOwnerRole(toLong(map.get("ownerRoleId")));
 		rg.setOwnerRoleName(toSingleString(map.get("ownerRoleName")));
-		rg.setRoleName(toSingleString(map.get("grantedRoleId")));
+		rg.setRoleName(toSingleString(map.get("grantedRole")));
+		rg.setRoleId((Long) toSingleton(map.get("grantedRoleId")));
 		rg.setUser(toSingleString(map.get("ownerUser")));
 		rg.setHasDomain(rg.getDomainValue() != null);
+		rg.setHolderGroup((String) map.get("holderGroup"));
 		return rg;
 	}
 	

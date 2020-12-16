@@ -183,6 +183,7 @@ public abstract class AbstractPool<S> implements Runnable {
 		return element.getObject();
 	}
 
+	
 	public synchronized void returnConnection () 
 	{
 		PoolElement<S> c = current.get();
@@ -278,5 +279,35 @@ public abstract class AbstractPool<S> implements Runnable {
 				ll.add(wr.get());
 		}
 		return ll;
+	}
+	
+	public void diag (org.slf4j.Logger log)
+	{
+		log.info("Pool "+toString()+" usage:");
+		synchronized (inUse) {
+			for (PoolElement<S> e: inUse)
+			{
+				log.info("In use by thread "+e.getBoundThread().getName()+" "+e.getLocks()+" locks. Last use: "+new Date(e.getLastUse()));
+			}
+		}
+		synchronized (freeList) {
+			for (PoolElement<S> e: freeList)
+			{
+				log.info("Free. Created by thread "+e.getBoundThread().getName());
+			}
+		}
+	}
+
+	public synchronized void diagConnection (org.slf4j.Logger log)
+	{
+		PoolElement<S> c = current.get();
+		if ( c == null)
+		{
+			log.info("No connection bound");
+		}
+		else
+		{
+			log.info("Connection bound with "+c.getLocks());
+		}
 	}
 }

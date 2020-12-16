@@ -8,7 +8,9 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.Map;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -31,6 +33,8 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
 import com.soffid.iam.api.VaultFolder;
+import com.soffid.iam.common.security.SoffidPrincipal;
+import com.soffid.iam.security.SoffidPrincipalImpl;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.AdditionalDataService;
 import com.soffid.iam.service.DispatcherService;
@@ -42,6 +46,7 @@ import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
+import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.TypeEnumeration;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
@@ -65,8 +70,9 @@ public class ChangeSecretServlet extends HttpServlet {
      * 
      */
     private static final long serialVersionUID = 1L;
-    Logger log = Log.getLogger("GetSecretsServlet"); //$NON-NLS-1$
-
+    Logger log = Log.getLogger("ChangeSecretServlet"); //$NON-NLS-1$
+    static Map<String,String> defaultDispatcher = new HashMap<String, String>();
+    
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
 
@@ -80,30 +86,55 @@ public class ChangeSecretServlet extends HttpServlet {
         String value = req.getParameter("value"); //$NON-NLS-1$
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(),
                         "UTF-8")); //$NON-NLS-1$
-        try {
-        	Security.nestedLogin(user, new String[] {
-        			Security.AUTO_USER_QUERY+Security.AUTO_ALL,
-        			Security.AUTO_ACCOUNT_QUERY+Security.AUTO_ALL,
-        			Security.AUTO_ACCOUNT_UPDATE+Security.AUTO_ALL,
-        			Security.AUTO_ACCOUNT_CREATE+Security.AUTO_ALL
-        	});
-            User usuari = usuariService.findUserByUserName(user);
-            if (usuari == null)
-                throw new UnknownUserException(user);
+        
+//        log.info("Start", null, null);
+        
+        User usuari;
+		try {
+			usuari = usuariService.findUserByUserName(user);
+			if (usuari == null)
+				throw new UnknownUserException(user);
+//	        log.info("Got user", null, null);
+			String userAccount = user;
+			String dispatcher = defaultDispatcher.get(Security.getCurrentTenantName());
+			if (dispatcher == null)
+			{
+				dispatcher = ServiceLocator.instance().getDispatcherService().findSoffidDispatcher().getName();
+				defaultDispatcher.put(Security.getCurrentTenantName(), dispatcher);
+			}
+//	        log.info("Got dispatcher", null, null);
+			for ( UserAccount ua: accountSvc.findUsersAccounts(usuari.getUserName(), dispatcher))
+			{
+				userAccount = ua.getName();
+			}
+//	        log.info("Got account", null, null);
+	        Security.nestedLogin(userAccount, new String[] {
+	        		Security.AUTO_USER_QUERY+Security.AUTO_ALL,
+	        		Security.AUTO_ACCOUNT_QUERY+Security.AUTO_ALL,
+	        		Security.AUTO_ACCOUNT_UPDATE+Security.AUTO_ALL,
+	        		Security.AUTO_ACCOUNT_CREATE+Security.AUTO_ALL
+	        });
+	        try {
 
-            for (Session sessio : ss.getActiveSessions(usuari.getId())) {
-                if (sessio.getKey().equals(key) ) {
-                    writer.write(doChangeSecret(usuari, secret, account, system, ssoAttribute, description, value));
-                    writer.close();
-                    return;
-                }
-            }
-            writer.write(Messages.getString("ChangeSecretServlet.0")); //$NON-NLS-1$
-            log.warn("Invalid key {} for user {}", key, user); //$NON-NLS-1$
-        } catch (Exception e) {
-            log.warn("Error getting keys", e); //$NON-NLS-1$
-            writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n"); //$NON-NLS-1$ //$NON-NLS-2$
-        }
+	            Collection<Session> activeSessions = ss.getActiveSessions(usuari.getId());
+//	            log.info("Got {} sessions", activeSessions.size(), null);
+				for (Session sessio : activeSessions) {
+	                if (sessio.getKey().equals(key) ) {
+//	                    log.info("Found session key", null, null);
+	                    writer.write(doChangeSecret(usuari, userAccount, secret, account, system, ssoAttribute, description, value));
+	                    writer.close();
+	                    return;
+	                }
+	            }
+	            writer.write(Messages.getString("ChangeSecretServlet.0")); //$NON-NLS-1$
+	            log.warn("Invalid key {} for user {}", key, user); //$NON-NLS-1$
+	        } finally {
+	        	Security.nestedLogoff();
+	        }
+		} catch (Exception e) {
+			log.warn("Error getting keys", e); //$NON-NLS-1$
+			writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n"); //$NON-NLS-1$ //$NON-NLS-2$
+		}
         writer.close();
 
     }
@@ -115,28 +146,36 @@ public class ChangeSecretServlet extends HttpServlet {
 	 * @param system
      * @param value 
      * @param value2 
+     * @param value2 
 	 * @return
      * @throws InternalErrorException 
      * @throws RemoteException 
      * @throws AccountAlreadyExistsException 
      * @throws UnsupportedEncodingException 
 	 */
-	private String doChangeSecret (User usuari, String secret, String account,
+	private String doChangeSecret (User usuari, String userAccount, String secret, String account,
 					String system, String ssoAttribute, String description, String value) throws InternalErrorException, RemoteException,
 					AccountAlreadyExistsException, UnsupportedEncodingException
 	{
-
-		Security.nestedLogin(usuari.getUserName(), Security.getAuthorizations().toArray(new String [0]));
+		
+		SoffidPrincipal p = new SoffidPrincipalImpl(userAccount, usuari.getUserName(), usuari.getFullName(), null, Security.getAuthorizations(), null,  null);
+		Security.nestedLogin(p);
 		try
 		{
 	        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
 	        if (secret != null)
+	        {
+//				log.info("Storing secret {} for user {}", secret, usuari.getUserName());
 	        	sss.putSecret(usuari, secret, new Password(value));
+	        }
 	        else if (account == null || account.trim().length() == 0)
 	        {
+//	        	log.info("Checking creation of account for {}", usuari.getUserName(), null);
 	    		if (canCreateAccount (usuari, system))
 	    		{
+//	    	        log.info("Creating account", null, null);
 	    			Account acc = createAccount (system, usuari, description);
+//	    	        log.info("Created account", null, null);
 	    			return "OK|"+acc.getName();
 	           	}
 	    		else
@@ -161,9 +200,9 @@ public class ChangeSecretServlet extends HttpServlet {
 	        	else
 	        	{
 	        		boolean found = false;
-	        		for (Account acc2: ServiceLocator.instance().getAccountService().getUserGrantedAccounts(usuari))
+	        		for ( String user: ServiceLocator.instance().getAccountService().getAccountUsers(acc, AccountAccessLevelEnum.ACCESS_USER))
 	        		{
-	        			if (acc2.getId().equals(acc.getId()))
+	        			if (user.equals(usuari.getUserName()))
 	        			{
 	        				found = true;
 	        				break;
@@ -177,6 +216,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	
 	           	if (ssoAttribute == null || ssoAttribute.length() == 0)
 	           	{
+//					log.info("Setting password for {} at {}", account, system);
 	               	sss.setPassword(acc.getId(), new Password(value));
 	
 	               	UserDomainService dominiService = ServiceLocator.instance().getUserDomainService();
@@ -193,48 +233,51 @@ public class ChangeSecretServlet extends HttpServlet {
 		           	acs.updateAccountPasswordDate(acc, l);
 		           	ServiceLocator.instance().getLogonService().propagatePassword(account, system, value);
 	           	} else {
-	           		String actualAttribute = "SSO:"+ssoAttribute;
-	           		for ( UserData du: accountSvc.getAccountAttributes(acc))
+	           		if ( value.length() < 1024)
 	           		{
-	           			if (du.getAttribute().equals (actualAttribute) && du.getId() != null)
-	           			{
-	       					du.setValue(value);
-	       					accountSvc.updateAccountAttribute(du);
-	       					return "OK";
-	           			}
+		           		String actualAttribute = "SSO:"+ssoAttribute;
+		           		for ( UserData du: accountSvc.getAccountAttributes(acc))
+		           		{
+		           			if (du.getAttribute().equals (actualAttribute) && du.getId() != null)
+		           			{
+		       					du.setValue(value);
+		       					accountSvc.updateAccountAttribute(du);
+		       					return "OK";
+		           			}
+		           		}
+		           		// Attribute not found
+		           		AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
+		           		DataType md = metadataService.findSystemDataType(system, actualAttribute);
+		           		if (md == null)
+		           		{
+		           			md = new DataType();
+		           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
+		           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
+		           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
+		           			md.setCode(actualAttribute);
+		           			if (ssoAttribute.equals("Server"))
+		           			{
+		               			md.setLabel("Server");
+		               			md.setType(TypeEnumeration.STRING_TYPE);
+		           			}
+		           			else
+		           			{
+		           				md.setLabel("Form data");
+		               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
+		           			}
+		           			md.setSize(1024);
+		           			md.setOrder(0L);
+		           			md.setSystemName(system);
+		           			md.setRequired(false);
+		           			md = metadataService.create(md);
+		           		}
+		           		UserData du = new UserData();
+		           		du.setAccountName(account);
+		           		du.setSystemName(system);
+		           		du.setAttribute(md.getCode());
+						du.setValue(value);
+		           		acs.createAccountAttribute(du);
 	           		}
-	           		// Attribute not found
-	           		AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
-	           		DataType md = metadataService.findSystemDataType(system, actualAttribute);
-	           		if (md == null)
-	           		{
-	           			md = new DataType();
-	           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
-	           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
-	           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
-	           			md.setCode(actualAttribute);
-	           			if (ssoAttribute.equals("Server"))
-	           			{
-	               			md.setLabel("Server");
-	               			md.setType(TypeEnumeration.STRING_TYPE);
-	           			}
-	           			else
-	           			{
-	           				md.setLabel("Form data");
-	               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
-	           			}
-	           			md.setSize(1024);
-	           			md.setOrder(0L);
-	           			md.setSystemName(system);
-	           			md.setRequired(false);
-	           			md = metadataService.create(md);
-	           		}
-	           		UserData du = new UserData();
-	           		du.setAccountName(account);
-	           		du.setSystemName(system);
-	           		du.setAttribute(md.getCode());
-					du.setValue(value);
-	           		acs.createAccountAttribute(du);
 	           	}
 	    		
 	        } else {
@@ -301,7 +344,7 @@ public class ChangeSecretServlet extends HttpServlet {
 		String ssoPolicy = ConfigurationCache.getProperty("AutoSSOPolicy"); //$NON-NLS-1$
 		if (ssoPolicy == null)
 			throw new InternalErrorException (Messages.getString("ChangeSecretServlet.22")); //$NON-NLS-1$
-		acc.setType(AccountType.SHARED);
+		acc.setType(AccountType.IGNORED);
 		acc.setPasswordPolicy(ssoPolicy);
 		// Search for personal folder
 		VaultFolder vf = ServiceLocator.instance().getVaultService().getPersonalFolder();
@@ -320,11 +363,17 @@ public class ChangeSecretServlet extends HttpServlet {
 		String authSystem = ConfigurationCache.getProperty("AutoSSOSystem"); //$NON-NLS-1$
 		if (authSystem != null && authSystem.equals(system))
 		{
-			Collection<AuthorizationRole> auts = ServiceLocator
-					.instance()
-					.getAuthorizationService()
-					.getUserAuthorization("sso:manageAccounts", usuari.getUserName());
-			return ! auts.isEmpty();
+			System soffid = ServiceLocator.instance().getDispatcherService().findSoffidDispatcher();
+			for (UserAccount account: accountSvc.findUsersAccounts(usuari.getUserName(), soffid.getName()))
+			{
+				Collection<AuthorizationRole> auts = ServiceLocator
+						.instance()
+						.getAuthorizationService()
+						.getUserAuthorization("sso:manageAccounts", account.getName());
+				if (! auts.isEmpty())
+					return true;
+			}
+			return false;
 		}
 		else 
 		{

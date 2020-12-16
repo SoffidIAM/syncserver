@@ -29,7 +29,7 @@ public class ExtensibleObjectFatory {
 			{
 				ExtensibleObject eo = new ExtensibleObject();
 				eo.setObjectType(SoffidObjectType.OBJECT_ACCOUNT.getValue());
-				eo.setAttribute("name", object1);
+				eo.setAttribute("accountName", object1);
 				eo.setAttribute("system", object2);
 				return eo;
 
@@ -69,7 +69,14 @@ public class ExtensibleObjectFatory {
 			Role role;
 			try {
 				role = server.getRoleInfo(object1, getAgentName());
-				return new RoleExtensibleObject(role, server);
+				if (role == null) {
+					ExtensibleObject eo = new ExtensibleObject();
+					eo.setObjectType(SoffidObjectType.OBJECT_ROLE.getValue());
+					eo.setAttribute("name", object1);
+					eo.setAttribute("system", object2);
+					return eo;
+				} else
+					return new RoleExtensibleObject(role, server);
 			} catch (UnknownRoleException e) {
 				ExtensibleObject eo = new ExtensibleObject();
 				eo.setObjectType(SoffidObjectType.OBJECT_ROLE.getValue());
@@ -88,6 +95,7 @@ public class ExtensibleObjectFatory {
 			} catch (UnknownUserException e) {
 				ExtensibleObject eo = new ExtensibleObject();
 				eo.setObjectType(SoffidObjectType.OBJECT_USER.getValue());
+				eo.setAttribute("accountName", object1);
 				eo.setAttribute("userName", object1);
 				eo.setAttribute("attributes", new HashMap<String, Object>());
 				return eo;

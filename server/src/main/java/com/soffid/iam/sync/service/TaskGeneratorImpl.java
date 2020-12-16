@@ -13,7 +13,6 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 
-import org.apache.axis.components.threadpool.ThreadPool;
 import org.hibernate.Hibernate;
 import org.hibernate.Session;
 import org.hibernate.SessionFactory;
@@ -24,6 +23,7 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.orm.hibernate3.SessionFactoryUtils;
 
 import com.soffid.iam.api.System;
+import com.soffid.iam.api.Task;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.Parameter;
 import com.soffid.iam.model.SystemEntity;
@@ -32,6 +32,7 @@ import com.soffid.iam.model.TenantEntity;
 import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
+import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGeneratorBase;
 import com.soffid.iam.sync.service.TaskQueue;
@@ -173,12 +174,12 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     @Override
     protected Collection<DispatcherHandler> handleGetDispatchers() throws Exception {
     	String currentTenant = Security.getCurrentTenantName();
-        LinkedList<DispatcherHandler> list = new LinkedList<DispatcherHandler>(dispatchers);
-        for (Iterator<DispatcherHandler> it = list.iterator(); it.hasNext();)
+        LinkedList<DispatcherHandler> list = new LinkedList<DispatcherHandler>();
+        for (Iterator<DispatcherHandlerImpl> it = dispatchers.iterator(); it.hasNext();)
         {
         	DispatcherHandler d = it.next();
-        	if (! currentTenant.equals(d.getSystem().getTenant()))
-        		it.remove();
+        	if (currentTenant.equals(d.getSystem().getTenant()))
+        		list.add(d);
         }
         return list;
     }
@@ -191,13 +192,14 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     }
 
     @Override
-    protected void handleUpdateAgents() throws Exception {
+    protected synchronized void handleUpdateAgents() throws Exception {
     	boolean anySharedThreadChange = false;
     	
         log.info("Looking for agent updates", null, null);
         ArrayList<DispatcherHandlerImpl> oldDispatchers = new ArrayList<DispatcherHandlerImpl>(
                 dispatchers);
-        Collection<SystemEntity> entities = getSystemEntityDao().findServerTenants( config.getHostName());
+        Collection<SystemEntity> entities = new HashSet<SystemEntity>( getSystemEntityDao().findServerTenants( config.getHostName()) );
+        
         // Reconfigurar dispatcher modificats
         for (Iterator<SystemEntity> it = entities.iterator(); it.hasNext(); ) {
             SystemEntity dispatcherEntity = it.next();
@@ -213,7 +215,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                         System newDispatcher = getSystemEntityDao().toSystem(dispatcherEntity);
                         checkNulls(newDispatcher);
                         System oldDispatcher = current.getSystem();
-                        if (!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) 
+                        if (oldDispatcher.getTimeStamp() == null && newDispatcher.getTimeStamp() != null ||
+                        	!oldDispatcher.getTimeStamp().equals(newDispatcher.getTimeStamp())) 
                         {// S'han produït canvis
                         	
                         	Security.nestedLogin(current.getSystem().getTenant(), 
@@ -258,7 +261,21 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             DispatcherHandlerImpl oldHandler = itOld.next();
             if (oldHandler.isActive())
             {
-                oldHandler.gracefullyStop();
+            	Security.nestedLogin(oldHandler.getSystem().getTenant(), 
+            			"TaskGenerator", 
+            			Security.ALL_PERMISSIONS);
+            	try
+            	{
+	                oldHandler.gracefullyStop();
+	                do {
+	                	TaskHandler task = getTaskQueue().getPendingTask(oldHandler);
+	                	if (task == null)
+	                		break;
+	                	getTaskQueue().notifyTaskStatus(task, oldHandler, true, null, null);
+	                } while (true);
+                } finally {
+                	Security.nestedLogoff();
+                }
             }
         }
 
@@ -412,5 +429,10 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 
 	public String handleStartVirtualSourceTransaction() throws InternalErrorException, InternalErrorException {
 		return getTaskEntityDao().startVirtualSourceTransaction();
+	}
+
+	@Override
+	protected String handleStartVirtualSourceTransaction(boolean readonly) throws Exception {
+		return getTaskEntityDao().startVirtualSourceTransaction(readonly);
 	}
 }

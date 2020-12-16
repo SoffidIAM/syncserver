@@ -5,9 +5,10 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.Principal;
-import java.util.Vector;
 
-import org.bouncycastle.asn1.x509.X509Name;
+import org.bouncycastle.asn1.x500.RDN;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.style.RFC4519Style;
 import org.mortbay.jetty.Request;
 import org.mortbay.jetty.security.UserRealm;
 import org.mortbay.log.Log;
@@ -16,7 +17,6 @@ import org.mortbay.log.Logger;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.URLManager;
 
-import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.utils.Security;
 
 public class SeyconUserRealm implements UserRealm {
@@ -42,12 +42,23 @@ public class SeyconUserRealm implements UserRealm {
 
     public Principal getPrincipal(String username) {
         try {
-			X509Name name = new X509Name (username);
-			Vector v = name.getValues(X509Name.CN);
-			Vector v2 = name.getValues(X509Name.OU);
-			String userName = URLEncoder.encode(v.get(0).toString(), "UTF-8");
-			if (v2.size() > 0)
-				userName = URLEncoder.encode(v2.get(0).toString(), "UTF-8") + "\\" + userName;
+			X500Name name = new X500Name (username);
+			String domain = null;
+			String n = null;
+			for ( RDN rdn: name.getRDNs())
+			{
+				if (rdn.getFirst() != null &&
+						rdn.getFirst().getType().equals( RFC4519Style.ou))
+					domain = rdn.getFirst().getValue().toString();
+				if (rdn.getFirst() != null &&
+						rdn.getFirst().getType().equals( RFC4519Style.cn))
+					n = rdn.getFirst().getValue().toString();
+			}
+			String userName = URLEncoder.encode(n, "UTF-8");
+			if (domain != null)
+				userName = URLEncoder.encode(domain, "UTF-8") + "\\" + userName;
+			else
+				userName = "master\\" + userName;
 			return new SimplePrincipal (userName);
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException(e);

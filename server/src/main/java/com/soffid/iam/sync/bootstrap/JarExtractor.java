@@ -38,8 +38,8 @@ public class JarExtractor {
     	QueryHelper qh = new QueryHelper(ConnectionPool.getPool().getPoolConnection());
     	try {
     		qh.select("SELECT SPM_ID FROM SC_SEPLMO, SC_SERPLU " +
-    				"WHERE SPL_ENABLE != 0 AND SPM_SPL_ID = SPL_ID AND SPM_TYPE IN ('C','V')",
-    				new Object[0],
+    				"WHERE SPL_ENABLE != ? AND SPM_SPL_ID = SPL_ID AND SPM_TYPE IN ('C','V')",
+    				new Object[] { Boolean.FALSE} ,
     				new QueryAction() {
 						public void perform(ResultSet rset) throws SQLException, IOException {
 							long id = rset.getLong(1);
@@ -62,8 +62,8 @@ public class JarExtractor {
     	QueryHelper qh = new QueryHelper(ConnectionPool.getPool().getPoolConnection());
     	try {
     		qh.select("SELECT SPM_DATA FROM SC_SEPLMO, SC_SERPLU " +
-    				"WHERE SPL_ENABLE != 0 AND SPM_SPL_ID = SPL_ID AND SPM_ID=?",
-    				new Object[] {l},
+    				"WHERE SPL_ENABLE != ? AND SPM_SPL_ID = SPL_ID AND SPM_ID=?",
+    				new Object[] {Boolean.FALSE, l},
     				new QueryAction() {
 						public void perform(ResultSet rset) throws SQLException, IOException {
 							InputStream in = rset.getBinaryStream(3);
@@ -89,8 +89,8 @@ public class JarExtractor {
     	QueryHelper qh = new QueryHelper(ConnectionPool.getPool().getPoolConnection());
     	try {
     		qh.select("SELECT SPM_ID, SPM_RESNAM, SPM_DATA FROM SC_SEPLMO, SC_SERPLU " +
-    				"WHERE SPL_ENABLE != 0 AND SPM_SPL_ID = SPL_ID AND SPM_TYPE IN ('C','V')",
-    				new Object[0],
+    				"WHERE SPL_ENABLE != ? AND SPM_SPL_ID = SPL_ID AND SPM_TYPE IN ('C','V')",
+    				new Object[] {Boolean.FALSE},
     				new QueryAction() {
 						public void perform(ResultSet rset) throws SQLException, IOException {
 							long id = rset.getLong(1);
@@ -133,7 +133,7 @@ public class JarExtractor {
         java.sql.ResultSet rset = null;
         Connection connection = ConnectionPool.getPool().getPoolConnection();
         try {
-            stmt = connection.prepareStatement("SELECT BCO_VERSIO FROM SC_BLOCON WHERE BCO_NAME=?");
+            stmt = connection.prepareStatement("SELECT BCO_VERSIO FROM SC_BLOCON, SC_TENANT WHERE BCO_NAME=? AND TEN_ID=BCO_TEN_ID AND TEN_NAME='master'");
             stmt.setString(1, name);
             rset = stmt.executeQuery();
             if (rset.next()) {
@@ -158,7 +158,7 @@ public class JarExtractor {
         java.sql.ResultSet rset = null;
         Connection connection = ConnectionPool.getPool().getPoolConnection();
         try {
-            stmt = connection.prepareStatement("SELECT BCO_VALUE FROM SC_BLOCON WHERE BCO_NAME=?");
+            stmt = connection.prepareStatement("SELECT BCO_VALUE FROM SC_BLOCON, SC_TENANT WHERE BCO_NAME=? AND TEN_ID=BCO_TEN_ID AND TEN_NAME='master'");
             stmt.setString(1, name);
             rset = stmt.executeQuery();
             if (rset.next()) {
@@ -189,8 +189,8 @@ public class JarExtractor {
     	QueryHelper qh = new QueryHelper(ConnectionPool.getPool().getPoolConnection());
     	try {
     		qh.select("SELECT SPM_ID, SPM_RESNAM, SPM_DATA FROM SC_SEPLMO, SC_SERPLU " +
-				"WHERE SPL_ENABLE != 0 AND SPM_SPL_ID = SPL_ID AND SPM_TYPE = 'V'",
-				new Object[0],
+				"WHERE SPL_ENABLE != ? AND SPM_SPL_ID = SPL_ID AND SPM_TYPE = 'V'",
+				new Object[] {Boolean.FALSE},
 				new QueryAction() {
 					public void perform(ResultSet rset) throws SQLException, IOException {
 						long id = rset.getLong(1);
@@ -243,8 +243,8 @@ public class JarExtractor {
     	QueryHelper qh = new QueryHelper(ConnectionPool.getPool().getPoolConnection());
     	try {
     		List<Object[]> result = qh.select("SELECT SPM_ID FROM SC_SEPLMO, SC_SERPLU " +
-    				"WHERE SPL_ENABLE != 0 AND SPM_SPL_ID = SPL_ID AND SPM_TYPE='S'",
-    				new Object[0]);
+    				"WHERE SPL_ENABLE != ? AND SPM_SPL_ID = SPL_ID AND SPM_TYPE='S'",
+    				new Object[] {Boolean.FALSE});
     		if (result.isEmpty())
     		{
                 log.info("Unable to get syncserver component from database ", null, null);
@@ -252,8 +252,8 @@ public class JarExtractor {
     		}
     			
     		qh.select("SELECT SPM_DATA FROM SC_SEPLMO, SC_SERPLU " +
-    				"WHERE SPL_ENABLE != 0 AND SPM_SPL_ID = SPL_ID AND SPM_TYPE='S'",
-    				new Object[0],
+    				"WHERE SPL_ENABLE != ? AND SPM_SPL_ID = SPL_ID AND SPM_TYPE='S'",
+    				new Object[] {Boolean.FALSE},
     				new QueryAction() {
 						public void perform(ResultSet rset) throws SQLException, IOException {
 							InputStream in = rset.getBinaryStream(1);
@@ -278,8 +278,8 @@ public class JarExtractor {
     	QueryHelper qh = new QueryHelper(ConnectionPool.getPool().getPoolConnection());
     	try {
     		List<Object[]> result = qh.select("SELECT SPL_VERSION FROM SC_SEPLMO, SC_SERPLU " +
-    				"WHERE SPL_ENABLE != 0 AND SPM_SPL_ID = SPL_ID AND SPM_TYPE='S'",
-    				new Object[0]);
+    				"WHERE SPL_ENABLE != ? AND SPM_SPL_ID = SPL_ID AND SPM_TYPE='S'",
+    				new Object[] {Boolean.FALSE});
     		if (result.isEmpty())
     		{
             	throw new FileNotFoundException();
@@ -300,8 +300,9 @@ public class JarExtractor {
         Connection connection = ConnectionPool.getPool().getPoolConnection();
         try {
             stmt = connection.prepareStatement("SELECT SPM_DATA FROM SC_SERPLU, SC_SEPLMO, SC_AGEDES "+
-                    "WHERE ADE_CLASS=? AND ADE_SPM_ID=SPM_ID AND SPM_SPL_ID = SPL_ID AND SPL_ENABLE != 0");
+                    "WHERE ADE_CLASS=? AND ADE_SPM_ID=SPM_ID AND SPM_SPL_ID = SPL_ID AND SPL_ENABLE != ?");
             stmt.setString(1, className);
+            stmt.setBoolean(2, Boolean.FALSE);
             rset = stmt.executeQuery();
             if (rset.next()) {
                 ByteArrayOutputStream out = new ByteArrayOutputStream();

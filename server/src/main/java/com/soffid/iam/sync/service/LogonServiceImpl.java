@@ -1,5 +1,7 @@
 package com.soffid.iam.sync.service;
 
+import com.soffid.iam.api.Account;
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Audit;
 import com.soffid.iam.api.Challenge;
 import com.soffid.iam.api.Host;
@@ -30,6 +32,7 @@ import com.soffid.iam.sync.engine.session.SessionManager;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonServiceBase;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -55,8 +58,8 @@ import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 public class LogonServiceImpl extends LogonServiceBase {
-    private static final int MIN_PAIN = 2000;
-    private static final int MAX_PAIN = 600000;
+    private static final int MIN_PAIN = 100;
+    private static final int MAX_PAIN = 30000;
     private Logger log = Log.getLogger("LogonServer"); //$NON-NLS-1$
     private String remoteHost;
 
@@ -147,11 +150,12 @@ public class LogonServiceImpl extends LogonServiceBase {
        		return;
         }
 
-       	if (domain == null)
-        {
-        	tasque.setTransaction(TaskHandler.PROPAGATE_PASSWORD);
+       	if (r.getUserEntity() != null)
+       	{
             tasque.setUser(r.getUserEntity().getUserName());
-        }
+            tasque.setPasswordsDomain(r.getDominiContrasenyaEntity().getName());
+            tasque.setTransaction(TaskHandler.PROPAGATE_PASSWORD);
+       	}
         else
         {
         	tasque.setTransaction(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD);
@@ -170,11 +174,13 @@ public class LogonServiceImpl extends LogonServiceBase {
         if (domain == null)
         {
 	        PasswordEntityDao dao = getPasswordEntityDao();
-	        PasswordEntity contra = dao.findLastByUserDomain(r.getUserEntity(), r.getDominiContrasenyaEntity());
-	        if (contra == null || contra.getExpirationDate().before(new Date()))
-	            return true;
-	        else
-	            return false;
+	        for (PasswordEntity contra: dao.findLastByUserDomain(r.getUserEntity(), r.getDominiContrasenyaEntity()))
+	        {
+		        if (contra.getExpirationDate().before(new Date()))
+		            return true;
+	        	
+	        }
+            return false;
         }
         else
         {
@@ -241,7 +247,10 @@ public class LogonServiceImpl extends LogonServiceBase {
             					ch.getPassword(),
             					ch.getClientHost() ,
             					ch.getChallengeId(),
-            					ch.isCloseOldSessions(), ch.isSilent());
+            					ch.isCloseOldSessions(), ch.isSilent(),
+            					ch.getType() == Challenge.TYPE_KERBEROS ? "K" :
+            						ch.getType() == Challenge.TYPE_CERT ? "C" :
+            							"P");
             }
             if (ch.getPassword() != null)
                 propagatePassword(ch.getUserKey(), ch.getDomain(), ch.getPassword().getPassword());
@@ -258,13 +267,18 @@ public class LogonServiceImpl extends LogonServiceBase {
     @Override
     protected PasswordValidation handleValidatePassword(String user, String passwordDomain,
             String password) throws Exception {
+    	log.info("Validating password for {} / {}", user, passwordDomain);
     	Resolver r;
     	try {
     		r = new Resolver(user, passwordDomain);
     	} catch (UnknownUserException e) {
     		return PasswordValidation.PASSWORD_WRONG;
     	}
-        PasswordValidation v = getInternalPasswordService().checkPassword(r.getUserEntity(),
+    	PasswordValidation v;
+    	if (r.getUserEntity() == null)
+    		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), false, true);
+    	else
+        	v = getInternalPasswordService().checkPassword(r.getUserEntity(),
                 r.getDominiContrasenyaEntity(), new Password(password), false, true);
         if (v == PasswordValidation.PASSWORD_WRONG)
         {
@@ -324,12 +338,14 @@ public class LogonServiceImpl extends LogonServiceBase {
 			} catch (IOException e) {
 				throw new UnknownUserException("Unknown realm for "+user);
 			}
-			int i = user.lastIndexOf('@');
-			com.soffid.iam.api.System dispatcher = km.getSystemForRealm(user.substring(i+1));
-			if (dispatcher == null)
-				throw new UnknownUserException("Unknown realm for "+user);
-			domain = dispatcher.getName();
-			user = user.substring(0, i);
+			Account account = km.findAccountForPrincipal(user);
+			if (account != null)
+			{
+				domain = account.getSystem();
+				user = account.getName();
+			}
+			else
+				throw new InternalErrorException ("Cannot find kerberos domain for principal "+user);
 		}
 		Resolver resolver = new Resolver(user, domain);
 
@@ -377,6 +393,7 @@ public class LogonServiceImpl extends LogonServiceBase {
             }
         }
         ch.setHost(findHost(hostIp));
+        ch.getHost().setIp(hostIp);
         ch.setCardNumber(""); //$NON-NLS-1$
         ch.setCell(""); //$NON-NLS-1$
 
@@ -461,7 +478,12 @@ public class LogonServiceImpl extends LogonServiceBase {
         }
 
         HostEntityDao dao = getHostEntityDao();
-        HostEntity m = dao.findByIP(maquina);
+        HostEntity m = null;
+		for (HostEntity maq2: dao.findByIP(maquina))
+		{
+			m = maq2;
+			break;
+		}
         if (m == null) {
         	m = dao.findByName(hostName);
         	if (m == null) {
@@ -507,8 +529,10 @@ public class LogonServiceImpl extends LogonServiceBase {
 			accountEntity = getAccountEntityDao().findByNameAndSystem(user, domain);
 			
 			if (accountEntity == null)
+			{
 				throw new UnknownUserException(String.format(
-					Messages.getString("LogonServiceImpl.UnknownUserOnDomainMsg"), user, domain)); //$NON-NLS-1$
+						Messages.getString("LogonServiceImpl.UnknownUserOnDomainMsg"), user, domain)); //$NON-NLS-1$
+			}
 
 			dc = accountEntity.getSystem().getPasswordDomain();
 			for (UserAccountEntity ua : accountEntity.getUsers())

@@ -339,7 +339,8 @@ public class SessionManager extends Thread {
      */
     public Session addSession(Host servidor, int port, String user,
 		Password pass, Host client, String secretKey,
-		boolean closeOldSessions, boolean silent)
+		boolean closeOldSessions, boolean silent, 
+		String authenticationMethod)
     	throws LogonDeniedException,
     		es.caib.seycon.ng.exception.UnknownHostException,
     		UnknownUserException, InternalErrorException
@@ -359,7 +360,7 @@ public class SessionManager extends Thread {
     	}
     	
     	return sessioService.registerSession(user, servidor.getName(),
-			(client == null ? null : client.getName()), port, secretKey);
+			(client == null ? null : client.getName()), port, secretKey, authenticationMethod);
     } // end add-user
 
     public void shutdownSession(Session sessio, String message) {

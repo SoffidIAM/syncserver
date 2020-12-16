@@ -5,6 +5,8 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
+import java.util.Hashtable;
+import java.util.Map;
 
 import org.mortbay.jetty.Handler;
 import org.mortbay.jetty.Server;
@@ -27,21 +29,15 @@ import com.soffid.iam.remote.RemoteServicePublisher;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.bootstrap.FileVersionManager;
-import com.soffid.iam.sync.web.admin.AdministrationServlet;
-import com.soffid.iam.sync.web.admin.AgentsServlet;
-import com.soffid.iam.sync.web.admin.DatabaseStatusServlet;
+import com.soffid.iam.sync.hub.server.HubFromServerServlet;
+import com.soffid.iam.sync.hub.server.HubMonitorThread;
+import com.soffid.iam.sync.hub.server.HubServlet;
 import com.soffid.iam.sync.web.admin.DiagnosticServlet;
 import com.soffid.iam.sync.web.admin.PlainLogServlet;
-import com.soffid.iam.sync.web.admin.QueryHQL;
 import com.soffid.iam.sync.web.admin.QueryServlet;
-import com.soffid.iam.sync.web.admin.RedirectServlet;
-import com.soffid.iam.sync.web.admin.ReencodeSecretsServlet;
 import com.soffid.iam.sync.web.admin.ResetServlet;
-import com.soffid.iam.sync.web.admin.ScheduledTasksServlet;
 import com.soffid.iam.sync.web.admin.StatusServlet;
-import com.soffid.iam.sync.web.admin.StressTest;
-import com.soffid.iam.sync.web.admin.TasquesPendentsServlet;
-import com.soffid.iam.sync.web.admin.TestSecretsServlet;
+import com.soffid.iam.sync.web.admin.TraceIPServlet;
 import com.soffid.iam.sync.web.admin.ViewLogServlet;
 import com.soffid.iam.sync.web.esso.AuditPasswordQueryServlet;
 import com.soffid.iam.sync.web.esso.CertificateLoginServlet;
@@ -85,6 +81,7 @@ public class JettyServer implements PublisherInterface
     private SecurityHandler basicSecurityHandler;
     private Context downloadContext;
     private WebAppContext wsContext;
+	private Map<String,Object> remoteServices = new Hashtable<String, Object>();
 
     public JettyServer(String host, int port) {
         super();
@@ -215,9 +212,73 @@ public class JettyServer implements PublisherInterface
         server.start();
     }
 
-	private void addConnector(String ip) throws IOException, FileNotFoundException {
+    public void startGateway() throws Exception {
+        if ("true".equals(System.getProperty("soffid.gateway.debug")))
+        {
+        	log.info("Starting hub mointor", null, null);
+        	new HubMonitorThread().start();
+        }
+
+        server = new Server();
+
+        String threads = System.getProperty("seycon.jetty.threads");
+        int threadNumber = 250;
+        try {
+        	threadNumber = Integer.parseInt(threads);
+        } catch (Exception e) {}
+        MyQueuedThreadPool pool = new MyQueuedThreadPool();
+        pool.setLowThreads(2);
+        pool.setMaxThreads(threadNumber);
+        server.setThreadPool(pool);
+
+       	addConnector(null);
+
+        // basic authentication
+        administracioContext = new Context(server, "/");
+        administracioContext.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
+        administracioContext.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+
+        // certificate authentication
+        ctx = new Context(server, "/seycon");
+        ctx.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
+        ctx.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+		ctx.addServlet( HubFromServerServlet.class, "/*");
+
+        sh = new SecurityHandler();
+        sh.setUserRealm(new SeyconUserRealm());
+        sh.setAuthMethod("CLIENT-CERT");
+        sh.setAuthenticator(new ClientCertAuthenticator());
+
+        ctx.setSecurityHandler(sh);
+
+        HandlerCollection handlers = new HandlerCollection();
+
+        handlers.setHandlers(new Handler[] { ctx,  
+                    administracioContext,
+                    new DefaultHandler() });
+            
+        server.setHandler(handlers);
+
+        bindServlet("/hub",  Constraint.__CERT_AUTH, new String[] { "agent", "server", "remote"} ,  ctx, HubServlet.class);
+
+        server.start();
+        
+    }
+
+    private void addConnector(String ip) throws IOException, FileNotFoundException {
 		MySslSocketConnector connector = new MySslSocketConnector();
         connector.setPort(port);
+
+        connector.setRequestBufferSize( 64 * 1024);
+        connector.setHeaderBufferSize( 64 * 1024);
+        String s =  "server".equals(Config.getConfig().getRole()) ?
+        		ConfigurationCache.getMasterProperty("soffid.syncserver.bufferSize") :
+        		null ;
+        if (s != null) {
+        	connector.setRequestBufferSize( Integer.parseInt(s));
+            connector.setHeaderBufferSize( Integer.parseInt(s));
+        }
+        
         if (ip != null) 
         {
         	connector.setHost(ip);
@@ -233,8 +294,9 @@ public class JettyServer implements PublisherInterface
         connector.setWantClientAuth(true);
         connector.setAcceptors(2);
         connector.setAcceptQueueSize(10);
-        connector.setMaxIdleTime(40000);
-        connector.setLowResourceMaxIdleTime(2000);
+        connector.setMaxIdleTime(2000);
+        connector.setLowResourceMaxIdleTime(500);
+        connector.setSoLingerTime(100);
 
         server.addConnector(connector);
 	}
@@ -295,50 +357,58 @@ public class JettyServer implements PublisherInterface
             url = url.substring(7);
         else if (url.startsWith("seycon"))
             url = url.substring(6);
-        if (ctx.getAttribute(url) == null) {
-            ctx.setAttribute(url, target);
-            ServletHolder holder = null;
-            Config config;
-			try {
-				config = Config.getConfig();
-			} catch (FileNotFoundException e) {
-				throw new SecurityException("Configuration file not found");
-			} catch (IOException e) {
-				throw new SecurityException("IO error while reading configuration file");
-			}
-            if (config.isServer()) {
-            	holder = ctx.addServlet( ServerInvokerServlet.class, url);
-            }
-            else {
-            	holder = ctx.addServlet( InvokerServlet.class, url);
-            }
-            	
-            	
-            holder.setInitParameter("target", url);
-            if (rol != null) {
-                Constraint constraint = new Constraint();
-                constraint.setName(Constraint.__CERT_AUTH);
-                constraint.setRoles(new String[] { rol });
-                constraint.setAuthenticate(true);
-
-                ConstraintMapping cm = new ConstraintMapping();
-                cm.setConstraint(constraint);
-                cm.setPathSpec(url);
-
-                ConstraintMapping array[] = sh.getConstraintMappings();
-
-                ConstraintMapping array2[];
-                if (array != null) {
-                    array2 = new ConstraintMapping[array.length + 1];
-                    System.arraycopy(array, 0, array2, 0, array.length);
-                } else {
-                    array2 = new ConstraintMapping[1];
-                }
-                array2[array2.length - 1] = cm;
-                sh.setConstraintMappings(array2);
-            }
-        } else {
-            ctx.setAttribute(url, target);
+        
+        Config config;
+        try {
+			config = Config.getConfig();
+		} catch (IOException e1) {
+			throw new RuntimeException(e1);
+		}
+        
+        if ("remote".equals(config.getRole()))
+        {
+        	remoteServices .put(url, target);
+        }
+        else
+        {
+        	if (ctx.getAttribute(url) == null) {
+        		ctx.setAttribute(url, target);
+        		ServletHolder holder = null;
+        		if (config.isServer()) {
+        			holder = ctx.addServlet( ServerInvokerServlet.class, url);
+        		}
+        		else {
+        			holder = ctx.addServlet( InvokerServlet.class, url);
+        		}
+        		
+        		
+        		holder.setInitParameter("target", url);
+        		if (rol != null) {
+        			Constraint constraint = new Constraint();
+        			constraint.setName(Constraint.__CERT_AUTH);
+        			constraint.setRoles(new String[] { rol });
+        			constraint.setAuthenticate(true);
+        			
+        			ConstraintMapping cm = new ConstraintMapping();
+        			cm.setConstraint(constraint);
+        			cm.setPathSpec(url);
+        			
+        			ConstraintMapping array[] = sh.getConstraintMappings();
+        			
+        			ConstraintMapping array2[];
+        			if (array != null) {
+        				array2 = new ConstraintMapping[array.length + 1];
+        				System.arraycopy(array, 0, array2, 0, array.length);
+        			} else {
+        				array2 = new ConstraintMapping[1];
+        			}
+        			array2[array2.length - 1] = cm;
+        			sh.setConstraintMappings(array2);
+        		}
+        	} else {
+        		ctx.setAttribute(url, target);
+        	}
+        	
         }
     }
     
@@ -371,28 +441,6 @@ public class JettyServer implements PublisherInterface
             	holder = administracioContext.addServlet( InvokerServlet.class, url);
             }        	
             holder.setInitParameter("target", url);
-            if (rol != null && false) {
-                Constraint constraint = new Constraint();
-                constraint.setName(Constraint.__CERT_AUTH);
-                constraint.setRoles(new String[] { rol });
-                constraint.setAuthenticate(true);
-
-                ConstraintMapping cm = new ConstraintMapping();
-                cm.setConstraint(constraint);
-                cm.setPathSpec(url);
-
-                ConstraintMapping array[] = sh.getConstraintMappings();
-
-                ConstraintMapping array2[];
-                if (array != null) {
-                    array2 = new ConstraintMapping[array.length + 1];
-                    System.arraycopy(array, 0, array2, 0, array.length);
-                } else {
-                    array2 = new ConstraintMapping[1];
-                }
-                array2[array2.length - 1] = cm;
-                sh.setConstraintMappings(array2);
-            }
         } else {
         	administracioContext.setAttribute(url, target);
         }
@@ -402,29 +450,12 @@ public class JettyServer implements PublisherInterface
     public void bindAdministrationWeb() throws FileNotFoundException, IOException {
         if (Config.getConfig().isServer())
         {
-            bindAdministrationServlet("/main", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    AdministrationServlet.class);
-            bindAdministrationServlet("/admin", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    AdministrationServlet.class);
-            bindAdministrationServlet("/scheduledTasks", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    ScheduledTasksServlet.class);
-            bindAdministrationServlet("/admin/main", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    AdministrationServlet.class);
-            bindAdministrationServlet("/", null, RedirectServlet.class);
-            bindAdministrationServlet("/tasquesPendents", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    TasquesPendentsServlet.class);
-            bindAdministrationServlet("/dbpool", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"},
-                    DatabaseStatusServlet.class);
-            bindAdministrationServlet("/agents", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"}, AgentsServlet.class);
             bindAdministrationServlet("/viewLog", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"}, ViewLogServlet.class);
-            bindAdministrationServlet("/log", new String[]{"SC_DIAGNOSTIC", "SEU_ADMINISTRADOR"}, PlainLogServlet.class);
             bindAdministrationServlet("/reset", new String[]{"SEU_ADMINISTRADOR"}, ResetServlet.class);
-            bindAdministrationServlet("/reencodesecrets", new String[]{"SEU_ADMINISTRADOR"}, ReencodeSecretsServlet.class);
-            if (ConfigurationCache.getMasterProperty("seycon.secret.debug") != null)
-                bindAdministrationServlet("/testSecrets", new String[]{"SEU_ADMINISTRADOR"}, TestSecretsServlet.class);
             bindPublicWeb();
         }
         bindAdministrationServlet("/status", null, StatusServlet.class);
+        bindAdministrationServlet("/trace-ip", null, TraceIPServlet.class);
     }
 
     private void bindPublicWeb() throws FileNotFoundException, IOException {
@@ -450,10 +481,6 @@ public class JettyServer implements PublisherInterface
             bindAdministrationServlet("/setSecret", null, ChangeSecretServlet.class);
             bindAdministrationServlet("/generatePassword", null, GeneratePasswordServlet.class);
             bindAdministrationServlet("/auditPassword", null, AuditPasswordQueryServlet.class);
-            if (Config .getConfig().isDebug()) {
-                bindAdministrationServlet("/queryhql", null, QueryHQL.class);
-            	bindAdministrationServlet("/stress", null, StressTest.class);
-            }
             bindAdministrationServlet("/sethostadmin", null, SetHostAdministrationServlet.class);
             bindAdministrationServlet("/websession", null, WebSessionServlet.class);
             bindAdministrationServlet("/cert", null, PublicCertServlet.class);
@@ -468,7 +495,7 @@ public class JettyServer implements PublisherInterface
 
     public void bindDiagnostics() {
         bindAdministrationServlet("/diag", null, DiagnosticServlet.class);
-//        bindAdministrationServlet("/log", null, PlainLogServlet.class);
+        bindAdministrationServlet("/log", null, PlainLogServlet.class);
     }
 
 
@@ -542,5 +569,46 @@ public class JettyServer implements PublisherInterface
             handler.setAttribute(path, target);
         }
     }
+
+	public void unbind(String url) throws IOException {
+        if (url.startsWith("/seycon"))
+            url = url.substring(7);
+        else if (url.startsWith("seycon"))
+            url = url.substring(6);
+        
+        Config config;
+        try {
+			config = Config.getConfig();
+		} catch (IOException e1) {
+			throw new RuntimeException(e1);
+		}
+        
+        if ("remote".equals(config.getRole()))
+        {
+        	remoteServices .remove(url);
+        }
+        else
+        {
+        	ctx.removeAttribute(url);
+        }
+	}
+
+	public Object getServiceHandler(String url) {
+        if (url.startsWith("/seycon"))
+            url = url.substring(7);
+        else if (url.startsWith("seycon"))
+            url = url.substring(6);
+        Config config;
+        try {
+			config = Config.getConfig();
+		} catch (IOException e1) {
+			throw new RuntimeException(e1);
+		}
+        
+        if ("remote".equals(config.getRole()))
+        	return remoteServices .get(url);
+        else
+        	return null;
+	}
 
 }

@@ -118,6 +118,15 @@ public class InvokerServlet extends HttpServlet {
                         log.warn("Unexpected error", e);
                         result = new InternalErrorException("Unexpected error", e);
                     }
+                    else if (result != null)
+                    {
+                    	boolean validException = false;
+                    	for ( Class<?> exceptionClass: method.getExceptionTypes())
+                    		if ( exceptionClass.isAssignableFrom(result.getClass()) )
+                    			validException = true;
+                    	if ( !validException)
+                    		result = new InternalErrorException(e.getCause().getMessage(), e.getCause());
+                    }
                 } finally {
                 	MessageFactory.setThreadLocale(previousLocale);
                 }

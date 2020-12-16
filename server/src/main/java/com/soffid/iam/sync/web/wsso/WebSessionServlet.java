@@ -40,7 +40,8 @@ public class WebSessionServlet extends HttpServlet {
 						sessioService.registerWebSession(sessio.getUserName(), 
 							req.getParameter("host"), 
 							req.getParameter("clientHost"), 
-							req.getParameter("url"));
+							req.getParameter("url"),
+							"E");
 					String sessionId = "OK|"+Long.toString(newSession.getId())+"|"+newSession.getKey();
 					b = sessionId.getBytes("UTF-8");
 				} else {

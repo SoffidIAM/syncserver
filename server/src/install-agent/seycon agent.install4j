@@ -67,7 +67,7 @@
       </dirEntry>
     </entries>
     <components>
-      <component name="Sync server" id="33486" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="false" downloadable="false" hidden="false">
+      <component name="Sync server" id="33486" customizedId="" displayDescription="false" hideHelpButton="false" selected="true" changeable="true" downloadable="false" hidden="false">
         <description />
         <include all="false">
           <entry location=".i4j_fileset_" fileType="regular" />
@@ -104,8 +104,8 @@
       </java>
       <includedFiles />
       <unextractableFiles />
-      <vmOptionsFile mode="none" overwriteMode="0" fileMode="644">
-        <content />
+      <vmOptionsFile mode="content" overwriteMode="0" fileMode="644">
+        <content>-Xmx128m</content>
       </vmOptionsFile>
       <customScript mode="1" file="">
         <content />
@@ -133,8 +133,8 @@
       </java>
       <includedFiles />
       <unextractableFiles />
-      <vmOptionsFile mode="none" overwriteMode="0" fileMode="644">
-        <content />
+      <vmOptionsFile mode="content" overwriteMode="0" fileMode="644">
+        <content>-Xmx256m</content>
       </vmOptionsFile>
       <customScript mode="1" file="">
         <content />
@@ -155,6 +155,64 @@
         </text>
       </splashScreen>
       <java mainClass="com.soffid.iam.sync.bootstrap.Configure" vmParameters="" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
+        <classPath>
+          <scanDirectory location="lib" failOnError="false" />
+        </classPath>
+        <nativeLibraryDirectories />
+      </java>
+      <includedFiles />
+      <unextractableFiles />
+      <vmOptionsFile mode="none" overwriteMode="0" fileMode="644">
+        <content />
+      </vmOptionsFile>
+      <customScript mode="1" file="">
+        <content />
+      </customScript>
+      <infoPlist mode="1" file="">
+        <content />
+      </infoPlist>
+      <iconImageFiles />
+    </launcher>
+    <launcher name="Command Line" id="33999" customizedId="" external="false" excludeFromMenu="true" unixMode="755" menuName="" icnsFile="" customMacBundleIdentifier="false" macBundleIdentifier="" swtApp="false" fileset="" macBundleBinary="JavaApplicationStub" addMacEntitlements="false" macEntitlementsFile="">
+      <executable name="cli" type="1" iconSet="false" iconFile="" executableDir="bin" redirectStderr="false" stderrFile="error.log" stderrMode="overwrite" redirectStdout="false" stdoutFile="output.log" stdoutMode="overwrite" failOnStderrOutput="false" executableMode="2" changeWorkingDirectory="false" workingDirectory="${installer:workingDirectory}" singleInstance="false" serviceStartType="2" serviceDependencies="" serviceDescription="" jreLocation="" executionLevel="asInvoker" checkConsoleParameter="false" globalSingleInstance="false">
+        <versionInfo include="false" fileVersion="" fileDescription="" legalCopyright="" internalName="" productName="" />
+      </executable>
+      <splashScreen show="false" autoOff="true" alwaysOnTop="true" width="0" height="0" bitmapFile="" java6SplashScreen="false">
+        <text>
+          <statusLine x="20" y="20" text="" font="Arial" fontSize="8" fontColor="0,0,0" fontWeight="500" />
+          <versionLine x="20" y="40" text="version ${compiler:sys.version}" font="Arial" fontSize="8" fontColor="0,0,0" fontWeight="500" />
+        </text>
+      </splashScreen>
+      <java mainClass="com.soffid.iam.sync.bootstrap.Script" vmParameters="&quot;-Djava.library.path=${launcher:sys.launcherDirectory}..\system&quot;" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
+        <classPath>
+          <scanDirectory location="lib" failOnError="false" />
+        </classPath>
+        <nativeLibraryDirectories />
+      </java>
+      <includedFiles />
+      <unextractableFiles />
+      <vmOptionsFile mode="content" overwriteMode="0" fileMode="644">
+        <content>-Xmx256m</content>
+      </vmOptionsFile>
+      <customScript mode="1" file="">
+        <content />
+      </customScript>
+      <infoPlist mode="1" file="">
+        <content />
+      </infoPlist>
+      <iconImageFiles />
+    </launcher>
+    <launcher name="encrypt-password" id="34064" customizedId="" external="false" excludeFromMenu="true" unixMode="755" menuName="" icnsFile="" customMacBundleIdentifier="false" macBundleIdentifier="" swtApp="false" fileset="" macBundleBinary="JavaApplicationStub" addMacEntitlements="false" macEntitlementsFile="">
+      <executable name="encrypt-password" type="1" iconSet="false" iconFile="" executableDir="bin" redirectStderr="false" stderrFile="error.log" stderrMode="overwrite" redirectStdout="false" stdoutFile="output.log" stdoutMode="overwrite" failOnStderrOutput="true" executableMode="2" changeWorkingDirectory="true" workingDirectory="." singleInstance="false" serviceStartType="2" serviceDependencies="" serviceDescription="" jreLocation="" executionLevel="asInvoker" checkConsoleParameter="false" globalSingleInstance="false">
+        <versionInfo include="false" fileVersion="" fileDescription="" legalCopyright="" internalName="" productName="" />
+      </executable>
+      <splashScreen show="false" autoOff="true" alwaysOnTop="true" width="0" height="0" bitmapFile="" java6SplashScreen="false">
+        <text>
+          <statusLine x="20" y="20" text="" font="Arial" fontSize="8" fontColor="0,0,0" fontWeight="500" />
+          <versionLine x="20" y="40" text="version ${compiler:sys.version}" font="Arial" fontSize="8" fontColor="0,0,0" fontWeight="500" />
+        </text>
+      </splashScreen>
+      <java mainClass="com.soffid.iam.api.Password" vmParameters="" arguments="" allowVMPassthroughParameters="true" preferredVM="" bundleRuntime="true">
         <classPath>
           <scanDirectory location="lib" failOnError="false" />
         </classPath>
@@ -797,7 +855,7 @@ else
     </applications>
   </installerGui>
   <mediaSets>
-    <windows name="Windows" id="17" customizedId="" mediaFileName="" installDir="Soffid\IAM-Sync" overridePrincipalLanguage="false" jreBitType="32" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="resources/windows-x86-1.6.0_30.tar.gz" manualJREEntry="true" bundleType="1" jreURL="" jreShared="false" directDownload="false" installOnlyIfNecessary="false" customInstallBaseDir="" contentFilesType="1" downloadURL="" verifyIntegrity="true">
+    <windows name="Windows" id="17" customizedId="" mediaFileName="" installDir="Soffid\IAM-Sync" overridePrincipalLanguage="false" jreBitType="32" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false" bundleType="1" jreURL="" jreShared="false" directDownload="false" installOnlyIfNecessary="false" customInstallBaseDir="" contentFilesType="1" downloadURL="" verifyIntegrity="true">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
@@ -820,7 +878,7 @@ else
       </excludedComponents>
       <includedDownloadableComponents />
     </windows>
-    <unixInstaller name="Unix Installer" id="953" customizedId="" mediaFileName="" installDir="soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="./resources/linux-x86-1.6.0_30.tar.gz" manualJREEntry="true" bundleType="1" jreURL="" jreShared="false" directDownload="false" installOnlyIfNecessary="false" customInstallBaseDir="" contentFilesType="1" downloadURL="">
+    <unixInstaller name="Unix Installer" id="953" customizedId="" mediaFileName="" installDir="soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false" bundleType="1" jreURL="" jreShared="false" directDownload="false" installOnlyIfNecessary="false" customInstallBaseDir="" contentFilesType="1" downloadURL="">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
@@ -844,7 +902,7 @@ else
         <content />
       </installerScript>
     </unixInstaller>
-    <linuxRPM name="Linux RPM" id="32595" customizedId="" mediaFileName="" installDir="/opt/soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="resources/linux-x86-1.6.0_30.tar.gz" manualJREEntry="true" os="linux" arch="i386">
+    <linuxRPM name="Linux RPM" id="32595" customizedId="" mediaFileName="" installDir="/opt/soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false" os="linux" arch="i386">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
@@ -878,7 +936,7 @@ fi;</content>
         <content />
       </postUninstallScript>
     </linuxRPM>
-    <windows name="Windows64" id="33990" customizedId="" mediaFileName="" installDir="Soffid\IAM-Sync" overridePrincipalLanguage="false" jreBitType="64" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="resources/windows-64-1.6.0_30.tar.gz" manualJREEntry="true" bundleType="1" jreURL="" jreShared="false" directDownload="false" installOnlyIfNecessary="false" customInstallBaseDir="" contentFilesType="1" downloadURL="" verifyIntegrity="true">
+    <windows name="Windows64" id="33990" customizedId="" mediaFileName="" installDir="Soffid\IAM-Sync" overridePrincipalLanguage="false" jreBitType="64" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false" bundleType="1" jreURL="" jreShared="false" directDownload="false" installOnlyIfNecessary="false" customInstallBaseDir="" contentFilesType="1" downloadURL="" verifyIntegrity="true">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
@@ -899,7 +957,7 @@ fi;</content>
       </excludedComponents>
       <includedDownloadableComponents />
     </windows>
-    <linuxDeb name="Linux Deb Archive" id="33995" customizedId="" mediaFileName="" installDir="/opt/soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="resources/linux-x86-1.6.0_30.tar.gz" manualJREEntry="true" bzip="false" description="Soffid IAM Synchronization server" dependencies="" maintainerEmail="contact@soffid.com" architectureSet="false" architecture="">
+    <linuxDeb name="Linux Deb Archive" id="33995" customizedId="" mediaFileName="" installDir="/opt/soffid/iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false" bzip="false" description="Soffid IAM Synchronization server" dependencies="" maintainerEmail="contact@soffid.com" architectureSet="false" architecture="">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
@@ -953,7 +1011,7 @@ fi;</content>
         <content />
       </installerScript>
     </unixInstaller>
-    <unixArchive name="Unix Archive" id="33998" customizedId="" mediaFileName="iam-sync" installDir="iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false">
+    <unixArchive name="Unix Archive" id="33998" customizedId="" mediaFileName="${compiler:sys.shortName}_${compiler:sys.platform}_nojre" installDir="iam-sync" overridePrincipalLanguage="false" jreBitType="all" runPostProcessor="false" postProcessor="" failOnPostProcessorError="false" useLegacyMediaFileIds="false" legacyMediaFileIds="" includedJRE="" manualJREEntry="false">
       <excludedLaunchers />
       <excludedBeans />
       <overriddenPrincipalLanguage id="en" customLocalizationFile="" />
@@ -966,7 +1024,7 @@ fi;</content>
     </unixArchive>
   </mediaSets>
   <buildIds buildAll="false">
-    <mediaSet refId="33997" />
+    <mediaSet refId="33998" />
   </buildIds>
   <buildOptions verbose="false" faster="false" disableSigning="false" debug="false" />
 </install4j>

@@ -16,9 +16,7 @@ import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 import com.soffid.iam.config.Config;
-import com.soffid.iam.sync.engine.DispatcherHandler;
 
-import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.servei.TaskGenerator;
 
@@ -33,6 +31,8 @@ public class ConnectionPool {
     ThreadLocal<ThreadBound> threadStatus = new ThreadLocal<ConnectionPool.ThreadBound>();
 	private boolean driversRegistered = false;
     
+	long lastEmptyTime = 0;
+	
 	public static ConnectionPool getPool() {
         if (thePool == null) {
         	try
@@ -73,10 +73,9 @@ public class ConnectionPool {
 	{
 		qci.cancelled = true;
 		try {
-			qci.connection.close();
+			qci.connection.realClose();
 		} catch (SQLException e) 
 		{
-			
 		}
 	}
 	/**
@@ -118,7 +117,9 @@ public class ConnectionPool {
             while  (qci == null )
             {
                 qci = (QueryConnectionInfo) freeConnections.pop();
-                Statement stmt = null;
+                if (freeConnections.isEmpty())
+                	lastEmptyTime = System.currentTimeMillis();
+               	Statement stmt = null;
                 ResultSet rset = null;
                 try {
                 	stmt = qci.connection.createStatement();
@@ -137,7 +138,13 @@ public class ConnectionPool {
                     try {
                         qci.connection.setThread();
                     } catch (SQLException e) {
-                        log.warn("Error assigning SQL Connection", e);
+                    	log.warn("Error getting connection", e);
+                    	if (qci.connection !=null)
+                    	{
+                    		try {
+                    			qci.connection.close();
+                    		} catch (SQLException e2) {}
+                    	}
                         qci = null;
                     }
                     
@@ -164,6 +171,7 @@ public class ConnectionPool {
             }
         } catch (EmptyStackException e) {
             Connection c;
+            lastEmptyTime = System.currentTimeMillis();
             try {
            		c = createDatabaseConnection();
             } catch (Exception e1) {
@@ -184,6 +192,7 @@ public class ConnectionPool {
         }
         currentDB.put(Thread.currentThread(),qci);
         qci.locks = qci.locks + 1;
+        qci.thread = Thread.currentThread();
         return qci.connection;
     }
 
@@ -194,7 +203,9 @@ public class ConnectionPool {
 	public String getDriverType (String driver)
 	{
         String type = driver.substring(driver.indexOf(":")+1); //$NON-NLS-1$
-        return type.substring(0, type.indexOf(":")); //$NON-NLS-1$
+        type = type.substring(0, type.indexOf(":")); //$NON-NLS-1$
+        if (type.equals("mariadb")) type = "mysql";
+        return type;
 	}
 
 
@@ -204,7 +215,7 @@ public class ConnectionPool {
 	 */
 	public String getDummyQuery (String type)
 	{
-        if ("mysql".equals(type))  //$NON-NLS-1$
+        if ("mysql".equals(type) || "postgresql".equals(type))  //$NON-NLS-1$
         {
         	return ("SELECT 1");
         } else if ("oracle".equals (type)) { //$NON-NLS-1$
@@ -267,6 +278,13 @@ public class ConnectionPool {
                     log.warn ("Error releasing connection", e);
                     throw new NullPointerException();
                 }
+                if ( lastEmptyTime > 0 && 
+                		System.currentTimeMillis() - lastEmptyTime > 60000 ) // 1 minute
+                {
+                	lastEmptyTime = System.currentTimeMillis();
+                	cancelConnection(qci);
+                }
+                
                 if (! qci.cancelled)
                 {
             		Stack<QueryConnectionInfo> freeConnections = freeMainConnections;
@@ -278,7 +296,6 @@ public class ConnectionPool {
 
     /**
      * Instancia una conexión a la base de datos. Utiliza el driver
-     * oracle.jdbc.driver.OracleDriver
      * 
      * @throws SQLException
      *                 error al conectar a la base de datos
@@ -304,10 +321,18 @@ public class ConnectionPool {
             }
             try{
             	Class c = Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+            	log.info("Registering driver", c.getClass().getName(),null);
             	DriverManager.registerDriver((java.sql.Driver) c.newInstance());
             } catch (Exception e) {
             	log.info("Error registering driver: {}", e, null);
             }
+            try{
+            	Class c = Class.forName("org.postgresql.Driver");
+            	DriverManager.registerDriver((java.sql.Driver) c.newInstance());
+            } catch (Exception e) {
+            	log.info("Error registering driver: {}", e, null);
+            }
+            driversRegistered = true;
         }
 
         Config config = Config.getConfig();

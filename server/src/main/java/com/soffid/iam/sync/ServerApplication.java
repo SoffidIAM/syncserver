@@ -9,11 +9,15 @@ package com.soffid.iam.sync;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.sql.Blob;
+import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.LinkedList;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.sync.bootstrap.QueryHelper;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
@@ -23,7 +27,6 @@ import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.web.internal.DownloadLibraryServlet;
 import com.soffid.iam.util.Syslogger;
-import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.agent.AgentManager;
@@ -36,15 +39,58 @@ import es.caib.seycon.ng.sync.agent.AgentManager;
 public class ServerApplication extends SoffidApplication {
     private static ServerService server;
 
-    public static void configure () throws FileNotFoundException, IOException {
+    public static void configure () throws FileNotFoundException, IOException, InternalErrorException, SQLException {
         Config config = Config.getConfig();
         
-//        HibernateInterceptor hi = (HibernateInterceptor) ServerServiceLocator.instance().getService("hibernateInterceptor");
-//        hi.setFlushMode(HibernateAccessor.FLUSH_EAGER);
+        setCacheParams();
 
         server = ServerServiceLocator.instance().getServerService();
         config.setServerService(server);
     }
+    
+    protected static void setCacheParams () throws InternalErrorException, SQLException, FileNotFoundException, IOException
+    {
+   		Connection c = ConnectionPool.getPool().getPoolConnection();
+   		try {
+			QueryHelper qh = new QueryHelper( c );
+	   		for (Object[] row: qh.select("SELECT CON_VALOR "
+	   				+ "FROM SC_CONFIG, SC_TENANT "
+	   				+ "WHERE TEN_ID=CON_TEN_ID AND CON_CODI='soffid.cache.enable' and TEN_NAME='master'", new String[0]))
+	   		{
+	   			System.setProperty("soffid.cache.enable", (String) row[0]);
+	    	}
+	   		File confDir = Config.getConfig().getHomeDir();
+	   		File cfgFile = new File ( new File (confDir, "conf"), "jcs.properties");
+	   		if (cfgFile.canRead())
+	   		{
+	   			System.setProperty("soffid.cache.configFile", cfgFile.getAbsolutePath());
+	   			log.info("Using cache configuration file : "+cfgFile.getAbsolutePath());
+	   		}
+	   		else
+	   		{
+				for ( Object[] data: qh.select(
+						  "SELECT BCO_NAME, BCO_VALUE "
+						+ "FROM   SC_BLOCON "
+						+ "WHERE  BCO_NAME = 'soffid.cache.config'", new Object [0]))
+				{
+					byte b[] = null;
+					if (data[1] == null)
+						b = null;
+					else if (data[1] instanceof byte[])
+						b = (byte[]) data[1];
+					if (b != null)
+					{
+						System.setProperty  ((String) data[0], new String(b, "UTF-8"));
+						log.info("Using stored jcs configuration");
+					}
+				}
+	   		}
+   		} finally {
+   			ConnectionPool.getPool().releaseConnection(c);
+   		}
+   	}
+
+
     
     public static void start() throws InterruptedException, FileNotFoundException, IOException, InternalErrorException {
         Config config = Config.getConfig();
@@ -57,6 +103,8 @@ public class ServerApplication extends SoffidApplication {
         // pool.allocate(Integer.parseInt(poolSize));
 
         Config.getConfig().setServerService(server);
+        // Set kerberos properties
+        setKerberosProperties ();
         // Configuramos el syslog
         Syslogger.configure();
         // Cambiar las claves de activación
@@ -69,15 +117,14 @@ public class ServerApplication extends SoffidApplication {
         // Download del codi font
         if (config.isActiveServer()) {
             jetty.bindServiceServlet("/", null, DownloadLibraryServlet.class);
-
         }
 
         for ( Object service: 
         	ServerServiceLocator.instance().getContext().
-        		getBeansOfType(es.caib.seycon.ng.servei.ApplicationBootService.class).
+        		getBeansOfType(com.soffid.iam.service.ApplicationBootService.class).
         			values())
         {
-        	((es.caib.seycon.ng.servei.ApplicationBootService) service).syncServerBoot();
+        	((com.soffid.iam.service.ApplicationBootService) service).syncServerBoot();
         }
         
         // Iniciar el generador de tareas
@@ -92,10 +139,6 @@ public class ServerApplication extends SoffidApplication {
             ssoDaemon = new SessionManager();
             ssoDaemon.start();
             Thread.sleep(1000);
-            // Servidor de Single Sign-On para PCs
-            sso = new com.soffid.iam.sync.engine.socket.SSOServer();
-            sso.start();
-            Thread.sleep(1000);
         }
         log.info("Seycon Server started", null, null);
         tryToResetAgents();
@@ -103,7 +146,19 @@ public class ServerApplication extends SoffidApplication {
         
     }
     
-    private static void tryToResetAgents() throws IOException, InternalErrorException {
+    private static void setKerberosProperties() throws FileNotFoundException, IOException {
+    	if (System.getProperty("java.security.krb5.conf") == null)
+    	{
+    		String krb5File = Config.getConfig().getHomeDir() + "/conf/krb5.conf";
+    		java.lang.System.setProperty("java.security.krb5.conf", krb5File);
+    	}
+    	if (System.getProperty("sun.security.krb5.debug") == null)
+    		java.lang.System.setProperty("sun.security.krb5.debug", "true");
+    	if (System.getProperty("javax.security.auth.useSubjectCredsOnly") == null)
+    		java.lang.System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+	}
+
+	private static void tryToResetAgents() throws IOException, InternalErrorException {
         Config config = Config.getConfig();
         String BASE_DIRECTORY = config.getHomeDir().getAbsolutePath();
         File resetFile = new File(BASE_DIRECTORY + FILE_SEPARATOR + "tmp" + FILE_SEPARATOR
@@ -115,9 +170,8 @@ public class ServerApplication extends SoffidApplication {
     }
 
     private static void resetAgents() throws IOException, InternalErrorException {
-        String taskDispatcherURL = "";
         Config config = Config.getConfig();
-        String servidors[] = config.getSeyconServerHostList();
+        String servidors[] = config.getServerList().split("[, ]+");
 
         LinkedList<String> v = new LinkedList<String>();
         v.add(servidors[0]);

@@ -26,6 +26,8 @@ import javax.security.auth.login.LoginException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.System;
 import com.soffid.iam.config.Config;
@@ -34,6 +36,7 @@ import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.intf.KerberosAgent;
 import com.soffid.iam.sync.intf.KerberosPrincipalInfo;
 import com.soffid.iam.sync.service.TaskGenerator;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 
@@ -45,16 +48,21 @@ public class KerberosManager {
     private TaskGenerator taskGenerator;
 
     public KerberosManager() throws FileNotFoundException, IOException {
-        taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
-        properties = new Properties();
-        File propertiesFile = getPropertiesFile();
-        if (propertiesFile.canRead())
-            properties.load(new FileInputStream(propertiesFile));
+    	properties = new Properties();
+    	if (  Config.getConfig().isServer())
+    	{
+    		taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
+	        File propertiesFile = getPropertiesFile();
+	        if (propertiesFile.canRead())
+	            properties.load(new FileInputStream(propertiesFile));
+    	}
     }
     
 
     private Collection<DispatcherHandler> getDispatcherHandlerForRealm (String domain) throws InternalErrorException 
     {
+//    	log.info("Getting systems for realm {}", domain, null);
+		String dn = ConfigurationCache.getProperty("soffid.kerberos.agent");
         Collection<DispatcherHandler> result = new LinkedList<DispatcherHandler>();
         Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
         for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
@@ -62,10 +70,16 @@ public class KerberosManager {
             if (handler != null) {
                 KerberosAgent krb = handler.getKerberosAgent();
                 try {
-                    if (krb != null && domain.equals(krb.getRealmName()))
-                        result.add(handler);
+                	if (krb != null)
+                	{
+	                	String actualDomain = krb.getRealmName();
+	                    if (domain.equals(actualDomain) || 
+	                    		handler.getSystem().getName().equals(dn)) {
+	                        result.add(handler);
+	                    }
+                	}
                 } catch (InternalErrorException e) {
-                    log.warn("Error getting kerberos name", e);
+                    log.warn("Error getting kerberos name in "+handler.getSystem().getName(), e);
                 }
             }
         }
@@ -97,12 +111,45 @@ public class KerberosManager {
         return result;
     }
 
-    private Collection<KerberosAgent> getKerberosAgent(String domain) throws InternalErrorException {
+    private Collection<KerberosAgent> getKerberosAgent(System dispatcher) throws InternalErrorException {
         Collection<KerberosAgent> result = new LinkedList<KerberosAgent>();
-    	for (DispatcherHandler handler: getDispatcherHandlerForRealm(domain))
+    	DispatcherHandler handler = taskGenerator.getDispatcher(dispatcher.getName());
+    	if (handler != null)
     		result.add(handler.getKerberosAgent());
 		return result;
     }
+
+    public Account findAccountForPrincipal (String principalName) throws InternalErrorException 
+    {
+//    	log.info("Getting systems for realm {}", domain, null);
+        Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
+        for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
+            DispatcherHandler handler = it.next();
+            if (handler != null) {
+                KerberosAgent krb = handler.getKerberosAgent();
+                try {
+                	if (krb != null)
+                	{
+                		String accountName = krb.findPrincipalAccount(principalName);
+                		Account account;
+						if (accountName != null)
+                		{
+                			account = ServiceLocator
+                					.instance()
+                					.getAccountService()
+                					.findAccount(accountName, handler.getSystem().getName());
+                			if (account != null)
+                				return account;
+                		}
+                	}
+                } catch (InternalErrorException e) {
+                    log.warn("Error getting kerberos name in "+handler.getSystem().getName(), e);
+                }
+            }
+        }
+		return null;
+    }
+
 
     private File getConfigFile() throws FileNotFoundException, IOException {
         File home = Config.getConfig().getHomeDir();
@@ -117,9 +164,8 @@ public class KerberosManager {
     private void generateKrbConfig() throws IOException, InternalErrorException {
         File config = getConfigFile();
 
-        java.lang.System.setProperty("java.security.krb5.conf", config.getAbsolutePath());
-        java.lang.System.setProperty("sun.security.krb5.debug", "true");
-        java.lang.System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+        generateSystemProperties(config);
+
         StringBuffer realms = new StringBuffer();
         boolean reconfig = false;
         String defaultRealm = null;
@@ -161,19 +207,45 @@ public class KerberosManager {
         }
         
         if (reconfig) {
-            PrintWriter writer = new PrintWriter(config);
-            writer.println("[libdefaults]");
-            writer.println("kdc_timeout=3000");
-            writer.println("max_retries=2");
-            writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
-            writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
-            writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc");
-            writer.println("default_realm="+defaultRealm);
-            writer.println();
-            writer.println("[realms]");
-            writer.println(realms.toString());
-            writer.close();
+            generateKrb5ConfFile(config, realms, defaultRealm);
             storeProperties();
+        }
+    }
+
+
+	public void generateSystemProperties(File config) {
+		java.lang.System.setProperty("java.security.krb5.conf", config.getAbsolutePath());
+        java.lang.System.setProperty("sun.security.krb5.debug", "true");
+        java.lang.System.setProperty("javax.security.auth.useSubjectCredsOnly", "false");
+	}
+
+
+	public void generateKrb5ConfFile(File config, StringBuffer realms, String defaultRealm)
+			throws FileNotFoundException {
+		PrintWriter writer = new PrintWriter(config);
+		writer.println("[libdefaults]");
+		writer.println("kdc_timeout=3000");
+		writer.println("max_retries=2");
+		writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
+		writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
+		writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc");
+		writer.println("default_realm="+defaultRealm);
+		writer.println();
+		writer.println("[realms]");
+		writer.println(realms.toString());
+		writer.close();
+	}
+    
+    public void generatDefaultKerberosConfig () throws FileNotFoundException, IOException
+    {
+        File config = getConfigFile();
+
+        generateSystemProperties(config);
+
+        if ( ! config.canRead())
+        {
+	        StringBuffer realms = new StringBuffer();
+	        generateKrb5ConfFile(config, realms, "");
         }
     }
 
@@ -181,84 +253,94 @@ public class KerberosManager {
         properties.store(new FileOutputStream(getPropertiesFile()), "Autogenerated by seycon");
     }
 
-    public Subject getServerSubject(String domain) throws LoginException, FileNotFoundException,
+    public Subject getServerSubject(System dispatcher) throws LoginException, FileNotFoundException,
             InternalErrorException, IOException {
-        KerberosCache kc = getKerberosCache(domain);
+        KerberosCache kc = getKerberosCache(dispatcher);
         if (kc != null)
             return kc.subject;
         else
             return null;
     }
 
-    private KerberosCache getKerberosCache(String domain) throws LoginException,
+    private KerberosCache getKerberosCache(System dispatcher) throws LoginException,
             FileNotFoundException, InternalErrorException, IOException {
         // Primer intent de la cache
-        KerberosCache kc = cache.get(domain);
+        KerberosCache kc = cache.get(dispatcher.getName());
         if (kc == null) {
             try {
                 generateKrbConfig();
             } catch (IOException e) {
-                log.warn("Unable to configure kerberos realm " + domain, e);
+                log.warn("Unable to configure kerberos realm " + dispatcher, e);
             }
         }
         if (kc == null || kc.lastSet.getTime() - java.lang.System.currentTimeMillis() > MAX_CACHE_TIME) {
             if (kc == null)
                 kc = new KerberosCache();
-            kerberosLogin(domain, kc);
-            cache.put(domain, kc);
+            kerberosLogin(dispatcher, kc);
+            cache.put(dispatcher.getName(), kc);
         }
         return kc;
     }
 
-    public String getServerPrincipal(String domain) throws LoginException, FileNotFoundException,
+    public String getServerPrincipal(System system) throws LoginException, FileNotFoundException,
             InternalErrorException, IOException {
-        KerberosCache kc = getKerberosCache(domain);
+        KerberosCache kc = getKerberosCache(system);
         if (kc != null)
             return kc.user;
         else
             return null;
     }
 
-    private void kerberosLogin(String domain, KerberosCache kc) throws InternalErrorException,
+    private void kerberosLogin(System dispatcher, KerberosCache kc) throws InternalErrorException,
             LoginException, FileNotFoundException, IOException {
-        Collection<KerberosAgent> krbList = getKerberosAgent(domain);
+        Collection<KerberosAgent> krbList = getKerberosAgent(dispatcher);
         String user = null;
         String hostName = null;
         String principal = null;
         Password password = null;
         String keytabFile = null;
         LoginContext lc = null;
+        
+        String domainName = null;
 
-        ChainConfiguration.addConfiguration(new KerberosLoginConfiguration(domain));
-        // First try using cache
-        try {
-            user = properties.getProperty(domain + ".user");
-            principal = properties.getProperty(domain + ".principal");
-            String passwordString = properties.getProperty(domain + ".password");
-            if (user != null && passwordString != null) {
-                password = Password.decode(passwordString);
-                lc = new LoginContext(domain, new KerberosCallbackHandler(user, password));
-                log.info("Trying login for {} at {} using cache ", user, domain);
-                lc.login();
-                log.info("SUCCESSFULL Login", null, null);
-            }
-        } catch (LoginException e) {
-            log.warn("Error in kerberos authentication from cache", e);
+        for ( KerberosAgent agent: krbList)
+        {
+        	domainName = agent.getRealmName();
+        	String cfgName = dispatcher.getTenant()+"/"+dispatcher.getName();
+			ChainConfiguration.addConfiguration(cfgName, 
+        			new KerberosLoginConfiguration(cfgName));
+	        // First try using cache
+	        try {
+	            user = properties.getProperty(domainName + ".user");
+	            principal = properties.getProperty(domainName + ".principal");
+	            String passwordString = properties.getProperty(domainName + ".password");
+	            if (user != null && passwordString != null) {
+	                password = Password.decode(passwordString);
+	                lc = new LoginContext(cfgName, new KerberosCallbackHandler(user, password));
+	                log.info("Trying login for {} at {} using cache ", user, dispatcher.getName());
+	                lc.login();
+	                log.info("SUCCESSFULL Login", null, null);
+	            }
+	        } catch (LoginException e) {
+	            log.warn("Error in kerberos authentication from cache", e);
+	        }
         }
 
         if (lc == null || lc.getSubject() == null) {
             if (krbList == null || krbList.isEmpty())
-                throw new InternalErrorException("Unknown kerberos realm " + domain);
+                throw new InternalErrorException("Unknown kerberos realm for " + dispatcher.getName());
             else {
             	boolean done = false;
                 for (KerberosAgent krb: krbList)
                 {
 	                try {
+	                	String cfgName = dispatcher.getTenant()+"/"+dispatcher.getName();
+	                	domainName = krb.getRealmName();
 	                    hostName = Config.getConfig().getHostName();
 	                    KerberosPrincipalInfo p = krb.createServerPrincipal(hostName);
 	                    if (p != null)
 	                    {
-		                    keytabFile = Config.getConfig().getHomeDir() + "/conf/" + domain + ".ktab";
+		                    keytabFile = Config.getConfig().getHomeDir() + "/conf/" + domainName + ".ktab";
 		                    if (p.getKeytab() != null && p.getKeytab().length > 0) {
 		                        File ktabFile = new File(keytabFile);
 		                        FileOutputStream out = new FileOutputStream(ktabFile);
@@ -268,22 +350,22 @@ public class KerberosManager {
 		                        user = p.getPrincipalName();
 		                    } else {
 		                        principal = p.getPrincipalName();
-		                        user = p.getUserName() + "@" + domain;
+		                        user = p.getUserName() + "@" + domainName;
 		                        new File(keytabFile).delete();
 		                    }
 		                    password = p.getPassword();
-		                    lc = new LoginContext(domain, new KerberosCallbackHandler(user, password));
+		                    lc = new LoginContext(cfgName, new KerberosCallbackHandler(user, password));
 		                    lc.login();
 		                    done = true;
 		                    break;
 	                    }
 	                } catch (Exception e) {
-	                    log.warn("Unable to create kerberos principal for domain " + domain, e);
+	                    log.warn("Unable to create kerberos principal for domain " + dispatcher.getName(), e);
 	                }
                 }
                 if (! done)
                     throw new InternalErrorException(
-                            "Unable to create kerberos principal for domain " + domain);
+                            "Unable to create kerberos principal for domain " + dispatcher.getName());
             }
         }
 
@@ -291,9 +373,9 @@ public class KerberosManager {
         kc.lastSet = new Date();
         kc.principal = principal;
         kc.user = user;
-        properties.setProperty(domain + ".principal", principal);
-        properties.setProperty(domain + ".user", user);
-        properties.setProperty(domain + ".password", password.toString());
+        properties.setProperty(domainName + ".principal", principal);
+        properties.setProperty(domainName + ".user", user);
+        properties.setProperty(domainName + ".password", password.toString());
         storeProperties();
 
     }

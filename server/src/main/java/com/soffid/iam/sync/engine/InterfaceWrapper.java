@@ -15,6 +15,7 @@ import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AttributeTranslation;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Network;
@@ -24,9 +25,11 @@ import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.PrinterUser;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
+import com.soffid.iam.api.Server;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.SystemAccessControl;
+import com.soffid.iam.api.Task;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
@@ -35,7 +38,9 @@ import com.soffid.iam.sync.agent.Plugin;
 import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFinder;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
+import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.CustomObjectMgr;
+import com.soffid.iam.sync.intf.CustomTaskMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.intf.GroupMgr;
@@ -56,6 +61,7 @@ import es.caib.seycon.ng.comu.LlistaCorreu;
 import es.caib.seycon.ng.comu.Maquina;
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.Rol;
+import es.caib.seycon.ng.comu.Tasca;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.BadPasswordException;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -384,6 +390,17 @@ public class InterfaceWrapper {
 				public String[] getRealmServers() throws InternalErrorException {
 					return agent.getRealmServers();
 				}
+
+				public String parseKerberosToken(String serverPrincipal, byte[] keytab, byte[] token)
+						throws InternalErrorException {
+					return agent.parseKerberosToken(serverPrincipal, keytab, token);
+				}
+
+				public String findPrincipalAccount(String principal) throws InternalErrorException {
+					// TODO Auto-generated method stub
+					return null;
+				}
+
 			};
 		}
 		else
@@ -422,6 +439,15 @@ public class InterfaceWrapper {
 				public List<Role> getAccountRoles(String userAccount)
 						throws RemoteException, InternalErrorException {
 					return Role.toRoleList(agent.getAccountRoles(userAccount));
+				}
+
+				public List<String[]> getAccountChangesToApply(Account account)
+						throws RemoteException, InternalErrorException {
+					return agent.getAccountChangesToApply(es.caib.seycon.ng.comu.Account.toAccount(account));
+				}
+
+				public List<String[]> getRoleChangesToApply(Role role) throws RemoteException, InternalErrorException {
+					return agent.getRoleChangesToApply(Rol.toRol(role));
 				}
 			};
 		}
@@ -462,6 +488,14 @@ public class InterfaceWrapper {
 						throws RemoteException, InternalErrorException {
 					return RoleGrant.toRoleGrantList(agent.getAccountGrants(userAccount));
 				}
+				public List<String[]> getAccountChangesToApply(Account account)
+						throws RemoteException, InternalErrorException {
+					return agent.getAccountChangesToApply(es.caib.seycon.ng.comu.Account.toAccount(account));
+				}
+
+				public List<String[]> getRoleChangesToApply(Role role) throws RemoteException, InternalErrorException {
+					return agent.getRoleChangesToApply(Rol.toRol(role));
+				}
 			};
 		}
 		else
@@ -473,12 +507,10 @@ public class InterfaceWrapper {
 
 		final es.caib.seycon.ng.sync.servei.ServerService agent = obj;
 			return new ServerService() {
-
 				public void cancelTask(long taskid)
 						throws InternalErrorException, InternalErrorException {
 					agent.cancelTask(taskid);
 				}
-
 				public void changePassword(String account, String dispatcherId,
 						com.soffid.iam.api.Password p, boolean mustChange)
 						throws InternalErrorException, InternalErrorException,
@@ -852,6 +884,35 @@ public class InterfaceWrapper {
 				public CustomObject getCustomObject(String type, String name) throws InternalErrorException {
 					return agent.getCustomObject(type, name);
 				}
+
+				public Map<String, Object> getUserAttributes(long userId) throws InternalErrorException,
+						InternalErrorException, InternalErrorException, UnknownUserException {
+					return agent.getUserAttributes(userId);
+				}
+				public Collection<Map<String, Object>> invoke(String agentName, String verb, String command,
+						Map<String, Object> params) throws InternalErrorException, InternalErrorException {
+					return agent.invoke (agentName, verb, command, params);
+				}
+				public Server findRemoteServerByUrl(String url) throws InternalErrorException {
+					return  Server.toServer( agent.findRemoteServerByUrl(url) );
+				}
+				public Account parseKerberosToken(String domain, String serviceName, byte[] keytab, byte[] token)
+						throws InternalErrorException, InternalErrorException {
+					return Account.toAccount( agent.parseKerberosToken(domain, serviceName, keytab, token) );
+				}
+				public void processAuthoritativeChange(AuthoritativeChange change, boolean remove)
+						throws InternalErrorException {
+					agent.processAuthoritativeChange(es.caib.seycon.ng.sync.intf.AuthoritativeChange.toAuthoritativeChange(change), remove);
+					
+				}
+				public void reconcileAccount(String system, String account) throws InternalErrorException {
+					agent.reconcileAccount(system, account);
+				}
+				public Collection<GroupUser> getUserMemberships(String accountName, String dispatcherId)
+						throws InternalErrorException, InternalErrorException, InternalErrorException,
+						UnknownUserException {
+					return GroupUser.toGroupUserList( agent.getUserMemberships(accountName, dispatcherId));
+				}
 			};
 	}
 
@@ -862,6 +923,11 @@ public class InterfaceWrapper {
 			
 			public ExtensibleObject find(ExtensibleObject pattern) throws Exception {
 				return agent.find( es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject(pattern));
+			}
+
+			public Collection<Map<String, Object>> invoke(String verb, String command, Map<String, Object> params)
+					throws InternalErrorException {
+				return agent.invoke(verb, command, params);
 			}
 		};
 	}
@@ -899,9 +965,34 @@ public class InterfaceWrapper {
 					return ExtensibleObject.toExtensibleObject(o);
 				}
 
+				public Collection<Map<String, Object>> invoke(String verb, String command, Map<String, Object> params)
+						throws RemoteException, InternalErrorException {
+					return agent.invoke(verb, command, params);
+				}
+
 			};
 		}
 		else
 			return null;
+	}
+	
+	public static CustomTaskMgr getCustomTaskMgr (Object obj) {
+		if (obj instanceof CustomTaskMgr)
+			return (CustomTaskMgr) obj;
+		else if ( obj instanceof es.caib.seycon.ng.sync.intf.CustomTaskMgr)
+		{
+			final es.caib.seycon.ng.sync.intf.CustomTaskMgr agent = 
+					(es.caib.seycon.ng.sync.intf.CustomTaskMgr) obj;
+			return new CustomTaskMgr() {
+
+				public void processTask(Task task) throws RemoteException, InternalErrorException {
+					agent.processTask( Tasca.toTasca(task));
+				}
+
+			};
+		}
+		else
+			return null;
+		
 	}
 }

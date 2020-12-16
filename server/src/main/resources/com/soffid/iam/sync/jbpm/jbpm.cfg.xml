@@ -26,10 +26,16 @@
   <!-- make sure the block size matches the length in ByteArray.hbm.xml -->
   <int    name="jbpm.byte.block.size" value="1024" singleton="true" />
   <bean   name="jbpm.task.instance.factory" class="com.soffid.iam.bpm.task.BPMTaskInstanceFactory" singleton="true" />
+  <!-- Class loader factory  -->
+  <bean name="jbpm.processClassLoader" class="es.caib.bpm.business.BPMClassLoaderFactory" singleton="true"/>
+  <bean   name="jbpm.variable.resolver" class="org.jbpm.jpdl.el.impl.JbpmVariableResolver" singleton="true" />
+
+  <!--  Mail configuration -->
   <bean   name="jbpm.variable.resolver" class="org.jbpm.jpdl.el.impl.JbpmVariableResolver" singleton="true" />
   <string name="jbpm.mail.smtp.host" value="localhost" />
   <bean   name="jbpm.mail.address.resolver" class="org.jbpm.identity.mail.IdentityAddressResolver" singleton="true" />
   <string name="jbpm.mail.from.address" value="noreply.jbpm@soffid.com" />
+  <string name="jbpm.mail.class.name" value="com.soffid.iam.bpm.mail.Mail" />
   
 
 </jbpm-configuration>

@@ -46,7 +46,7 @@ public class GetHostAdministrationServlet extends HttpServlet
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
 		throws ServletException, IOException
 	{
-        String hostIP = req.getRemoteAddr();
+        String hostIP = com.soffid.iam.utils.Security.getClientIp();
         String hostName = req.getParameter("host"); //$NON-NLS-1$
         String usuariPeticio = req.getParameter("user"); //$NON-NLS-1$
         String passPeticio = req.getParameter("pass"); //$NON-NLS-1$

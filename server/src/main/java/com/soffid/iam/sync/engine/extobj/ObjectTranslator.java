@@ -3,17 +3,11 @@
  */
 package com.soffid.iam.sync.engine.extobj;
 
-import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
-
-import org.apache.axis.InternalException;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.AttributeMapping;
@@ -21,6 +15,7 @@ import com.soffid.iam.api.ObjectMapping;
 import com.soffid.iam.api.ObjectMappingProperty;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.service.DispatcherService;
+import com.soffid.iam.sync.bootstrap.NullSqlObjet;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMapping;
 import com.soffid.iam.sync.intf.ExtensibleObjects;
@@ -29,6 +24,7 @@ import com.soffid.iam.sync.service.ServerService;
 import bsh.EvalError;
 import bsh.Interpreter;
 import bsh.NameSpace;
+import bsh.ParseException;
 import bsh.Primitive;
 import bsh.TargetError;
 import es.caib.seycon.ng.comu.AttributeDirection;
@@ -108,8 +104,6 @@ public class ObjectTranslator
 	{
 		return objects;
 	}
-
-	
 
 	public ExtensibleObjects parseInputObjects (ExtensibleObject source) throws InternalErrorException
 	{
@@ -224,7 +218,13 @@ public class ObjectTranslator
 	{
 		try { 
 			AttributeReference ar = AttributeReferenceParser.parse(sourceObject, attributeExpression);
-			AttributeReferenceParser.parse(targetObject, attribute).setValue( ar.getValue() );
+			Object value = ar.getValue();
+			if (value == null || 
+					value instanceof NullSqlObjet || 
+					value instanceof es.caib.seycon.ng.sync.bootstrap.NullSqlObjet)
+				AttributeReferenceParser.parse(targetObject, attribute).setValue( null );
+			else
+				AttributeReferenceParser.parse(targetObject, attribute).setValue( ar.getValue() );
 		} catch (Exception ear) {
 			Interpreter interpret = new Interpreter();
 			NameSpace ns = interpret.getNameSpace();
@@ -235,20 +235,15 @@ public class ObjectTranslator
 			
 			try {
 				Object result = interpret.eval(attributeExpression, newNs);
-				if (result instanceof Primitive)
+				if (result != null && result instanceof Primitive)
 				{
 					result = ((Primitive)result).getValue();
 				}
 				AttributeReferenceParser.parse(targetObject, attribute)
 					.setValue(result);
 			} catch (TargetError e) {
-				String msg;
-				try {
-					msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
-				} catch (Exception e2) {
-					msg = e.getMessage();
-				}
-				throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg,
+				throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+
+						e.getTarget().getMessage(),
 						e.getTarget());
 			} catch (EvalError e) {
 				String msg;
@@ -316,6 +311,10 @@ public class ObjectTranslator
 									result = ((Primitive)result).getValue();
 								}
 								return result;
+							} catch (TargetError e) {
+								throw new InternalErrorException ("Error evaluating attribute "+attribute.getSystemAttribute()+": "+
+										e.getTarget().getMessage(),
+										e.getTarget());
 							} catch (EvalError e) {
 								String msg;
 								try {
@@ -362,6 +361,10 @@ public class ObjectTranslator
 								result = ((Primitive)result).getValue();
 							}
 							return result;
+						} catch (TargetError e) {
+							throw new InternalErrorException ("Error evaluating attribute "+attribute.getSoffidAttribute()+": "+
+									e.getTarget().getMessage(),
+									e.getTarget());
 						} catch (EvalError e) {
 							String msg;
 							try {
@@ -404,14 +407,13 @@ public class ObjectTranslator
 				return false;
 			else
 				return true;
-		} catch (EvalError e) {
-			String msg;
-			try {
-				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
-			} catch (Exception e2) {
-				msg = e.getMessage();
-			}
-			throw new InternalErrorException ("Error evaluating expression "+condition+": "+msg);
+		} catch (ParseException ex) {
+			throw new InternalErrorException ("Error parsing expression "+condition+": "+
+					ex.getMessage());
+		} catch (TargetError ex) {
+			throw new InternalErrorException (ex.getMessage()+" executing expression  at "+ex.getScriptStackTrace(), ex.getTarget());
+		} catch (EvalError ex) {
+			throw new InternalErrorException ("Error evaluating expression "+ex.getMessage()+" at line "+ex.getErrorLineNumber()+" "+ex.getScriptStackTrace());
 		}
 	}
 	
@@ -430,6 +432,10 @@ public class ObjectTranslator
 				result = ((Primitive)result).getValue();
 			}
 			return result;
+		} catch (TargetError e) {
+			throw new InternalErrorException ("Error evaluating expression "+expr+": "+
+					e.getTarget().getMessage(),
+					e.getTarget());
 		} catch (EvalError e) {
 			String msg;
 			try {
