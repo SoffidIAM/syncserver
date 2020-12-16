@@ -93,9 +93,13 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         if (firstRun) {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
-            		+ "where tasca.server = :server "
+            		+ "left join tasca.tenant as tenant "
+            		+ "where tasca.server = :server and "
+            		+ "tenant.enabled=:true "
             		+ "order by tasca.id", 
-            		new Parameter[]{new Parameter("server", config.getHostName())});
+            		new Parameter[]{
+            				new Parameter("server", config.getHostName()),
+            				new Parameter("tenant", true)});
         } else {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
@@ -103,9 +107,12 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             		+ "left join tenant.servers as servers "
             		+ "left join servers.tenantServer as server "
             		+ "where tasca.server is null and server.name=:server "
-            		+ "and tasca.status='P' "
+            		+ "and tasca.status='P' and "
+            		+ "tenant.enabled=:true "
             		+ "order by tasca.priority, tasca.id",
-            		new Parameter[]{new Parameter("server", config.getHostName())},
+            		new Parameter[]{
+            				new Parameter("server", config.getHostName()),
+            				new Parameter("tenant", true)},
             		csc);
         }
         TaskQueue taskQueue = getTaskQueue();
@@ -196,7 +203,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         // Reconfigurar dispatcher modificats
         for (Iterator<SystemEntity> it = entities.iterator(); it.hasNext(); ) {
             SystemEntity dispatcherEntity = it.next();
-            if (dispatcherEntity.getUrl() == null || dispatcherEntity.getUrl().isEmpty()) {
+            if (dispatcherEntity.getUrl() == null || dispatcherEntity.getUrl().isEmpty() || ! dispatcherEntity.getTenant().isEnabled()) {
                 it.remove();
             } else {
                 for (Iterator<DispatcherHandlerImpl> itOld = oldDispatchers.iterator(); itOld.hasNext(); ) {
