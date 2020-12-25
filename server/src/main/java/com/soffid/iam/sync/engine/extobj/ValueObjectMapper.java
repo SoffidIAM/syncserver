@@ -195,10 +195,10 @@ public class ValueObjectMapper
 					else if ("shortName".equals(attribute)) usuari.setShortName(toString(value));
 					else if ("lastName".equals(attribute)) usuari.setLastName(toString(value));
 					else if ("lastName2".equals(attribute)) usuari.setMiddleName(toString(value));
+					else if ("middleName".equals(attribute)) usuari.setMiddleName(toString(value));
 					else if ("mailServer".equals(attribute)) usuari.setMailServer(toString(value));
 					else if ("homeServer".equals(attribute)) usuari.setHomeServer(toString(value));
 					else if ("profileServer".equals(attribute)) usuari.setProfileServer(toString(value));
-					else if ("phone".equals(attribute)) usuari.setPhoneNumber(toString(value));
 					else if ("userType".equals(attribute)) usuari.setUserType(toString(value));
 					else if ("createdBy".equals(attribute)) usuari.setCreatedByUser(toString(value));
 					else if ("modifiedBy".equals(attribute)) usuari.setModifiedByUser(toString(value));
@@ -208,10 +208,6 @@ public class ValueObjectMapper
 						{
 							@SuppressWarnings("rawtypes")
 							Map atts = (Map) object.getAttribute(attribute);
-							if (atts.containsKey("NIF"))
-								usuari.setNationalID((String) atts.get("NIF"));
-							if (atts.containsKey("PHONE"))
-								usuari.setPhoneNumber((String) atts.get("PHONE"));
 						}
 					}
 				} catch (Exception e ) {
@@ -263,7 +259,6 @@ public class ValueObjectMapper
 					else if ("mailServer".equals(attribute)) usuari.setMailServer(toSingleString(value));
 					else if ("homeServer".equals(attribute)) usuari.setHomeServer(toSingleString(value));
 					else if ("profileServer".equals(attribute)) usuari.setProfileServer(toSingleString(value));
-					else if ("phone".equals(attribute)) usuari.setPhoneNumber(toSingleString(value));
 					else if ("userType".equals(attribute)) usuari.setUserType(toSingleString(value));
 					else if ("createdBy".equals(attribute)) usuari.setCreatedByUser(toSingleString(value));
 					else if ("modifiedBy".equals(attribute)) usuari.setModifiedByUser(toSingleString(value));
@@ -447,24 +442,7 @@ public class ValueObjectMapper
 			rol.setName(toSingleString(object.getAttribute("name")));
 			rol.setCategory(toSingleString(object.getAttribute("category")));
 			String domain = toSingleString(object.getAttribute("domain"));
-			Domain d = new Domain ();
-			rol.setDomain(d);
-			if (domain == null)
-			{
-				d.setName(TipusDomini.SENSE_DOMINI);
-			}
-			else if (domain.equals (TipusDomini.APLICACIONS) || 
-					domain.equals(TipusDomini.GRUPS) || 
-					domain.equals(TipusDomini.GRUPS_USUARI) ||
-					domain.equals(TipusDomini.SENSE_DOMINI))
-			{
-				d.setName(domain);
-			}
-			else
-			{
-				d.setName(domain);
-				d.setExternalCode(rol.getInformationSystemName());
-			}
+			rol.setDomain(domain);
 			Collection ownedRolesMap = (Collection) object.getAttribute("ownedRoles");
 			if (ownedRolesMap != null)
 			{

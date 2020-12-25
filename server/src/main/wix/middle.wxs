@@ -1,0 +1,37 @@
+         </Directory>
+        </Directory>
+      </Directory>
+      <Directory Id="ProgramMenuFolder">
+        <Directory Id="ApplicationProgramsFolder" Name="Soffid 3 IAM Sync">
+	         <Component Id="ApplicationShortcut" Guid="*">
+	                <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" 
+	                	Name="SoffidIAMSync" 
+	                	Type="string" 
+	                	Value='"[ProgramFiles64Folder]\Soffid\IAM-Console\bin\Tomee.exe" //MS//Soffid-iamsync' 
+	                	KeyPath="yes"/>
+			        <Shortcut Id="ApplicationStartMenuShortcut" 
+			                  Name="Soffid 3 IAM Sync systray monitor"
+			                  Description="Open Soffid 3 IAM Sync systray monitor"
+			                  Target="[#ROOT.bin.TomEE.exe]"
+			                  Arguments='//MS//Soffid-iamsync'/>
+		    </Component>
+		 </Directory>
+      </Directory>
+    </Directory>
+
+    <CustomAction Id="SoffidService2"          
+		  Execute="deferred" 
+		  FileKey="ROOT.bin.service.remove.as.admin.bat"
+		  Impersonate="no"
+		  ExeCommand=""
+          Return="ignore" />
+
+    <CustomAction Id="ZRegisterSoffidService"          
+		  Execute="deferred" 
+		  FileKey="ROOT.bin.service.install.as.admin.bat"
+		  Impersonate="no"
+		  ExeCommand=""
+          Return="ignore" />
+
+    <Feature Id='Complete' Level='1'>
+    

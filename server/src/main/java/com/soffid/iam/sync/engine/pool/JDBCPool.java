@@ -5,7 +5,7 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.Properties;
 
-import com.soffid.iam.sync.bootstrap.QueryHelper;
+import com.soffid.iam.sync.tools.QueryHelper;
 
 public class JDBCPool extends AbstractPool<Connection> {
 	String user;

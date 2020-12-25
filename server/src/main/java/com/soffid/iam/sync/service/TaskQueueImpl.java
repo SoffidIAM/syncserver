@@ -792,7 +792,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			synchronized (priorityQueue) {
 				for (TaskHandler task : priorityQueue)
 				{
-					if (taskDispatcher.isError(task))
+					if (taskDispatcher.isError(task) && ! task.isComplete())
 						size++;
 				}
 			}

@@ -32,11 +32,10 @@ public class Transform extends Object
      try {
          System.out.println ("Transformando cuenta");
          Usuari u = new Usuari();
-         u.setCodi("test");
          es.caib.seycon.ng.comu.Account a = new es.caib.seycon.ng.comu.Account();
          a.setName("test");
-         a.setOwnerUsers(new LinkedList<Usuari>());
-         a.getOwnerUsers().add(u);
+         a.setOwnerUsers(new LinkedList<String>());
+         a.getOwnerUsers().add("test");
          System.out.println(a);
          Account acc = Account.toAccount(a);
          System.out.println(acc);

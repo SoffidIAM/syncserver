@@ -3,6 +3,7 @@ package com.soffid.iam.sync.service;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
+import java.net.Inet4Address;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -22,6 +23,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.orm.hibernate3.SessionFactoryUtils;
 
+import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.Task;
 import com.soffid.iam.config.Config;
@@ -30,6 +33,7 @@ import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.TenantEntity;
 import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
+import com.soffid.iam.service.ConfigurationService;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
 import com.soffid.iam.sync.engine.TaskHandler;
@@ -96,14 +100,25 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             		+ "where tasca.server = :server "
             		+ "order by tasca.id", 
             		new Parameter[]{new Parameter("server", config.getHostName())});
+        } else if (isMainServer()) {
+            tasks = getTaskEntityDao().query("select distinct tasca "
+            		+ "from com.soffid.iam.model.TaskEntity as tasca "
+            		+ "left join tasca.tenant as tenant "
+            		+ "left join tenant.servers as servers "
+            		+ "left join servers.tenantServer as server "
+            		+ "where (tasca.server is null or tasca.server=:server) and server.name=:server "
+            		+ "and tasca.status='P'  AND tasca.hash is null "
+            		+ "order by tasca.priority, tasca.id",
+            		new Parameter[]{new Parameter("server", config.getHostName())},
+            		csc);
         } else {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
             		+ "left join tenant.servers as servers "
             		+ "left join servers.tenantServer as server "
-            		+ "where tasca.server is null and server.name=:server "
-            		+ "and tasca.status='P' "
+            		+ "where tasca.server=:server and server.name=:server "
+            		+ "and   tasca.status='P' and tasca.hash is null "
             		+ "order by tasca.priority, tasca.id",
             		new Parameter[]{new Parameter("server", config.getHostName())},
             		csc);
@@ -111,6 +126,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         TaskQueue taskQueue = getTaskQueue();
         int i = 0;
         flushAndClearSession();
+        long lastUpdate = java.lang.System.currentTimeMillis();
         for (Iterator<TaskEntity> it = tasks.iterator(); active && it.hasNext(); ) {
             TaskEntity tasca = it.next();
             if ( activeTenants.contains( tasca.getTenant().getId()))
@@ -128,7 +144,12 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             		getTaskEntityDao().update(tasca);
             	}
             }
+            if (java.lang.System.currentTimeMillis() - lastUpdate > 60000) {
+            	lastUpdate = java.lang.System.currentTimeMillis();
+                getSyncServerService().updatePendingTasks();
+            }
         }
+        getSyncServerService().updatePendingTasks();
    		firstRun = false;
     }
 
@@ -427,5 +448,51 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 	@Override
 	protected String handleStartVirtualSourceTransaction(boolean readonly) throws Exception {
 		return getTaskEntityDao().startVirtualSourceTransaction(readonly);
+	}
+
+	@Override
+	protected void handleUpdateClusterStatus() throws Exception {
+		try
+		{
+			String hostName = Config.getConfig().getHostName();
+			long now = java.lang.System.currentTimeMillis();
+			long timeout = now - 300000; // 5 minutes ago
+			ConfigurationService svc = ServiceLocator.instance().getConfigurationService();
+			Configuration cfg = svc.findParameterByNameAndNetworkName("soffid.syncserver.main", null);
+			if (cfg == null)
+			{
+				log.warn("Becoming master server");
+				cfg = new Configuration();
+				cfg.setCode("soffid.syncserver.main");
+				cfg.setValue(hostName+" "+now);
+				svc.create(cfg);
+			}
+			else
+			{
+				String [] split = cfg.getValue().isEmpty() ? new String[0]: cfg.getValue().split(" ");
+				if (split.length != 2 ||
+						split[0].equals(hostName) ||
+						Long.parseLong(split[1]) < timeout)
+				{
+					log.warn("Setting as master server: "+hostName);
+					cfg.setValue(hostName+" "+now);
+					svc.update(cfg);
+				}
+						
+			}
+		} catch (Throwable e) {
+//			e.printStackTrace();
+			log.warn("Error on sync server cluster manager", e);
+		}
+	}
+	
+	public boolean isMainServer() throws InternalErrorException, FileNotFoundException, IOException {
+		String hostName = Config.getConfig().getHostName();
+		ConfigurationService svc = getConfigurationService();
+		Configuration cfg = svc.findParameterByNameAndNetworkName("soffid.syncserver.main", null);
+		if (cfg == null)
+			return false;
+		String [] split = cfg.getValue().isEmpty() ? new String[0]: cfg.getValue().split(" ");
+		return split.length == 2 && split[0].equals(hostName);
 	}
 }

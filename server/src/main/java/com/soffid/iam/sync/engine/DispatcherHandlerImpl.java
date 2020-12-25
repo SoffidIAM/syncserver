@@ -10,6 +10,7 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
+import java.text.DateFormat;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -1092,9 +1093,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	return;
         
        	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
-       	if (acc != null && !acc.isDisabled() &&
-       			! acc.getType().equals (AccountType.IGNORED) &&
-       			! isUnmanagedType(acc.getPasswordPolicy()))
+       	if (acc == null || acc.isDisabled())
+       		return;
+       	if (acc.getType().equals (AccountType.IGNORED) ||
+       		isUnmanagedType(acc.getPasswordPolicy())) 
+       	{
+       		if ( getSystem().getName().equals(ConfigurationCache.getProperty("AutoSSOSystem"))) {
+	            Password p;
+	            p = getTaskPassword(t);
+        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), p,
+       				 "S".equals((t.getTask().getPasswordChange())),
+       				 t.getTask().getExpirationDate() == null ? null: t.getTask().getExpirationDate().getTime());
+       		}
+       	}
+       	else
        	{
 	        if ("S".equals(t.getTask().getPasswordChange()) && !getSystem().getTrusted().booleanValue()) {
 	            Password p = server.generateFakePassword(acc.getName(), mirroredAgent);
@@ -2640,7 +2652,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			r.setException(e);
 			String log = agent.endCaptureLog();
 			if (log == null) log = "";
-			r.setLog(log + SoffidStackTrace.getStackTrace(e));
+			String now = DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.MEDIUM).format(new Date());
+			r.setLog(log + "\n"+now+" WARN Unexpected error:\n"+ SoffidStackTrace.getStackTrace(e));
 		} finally {
 			closeAgent(agent);
 		}

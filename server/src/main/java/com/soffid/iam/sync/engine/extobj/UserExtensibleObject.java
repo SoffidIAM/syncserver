@@ -116,8 +116,6 @@ public class UserExtensibleObject extends ExtensibleObject
     			obj = usuari.getHomeServer();
     		else if ("profileServer".equals(attribute))
     			obj = usuari.getProfileServer();
-    		else if ("phone".equals(attribute))
-    			obj = usuari.getPhoneNumber();
     		else if ("userType".equals(attribute))
     			obj = usuari.getUserType();
     		else if ("createdBy".equals(attribute))

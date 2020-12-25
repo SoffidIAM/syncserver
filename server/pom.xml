@@ -8,13 +8,13 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.soffid.iam.sync</groupId>
 	<artifactId>syncserver</artifactId>
-	<version>2.8.1-SNAPSHOT</version>
+	<version>3.0.0-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>Soffid IAM Sync server</name>
 	<properties>
-		<maven.compile.source>1.5</maven.compile.source>
-		<maven.compile.target>1.5</maven.compile.target>
-		<iam.version>2.8.0-beta-2</iam.version>
+		<maven.compile.source>1.8</maven.compile.source>
+		<maven.compile.target>1.8</maven.compile.target>
+		<iam.version>3.0.0-SNAPSHOT</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -50,6 +50,21 @@
 				<directory>src/main/docker</directory>
 				<filtering>true</filtering>
 				<targetPath>../docker</targetPath>
+			</resource>
+			<resource>
+				<directory>src/main/deb</directory>
+				<filtering>true</filtering>
+				<targetPath>../deb</targetPath>
+			</resource>
+			<resource>
+				<directory>src/main/rpm</directory>
+				<filtering>true</filtering>
+				<targetPath>../rpm</targetPath>
+			</resource>
+			<resource>
+				<directory>src/main/wix</directory>
+				<filtering>true</filtering>
+				<targetPath>../wix</targetPath>
 			</resource>
 		</resources>
 		<testResources>
@@ -102,43 +117,23 @@
 						</configuration>
 					</execution>
 					<execution>
-						<id>copy-eris-w32</id>
+						<id>copy-bootstrap</id>
 						<phase>package</phase>
 						<goals>
-							<goal>copy-dependencies</goal>
+							<goal>copy</goal>
 						</goals>
 						<configuration>
-							<outputDirectory>
-								${project.build.directory}/eris-32
-							</outputDirectory>
-							<includeGroupIds>
-								com.soffid.iam.sync.w32
-							</includeGroupIds>
-							<overWriteReleases>false</overWriteReleases>
-							<overWriteSnapshots>true
-							</overWriteSnapshots>
-							<overWriteIfNewer>true</overWriteIfNewer>
-							<stripVersion>true</stripVersion>
-						</configuration>
-					</execution>
-					<execution>
-						<id>copy-eris-w64</id>
-						<phase>package</phase>
-						<goals>
-							<goal>copy-dependencies</goal>
-						</goals>
-						<configuration>
-							<outputDirectory>
-								${project.build.directory}/eris-64
-							</outputDirectory>
-							<includeGroupIds>
-								com.soffid.iam.sync.w64
-							</includeGroupIds>
-							<overWriteReleases>false</overWriteReleases>
-							<overWriteSnapshots>true
-							</overWriteSnapshots>
-							<overWriteIfNewer>true</overWriteIfNewer>
-							<stripVersion>true</stripVersion>
+							<artifactItems>
+								<artifactItem>
+									<groupId>${project.groupId}</groupId>
+									<artifactId>bootstrap</artifactId>
+									<version>${project.version}</version>
+									<type>jar</type>
+									<overWrite>true</overWrite>
+									<outputDirectory>${project.build.directory}/dist/opt/soffid/iam-sync/bin</outputDirectory>
+									<destFileName>bootstrap.jar</destFileName>
+								</artifactItem>
+							</artifactItems>
 						</configuration>
 					</execution>
 					<execution>
@@ -149,12 +144,13 @@
 						</goals>
 						<configuration>
 							<outputDirectory>
-								${project.build.directory}/server-only/lib
+								${project.build.directory}/dist/opt/soffid/iam-sync/lib
 							</outputDirectory>
 							<includeGroupIds>
 								com.oracle,org.mariadb.jdbc,org.postgresql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
 								org.hibernate,javax.mail,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
 								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
+								jakarta.xml.bind ,					
 								org.json,org.w3c,org.apache.cxf
 							</includeGroupIds>
 							<excludeArtifactIds>
@@ -178,7 +174,7 @@
 						</goals>
 						<configuration>
 							<outputDirectory>
-								${project.build.directory}/server-only/lib
+								${project.build.directory}/dist/opt/soffid/iam-sync/lib
 							</outputDirectory>
 							<includeGroupIds>org.apache.commons</includeGroupIds>
 							<includeArtifactIds>commons-jcs-core</includeArtifactIds>
@@ -196,7 +192,7 @@
 						</goals>
 						<configuration>
 							<outputDirectory>
-								${project.build.directory}/agent-test/lib
+								${project.build.directory}/dist/opt/soffid/iam-sync/lib
 							</outputDirectory>
 							<overWriteReleases>false</overWriteReleases>
 							<overWriteSnapshots>
@@ -212,8 +208,18 @@
 			<plugin>
 				<groupId>org.codehaus.mojo</groupId>
 				<artifactId>build-helper-maven-plugin</artifactId>
-				<version>1.7</version>
+				<version>3.2.0</version>
 				<executions>
+                    <execution>
+                        <id>parse-version</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>parse-version</goal>
+                        </goals>
+                        <configuration>
+                        	<propertyPrefix>parsedVersion</propertyPrefix>
+                        </configuration>
+                    </execution>
 					<execution>
 						<phase>generate-sources</phase>
 						<goals>
@@ -235,43 +241,25 @@
 							<artifacts>
 								<artifact>
 									<file>
-										target/install4j/SoffidIAMSync_linux.rpm
+										target/soffid-iamsync-${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}-1.noarch.rpm
 									</file>
 									<type>rpm</type>
 								</artifact>
 								<artifact>
 									<file>
-										target/install4j/SoffidIAMSync_windows.exe
+										target/wix/syncserver.msi
 									</file>
-									<type>exe</type>
+									<type>msi</type>
 								</artifact>
 								<artifact>
 									<file>
-										target/install4j/SoffidIAMSync_windows-x64.exe
-									</file>
-									<type>x64.exe</type>
-								</artifact>
-								<artifact>
-									<file>
-										target/install4j/SoffidIAMSync_unix.sh
-									</file>
-									<type>sh</type>
-								</artifact>
-								<artifact>
-									<file>
-										target/install4j/SoffidIAMSync_unix_nojre.sh
-									</file>
-									<type>nojre.sh</type>
-								</artifact>
-								<artifact>
-									<file>
-										target/install4j/SoffidIAMSync_linux.deb
+										target/soffid-iamsync-${project.version}.deb
 									</file>
 									<type>deb</type>
 								</artifact>
 								<artifact>
 									<file>
-										target/install4j/SoffidIAMSync_unix_nojre.tar.gz
+										target/Soffid-sync.tar.gz
 									</file>
 									<type>tar.gz</type>
 								</artifact>
@@ -283,6 +271,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.0.0</version>
 				<configuration>
 					<archive>
 						<index>false</index>
@@ -297,15 +286,87 @@
 				<version>1.7</version>
 				<executions>
 					<execution>
-						<id>install4j</id>
+						<id>package</id>
 						<phase>package</phase>
 						<configuration>
-							<target>
-								<taskdef name="install4j" classname="com.install4j.Install4JTask" classpath="${env.INSTALL4J_HOME}/bin/ant.jar" />
-								<install4j projectfile="src/install-agent/seycon agent.install4j">
-									<variable name="seycon.version" value="${pom.version}" />
-								</install4j>
-							</target>
+							<tasks>
+								<copy todir="${basedir}/target/dist/opt/soffid" >
+									<fileset dir="${basedir}/src/main/install4j/resources" includes="**" />
+								</copy>
+								<copy todir="${basedir}/target/dist/opt/soffid/iam-sync/lib" >
+									<fileset dir="${basedir}/target" includes="syncserver.jar" />
+								</copy>
+								<mkdir dir="${basedir}/target/dist/opt/soffid/iam-sync/conf" />
+								<mkdir dir="${basedir}/target/dist/opt/soffid/iam-sync/tmp" />
+								<mkdir dir="${basedir}/target/dist/opt/soffid/iam-sync/logs" />
+								<chmod dir="${basedir}/target/dist/opt/soffid/iam-sync/bin" perm="755" includes="**"/>
+								<tar destfile="${basedir}/target/Soffid-sync.tar.gz" compression="gzip">
+									<tarfileset dir="${basedir}/target/dist/opt/soffid" username="root" group="root" filemode="0660">
+										<include name="**"/>
+										<exclude name="iam-sync/bin/soffid-sync"/>
+										<exclude name="iam-sync/bin/configure"/>
+										<exclude name="iam-sync/bin/cli"/>
+									</tarfileset>
+									<tarfileset dir="${basedir}/target/dist/opt/soffid" username="root" group="root" filemode="0550" >
+										<include name="iam-sync/bin/soffid-sync"/>
+										<include name="iam-sync/bin/configure"/>
+										<include name="iam-sync/bin/cli"/>
+									</tarfileset>
+								</tar>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>build-deb</id>
+						<phase>package</phase>
+						<configuration>
+							<tasks>
+								<copy todir="${basedir}/target/deb" >
+									<fileset dir="${basedir}/target/dist" includes="**/*"/>
+								</copy>
+								<chmod dir="${basedir}/target/deb/DEBIAN" perm="755" includes="p*"/>
+								<chmod dir="${basedir}/target/deb/opt/soffid/iam-sync/bin" perm="750" includes="**"/>
+								<exec executable="fakeroot" failonerror="true">
+									<arg value="dpkg-deb" />
+									<arg value="-b" />
+									<arg value="${basedir}/target/deb" />
+									<arg value="target/soffid-iamsync-${project.version}.deb" />
+								</exec>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>build-msi</id>
+						<phase>package</phase>
+						<configuration>
+							<tasks>
+								<exec executable="${basedir}/src/main/wix/generateWix.sh" failonerror="true">
+									<arg value="${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}" />
+								</exec>
+							</tasks>
+						</configuration>
+						<goals>
+							<goal>run</goal>
+						</goals>
+					</execution>
+					<execution>
+						<id>build-rpm</id>
+						<phase>package</phase>
+						<configuration>
+							<tasks>
+								<copy todir="${basedir}/target/rpm/dist" >
+									<fileset dir="${basedir}/target/dist" includes="**/*"/>
+								</copy>
+								<chmod dir="${basedir}/target/rpm/dist/opt/soffid/iam-sync/bin" perm="750" includes="**"/>
+								<exec executable="src/main/rpm/generaterpm.sh" failonerror="true">
+								</exec>
+							</tasks>
 						</configuration>
 						<goals>
 							<goal>run</goal>
@@ -665,12 +726,6 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<version>3.8.1</version>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 			<groupId>image4j.sf.net</groupId>
 			<artifactId>image4j</artifactId>
 			<version>0.7</version>
@@ -706,6 +761,11 @@
 			<artifactId>cxf-rt-rs-client</artifactId>
 			<version>3.1.10</version>
 			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.xml.bind</groupId>
+			<artifactId>jakarta.xml.bind-api</artifactId>
+			<version>2.3.2</version>
 		</dependency>
 	</dependencies>
 	<reporting>

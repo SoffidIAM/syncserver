@@ -15,11 +15,11 @@ import com.soffid.iam.api.ObjectMapping;
 import com.soffid.iam.api.ObjectMappingProperty;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.service.DispatcherService;
-import com.soffid.iam.sync.bootstrap.NullSqlObjet;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMapping;
 import com.soffid.iam.sync.intf.ExtensibleObjects;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.sync.tools.NullSqlObjet;
 
 import bsh.EvalError;
 import bsh.Interpreter;

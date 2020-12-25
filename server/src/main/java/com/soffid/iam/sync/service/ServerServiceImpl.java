@@ -51,6 +51,7 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
 import com.soffid.iam.api.sso.Secret;
+import com.soffid.iam.common.security.SoffidPrincipal;
 import com.soffid.iam.model.AccessControlEntity;
 import com.soffid.iam.model.AccessControlEntityDao;
 import com.soffid.iam.model.AccountEntity;
@@ -96,8 +97,6 @@ import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.Plugin;
-import com.soffid.iam.sync.bootstrap.ConfigurationManager;
-import com.soffid.iam.sync.bootstrap.JarExtractor;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.LogWriter;
 import com.soffid.iam.sync.engine.TaskHandler;
@@ -113,6 +112,8 @@ import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.server.Compile;
 import com.soffid.iam.sync.service.server.Compile2;
 import com.soffid.iam.sync.service.server.Compile3;
+import com.soffid.iam.sync.tools.ConfigurationManager;
+import com.soffid.iam.sync.tools.JarExtractor;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -531,6 +532,15 @@ public class ServerServiceImpl extends ServerServiceBase {
 	}
 
 	@Override
+	protected Collection<System> handleGetServices() throws Exception {
+		SoffidPrincipal principal = Security.getSoffidPrincipal();
+		String serverName = principal.getName();
+		ServerEntity server = getServerEntityDao().findByName(serverName);
+		Collection<SystemEntity> entities = getSystemEntityDao().findServices(server.getUrl(), true);
+		return getSystemEntityDao().toSystemList(entities);
+	}
+
+	@Override
 	protected Collection<Host> handleGetHostsFromNetwork(long networkId)
 			throws Exception {
 		NetworkEntity xarxa = getNetworkEntityDao().load(networkId);
@@ -608,7 +618,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 		llista.setId(null);
 		llista.setDomainCode(domain);
 		llista.setName(list);
-		llista.setUsersList(usuari.getUserName());
+		llista.setUsersList( new LinkedList<String>());
+		llista.getUsersList().add( usuari.getUserName() );
 		llista.setDescription(usuari.getFirstName()
 				+ " " + usuari.getLastName() + " " + usuari.getMiddleName()); //$NON-NLS-1$ //$NON-NLS-2$
 		return llista;

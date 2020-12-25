@@ -1,0 +1,18 @@
+#!/bin/bash
+dir=$(dirname $0)
+CP="$dir/bootstrap.jar:$dir/../lib/mariadb-java-client-1.8.0.jar:$dir/../lib/ojdbc7-12.1.0.1.0.jar:$dir/../lib/postgresql-42.2.5.jre7.jar:$dir/../lib/sqljdbc4-3.0.jar"
+
+source $dir/env.sh
+
+java=java
+if [ ! -z "$JAVA_HOME" ]
+then
+  java="$JAVA_HOME/bin/java"
+elif [ ! -z "$JRE_HOME" ] 
+then
+  java="$JRE_HOME/bin/java"
+else
+  java=java
+fi
+
+exec $java -cp "$CP" $JAVA_OPTIONS com.soffid.iam.sync.bootstrap.SyncLoader $*

@@ -21,7 +21,7 @@ import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 import com.soffid.iam.config.Config;
-import com.soffid.iam.sync.bootstrap.JarExtractor;
+import com.soffid.iam.sync.tools.JarExtractor;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 

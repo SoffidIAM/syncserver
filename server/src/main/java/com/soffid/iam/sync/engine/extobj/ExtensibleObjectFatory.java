@@ -69,7 +69,14 @@ public class ExtensibleObjectFatory {
 			Role role;
 			try {
 				role = server.getRoleInfo(object1, getAgentName());
-				return new RoleExtensibleObject(role, server);
+				if (role == null) {
+					ExtensibleObject eo = new ExtensibleObject();
+					eo.setObjectType(SoffidObjectType.OBJECT_ROLE.getValue());
+					eo.setAttribute("name", object1);
+					eo.setAttribute("system", object2);
+					return eo;
+				} else
+					return new RoleExtensibleObject(role, server);
 			} catch (UnknownRoleException e) {
 				ExtensibleObject eo = new ExtensibleObject();
 				eo.setObjectType(SoffidObjectType.OBJECT_ROLE.getValue());

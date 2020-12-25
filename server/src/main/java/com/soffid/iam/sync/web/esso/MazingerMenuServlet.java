@@ -108,7 +108,7 @@ public class MazingerMenuServlet extends HttpServlet {
 
     public void generatePuntEntrada(AccessTree punt, StringBuffer buffer) throws InternalErrorException {
 
-        if ("S".equals(punt.getMenu())) {
+        if (punt.isMenu()) {
             buffer.append("MENU|");
             buffer.append(removeSlash(punt.getName()));
             buffer.append("|");

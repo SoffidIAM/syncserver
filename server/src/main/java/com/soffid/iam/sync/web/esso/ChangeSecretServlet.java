@@ -85,7 +85,6 @@ public class ChangeSecretServlet extends HttpServlet {
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(),
                         "UTF-8")); //$NON-NLS-1$
         
-        
         User usuari;
 		try {
 			usuari = usuariService.findUserByUserName(user);
@@ -223,48 +222,43 @@ public class ChangeSecretServlet extends HttpServlet {
 	           	} else {
 	           		if ( value.length() < 1024)
 	           		{
-		           		String actualAttribute = "SSO:"+ssoAttribute;
-		           		for ( UserData du: accountSvc.getAccountAttributes(acc))
-		           		{
-		           			if (du.getAttribute().equals (actualAttribute) && du.getId() != null)
-		           			{
-		       					du.setValue(value);
-		       					accountSvc.updateAccountAttribute(du);
-		       					return "OK";
-		           			}
-		           		}
-		           		// Attribute not found
-		           		AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
-		           		DataType md = metadataService.findSystemDataType(system, actualAttribute);
-		           		if (md == null)
-		           		{
-		           			md = new DataType();
-		           			md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
-		           			md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
-		           			md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
-		           			md.setCode(actualAttribute);
-		           			if (ssoAttribute.equals("Server"))
-		           			{
-		               			md.setLabel("Server");
-		               			md.setType(TypeEnumeration.STRING_TYPE);
-		           			}
-		           			else
-		           			{
-		           				md.setLabel("Form data");
-		               			md.setType(TypeEnumeration.SSO_FORM_TYPE);
-		           			}
-		           			md.setSize(1024);
-		           			md.setOrder(0L);
-		           			md.setSystemName(system);
-		           			md.setRequired(false);
-		           			md = metadataService.create(md);
-		           		}
-		           		UserData du = new UserData();
-		           		du.setAccountName(account);
-		           		du.setSystemName(system);
-		           		du.setAttribute(md.getCode());
-						du.setValue(value);
-		           		acs.createAccountAttribute(du);
+	           			
+	           			if (ssoAttribute.equals("Server") ) 
+	           				acc.setServerName(value);
+	           			else if (ssoAttribute.equals("URL"))
+	           				acc.setLoginUrl(value);
+	           			else {
+	           				String actualAttribute = "SSO:"+ssoAttribute;
+	           				acc.getAttributes().put(actualAttribute, value);
+	           				// Attribute not found
+	           				AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
+	           				DataType md = metadataService.findSystemDataType(system, actualAttribute);
+	           				if (md == null)
+	           				{
+	           					md = new DataType();
+	           					md.setAdminVisibility(AttributeVisibilityEnum.EDITABLE);
+	           					md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
+	           					md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
+	           					md.setCode(actualAttribute);
+	           					md.setValidationExpression("false");
+	           					if (ssoAttribute.equals("Server"))
+	           					{
+	           						md.setLabel("Server");
+	           						md.setType(TypeEnumeration.STRING_TYPE);
+	           					}
+	           					else
+	           					{
+	           						md.setLabel("Form data");
+	           						md.setType(TypeEnumeration.SSO_FORM_TYPE);
+	           					}
+	           					md.setSize(1024);
+	           					md.setOrder(0L);
+	           					md.setSystemName(system);
+	           					md.setRequired(false);
+	           					md = metadataService.create(md);
+	           				}
+	           			}
+		           		acs.updateAccount2(acc);
 	           		}
 	           	}
 	    		
@@ -327,12 +321,12 @@ public class ChangeSecretServlet extends HttpServlet {
 		acc.setName(""+i);
 		acc.setDescription(description);
 		acc.setSystem(system);
-		acc.setOwnerUsers(new LinkedList<User>());
-		acc.getOwnerUsers().add(owner);
+		acc.setOwnerUsers(new LinkedList<String>());
+		acc.getOwnerUsers().add(owner.getUserName());
 		String ssoPolicy = ConfigurationCache.getProperty("AutoSSOPolicy"); //$NON-NLS-1$
 		if (ssoPolicy == null)
 			throw new InternalErrorException (Messages.getString("ChangeSecretServlet.22")); //$NON-NLS-1$
-		acc.setType(AccountType.SHARED);
+		acc.setType(AccountType.IGNORED);
 		acc.setPasswordPolicy(ssoPolicy);
 		// Search for personal folder
 		VaultFolder vf = ServiceLocator.instance().getVaultService().getPersonalFolder();

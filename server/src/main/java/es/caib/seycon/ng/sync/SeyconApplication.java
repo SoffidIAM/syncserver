@@ -16,7 +16,7 @@ import org.slf4j.LoggerFactory;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.ssl.ConnectionFactory;
 import com.soffid.iam.sync.SoffidApplication;
-import com.soffid.iam.sync.bootstrap.FileVersionManager;
+import com.soffid.iam.sync.tools.FileVersionManager;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 

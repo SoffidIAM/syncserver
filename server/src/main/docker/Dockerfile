@@ -13,7 +13,7 @@ RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
 RUN locale-gen
 
 RUN echo "Adding sync server ${pom.version} "
-ADD target/install4j/SoffidIAMSync_unix_nojre.tar.gz /opt/soffid/
+ADD target/Soffid-sync.tar.gz /opt/soffid/
 COPY src/main/docker/start.sh /opt/soffid/iam-sync/start.sh
 
 ENV LANG en_US.UTF-8

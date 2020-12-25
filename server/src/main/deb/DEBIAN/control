@@ -1,0 +1,8 @@
+Section: admin
+Priority: optional
+Maintainer: Soffid <contact@soffid.com>
+Package: soffid-iamsync
+Version: ${project.version}
+Architecture: all
+Description: Soffid IAM Sync
+Depends: java-runtime

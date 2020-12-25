@@ -4,6 +4,7 @@
 package com.soffid.iam.sync.engine.extobj;
 
 import java.util.LinkedList;
+import java.util.List;
 
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.SoffidObjectType;
@@ -48,17 +49,17 @@ public class MailListExtensibleObject extends ExtensibleObject
 			else if ("domain".equals(attribute))
 				obj = mailList.getDomainCode();
 			else if ("users".equals(attribute))
-				obj = mailList.getUsersList().split("[, ]+");
+				obj = mailList.getUsersList();
 			else if ("groups".equals(attribute))
-				obj = mailList.getGroupMembers().split("[, ]+");
+				obj = mailList.getGroupMembers();
 			else if ("roles".equals(attribute))
-				obj = mailList.getRoleMembers().split("[, ]+");
+				obj = mailList.getRoleMembers();
 			else if ("lists".equals(attribute))
-				obj = mailList.getLists().split("[, ]+");
+				obj = mailList.getLists();
 			else if ("explodedUsers".equals(attribute) && mailList.getExplodedUsersList() != null)
-				obj = mailList.getExplodedUsersList().split("[, ]+");
+				obj = mailList.getExplodedUsersList();
 			else if ("explodedUserAddresses".equals(attribute) && mailList.getExplodedUsersList() != null)
-				obj = resolveAddresses (mailList.getExplodedUsersList().split("[, ]+"));
+				obj = resolveAddresses (mailList.getExplodedUsersList());
 			else if ("attributes".equals(attribute))
 				obj = mailList.getAttributes();
 			else
@@ -73,7 +74,7 @@ public class MailListExtensibleObject extends ExtensibleObject
 		return obj;
 	}
 
-	private Object resolveAddresses(String[] split) throws InternalErrorException {
+	private Object resolveAddresses(List<String> split) throws InternalErrorException {
 		if (serverService == null)
 			return null;
 		

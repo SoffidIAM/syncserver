@@ -55,6 +55,7 @@ import com.soffid.iam.sync.intf.RoleMgr;
 import com.soffid.iam.sync.intf.SharedFolderMgr;
 import com.soffid.iam.sync.service.ServerService;
 
+import es.caib.seycon.ng.comu.Dispatcher;
 import es.caib.seycon.ng.comu.Grup;
 import es.caib.seycon.ng.comu.LlistaCorreu;
 import es.caib.seycon.ng.comu.Maquina;
@@ -906,6 +907,10 @@ public class InterfaceWrapper {
 				}
 				public void reconcileAccount(String system, String account) throws InternalErrorException {
 					agent.reconcileAccount(system, account);
+				}
+				public Collection<System> getServices() throws InternalErrorException {
+					Collection<Dispatcher> d = agent.getServices();
+					return System.toSystemList(d);
 				}
 			};
 	}

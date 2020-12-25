@@ -1,0 +1,40 @@
+#! /bin/bash
+# postinst script
+#
+# see: dh_installdeb(1)
+
+set -e
+
+# summary of how this script can be called:
+#       * <postinst> `configure' <most-recently-configured-version>
+#       * <old-postinst> `abort-upgrade' <new version>
+#       * <conflictor's-postinst> `abort-remove' `in-favour' <package>
+#         <new-version>
+#       * <deconfigured's-postinst> `abort-deconfigure' `in-favour'
+#         <failed-install-package> <version> `removing'
+#         <conflicting-package> <version>
+#
+# for details, see http://www.debian.org/doc/debian-policy/ or
+# the debian-policy package
+#
+
+
+if ! getent group soffid >/dev/null 2>&1; then
+    addgroup --system --quiet soffid
+fi
+if ! getent passwd soffid >/dev/null 2>&1; then
+    adduser --system --quiet --ingroup soffid    \
+            --no-create-home --home /opt/soffid  \
+            soffid
+fi
+
+if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
+	chown -R soffid:soffid /opt/soffid/iam-sync
+
+	# This will only remove masks created by d-s-h on package removal.
+	systemctl enable 'soffid-iamsync.service' || true 	
+
+	systemctl start soffid-iamsync || true 
+else
+    systemctl daemon-reload
+fi

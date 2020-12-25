@@ -1,0 +1,38 @@
+[Unit]
+Description=Soffid ${project.version} IAM Sync
+Documentation=https://confluence.soffid.com/
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+
+[Service]
+
+##############################################################################
+## Core requirements
+##
+
+Type=forking
+
+##############################################################################
+## Package maintainers
+##
+
+User=soffid
+Group=soffid
+
+# Prevent writes to /usr, /boot, and /etc
+ProtectSystem=full
+
+#PrivateDevices=true
+
+# Prevent accessing /home, /root and /run/user
+ProtectHome=false
+
+ExecStart=/bin/sh -c ". /opt/soffid/iam-sync/bin/env.sh; exec /opt/soffid/iam-sync/bin/soffid-sync"
+
+KillSignal=SIGTERM
+
+Restart=on-abort
+RestartSec=5s

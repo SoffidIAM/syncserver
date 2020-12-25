@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.engine.session;
 
+import es.caib.seycon.ng.comu.TipusSessio;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.LogonDeniedException;
 import es.caib.seycon.ng.exception.TooManySessionsException;
@@ -24,6 +25,7 @@ import java.util.Vector;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.Session;
@@ -163,7 +165,9 @@ public class SessionManager extends Thread {
      * @throws InternalErrorException 
      */
     public boolean check(Session sessio) throws InternalErrorException {
-    	if (sessio.getUrl() != null)
+    	if (sessio.getType() == TipusSessio.PAM)
+    		return checkPamSession(sessio);
+    	else if (sessio.getUrl() != null)
     		return checkUrlSession(sessio);
     	else
     		return checkSocketSession(sessio);
@@ -214,6 +218,20 @@ public class SessionManager extends Thread {
     	}
     }
     
+    public boolean checkPamSession(Session sessio) throws InternalErrorException {
+    	try {
+    		return ServiceLocator.instance().getPamSessionService().checkJumpServerSession(sessio);
+    	} 
+    	catch (Exception e)
+    	{
+            String identity = String.format("%s on %s ID=%s", sessio.getUserName(), //$NON-NLS-1$
+                            sessio.getUrl(), sessio.getId());
+            log.info("LOGOFF Session {}: unexpected exception {}", identity, e.toString()); //$NON-NLS-1$
+            // Simply assume web server is restarting and cannot answer your request
+            return true;
+    	}
+    }
+
     public boolean checkSocketSession(Session sessio) throws InternalErrorException {
         String idText = sessio.getId().toString();
         String identity = String.format("%s on %s:%d ID=%s", sessio.getUserName(), //$NON-NLS-1$

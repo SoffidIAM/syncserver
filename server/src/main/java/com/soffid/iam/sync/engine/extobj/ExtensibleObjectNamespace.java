@@ -8,9 +8,9 @@ import java.util.Map;
 
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteServiceLocator;
-import com.soffid.iam.sync.bootstrap.NullSqlObjet;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.sync.tools.NullSqlObjet;
 
 import bsh.BshClassManager;
 import bsh.ExternalNameSpace2;

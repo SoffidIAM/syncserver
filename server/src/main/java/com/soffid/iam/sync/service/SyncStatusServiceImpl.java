@@ -87,7 +87,7 @@ import javax.servlet.ServletException;
 import org.apache.commons.logging.LogFactory;
 import org.jfree.util.Log;
 
-public class SyncStatusServiceImpl extends SyncStatusServiceBase {
+public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	org.apache.commons.logging.Log log = LogFactory.getLog(getClass());
 	
     @Override
@@ -173,18 +173,43 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	        String numTasquesPendents = "Starting".equals(estat) ? "Starting" : "";// + //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 	                                                                               // getNumTasquesPendents();
 	
-	        // url, versio, estat,
-	        // numAgents, numTasquesPendents, sso, jetty, ssoDaemon,
-	        // taskGenerator, caducitatRootCertificate,
-	        // caducitatMainCertificate, dataActualServer, databaseConnections)
-	        SyncServerInfo info = new SyncServerInfo(url, "Sync server", versio, estat, numAgents, //$NON-NLS-1$
-	                "" + numTasquesPendents, "", "", "", "", null, null, dataActualServer, ""); //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$ //$NON-NLS-4$ //$NON-NLS-5$ //$NON-NLS-6$
-	
+	        SyncServerInfo info = new SyncServerInfo();
+	        info.setUrl(url);
+	        info.setDescription("Sync server");
+	        info.setVersion(versio);
+	        info.setStatus(estat);
+	        info.setConnectedAgents(getConnectedAgents());
+	        info.setNumberOfAgents(getTotalAgents());
+	        info.setCurrentServerDate(dataActualServer);
 	        return info;
     	} finally {
     		Security.nestedLogoff();
     	}
     }
+
+    private int getConnectedAgents() throws IOException, InternalErrorException {
+        int workingAgents = 0;
+        int disconnectedAgents = 0;
+        int totalAgents = 0;
+
+        for (DispatcherHandler taskDispatcher : getTaskGenerator().getDispatchers()) {
+            if (taskDispatcher != null && taskDispatcher.isActive()) {
+                totalAgents++;
+                if (!taskDispatcher.isConnected()) {
+                    disconnectedAgents++;
+                } else {
+                    workingAgents++;
+                }
+            } else
+                disconnectedAgents++;// està ok??
+        }
+        return workingAgents;
+    }
+
+    private int getTotalAgents() throws IOException, InternalErrorException {
+    	return getDispatcherService().findDispatchersByFilter(null, null, null, null, null, Boolean.TRUE).size();
+    }
+
 
     private String getAgentConnectionStatus() throws IOException, InternalErrorException {
         int workingAgents = 0;
@@ -252,11 +277,21 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	        String numTasquesPendents = "Starting".equals(estat) ? "Starting" : "";// + //$NON-NLS-1$ //$NON-NLS-2$ //$NON-NLS-3$
 	                                                                               // getNumTasquesPendents();
 	
-	        SyncServerInfo info = new SyncServerInfo(url, "Sync server", versio, estat, numAgents, //$NON-NLS-1$
-	                "" + numTasquesPendents, sso, jetty, ssoDaemon, taskGenerator, //$NON-NLS-1$
-	                caducitatRootCertificate, caducitatMainCertificate, dataActualServer,
-	                databaseConnections);
-	
+	        SyncServerInfo info = new SyncServerInfo();
+	        info.setUrl(url);
+	        info.setDescription("Sync server");
+	        info.setVersion(versio);
+	        info.setStatus(estat);
+	        info.setConnectedAgents(getConnectedAgents());
+	        info.setNumberOfAgents(getTotalAgents());
+	        info.setSso(sso);
+	        info.setJetty(jetty);
+	        info.setSsoDaemon(ssoDaemon);
+	        info.setTaskGenerator(taskGenerator);
+	        info.setExpirationMainCertificate(caducitatMainCertificate);
+	        info.setExpirationRootCertificate(caducitatRootCertificate);
+	        info.setCurrentServerDate(dataActualServer);
+	        info.setDatabaseConnections(databaseConnections);
 	        return info;
     	} finally {
     		Security.nestedLogoff();
@@ -736,9 +771,15 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_USER))
 		{
-			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
-			tasca.setUser(object1);
-			tasca.setDatabase(dispatcher);
+			AccountEntity acc = getAccountEntityDao().findByNameAndSystem(object1, dispatcher);
+			if (acc == null) {
+				tasca.setTransaction(TaskHandler.UPDATE_USER);
+				tasca.setUser(object1);
+			} else {
+				tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT);
+				tasca.setUser(object1);
+				tasca.setDatabase(dispatcher);
+			}
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_GROUP))
 		{
@@ -860,10 +901,22 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	@Override
 	protected void handleSetAccountPassword(String accountName, String serverName, Password password, boolean mustChange) throws Exception {
 		AccountEntity account = getAccountEntityDao().findByNameAndSystem(accountName, serverName);
-		if ( account.getType() != AccountType.IGNORED)
+		if ( account != null)
 		{
 			getInternalPasswordService().storeAndSynchronizeAccountPassword(account, password, mustChange, null);
 		}
 	}
+	
+	@Override
+	protected void handleCheckConnectivity(java.lang.String dispatcher) throws Exception {
+		DispatcherHandler handler = getTaskGenerator().getDispatcher(dispatcher);
+		if (handler == null)
+			throw new InternalErrorException ("System "+dispatcher+" is not enabled yet");
+		if (! handler.isConnected())
+		{
+			handler.connect(true, false);
+		}
+	}
+
 
 }

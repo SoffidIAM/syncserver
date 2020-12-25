@@ -66,7 +66,7 @@ public class Engine extends Thread {
             // Un standby server esta disabled
             boolean logCollectorEnabled = config.isActiveServer()
                     && !config.isMainServer();
-            enabled = config.isActiveServer() && config.isMainServer();
+            enabled = config.isActiveServer();
             sleep(5000);
             
             taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
@@ -102,6 +102,13 @@ public class Engine extends Thread {
                 if (shutDownPending)
                     break;
 
+                if (enabled) {
+                	try {
+                		taskGenerator.updateClusterStatus();
+                	} catch (Exception e) {
+                		log.warn("Error updating cluster status");
+                	}
+                }
                 setStatus("Updating task queue");
                 if (enabled && !shutDownPending) {
            			loadMainDbTasks(config);

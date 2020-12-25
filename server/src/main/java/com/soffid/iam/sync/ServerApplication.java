@@ -17,7 +17,6 @@ import java.util.LinkedList;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.config.Config;
-import com.soffid.iam.sync.bootstrap.QueryHelper;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
@@ -25,6 +24,7 @@ import com.soffid.iam.sync.engine.session.SessionManager;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
+import com.soffid.iam.sync.tools.QueryHelper;
 import com.soffid.iam.sync.web.internal.DownloadLibraryServlet;
 import com.soffid.iam.util.Syslogger;
 

@@ -51,6 +51,8 @@ import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.service.CertificateEnrollService;
+import com.soffid.iam.sync.tools.KubernetesConfig;
+
 import es.caib.seycon.ng.exception.CertificateEnrollDenied;
 import es.caib.seycon.ng.exception.CertificateEnrollWaitingForAproval;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -249,7 +251,9 @@ public class CertificateServer {
             System.out.println ("The certificate request has been issued.");
         } 
         
-        while ( true )
+		new KubernetesConfig().save();
+
+		while ( true )
         {
             try {
                 Long l = Long.decode(config.getRequestId());

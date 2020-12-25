@@ -151,4 +151,4 @@ then
 fi
 
 
- exec /opt/soffid/iam-sync/bin/standalone
+ exec /opt/soffid/iam-sync/bin/soffid-sync

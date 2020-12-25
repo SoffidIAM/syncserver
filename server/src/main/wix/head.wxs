@@ -1,0 +1,24 @@
+<?xml version='1.0' encoding='windows-1252'?>
+<Wix xmlns='http://schemas.microsoft.com/wix/2006/wi'>
+  <Product Name='Soffid 3 SyncServer' 
+	Id='*' 
+	UpgradeCode='df92befa-e5f5-485a-8dfd-d3ac9ba9632f'
+    Language='1033' Codepage='1252' Version='${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}' Manufacturer='Soffid IAM SL'>
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Soffid 3 SyncServer is already installed." />
+
+    <Package Id='*' Keywords='Installer' Description="Soffid 3 Sync Server"
+      Comments='Soffid IAM Console' Manufacturer='Soffid IAM SL'
+      InstallerVersion='200' Languages='1033' Compressed='yes' SummaryCodepage='1252' />
+
+	<Media Id='1' Cabinet='Sample.cab' EmbedCab='yes' DiskPrompt="CD-ROM #1" />
+	
+	<Icon Id="icon.ico" SourceFile="target/dist/opt/soffid/iam-sync/bin/soffid.ico"/>
+	<Property Id="ARPPRODUCTICON" Value="icon.ico" />
+    <Property Id='DiskPrompt' Value="Soffid Console disk [1]" />
+    <Property Id='done' Value="Installing" />
+
+    <Directory Id='TARGETDIR' Name='SourceDir'>
+      <Directory Id='ProgramFiles64Folder' Name='PFiles'>
+        <Directory Name='Soffid' Id="dir0">
+         <Directory Name='IAM-Sync' Id="dir1">

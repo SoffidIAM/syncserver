@@ -1,0 +1,11 @@
+   		<ComponentRef Id='ApplicationShortcut'/>
+    </Feature>
+
+	<InstallExecuteSequence> 
+     <Custom Action='SoffidService2' After='InstallInitialize'>REMOVE = "ALL"</Custom>
+     <Custom Action="ZRegisterSoffidService" After="InstallFiles">REMOVE &lt;&gt; "ALL"</Custom>
+     <!--
+     -->
+    </InstallExecuteSequence>
+  </Product>
+</Wix>

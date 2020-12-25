@@ -11,6 +11,7 @@ import com.soffid.iam.api.Session;
 import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.comu.Sessio;
+import es.caib.seycon.ng.comu.TipusSessio;
 
 /**
  * Thread lanzado por Daemon para verificar las sesiones vivas. Todos los
@@ -74,8 +75,12 @@ public class LogoffThread extends Object implements Runnable {
         boolean salir = false;
         Session s = null;
         long sessionTimeout = 1200000; // 20 minutes
+        long pamSessionTimeout = 60000; // 1 minute
         try {
         	sessionTimeout = Long.decode(ConfigurationCache.getMasterProperty("soffid.esso.session.timeout")) * 1000;
+        } catch (Exception e) {}
+        try {
+        	pamSessionTimeout = Long.decode(ConfigurationCache.getMasterProperty("soffid.esso.pamsession.timeout")) * 1000;
         } catch (Exception e) {}
         // es.caib.seycon.ServerApplication.out.println
         // (Thread.currentThread().getName () + ": started");
@@ -94,7 +99,8 @@ public class LogoffThread extends Object implements Runnable {
                 	Long lastPing = s.getKeepAliveDate() == null ? 
                 						s.getStartDate().getTimeInMillis():
                 						s.getKeepAliveDate().getTimeInMillis();
-                	if (System.currentTimeMillis() - lastPing > sessionTimeout)
+                	long t = s.getType() == TipusSessio.PAM ? pamSessionTimeout: sessionTimeout;
+                	if ( System.currentTimeMillis() - lastPing > t)
                 	{
                         if (!sessionManager.check(s)) {
                             sessionManager.deleteSession(s);

@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteInvokerFactory;
+import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.agent.AgentManagerImpl;
@@ -33,14 +34,12 @@ import com.soffid.iam.sync.hub.client.RemoteThread;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.jetty.SecurityHeaderFactory;
 import com.soffid.iam.sync.jetty.SeyconLog;
+import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.utils.Security;
 
-import es.caib.seycon.ng.comu.Server;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.remote.RemoteServiceLocator;
 import es.caib.seycon.ng.sync.agent.AgentManagerBaseProxy;
-import es.caib.seycon.ng.sync.servei.ServerService;
-import es.caib.seycon.ng.sync.servei.TaskGenerator;
 import es.caib.seycon.util.TimedProcess;
 
 /**
@@ -497,10 +496,14 @@ public class SoffidApplication extends Object {
     
                     ServerService server = rsl.getServerService();
                     // Notificar inicia
-                    server.clientAgentStarted(config.getHostName());
                     if (!config.isServer()) {
                         config.setServerList(server.getConfig("seycon.server.list"));
+            			new KubernetesConfig().save();
                     }
+                    for (com.soffid.iam.api.System system: server.getServices()) {
+                    	agentManager.createAgent(system);
+                    }
+                    server.clientAgentStarted(config.getHostName());
                 } catch (Exception e) {
                     log.info("Notification failure: {}", e.toString(), null);
                 }
