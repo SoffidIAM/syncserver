@@ -1,8 +1,12 @@
 package com.soffid.iam.sync.tools;
 
+import java.io.Console;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
+import java.rmi.RemoteException;
 import java.security.InvalidKeyException;
 import java.security.KeyManagementException;
 import java.security.KeyStoreException;
@@ -60,17 +64,15 @@ public class Configure {
 		Security.onSyncServer();
 //        Log.setLog(new SeyconLog());
 
-		if (args.length == 0) {
-			System.out.println("Parameters:");
-			System.out.println("  -main [-force] -hostname .. [-port ...] -dbuser .. -dbpass .. -dburl ..");
-			System.out.println("  -hostname [-force] ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
-			System.out.println("  -remote  -hostname [-force] .. -server .. -tenant .. -user .. -pass ..");
-			System.out.println("  -renewCertificates [-force]");
-			System.exit(1);
-		}
-
 		try {
-			if ("-main".equals(args[0])) {
+			if (args.length == 0) {
+				configurationWizard();
+			}
+			else if ("--help".equals(args[0]) || "-?".equals(args[0])) {
+				usage();
+				System.exit(1);
+			}
+			else if ("-main".equals(args[0])) {
 				parseMainParameters(args);
 			} else if ("-renewCertificates".equals(args[0])) {
 				parseRenewParameters(args);
@@ -92,6 +94,112 @@ public class Configure {
 
 	}
 
+	private static void configurationWizard() throws Exception {
+		System.out.println("Soffid Sync server configuration wizard.");
+		Console c = java.lang.System.console();
+		if (c == null) {
+			System.exit(0);
+		}
+		
+		Config config = Config.getConfig();
+		
+		CertificateServer cs = new CertificateServer();
+		if (cs.hasServerKey()) {
+			System.out.println ("The system is already configured");
+			System.exit(1);
+		} else if (config.getRequestId() != null) {
+			System.out.println("Trying to complete pending configuration request");
+			secondServerWizard(c, config);
+
+		} else {
+			System.out.println("Configuring sync server.");
+			String first;
+			do {first = c.readLine("Is this the first sync server in the network (y/n)? ").trim().toLowerCase();} while ( !first.startsWith("y") && !first.startsWith("n") );
+			
+			if (first.startsWith("y")) {
+				firstServerWizard (c, config);
+			} else {
+				secondServerWizard(c, config);
+
+			}
+			
+		}
+	}
+
+	public static void firstServerWizard(Console c, Config config)
+			throws Exception {
+		
+		String url = "";
+		String dbUser = "";
+		String dbPassword = ""; 
+		String hostName0 = InetAddress.getLocalHost().getHostName();
+		String hostName;
+		String port;
+		boolean repeat = false;
+		do {
+			repeat = false;
+			do { url = c.readLine("Database URL (jdbc:....): ").trim();} while (url.isEmpty());
+			do { dbUser = c.readLine("Database user: ").trim();} while (dbUser.isEmpty());
+			do {dbPassword = new String (c.readPassword("Password: ")).trim(); } while (dbPassword.isEmpty());
+			hostName = c.readLine("This server host name [%s]: ", hostName0).trim().toLowerCase();
+			if (hostName.isEmpty()) hostName = hostName0;
+			port = c.readLine("Port to listen to [1760]: ").trim(); 
+			if (port.isEmpty()) port = "1760";
+
+			try {
+				System.out.println("Connecting to database "+url+" ...");
+				configureFirstServer(config, false, config.getHostName(), hostName, url, dbUser, port, new Password(dbPassword));
+			} catch (Exception e) {
+				e.printStackTrace();
+				repeat = true;
+			}
+		} while (repeat);
+	}
+
+	public static void secondServerWizard(Console c, Config config)
+			throws UnknownHostException, IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException,
+			FileNotFoundException, InternalErrorException, UnrecoverableKeyException, NoSuchProviderException,
+			InvalidKeyException, SignatureException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied,
+			KeyManagementException, UnknownUserException {
+		boolean repeat;
+		do {
+			repeat = false;
+			String remote;
+			do {remote = c.readLine("Connect to a cloud service (y/n)? Enter 'n' to connect to an on-premise service: ").trim().toLowerCase().substring(0,1);} while ( !remote.startsWith("y") && !remote.startsWith("n") );
+			String serverUrl;
+			do {serverUrl = c.readLine("Server URL: ").trim(); } while (serverUrl.isEmpty());
+			String adminTenant ;
+			adminTenant = c.readLine("Tenant: [master] ").trim();
+			if (adminTenant.isEmpty()) adminTenant = "master";
+			String adminUser;
+			do { adminUser = c.readLine("User: ").trim();} while (adminUser.isEmpty());
+			String adminPassword;
+			do {adminPassword = new String (c.readPassword("Password: ")).trim(); } while (adminPassword.isEmpty());
+			String hostName0 = InetAddress.getLocalHost().getHostName();
+			String hostName = c.readLine("This server host name [%s]: ", hostName0).trim().toLowerCase();
+			if (hostName.isEmpty()) hostName = hostName0;
+			String port;
+			port = c.readLine("Port to listen to [1760]: ").trim(); 
+			if (port.isEmpty()) port = "1760";
+
+			try {
+				configureSecondServer(config, false, adminTenant, adminUser, new Password(adminPassword), serverUrl, null, remote.startsWith("y"),
+					hostName, port);
+			} catch (Exception e) {
+				e.printStackTrace();
+				repeat = true;
+			}
+		} while (repeat);
+	}
+
+	public static void usage() {
+		System.out.println("Parameters:");
+		System.out.println("  -main [-force] -hostname .. [-port ...] -dbuser .. -dbpass .. -dburl ..");
+		System.out.println("  -hostname [-force] ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
+		System.out.println("  -remote  -hostname [-force] .. -server .. -tenant .. -user .. -pass ..");
+		System.out.println("  -renewCertificates [-force]");
+	}
+
 	private static void parseSecondParameters(String[] args) throws IOException, InvalidKeyException,
 			UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, NoSuchProviderException,
 			CertificateException, IllegalStateException, SignatureException, InternalErrorException,
@@ -105,7 +213,7 @@ public class Configure {
 		String adminDomain = null;
 		boolean remote = false;
 		String hostName = null;
-		String port = "760";
+		String port = "1760";
 		int i;
 		for (i = 0; i < args.length - 1; i++) {
 			if ("-remote".equals(args[i]))
@@ -118,8 +226,6 @@ public class Configure {
 				adminTenant = args[++i];
 			else if ("-user".equals(args[i]))
 				adminUser = (args[++i]);
-//            else if ("-domain".equals(args[i]))
-//                adminDomain = (args[++i]);
 			else if ("-pass".equals(args[i]))
 				adminPassword = (new Password(args[++i]));
 			else if ("-server".equals(args[i]))
@@ -137,6 +243,17 @@ public class Configure {
 			adminPassword = new Password(new String(pass));
 		}
 
+		configureSecondServer(config, force, adminTenant, adminUser, adminPassword, serverUrl, adminDomain, remote,
+				hostName, port);
+
+	}
+
+	public static void configureSecondServer(Config config, boolean force, String adminTenant, String adminUser,
+			Password adminPassword, String serverUrl, String adminDomain, boolean remote, String hostName, String port)
+			throws IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException,
+			FileNotFoundException, InternalErrorException, UnrecoverableKeyException, NoSuchProviderException,
+			InvalidKeyException, SignatureException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied,
+			KeyManagementException, UnknownUserException {
 		if (hostName != null)
 			config.setHostName(remote ? adminTenant + "_" + hostName : hostName);
 		if (port != null)
@@ -175,7 +292,6 @@ public class Configure {
 		configureAgent(adminTenant, adminUser, adminPassword, adminDomain, serverUrl, remote);
 		if (port != null)
 			config.setPort(port);
-
 	}
 
 	private static void parseRenewParameters(String[] args) throws Exception {
@@ -233,6 +349,14 @@ public class Configure {
 			char pass[] = System.console().readPassword("%s's password: ", config.getDbUser());
 			password = new Password(new String(pass));
 		}
+		configureFirstServer(config, force, oldHostName, hostName, db, dbuser, port, password);
+	}
+
+	public static void configureFirstServer(Config config, boolean force, String oldHostName, String hostName,
+			String db, String dbuser, String port, Password password)
+			throws IOException, Exception, InternalErrorException, FileNotFoundException, RemoteException,
+			KeyStoreException, NoSuchAlgorithmException, CertificateException, NoSuchProviderException,
+			InvalidKeyException, SignatureException, UnrecoverableKeyException, KeyManagementException {
 		// Configurar servidor
 		config.setRole("server");
 		config.setPassword(password);
@@ -383,5 +507,5 @@ public class Configure {
 		while (resources.hasMoreElements()) {
 			reader.parse(db, resources.nextElement().openStream());
 		}
-	}
+	}	
 }
