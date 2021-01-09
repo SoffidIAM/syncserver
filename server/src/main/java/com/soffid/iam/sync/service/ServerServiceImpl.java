@@ -535,6 +535,9 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected Collection<System> handleGetServices() throws Exception {
 		SoffidPrincipal principal = Security.getSoffidPrincipal();
 		String serverName = principal.getName();
+		log.info("Searching services for "+serverName);
+		if (serverName.contains("\\"))
+			serverName = serverName.substring(serverName.indexOf('\\') + 1);
 		ServerEntity server = getServerEntityDao().findByName(serverName);
 		Collection<SystemEntity> entities = getSystemEntityDao().findServices(server.getUrl(), true);
 		return getSystemEntityDao().toSystemList(entities);

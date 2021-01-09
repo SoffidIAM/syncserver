@@ -486,6 +486,12 @@ public class SoffidApplication extends Object {
 
     public static void notifyStart() throws FileNotFoundException, IOException, InternalErrorException {
         Config config = Config.getConfig();
+
+        for (com.soffid.iam.api.System system: new RemoteServiceLocator().getServerService().getServices()) {
+        	log.info("Starting service "+system.getName());
+        	agentManager.createAgent(system);
+        }
+
         String serverList[] = config.getServerList().split("[, ]+");
         for (int i = 0; i < serverList.length; i++) {
         	if (! config.getHostName().equals(serverList[i]))
@@ -499,9 +505,6 @@ public class SoffidApplication extends Object {
                     if (!config.isServer()) {
                         config.setServerList(server.getConfig("seycon.server.list"));
             			new KubernetesConfig().save();
-                    }
-                    for (com.soffid.iam.api.System system: server.getServices()) {
-                    	agentManager.createAgent(system);
                     }
                     server.clientAgentStarted(config.getHostName());
                 } catch (Exception e) {

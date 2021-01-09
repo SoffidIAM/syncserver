@@ -89,14 +89,17 @@ public class AgentManagerImpl extends AgentManagerBase {
     	{
             return "/seycon/Agent/" + o.hashCode();    		
     	}
-    	
         try {
             final AgentInterface agent = performCreateAgent(system);
             final String url = "/seycon/Agent/" + agent.hashCode();
             SoffidApplication.getJetty().bind(url, agent, "server");
-            String serverName = Invoker.getInvoker().getUser();
-            if (serverName.indexOf('\\') > 0)
-            	serverName = serverName.substring(serverName.indexOf('\\')+1);
+            Invoker invoker = Invoker.getInvoker();
+            String serverName = null;
+            if (invoker != null) {
+	            serverName = Invoker.getInvoker().getUser();
+	            if (serverName.indexOf('\\') > 0)
+	            	serverName = serverName.substring(serverName.indexOf('\\')+1);
+            }
             
             if (debug)
             {
@@ -243,7 +246,10 @@ public class AgentManagerImpl extends AgentManagerBase {
         	v2Agent.setSystem(system);
         	v2Agent.setAgentVersion(version);
             if (Invoker.getInvoker() == null) {
-            	v2Agent.setServer(ServerServiceLocator.instance().getServerService());
+            	if ("server".equals(Config.getConfig().getRole()))
+            		v2Agent.setServer(ServerServiceLocator.instance().getServerService());
+            	else
+            		v2Agent.setServer(new RemoteServiceLocator().getServerService());
             } else {
                 Invoker invoker = Invoker.getInvoker();
                 try {
