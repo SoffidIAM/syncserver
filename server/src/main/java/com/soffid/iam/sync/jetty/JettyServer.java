@@ -308,8 +308,12 @@ public class JettyServer implements PublisherInterface
         bindServlet (url, Constraint.__BASIC_AUTH, rol, administracioContext, servletClass);
     }
 
-    public void bindServiceServlet(String url,  String [] rol, Class servletClass) {
+    public void bindDownloadServlet(String url,  String [] rol, Class servletClass) {
         bindServlet (url, Constraint.__CERT_AUTH, rol, downloadContext, servletClass);
+    }
+
+    public void bindSeyconServlet(String url,  String [] rol, Class servletClass) {
+        bindServlet (url, Constraint.__CERT_AUTH, rol, ctx, servletClass);
     }
 
     public synchronized void bindServlet(String url, String constraintName, String [] rol,Context context, Class servletClass) {

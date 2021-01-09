@@ -25,6 +25,7 @@ import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.tools.QueryHelper;
+import com.soffid.iam.sync.web.internal.BootConfigServlet;
 import com.soffid.iam.sync.web.internal.DownloadLibraryServlet;
 import com.soffid.iam.util.Syslogger;
 
@@ -116,7 +117,8 @@ public class ServerApplication extends SoffidApplication {
         jetty.bindAdministrationWeb();
         // Download del codi font
         if (config.isActiveServer()) {
-            jetty.bindServiceServlet("/", null, DownloadLibraryServlet.class);
+            jetty.bindDownloadServlet("/", null, DownloadLibraryServlet.class);
+            jetty.bindSeyconServlet("/boot-config", new String[] {"agent", "server"}, BootConfigServlet.class);
         }
 
         for ( Object service: 
