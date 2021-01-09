@@ -24,11 +24,12 @@ fi
 chown -R soffid:soffid /opt/soffid/iam-sync
 
 # This will only remove masks created by d-s-h on package removal.
+/opt/soffid/iam-sync/bin/configure || true
+
 systemctl enable 'soffid-iamsync.service' || true 	
 systemctl start soffid-iamsync || true 
 
 %preun
-#!/bin/sh
 #!/bin/bash
 
 systemctl stop 'soffid-iamsync.service' || true
@@ -38,6 +39,5 @@ systemctl disable 'soffid-iamsync.service' || true
 %description
 
 
-(Converted from a deb package by alien version 8.95.)
 
 %files
