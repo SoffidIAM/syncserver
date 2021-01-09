@@ -24,7 +24,7 @@ function dumpFiles {
    local f=""
    for f in *
    do
-     if  [ -f "$f" ]
+     if  [[ -f "$f" && "$f" != "configure" && "$f" != soffid-sync && "$f" != cli && "$f" != env.sh ]]
      then
          if [ "$found" = 0 ]
          then
