@@ -99,7 +99,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             		+ "order by tasca.id", 
             		new Parameter[]{
             				new Parameter("server", config.getHostName()),
-            				new Parameter("tenant", true)});
+            				new Parameter("true", true)});
         } else {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
@@ -112,7 +112,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             		+ "order by tasca.priority, tasca.id",
             		new Parameter[]{
             				new Parameter("server", config.getHostName()),
-            				new Parameter("tenant", true)},
+            				new Parameter("true", true)},
             		csc);
         }
         TaskQueue taskQueue = getTaskQueue();
