@@ -5,7 +5,9 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URL;
 import java.sql.SQLException;
+import java.util.HashSet;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipException;
 import java.util.zip.ZipInputStream;
@@ -20,6 +22,7 @@ import javax.servlet.http.HttpServletResponse;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.api.User;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.sync.tools.JarExtractor;
 
@@ -59,7 +62,7 @@ public class DownloadLibraryServlet extends HttpServlet {
         	}
         	else if (component == null || component.equals("seycon-base") ) 
         	{
-                if (mergeFile == null)
+                if (mergeFile == null || mergeFile.length() == 0)
                 {
                     mergeFile = merge();
                 }
@@ -99,8 +102,6 @@ public class DownloadLibraryServlet extends HttpServlet {
     }
 
     public File merge() throws IOException, InternalErrorException, SQLException {
-        File tmpFile1 = File.createTempFile("iam-common", ".jar");
-        File tmpFile2 = File.createTempFile("iam-sync", ".jar");
         File tmpFileMerge = File.createTempFile("seycon-library", ".jar");
 
 		log.info ("Generating seycon-library.jar stream", null, null);
@@ -108,29 +109,20 @@ public class DownloadLibraryServlet extends HttpServlet {
         FileOutputStream stream = new FileOutputStream(tmpFileMerge);
         ZipOutputStream out = new ZipOutputStream(stream);
 
+        HashSet<String> names = new HashSet<>();
+        
         JarExtractor je = new JarExtractor();
-        if (je.generateJar("component.iam-common", new FileOutputStream (tmpFile1)))
-        {
-			log.info ("Dumping iam-common content", null, null);
-        	dump (out, tmpFile1);
-        }
-        else
-        {
-        	out.close();
-        	stream.close();
-        	throw new InternalErrorException ("Cannot find iam-common component");
-        }
-        if (je.generateBaseJar(new FileOutputStream (tmpFile2)))
-        {
-			log.info ("Dumping syncserver content", null, null);
-        	dump (out, tmpFile2);
-        }
-        else
-        {
-        	out.close();
-        	stream.close();
-        	throw new InternalErrorException ("Cannot find syncserver component");
-        }
+        URL url1 = je.getJarForClass(User.class);
+		log.info ("Dumping {}", url1.getPath(), null);
+		InputStream in1 = url1.openStream();
+       	dump (out, url1.getPath(), in1, names);
+        in1.close();
+
+        URL url2 = je.getJarForClass(getClass());
+		log.info ("Dumping {}", url2.getPath(), null);
+		InputStream in2 = url2.openStream();
+       	dump (out, url2.getPath(), in2, names);
+        in2.close();
 
         File modulesDir = new File(Config.getConfig().getHomeDir(), "addons");
         if (modulesDir.isDirectory())
@@ -138,7 +130,10 @@ public class DownloadLibraryServlet extends HttpServlet {
 	        for (File module: modulesDir.listFiles())
 	        {
 	        	try {
-	        		dump (out, module);
+	    			log.info ("Dumping plugin "+module.getName(), null, null);
+	    			FileInputStream in = new FileInputStream(module.getPath());
+	        		dump (out, module.getPath(), in, names);
+	        		in.close();
 	        	} 
 	        	catch (Exception e)
 	        	{
@@ -149,37 +144,37 @@ public class DownloadLibraryServlet extends HttpServlet {
 
         out.close();
         stream.close();
-        tmpFile1.delete();
-        tmpFile2.delete();
         tmpFileMerge.deleteOnExit();
         return tmpFileMerge;
     }
 
-    private void dump(ZipOutputStream out, File inFile)
+    private void dump(ZipOutputStream out, String inFileName, InputStream inFile, HashSet<String> names)
             throws IOException {
-        ZipInputStream in = new ZipInputStream(new FileInputStream(inFile));
+        ZipInputStream in = new ZipInputStream(inFile);
         ZipEntry entry = in.getNextEntry();
         while (entry != null) {
         	try {
-	            out.putNextEntry(entry);
-	        	
 	            byte buffer[] = new byte[2048];
-	            int read = in.read(buffer);
-	            while (read > 0) {
-	                out.write(buffer, 0, read);
-	                read = in.read(buffer);
-	            }
-	            out.closeEntry();
+        		if ( names.contains(entry.getName())) {
+    	            int read = in.read(buffer);
+    	            while (read > 0) {
+    	                read = in.read(buffer);
+    	            }
+        		} else {
+		            out.putNextEntry(entry);
+		            int read = in.read(buffer);
+		            while (read > 0) {
+		                out.write(buffer, 0, read);
+		                read = in.read(buffer);
+		            }
+		            out.closeEntry();
+		            names.add(entry.getName());
+        		}
 	            in.closeEntry();
 	            entry = in.getNextEntry();
         	} catch (ZipException e ) {
         		// Ignorem les entrades duplicades
-        		if (!e.getMessage().startsWith("duplicate entry:"))
-        		{
-					log.warn("ZIP error in "+inFile.getPath()+" file: "+entry.getName()+" "+e.toString(), null, null);
-				} else {
-					log.warn("Duplicate entry in {} file: {} ", inFile.getPath(), entry.getName());
-				}
+				log.warn("ZIP error in "+inFileName+" file: "+entry.getName()+" "+e.toString(), null, null);
 				entry = in.getNextEntry(); // ignorem aquesta entrada
         	}            
         }

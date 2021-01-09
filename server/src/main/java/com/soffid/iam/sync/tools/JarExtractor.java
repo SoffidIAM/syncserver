@@ -247,8 +247,11 @@ public class JarExtractor {
     				new Object[] {Boolean.FALSE});
     		if (result.isEmpty())
     		{
-                log.info("Unable to get syncserver component from database ", null, null);
-    			return false;
+    			URL src = getJarForClass(getClass());
+    			InputStream in = src.openStream();
+    			int read;
+    			while ( (read = in.read()) >= 0) out.write(read);
+    			return true;
     		}
     			
     		qh.select("SELECT SPM_DATA FROM SC_SEPLMO, SC_SERPLU " +

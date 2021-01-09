@@ -28,7 +28,7 @@ public class JettyServer implements PublisherInterface
     }
 
     public void bindServiceServlet(String url,  String [] rol, Class servletClass) {
-    	delegate.bindServiceServlet(url, rol, servletClass);
+    	delegate.bindDownloadServlet(url, rol, servletClass);
     }
 
     public synchronized void bindServlet(String url, String constraintName, String [] rol,Context context, Class servletClass) {
