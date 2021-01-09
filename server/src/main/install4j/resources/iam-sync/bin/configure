@@ -3,7 +3,8 @@ dir=$(dirname $0)
 CP=""
 for f in $dir/../lib/*.jar
 do
-  if [[ "$CP" != "" ]] then
+  if [[ "$CP" != "" ]] 
+  then
     CP="$CP:$f"
   else
     CP="$f"
@@ -13,10 +14,10 @@ done
 source $dir/env.sh
 
 java=java
-if [ -z "$JAVA_HOME" ]
+if [ ! -z "$JAVA_HOME" ]
 then
   java="$JAVA_HOME/bin/java"
-elif [ -z "$JRE_HOME" ] 
+elif [ ! -z "$JRE_HOME" ] 
 then
   java="$JRE_HOME/bin/java"
 else

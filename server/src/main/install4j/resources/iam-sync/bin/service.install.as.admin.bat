@@ -58,6 +58,9 @@ shift
 goto checkUser
 
 :install
+
+call configure.bat
+
 call service install
 set PR_SERVICEUSER=%OLD_SERVICEUSER%
 set PR_SERVICEPASSWORD=%OLD_SERVICEPASSWORD%

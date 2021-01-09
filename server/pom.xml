@@ -329,6 +329,16 @@
 								</copy>
 								<chmod dir="${basedir}/target/deb/DEBIAN" perm="755" includes="p*"/>
 								<chmod dir="${basedir}/target/deb/opt/soffid/iam-sync/bin" perm="750" includes="**"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/cli.bat"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/configure.bat"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.bat"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.install.as.admin.bat"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.remove.as.admin.bat"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/soffid.ico"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/soffid-sync.bat"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.exe"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.amd64.exe"/>
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.x86.exe"/>
 								<exec executable="fakeroot" failonerror="true">
 									<arg value="dpkg-deb" />
 									<arg value="-b" />
@@ -363,6 +373,16 @@
 								<copy todir="${basedir}/target/rpm/dist" >
 									<fileset dir="${basedir}/target/dist" includes="**/*"/>
 								</copy>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/cli.bat"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/configure.bat"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.bat"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.install.as.admin.bat"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.remove.as.admin.bat"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/soffid.ico"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/soffid-sync.bat"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.exe"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.amd64.exe"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.x86.exe"/>
 								<chmod dir="${basedir}/target/rpm/dist/opt/soffid/iam-sync/bin" perm="750" includes="**"/>
 								<exec executable="src/main/rpm/generaterpm.sh" failonerror="true">
 								</exec>

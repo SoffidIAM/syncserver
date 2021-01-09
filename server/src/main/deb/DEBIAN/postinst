@@ -31,6 +31,8 @@ fi
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
 	chown -R soffid:soffid /opt/soffid/iam-sync
 
+    /opt/soffid/iam-sync/bin/configure || true
+    
 	# This will only remove masks created by d-s-h on package removal.
 	systemctl enable 'soffid-iamsync.service' || true 	
 

@@ -84,9 +84,7 @@ set "JRE_HOME=%JAVA_HOME%"
 goto okJava
 
 :noJavaHome
-echo The JAVA_HOME environment variable is not defined correctly.
-echo It is needed to run this program 
-echo NB: JAVA_HOME should point to a JDK or JRE.
+java.exe %JAVA_OPTIONS% -classpath "%CLASSPATH%" %MAINCLASS% %*
 goto exit
 
 :okJava
@@ -94,3 +92,4 @@ goto exit
 rem Execute Java with the applicable properties
 echo %JAVA_HOME%\bin\java.exe %JAVA_OPTIONS% -classpath "%CLASSPATH%" %MAINCLASS% %*
 %JAVA_HOME%\bin\java.exe %JAVA_OPTIONS% -classpath "%CLASSPATH%" %MAINCLASS% %*
+:exit
