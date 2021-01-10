@@ -40,6 +40,7 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
+import org.json.JSONException;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Password;
@@ -216,7 +217,7 @@ public class CertificateServer {
             KeyStoreException, FileNotFoundException, CertificateException, IOException,
             InvalidKeyException, UnrecoverableKeyException, IllegalStateException,
             SignatureException, InternalErrorException,
-            CertificateEnrollWaitingForAproval, CertificateEnrollDenied, KeyManagementException {
+            CertificateEnrollWaitingForAproval, CertificateEnrollDenied, KeyManagementException, JSONException {
         System.out.println("Obtain certificate");
         PrivateKey privateKey = (PrivateKey) ks.getKey(PRIVATE_KEY, SeyconKeyStore
                 .getKeyStorePassword().getPassword().toCharArray());

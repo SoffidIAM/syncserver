@@ -20,6 +20,7 @@ import java.util.Base64;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.soffid.iam.config.Config;
@@ -134,7 +135,7 @@ public class KubernetesConfig {
 		return out.toByteArray();
 	}
 
-	public void save () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+	public void save () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, JSONException {
 		Config config = Config.getConfig();
 		
 		if (System.getenv("KUBERNETS_SERVICE_HOST") != null && new File("/var/run/secrets/kubernets.io/serviceaccount/token").canRead()) {

@@ -62,10 +62,12 @@ public class DownloadLibraryServlet extends HttpServlet {
         	}
         	else if (component == null || component.equals("seycon-base") ) 
         	{
-                if (mergeFile == null || mergeFile.length() == 0)
+                if (mergeFile == null || mergeFile.length() == 0 || ! mergeFile.canRead())
                 {
                     mergeFile = merge();
                 }
+                long size = mergeFile.length();
+                response.setContentLength((int)size);
                 InputStream in = new FileInputStream(mergeFile);
                 byte b [] = new byte[4096];
                 int read;

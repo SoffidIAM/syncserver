@@ -15,10 +15,10 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import com.soffid.iam.ServiceLocator;
-import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.SoffidObjectType;
@@ -32,6 +32,7 @@ import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.GroupUserExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
@@ -54,6 +55,7 @@ public class AuthoritativeLoaderEngine {
 	private HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> preDeleteTrigger;
 	private HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> postDeleteTrigger;
 	private HashMap<SoffidObjectType, LinkedList<ReconcileTrigger>> preUpdateTrigger;
+	ChangeDetector changeDetector = new ChangeDetector();
 	private com.soffid.iam.api.System system;
 	DispatcherHandlerImpl handler;
 	private DispatcherService dispatcherService;
@@ -179,10 +181,13 @@ public class AuthoritativeLoaderEngine {
 		    			cfgId = "soffid.sync.authoritative.change."+getSystem().getName();
 		    			cfg = cfgSvc.findParameterByNameAndNetworkName(cfgId, null);
 		    			if (cfg != null)
+		    			{
 		    				lastId = cfg.getValue();
+		    			}
 	    			}
 					boolean anyError = false;
 					boolean moreData;
+					log.info("Loading changes since "+lastId);
 					do
 					{
 						Collection<com.soffid.iam.sync.intf.AuthoritativeChange> changes;
@@ -459,8 +464,7 @@ public class AuthoritativeLoaderEngine {
 					UserExtensibleObject eo = buildExtensibleObject(change);
 					if (executeTriggers(pi, null, eo, objectTranslator))
 					{
-						change.setUser( vom.parseUser(eo));
-						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom);
 					}
 					else
 					{
@@ -479,8 +483,7 @@ public class AuthoritativeLoaderEngine {
 							new UserExtensibleObject(previousUser, previousAtts, server), 
 							eo, objectTranslator))
 					{
-						change.setUser( vom.parseUser(eo));
-						change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom);
 					}
 					else
 					{
@@ -488,6 +491,17 @@ public class AuthoritativeLoaderEngine {
 						log.info("Change to user "+change.getUser().getUserName()+" is rejected by pre-update trigger");
 						ok = false;
 					}
+				}
+			}
+			if (ok) {
+				if (! changeDetector.anyChange (change)) {
+					out.append(
+							"Ignoring user ")
+							.append(change.getUser().getUserName())
+							.append(": no changes found\n");
+					ok = false; // No further processing
+					if (source != null && change != null && change.getId() != null)
+						source.commitChange(change.getId());
 				}
 			}
 			if (ok)
@@ -551,6 +565,22 @@ public class AuthoritativeLoaderEngine {
 				out.println(change.getUser());
 		}
 		return error;
+	}
+	public void updateAuthoritativeChangeFromExtensibleObject(com.soffid.iam.sync.intf.AuthoritativeChange change, UserExtensibleObject eo,
+			ValueObjectMapper vom) throws InternalErrorException {
+		change.setUser( vom.parseUser(eo));
+		change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
+		
+		change.setGroups( new HashSet<String>( (Collection<String>) eo.getAttribute("secondaryGroups")) );
+		if (eo.getAttribute("secondaryGroups2") != null ) {
+			Collection<GroupUser> l = new LinkedList<GroupUser>();
+			for (Map<String,Object> eug: (Collection<Map<String,Object>>) eo.getAttribute("secondaryGroups2") ) {
+				GroupUser ug = vom.parseGroupUserFromMap(eug);
+				if (ug != null)
+					l.add(ug);
+			}
+			change.setGroups2(l);
+		}
 	}
 
 	private boolean processGroupChange(com.soffid.iam.sync.intf.AuthoritativeChange change,
@@ -841,6 +871,14 @@ public class AuthoritativeLoaderEngine {
 			}
 		}
 		eo.setAttribute("secondaryGroups", l);
+		if (change.getGroups2() != null)
+		{
+			for (GroupUser s: change.getGroups2())
+			{
+				l.add( new GroupUserExtensibleObject(s, system.getName(), server));
+			}
+		}
+		eo.setAttribute("secondaryGroups2", l);
 		return eo;
 	}
 

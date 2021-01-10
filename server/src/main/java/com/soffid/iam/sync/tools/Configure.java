@@ -23,6 +23,7 @@ import java.util.Collection;
 import java.util.Enumeration;
 
 import org.apache.commons.logging.LogFactory;
+import org.json.JSONException;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Password;
@@ -203,7 +204,7 @@ public class Configure {
 	private static void parseSecondParameters(String[] args) throws IOException, InvalidKeyException,
 			UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, NoSuchProviderException,
 			CertificateException, IllegalStateException, SignatureException, InternalErrorException,
-			UnknownUserException, KeyManagementException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied {
+			UnknownUserException, KeyManagementException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied, JSONException {
 		Config config = Config.getConfig();
 		boolean force = false;
 		String adminTenant = "master";
@@ -253,7 +254,7 @@ public class Configure {
 			throws IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException,
 			FileNotFoundException, InternalErrorException, UnrecoverableKeyException, NoSuchProviderException,
 			InvalidKeyException, SignatureException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied,
-			KeyManagementException, UnknownUserException {
+			KeyManagementException, UnknownUserException, IllegalStateException, JSONException {
 		if (hostName != null)
 			config.setHostName(remote ? adminTenant + "_" + hostName : hostName);
 		if (port != null)
@@ -423,7 +424,7 @@ public class Configure {
 			String serverUrl, boolean remote) throws NoSuchAlgorithmException, NoSuchProviderException,
 			KeyStoreException, FileNotFoundException, CertificateException, IOException, InternalErrorException,
 			InvalidKeyException, UnrecoverableKeyException, IllegalStateException, SignatureException,
-			UnknownUserException, KeyManagementException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied {
+			UnknownUserException, KeyManagementException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied, JSONException {
 		Config config = Config.getConfig();
 
 		CertificateServer cs = new CertificateServer();

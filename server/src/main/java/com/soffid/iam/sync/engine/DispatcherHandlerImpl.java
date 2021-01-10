@@ -149,6 +149,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private TenantEntityDao tenantDao;
 	private String mirroredAgent;
 	private SyncServerStatsService statsService = ServiceLocator.instance().getSyncServerStatsService();
+	private boolean debugEnabled;
 	
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
@@ -174,6 +175,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
     public DispatcherHandlerImpl() {
+    	debugEnabled = "true".equals(ConfigurationCache.getProperty("soffid.debug.dispatcher"));
         server = ServerServiceLocator.instance().getServerService();
         taskqueue = ServerServiceLocator.instance().getTaskQueue();
         taskgenerator = ServerServiceLocator.instance().getTaskGenerator();
@@ -515,7 +517,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> preUpdateTrigger;
 	private Map<SoffidObjectType,LinkedList<ReconcileTrigger>> postUpdateTrigger;
 	private Object lastAgent;
-	private TaskHandler currentTask;
 
 
     public void run() {
@@ -718,9 +719,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	{
 		String reason = "";
 		boolean ok = false;
-		currentTask = taskqueue.getPendingTask(this);
+		TaskHandler currentTask = taskqueue.getPendingTask(this);
 		if (currentTask == null)
+		{
+			if (debugEnabled)
+				log.info("No task to do ", null, null);
 			return false;
+
+		}
 		Throwable throwable = null;
 		try
 		{
@@ -728,12 +734,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			TaskHandlerLog thl = currentTask.getLog(getInternalId());
 			reason = "";
 			setStatus("Execute " + currentTask.toString());
-			log.info("Executing {} ", currentTask.toString(), null);
+			if (debugEnabled)
+				log.info("Executing {} ", currentTask.toString(), null);
 			try {
 				processTask(getCurrentAgent(), currentTask);
 				ok = true;
 				statsService.register("tasks-success", getName(), 1);
-				log.debug("Task {} DONE", currentTask.toString(), null);
+				if (debugEnabled)
+					log.debug("Task {} DONE", currentTask.toString(), null);
 			} catch (RemoteException e) {
 				handleRMIError(e);
 				ok = false;
@@ -741,6 +749,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				throwable = e;
 				// abort = true ;
 			} catch (Throwable e) {
+				if (debugEnabled)
+					log.info("Failed {} ", currentTask.toString(), null);
 				statsService.register("tasks-error", getName(), 1);
 				if ("local".equals(system.getUrl()))
 				{
@@ -1522,17 +1532,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	        	}
         		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), t.getPassword(), false, null);
 	        } else {
-	        	String timeout = System.getProperty("soffid.propagate.timeout");
+	        	String timeout = ConfigurationCache.getProperty("soffid.propagate.timeout");
+	        	if (timeout == null) timeout = "5";
 	        	if (timeout != null)
 	        	{
-	        		long timeoutLong = Long.decode(timeout)*1000;
-		        	TaskHandlerLog tasklog = t.getLog(getInternalId());
-		        	if (tasklog == null || tasklog.first == 0 ||
-		        			System.currentTimeMillis() < tasklog.first + timeoutLong)
-		        	{
-		                log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
-		                throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
-		        	}
+        			long timeoutLong;
+					try {
+						timeoutLong = Long.decode(timeout)*1000;
+						TaskHandlerLog tasklog = t.getLog(getInternalId());
+						if (tasklog == null || tasklog.first == 0 ||
+								System.currentTimeMillis() < tasklog.first + timeoutLong)
+						{
+							log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
+							throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
+						}
+					} catch (NumberFormatException e) {
+					}
 	        	}
 	        	
 	       		log.info("Rejected proposed password for {}", t.getTask().getUser(), null);
@@ -1607,17 +1622,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		        	}
 	        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), t.getPassword(), false, null);
 		        } else {
-		        	String timeout = System.getProperty("soffid.propagate.timeout");
+		        	String timeout = ConfigurationCache.getProperty("soffid.propagate.timeout");
+		        	if (timeout == null) timeout = "5";
 		        	if (timeout != null)
 		        	{
-		        		long timeoutLong = Long.decode(timeout)*1000;
-			        	TaskHandlerLog tasklog = t.getLog(getInternalId());
-			        	if (tasklog == null || tasklog.first == 0 ||
-			        			System.currentTimeMillis() < tasklog.first + timeoutLong)
-			        	{
-			                log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
-			                throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
-			        	}
+		        		long timeoutLong;
+						try {
+							timeoutLong = Long.decode(timeout)*1000;
+							TaskHandlerLog tasklog = t.getLog(getInternalId());
+							if (tasklog == null || tasklog.first == 0 ||
+									System.currentTimeMillis() < tasklog.first + timeoutLong)
+							{
+								log.info("Rejected proposed password for {}. Retrying", t.getTask().getUser(), null);
+								throw new InternalErrorException("Rejected proposed password for "+t.getTask().getUser()+". Retry");
+							}
+						} catch (NumberFormatException e) {
+						}
 		        	}
 		        	
 		       		log.info("Rejected proposed password for {}", t.getTask().getUser(), null);
@@ -1813,6 +1833,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 
     private void cancelTask(TaskHandler t) throws InternalErrorException {
+    	if (debugEnabled)
+    		log.info("Cancelling task "+t.toString());
     	t.cancel();
         taskqueue.cancelTask(t.getTask().getId());
     }
@@ -2766,6 +2788,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		switch (dispatcherStatus)
 		{
 		case STARTING:
+			if (debugEnabled) log.info("Starting dispatcher "+getName());
 			runInit();
 			dispatcherStatus = DispatcherStatus.LOOP_START;
 			break;
@@ -2777,6 +2800,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			}
 			// Go on with loop_start
 		case LOOP_START:
+			if (debugEnabled) log.info("Connecting agent "+getName());
 			runLoopStart();
 			dispatcherStatus = DispatcherStatus.NEXT_TASK;
 			break;
@@ -2787,6 +2811,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				dispatcherStatus = DispatcherStatus.GET_LOGS;
 			break;
 		case GET_LOGS:
+			if (debugEnabled) log.info("Getting logs "+getName());
 			runGetLogs();
 			dispatcherStatus = DispatcherStatus.WAIT;
 			break;

@@ -33,6 +33,8 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
 import com.soffid.iam.api.VaultFolder;
+import com.soffid.iam.common.security.SoffidPrincipal;
+import com.soffid.iam.security.SoffidPrincipalImpl;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.AdditionalDataService;
 import com.soffid.iam.service.DispatcherService;
@@ -68,7 +70,7 @@ public class ChangeSecretServlet extends HttpServlet {
      * 
      */
     private static final long serialVersionUID = 1L;
-    Logger log = Log.getLogger("GetSecretsServlet"); //$NON-NLS-1$
+    Logger log = Log.getLogger("ChangeSecretServlet"); //$NON-NLS-1$
     static Map<String,String> defaultDispatcher = new HashMap<String, String>();
     
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
@@ -90,6 +92,7 @@ public class ChangeSecretServlet extends HttpServlet {
 			usuari = usuariService.findUserByUserName(user);
 			if (usuari == null)
 				throw new UnknownUserException(user);
+//	        log.info("Got user", null, null);
 			String userAccount = user;
 			String dispatcher = defaultDispatcher.get(Security.getCurrentTenantName());
 			if (dispatcher == null)
@@ -97,10 +100,12 @@ public class ChangeSecretServlet extends HttpServlet {
 				dispatcher = ServiceLocator.instance().getDispatcherService().findSoffidDispatcher().getName();
 				defaultDispatcher.put(Security.getCurrentTenantName(), dispatcher);
 			}
+//	        log.info("Got dispatcher", null, null);
 			for ( UserAccount ua: accountSvc.findUsersAccounts(usuari.getUserName(), dispatcher))
 			{
 				userAccount = ua.getName();
 			}
+//	        log.info("Got account", null, null);
 	        Security.nestedLogin(userAccount, new String[] {
 	        		Security.AUTO_USER_QUERY+Security.AUTO_ALL,
 	        		Security.AUTO_ACCOUNT_QUERY+Security.AUTO_ALL,
@@ -109,8 +114,11 @@ public class ChangeSecretServlet extends HttpServlet {
 	        });
 	        try {
 
-	            for (Session sessio : ss.getActiveSessions(usuari.getId())) {
+	            Collection<Session> activeSessions = ss.getActiveSessions(usuari.getId());
+//	            log.info("Got {} sessions", activeSessions.size(), null);
+				for (Session sessio : activeSessions) {
 	                if (sessio.getKey().equals(key) ) {
+//	                    log.info("Found session key", null, null);
 	                    writer.write(doChangeSecret(usuari, userAccount, secret, account, system, ssoAttribute, description, value));
 	                    writer.close();
 	                    return;
@@ -147,22 +155,25 @@ public class ChangeSecretServlet extends HttpServlet {
 					String system, String ssoAttribute, String description, String value) throws InternalErrorException, RemoteException,
 					AccountAlreadyExistsException, UnsupportedEncodingException
 	{
-
-		Security.nestedLogin(userAccount, Security.getAuthorizations().toArray(new String [0]));
+		
+		SoffidPrincipal p = new SoffidPrincipalImpl(userAccount, usuari.getUserName(), usuari.getFullName(), null, Security.getAuthorizations(), null,  null);
+		Security.nestedLogin(p);
 		try
 		{
 	        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
 	        if (secret != null)
 	        {
-				log.info("Storing secret {} for user {}", secret, usuari.getUserName());
+//				log.info("Storing secret {} for user {}", secret, usuari.getUserName());
 	        	sss.putSecret(usuari, secret, new Password(value));
 	        }
 	        else if (account == null || account.trim().length() == 0)
 	        {
-	        	log.info("Creating account for {}", usuari.getUserName(), null);
+//	        	log.info("Checking creation of account for {}", usuari.getUserName(), null);
 	    		if (canCreateAccount (usuari, system))
 	    		{
+//	    	        log.info("Creating account", null, null);
 	    			Account acc = createAccount (system, usuari, description);
+//	    	        log.info("Created account", null, null);
 	    			return "OK|"+acc.getName();
 	           	}
 	    		else
@@ -203,7 +214,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	
 	           	if (ssoAttribute == null || ssoAttribute.length() == 0)
 	           	{
-					log.info("Setting password for {} at {}", account, system);
+//					log.info("Setting password for {} at {}", account, system);
 	               	sss.setPassword(acc.getId(), new Password(value));
 	
 	               	UserDomainService dominiService = ServiceLocator.instance().getUserDomainService();

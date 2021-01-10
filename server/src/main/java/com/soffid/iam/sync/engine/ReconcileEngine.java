@@ -19,12 +19,11 @@ import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.Application;
-import com.soffid.iam.api.AttributeVisibilityEnum;
-import com.soffid.iam.api.DataType;
 import com.soffid.iam.api.Domain;
 import com.soffid.iam.api.DomainValue;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.PasswordPolicy;
+import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleAccount;
 import com.soffid.iam.api.RoleGrant;
@@ -45,17 +44,13 @@ import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
 import com.soffid.iam.sync.intf.ExtensibleObject;
-import com.soffid.iam.sync.intf.ReconcileMgr2;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
-import com.soffid.iam.api.ReconcileTrigger;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
-import es.caib.seycon.ng.comu.TypeEnumeration;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.ng.exception.NeedsAccountNameException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 
 /**
@@ -233,7 +228,8 @@ public abstract class ReconcileEngine
 				{
 					log.append("Removing account "+accountName+"\n");
 					try {
-						accountService.removeAccount(account);
+						account.setStatus(AccountStatus.REMOVED);
+						accountService.updateAccount2(account);
 						executeTriggers(postDelete, eo, null);
 					} catch (Exception e) {
 						log.println(" Error: "+e.toString());
@@ -315,14 +311,15 @@ public abstract class ReconcileEngine
 		boolean isUnmanaged = acc != null && acc.getId() != null && 
 				(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
 		
-//		log.println("In update account "+accountName);
+		if (!dispatcher.isReadOnly() && accountService.isUpdatePending(acc)) {
+			log.append ("Account "+acc.getName()+" is not loaded due to active synchronization task\n");			
+		}
 		
 		if (! preUpdate.isEmpty())
 		{
 			boolean isManaged2 = isUnmanaged;
 			AccountExtensibleObject eo = new AccountExtensibleObject(existingAccount, serverService);
 			isUnmanaged = executeTriggers(preUpdate, new AccountExtensibleObject(acc, serverService), eo);
-//			log.println("Pre update trigger returns "+isUnmanaged);
 			if (isUnmanaged != isManaged2)
 			{
 				if (isUnmanaged)
@@ -908,6 +905,7 @@ public abstract class ReconcileEngine
 			if (role2 != null)
 			{
 				boolean found = false;
+				existingGrant.setRoleId(role2.getId());
 				for (Iterator<RoleGrant> it = grants.iterator(); 
 								! found && it.hasNext();)
 				{
@@ -929,6 +927,7 @@ public abstract class ReconcileEngine
 						log.append (" [").append (existingGrant.getDomainValue()).append("]");
 					log.append (" to ").append(acc.getName()).append('\n');
 					grant(acc, existingGrant, role2) ;
+					grants.add(existingGrant);
 				}
 			} else {
 				log.print("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());

@@ -64,9 +64,9 @@ public class MazingerMenuServlet extends HttpServlet {
             Security.nestedLogin(user, auths);
 
             try {
-                Host maq = xarxaService.findHostByIp(req.getRemoteAddr());
+                Host maq = xarxaService.findHostByIp(com.soffid.iam.utils.Security.getClientIp());
                 if (maq == null) {
-                    throw new UnknownHostException(req.getRemoteAddr());
+                    throw new UnknownHostException(com.soffid.iam.utils.Security.getClientIp());
                 }
                 User usuari = usuariService.findUserByUserName(user);
                 if (usuari == null) {

@@ -35,15 +35,15 @@ public class CreateSessionServlet extends HttpServlet {
         String clientIP = req.getParameter("clientIP");
         String port = req.getParameter("port");
         resp.setContentType("text/plain; charset=UTF-8");
-        log.info("CreateSession: user="+user+" host="+req.getRemoteAddr()+" client="+clientIP+" port="+port,
+        log.info("CreateSession: user="+user+" host="+com.soffid.iam.utils.Security.getClientIp()+" client="+clientIP+" port="+port,
                 null, null);
         BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
         try {
         	NetworkService xs = ServiceLocator.instance().getNetworkService();
-        	Host maq = xs.findHostByIp(req.getRemoteAddr());
+        	Host maq = xs.findHostByIp(com.soffid.iam.utils.Security.getClientIp());
         	if (maq == null)
         	{
-        		throw new InternalErrorException("Unknown host "+req.getRemoteAddr());
+        		throw new InternalErrorException("Unknown host "+com.soffid.iam.utils.Security.getClientIp());
         	}
         	Host client = null;
         	if (clientIP != null)

@@ -1,20 +1,29 @@
 package com.soffid.iam.sync.service;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordPolicy;
+import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.Server;
 import com.soffid.iam.api.User;
 import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.sso.Secret;
+import com.soffid.iam.model.AccountAccessEntity;
 import com.soffid.iam.model.AccountAttributeEntity;
 import com.soffid.iam.model.AccountEntity;
+import com.soffid.iam.model.GroupEntity;
 import com.soffid.iam.model.PasswordDomainEntity;
+import com.soffid.iam.model.RoleEntity;
+import com.soffid.iam.model.RoleEntityDao;
 import com.soffid.iam.model.SecretEntity;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntity;
+import com.soffid.iam.model.UserGroupEntity;
 import com.soffid.iam.sync.service.SecretStoreServiceBase;
+import com.soffid.iam.utils.ConfigurationCache;
 
+import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.util.Base64;
@@ -31,10 +40,12 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
@@ -311,7 +322,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	public List<Secret> handleGetAllSecrets (User user) throws InternalErrorException, UnsupportedEncodingException
 	{
 		List<Secret> secrets = getSecrets(user);
-		for (Account account: getAccountService().getUserGrantedAccounts(user))
+		for (AccountEntity account: getUserAccounts(user.getId()))
 		{
 			generateAccountSecrets(user, secrets, account);
 		}
@@ -329,15 +340,20 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		return secrets;
 	}
 
-	private void generateAccountSecrets (User user, List<Secret> secrets, Account account)
+	private void generateAccountSecrets (User user, List<Secret> secrets, AccountEntity account)
 					throws InternalErrorException, UnsupportedEncodingException
 	{
 		boolean visible = false;
 
 		AccountEntity acc = getAccountEntityDao().load(account.getId());
 
+		String ssoSystem = ConfigurationCache.getProperty("AutoSSOSystem");
+		if (ssoSystem == null)
+			ssoSystem = "SSO";
+				
 		if (account.getType().equals(AccountType.USER) ||
-						account.getType().equals(AccountType.SHARED))
+						account.getType().equals(AccountType.SHARED) ||
+						account.getSystem().getName().equals(ssoSystem))
 			visible = true;
 		else if (account.getType().equals(AccountType.PRIVILEGED))
 		{
@@ -357,47 +373,59 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 			Password p = getPassword(account.getId());
 			if (p == null)
 			{
-				if (account instanceof UserAccount)
+				if (account.getType() == AccountType.USER)
 				{
-					PasswordDomainEntity dce = getPasswordDomainEntityDao().findBySystem(account.getSystem());
+					PasswordDomainEntity dce = account.getSystem().getPasswordDomain();
 					p = searchSecret(secrets, "dompass/"+dce.getId());
 				}
 			}
 			if (p != null)
 			{
 				Secret secret = new Secret();
-				secret.setName("account."+account.getSystem());
+				secret.setName("account."+account.getSystem().getName());
 				secret.setValue(new Password (account.getName()));
 				secrets.add(secret);
 				if (! account.getType().equals(AccountType.USER))
 				{
 					secret = new Secret();
-					secret.setName("accdesc."+account.getSystem()+"."+account.getName());
+					secret.setName("accdesc."+account.getSystem().getName()+"."+account.getName());
 					secret.setValue(new Password (account.getDescription()));
 					secrets.add(secret);
 				}
 				secret = new Secret ();
-				secret.setName("pass."+account.getSystem()+"."+account.getName());
+				secret.setName("pass."+account.getSystem().getName()+"."+account.getName());
 				secret.setValue(p);
 				secrets.add(secret);
 			}
 			
-			Map<String, Object> attributes = account.getAttributes();
-			if ( ! attributes.containsKey("SSO:URL"))
-				attributes.put("SSO:URL", account.getLoginUrl());
-			if (account.getLoginName() != null)
-				attributes.put("SSO:0", "_="+URLEncoder.encode(account.getLoginName(), "UTF-8"));
-			
-			for (String key: attributes.keySet())
+			boolean foundUrl = false;
+			boolean foundSso0 = false;
+			for (AccountAttributeEntity data: account.getAttributes())
 			{
-				Object v = attributes.get(key);
-				if (key.startsWith("SSO:") &&  v != null && v.toString().length() > 0)
+				Object v = data.getObjectValue();
+				String name = data.getMetadata().getName();
+				if (name.startsWith("SSO:") &&  v != null && v.toString().length() > 0)
 				{
+					if (name.equals("SSO:URL")) foundUrl = true;
+					if (name.equals("SSO:0")) foundSso0 = true;
 					Secret secret = new Secret ();
-					secret.setName("sso."+account.getSystem()+"."+account.getName()+"."+key.substring(4));
+					secret.setName("sso."+account.getSystem().getName()+"."+account.getName()+"."+name.substring(4));
 					secret.setValue( new Password ( v.toString() ) );
 					secrets.add (secret);
 				}
+			}
+			
+			if (!foundSso0 && account.getLoginName() != null) {
+				Secret secret = new Secret ();
+				secret.setName("sso."+account.getSystem().getName()+"."+account.getName()+".0");
+				secret.setValue( new Password ( "_="+URLEncoder.encode(account.getLoginName(), "UTF-8") ) ) ;
+				secrets.add (secret);
+			}
+			if (!foundUrl && account.getLoginUrl() != null) {
+				Secret secret = new Secret ();
+				secret.setName("sso."+account.getSystem().getName()+"."+account.getName()+".URL");
+				secret.setValue( new Password ( account.getLoginUrl() ) ) ;
+				secrets.add (secret);
 			}
 		}
 	}
@@ -458,6 +486,63 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		return l;
 	}
 
+	
+	private Collection<AccountEntity> getUserAccounts (Long userId) throws InternalErrorException {
+		Collection<RoleGrant> grants = ServiceLocator.instance().getApplicationService().findEffectiveRoleGrantByUser(userId);
+		RoleEntityDao roleEntityDao = (RoleEntityDao) ServiceLocator.instance().getService("roleEntityDao");
+		Set<AccountEntity> accounts = new HashSet<AccountEntity>();
+		for (RoleGrant rg : grants) {
+            RoleEntity r = roleEntityDao.load(rg.getRoleId());
+            for (AccountAccessEntity aae : r.getAccountAccess()) {
+                if (! Boolean.TRUE.equals(aae.getDisabled()) ) 
+                	accounts.add(aae.getAccount());
+            }
+        }
+		UserEntity ue = getUserEntityDao().load(userId);
+		addGrantedAccounts(ue.getPrimaryGroup(), accounts);
+		for (UserGroupEntity ug : ue.getSecondaryGroups()) {
+			if (! Boolean.TRUE.equals(ug.getDisabled()))
+				addGrantedAccounts(ug.getGroup(), accounts);
+        }
+		
+		for (AccountAccessEntity aae: ue.getAccountAccess())
+		{
+//			log.info("Checking account {} / {}", aae.getAccount().getName() , aae.getAccount().getSystem().getName());
+			if (! Boolean.TRUE.equals(aae.getDisabled())) {
+//				log.info("Added", null, null);
+				accounts.add(aae.getAccount());
+			} else {
+//				log.info("Rejected", null, null);
+			}
+		}
+		
+		for (UserAccountEntity uae: ue.getAccounts())
+		{
+			if (uae.getAccount().getType().equals (AccountType.USER))
+				accounts.add(uae.getAccount());
+		}
+		
+		for (Iterator<AccountEntity> it = accounts.iterator(); it.hasNext() ;) {
+			AccountEntity account = it.next();
+			if (account.isDisabled()) {
+//				log.info("Discardinf by disabled", account.getName(), account.getSystem().getName());
+				it.remove();
+			}
+		}
+		return accounts;
+	}
+
+	private void addGrantedAccounts(GroupEntity grup, Set<AccountEntity> accounts) {
+		for (AccountAccessEntity aae: grup.getAccountAccess())
+		{
+			if (!Boolean.TRUE.equals(aae.getDisabled()))
+			{
+				accounts.add(aae.getAccount());
+			}
+		}
+		if (grup.getParent() != null)
+			addGrantedAccounts(grup.getParent(), accounts);
+	}
 }
 
 class Decoder {

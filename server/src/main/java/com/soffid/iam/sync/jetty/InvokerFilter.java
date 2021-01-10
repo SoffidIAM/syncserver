@@ -29,8 +29,11 @@ public class InvokerFilter implements Filter {
             String user = Invoker.getInvoker().getUser();
             if (user == null)
             {
-            	String host = Config.getConfig().getHostName();
-            	String tenant = Security.getMasterTenantName();
+            	Config config = Config.getConfig();
+				String host = config.getHostName();
+            	String tenant = config.getCustomProperty("tenant") != null ?
+            		config.getCustomProperty("tenant") : 
+            		Security.getMasterTenantName();
         		if (request.getServerName() != null &&
         				request.getServerName().endsWith("."+host))
         		{
@@ -39,6 +42,9 @@ public class InvokerFilter implements Filter {
         		}
         		Security.nestedLogin(tenant, "anonymous", Security.ALL_PERMISSIONS);
         		try {
+        			try {
+        				Security.setClientRequest((HttpServletRequest) request);
+        			} catch (Exception e) {}
         			chain.doFilter(request, response);
         		} finally {
         			Security.nestedLogoff();
@@ -54,6 +60,9 @@ public class InvokerFilter implements Filter {
 	            	Security.nestedLogin(user.substring(0, i), user.substring(i+1), Security.ALL_PERMISSIONS);
 	            	try
 	            	{
+	        			try {
+	        				Security.setClientRequest((HttpServletRequest) request);
+	        			} catch (Throwable e) {}
 	                	chain.doFilter(request, response);
 	            	}
 	            	finally

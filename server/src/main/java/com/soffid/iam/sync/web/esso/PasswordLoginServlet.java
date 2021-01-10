@@ -138,7 +138,7 @@ public class PasswordLoginServlet extends HttpServlet {
 
             boolean canAdmin;
 
-            Host maquinaAcces = serverService.getHostInfoByIP(req.getRemoteAddr());
+            Host maquinaAcces = serverService.getHostInfoByIP(com.soffid.iam.utils.Security.getClientIp());
             canAdmin = serverService.hasSupportAccessHost(maquinaAcces.getId(), challenge.getUser().getId());
 
             return "OK|" + challenge.getChallengeId() + "|" + Long.toString(s.getId())
@@ -202,7 +202,7 @@ public class PasswordLoginServlet extends HttpServlet {
             String user = req.getParameter("user");
 
             String cardSupport = req.getParameter("cardSupport");
-            String hostIP = req.getRemoteAddr();
+            String hostIP = com.soffid.iam.utils.Security.getClientIp();
             int iCardSupport = Challenge.CARD_IFNEEDED;
             try {
                 iCardSupport = Integer.decode(cardSupport);
@@ -262,8 +262,8 @@ public class PasswordLoginServlet extends HttpServlet {
 
         if (challenge == null)
             throw new InternalErrorException("Invalid token " + challengeId);
-        if (!challenge.getHost().getIp().equals(req.getRemoteAddr())) {
-            log.warn("Ticket spoofing detected from {}. Expected {}", req.getRemoteAddr(), challenge.getHost().getIp());
+        if (!challenge.getHost().getIp().equals(com.soffid.iam.utils.Security.getClientIp())) {
+            log.warn("Ticket spoofing detected from {}. Expected {}", com.soffid.iam.utils.Security.getClientIp(), challenge.getHost().getIp());
             throw new InternalErrorException("Invalid token " + challengeId);
         }
         return challenge;

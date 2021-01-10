@@ -7,6 +7,7 @@ import java.io.PrintWriter;
 import java.rmi.RemoteException;
 import java.util.List;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
@@ -20,13 +21,15 @@ import es.caib.seycon.ng.exception.InternalErrorException;
  */
 public class ReconcileEngine2 extends ReconcileEngine
 {
-
+	int timeout = 10000; 
 	private ReconcileMgr2 agent;
 
 	public ReconcileEngine2(com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent,
 			PrintWriter out) {
 		super (dispatcher, out);
 		this.agent = agent;
+		if (!"local".equals( dispatcher.getUrl()))
+			timeout = 60000; // Remote servers require longer timeout
 	}
 
 
@@ -39,10 +42,33 @@ public class ReconcileEngine2 extends ReconcileEngine
 				return agent.getAccountInfo(accountName);
 			} catch (Throwable e) {
 				log.append("Error getting account info. Retrying in 10 seconds\n");
-				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+				reconnect();
 			}
 		}
 		return agent.getAccountInfo(accountName);
+	}
+
+
+
+	public void reconnect() {
+		try { 
+			Thread.sleep(timeout);
+			DispatcherHandlerImpl h = (DispatcherHandlerImpl) 
+					ServiceLocator.instance().getTaskGenerator()
+					.getDispatcher(dispatcher.getName());
+			if (h != null)
+			{
+				try {
+					agent = InterfaceWrapper.getReconcileMgr2( h.connect(false, false) );
+				} catch (Exception e) {
+					log.println("WARNING. Cannot reconnect: "+e.toString());
+				}
+				
+			}
+		} catch (InterruptedException e1) { 
+		}catch (InternalErrorException e1) {
+			log.println("WARNING. Cannot reconnect: "+e1.toString());
+		}
 	}
 
 
@@ -54,7 +80,7 @@ public class ReconcileEngine2 extends ReconcileEngine
 				return agent.getAccountsList();
 			} catch (Throwable e) {
 				log.append("Error getting accounts list. Retrying");
-				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+				reconnect();
 			}
 		}
 		return agent.getAccountsList();
@@ -69,7 +95,7 @@ public class ReconcileEngine2 extends ReconcileEngine
 				return agent.getRoleFullInfo(roleName);
 			} catch (Throwable e) {
 				log.append("Error getting role info. Retrying\n");
-				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+				reconnect();
 			}
 		}
 		return agent.getRoleFullInfo(roleName);
@@ -83,7 +109,7 @@ public class ReconcileEngine2 extends ReconcileEngine
 				return agent.getRolesList();
 			} catch (Throwable e) {
 				log.append("Error getting roles list. Retrying\n");
-				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+				reconnect();
 			}
 		}
 		return agent.getRolesList();
@@ -102,7 +128,7 @@ public class ReconcileEngine2 extends ReconcileEngine
 				return grants;
 			} catch (Throwable e) {
 				log.append("Error getting account grants. Retrying\n");
-				try { Thread.sleep(10000); } catch (InterruptedException e1) { }
+				reconnect();
 			}
 		}
 		return agent.getAccountGrants(acc.getName());

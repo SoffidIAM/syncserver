@@ -35,6 +35,7 @@ import com.soffid.iam.sync.service.LogonService;
 import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.LogonDeniedException;
@@ -178,7 +179,7 @@ public class KerberosLoginServlet extends HttpServlet {
         String clientIP = req.getParameter("clientIP");
         String cardSupport = req.getParameter("cardSupport");
         String token = req.getParameter("krbToken");
-        String hostIP = req.getRemoteAddr();
+        String hostIP = Security.getClientIp();
         final KerberosManager km = new KerberosManager();
 
         int split = principal.indexOf('@');
@@ -258,10 +259,9 @@ public class KerberosLoginServlet extends HttpServlet {
 
         if (challenge == null)
             throw new InternalErrorException("Invalid token " + challengeId);
-        if (!challenge.getHost().getName().equals(req.getRemoteHost()) &&
-                !challenge.getHost().getIp().equals(req.getRemoteAddr())) 
+        if ( !challenge.getHost().getIp().equals(Security.getClientIp())) 
         {
-            log.warn("Ticket spoofing detected from "+req.getRemoteAddr()+". Expected "+challenge.getHost().getIp());
+            log.warn("Ticket spoofing detected from "+Security.getClientIp()+". Expected "+challenge.getHost().getIp());
             throw new InternalErrorException("Invalid token " + challengeId);
         }
         return challenge;

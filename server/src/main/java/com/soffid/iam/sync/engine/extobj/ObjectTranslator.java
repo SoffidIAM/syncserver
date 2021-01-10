@@ -235,7 +235,7 @@ public class ObjectTranslator
 			
 			try {
 				Object result = interpret.eval(attributeExpression, newNs);
-				if (result instanceof Primitive)
+				if (result != null && result instanceof Primitive)
 				{
 					result = ((Primitive)result).getValue();
 				}

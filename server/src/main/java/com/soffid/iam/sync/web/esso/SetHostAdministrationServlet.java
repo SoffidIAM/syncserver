@@ -7,6 +7,8 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.util.Date;
+import java.util.HashMap;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -40,7 +42,7 @@ public class SetHostAdministrationServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
 
-        String hostIP = req.getRemoteAddr();
+        String hostIP = com.soffid.iam.utils.Security.getClientIp();
 
         String hostName = req.getParameter("host");
         String adminUser = req.getParameter("user");
@@ -75,6 +77,7 @@ public class SetHostAdministrationServlet extends HttpServlet {
 
     }
 
+    HashMap<String,Date> lastChange = new HashMap<String,Date>();
     public void setHostAdministration(String serial, String hostname, String hostIP,
             String adminUser, String adminPass) throws InternalErrorException, SQLException {
         Host maq = xarxaService.findHostBySerialNumber(serial);
@@ -92,6 +95,15 @@ public class SetHostAdministrationServlet extends HttpServlet {
                                 + maq.getName() + " amb un nom que no correspon al host " + hostname,
                         ex);
                 throw ex;
+            }
+            synchronized (lastChange) {
+	            Date last = lastChange.get(hostname);
+	            if (last != null && last.getTime() - System.currentTimeMillis() < 3600000) // A change each hour
+	            {
+	            	log.warn("Password change storm from {}", hostname, null);
+	                throw new InternalErrorException("IncorrectHostException");
+	            }
+	            lastChange.put(hostname, new Date());
             }
             // Si la comprovació de ip-nomhost ha anat bé, fem
             // l'actualització del usuari-passwd

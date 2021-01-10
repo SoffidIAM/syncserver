@@ -487,6 +487,14 @@ public class SoffidApplication extends Object {
     public static void notifyStart() throws FileNotFoundException, IOException, InternalErrorException {
         Config config = Config.getConfig();
 
+        if (config.getServerList()==null || config.getServerList().trim().isEmpty()) {
+        	String m = "Server list not found, please: 1) stop syncserver, 2) unpublish syncserver in IAM, 3) configure again, 4) start service";
+        	log.error(m);
+          try {
+                        Thread.sleep(60000);
+          } catch (InterruptedException e) {}
+        	throw new InternalErrorException(m);
+        }
         for (com.soffid.iam.api.System system: new RemoteServiceLocator().getServerService().getServices()) {
         	log.info("Starting service "+system.getName());
         	agentManager.createAgent(system);

@@ -28,7 +28,7 @@ public class UpdateHostAddress extends HttpServlet {
         try {
             String name = request.getParameter("name");
             String serial = request.getParameter("serial");
-            String ip = request.getRemoteAddr();
+            String ip = com.soffid.iam.utils.Security.getClientIp();
             NetworkService xs = ServerServiceLocator.instance().getNetworkService();
             xs.registerDynamicIP(name, request.getRemoteAddr(), serial);
             response.getOutputStream().println("OK");

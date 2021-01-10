@@ -141,10 +141,6 @@ public class ServerApplication extends SoffidApplication {
             ssoDaemon = new SessionManager();
             ssoDaemon.start();
             Thread.sleep(1000);
-            // Servidor de Single Sign-On para PCs
-            sso = new com.soffid.iam.sync.engine.socket.SSOServer();
-            sso.start();
-            Thread.sleep(1000);
         }
         log.info("Seycon Server started", null, null);
         tryToResetAgents();

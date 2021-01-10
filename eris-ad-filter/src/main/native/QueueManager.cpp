@@ -93,9 +93,10 @@ DECLSPEC_EXPORT BOOL readPasswordChange(HANDLE f,
 	BOOL emptyFile = FALSE;
 	BOOL emptyChange = FALSE;
 	do {
-		DWORD read;
-		ReadFile(f, change, sizeof(*change), &read, NULL);
-		if (read < sizeof(*change))
+		DWORD read = 0;
+		if (!ReadFile(f, change, sizeof(*change), &read, NULL))
+			emptyFile = TRUE;
+		else if (read != sizeof(*change))
 			emptyFile = TRUE;
 		else
 			emptyChange = (change -> szPassword[0] == L'\0');
@@ -103,24 +104,24 @@ DECLSPEC_EXPORT BOOL readPasswordChange(HANDLE f,
 	if (emptyFile && !skip) {
 		if (debug)
 			wprintf(L"Password queue is empty !!\n");
-			DWORD dwSize;
-			GetFileSize(f, &dwSize);
-			if (dwSize > 0 )
-			{
-				SetFilePointer(f, 0, NULL, FILE_BEGIN);
-				SetEndOfFile(f);
-			}
-		}
-		else if (!skip)
+		DWORD dwSize;
+		GetFileSize(f, &dwSize);
+		if (dwSize > 0 )
 		{
-			if (debug)
+			SetFilePointer(f, 0, NULL, FILE_BEGIN);
+			SetEndOfFile(f);
+		}
+	}
+	else if (!skip)
+	{
+		if (debug)
 			wprintf (L"Got password change from queue: user %s password '%s'\n",
 					change -> szUser, change->szPassword);
 		SetFilePointer(f, - sizeof (*change), NULL, FILE_CURRENT);
 	}
-			UnlockFile(f, 0, 0, 1, 0);
-			return !emptyFile;
-		}
+	UnlockFile(f, 0, 0, 1, 0);
+	return !emptyFile;
+}
 
 void DECLSPEC_EXPORT deletePasswordChange(HANDLE f) {
 	struct PasswordChange change;
@@ -385,9 +386,9 @@ LPSTR readURL(HINTERNET hSession, LPWSTR host, int port, LPCWSTR path,
 			dwDownloaded = 0;
 			if ( ! WinHttpReadData( hRequest, &buffer[used],
 							chunk, &dwDownloaded ) )
-			dwDownloaded = -1;
+				dwDownloaded = -1;
 			else
-			used += dwDownloaded;
+				used += dwDownloaded;
 		}while( dwDownloaded > 0 );
 		buffer[used] = '\0';
 	}
@@ -727,8 +728,10 @@ DECLSPEC_EXPORT BOOL configureEris(LPWSTR url, BOOL allowUnknownCA, LPWSTR domai
 
 	//Afegir el domini
 	int tamany = wcslen(domain);
-	if(!setDomain(domain, (tamany + 2) * sizeof (wchar_t)))
+	if(!setDomain(domain, (tamany + 2) * sizeof (wchar_t))) {
+		printf ("E-001: Cannot set domain");
 		return false;
+	}
 	// Specify an HTTP server.
 	if (hSession)
 	{
@@ -762,7 +765,10 @@ DECLSPEC_EXPORT BOOL configureEris(LPWSTR url, BOOL allowUnknownCA, LPWSTR domai
 			return TRUE;
 		}
 		else
+		{
+			printf ("E-001: Cannot retrieve servers list");
 			return FALSE;
+		}
 	}
 	if (strncmp (hosts, "OK|", 3) != 0 )
 	{

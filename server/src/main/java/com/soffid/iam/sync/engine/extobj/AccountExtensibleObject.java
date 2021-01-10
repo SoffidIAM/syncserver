@@ -4,6 +4,7 @@
 package com.soffid.iam.sync.engine.extobj;
 
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -148,7 +149,7 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = dadesList;
     		}
     		else if ("attributes".equals(attribute) || "accountAttributes".equals(attribute))
-    			obj = account.getAttributes();
+    			obj = account.getAttributes() == null ? new HashMap<String, Object>(): account.getAttributes();
     		else
     			return null;
     		

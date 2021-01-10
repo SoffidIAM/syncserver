@@ -44,6 +44,10 @@ public class MembershipExtensibleObject extends ExtensibleObject
 			obj = new UserExtensibleObject(account, user, serverService);
 		else if ("group".equals(attribute))
 			obj = new GroupExtensibleObject(grup, account.getSystem(), serverService);
+		else if ("userName".equals(attribute))
+			obj = user.getUserName();
+		else if ("groupName".equals(attribute))
+			obj = grup.getName();
 		else
 			return null;
 		put (attribute, obj);

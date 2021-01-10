@@ -596,13 +596,13 @@ public class SyncLoader extends Object {
         s.append(c.get(Calendar.MONTH) + 1); // Els mesos comencen en 0 (ups...)
         s.append("-");
         s.append(c.get(Calendar.DAY_OF_MONTH));
-
+        
         String l = Config.getConfig().getCustomProperty("log");
         File logFile = l == null ? Config.getConfig().getLogFile(): new File(l);
         if (output == null) {
             logDate = s.toString();
             try {
-                OutputStream out = new FileOutputStream(Config.getConfig().getLogFile(), true);
+                OutputStream out = new FileOutputStream(logFile, true);
                 output = new PrintStream (new DupOutputStream(out, System.out));
             } catch (IOException e) {
                 System.out.println("Imposible almacenar logs en "+logFile);
@@ -610,19 +610,18 @@ public class SyncLoader extends Object {
             }
         } else if (logDate != null && !logDate.equals(s.toString())) {
             output.close();
-            File dir = Config.getConfig().getLogDir();
-            File log = Config.getConfig().getLogFile();
-            log.renameTo(new File(dir, "syncserver.log-" + logDate));
+            File dir = logFile.getParentFile();
+            logFile.renameTo(new File(dir, "syncserver.log-" + logDate));
             // Borrar archivos antiguos de hace más de cinco días
-            long deleteBefore = System.currentTimeMillis() - 90 * 24 * 60 * 60 * 1000;
+            long deleteBefore = System.currentTimeMillis() - 90L * 24L * 60L * 60L
+                    * 1000L;
             for (File f : dir.listFiles()) {
                 if (f.getName().startsWith("syncserver.log")
                         && f.lastModified() < deleteBefore)
                     f.delete();
             }
             logDate = s.toString();
-            OutputStream out = new FileOutputStream(Config.getConfig()
-                    .getLogFile(), true);
+            OutputStream out = new FileOutputStream(logFile, true);
             output = new PrintStream( new DupOutputStream(out, System.out) );
         }
         return output;
