@@ -802,22 +802,6 @@
 	</reporting>
 	<profiles>
 		<profile>
-			<id>noi4j</id>
-			<build>
-				<plugins>
-					<plugin>
-						<artifactId>maven-antrun-plugin</artifactId>
-						<executions>
-							<execution>
-								<id>install4j</id>
-								<phase>none</phase>
-							</execution>
-						</executions>
-					</plugin>
-				</plugins>
-			</build>
-		</profile>
-		<profile>
 			<id>nodocker</id>
 			<build>
 				<plugins>
