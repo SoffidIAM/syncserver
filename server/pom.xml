@@ -8,7 +8,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.soffid.iam.sync</groupId>
 	<artifactId>syncserver</artifactId>
-	<version>3.0.0-SNAPSHOT</version>
+	<version>3.0.0-beta-1</version>
 	<packaging>jar</packaging>
 	<name>Soffid IAM Sync server</name>
 	<properties>
@@ -18,7 +18,7 @@
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
-		<tag>HEAD</tag>
+		<tag>syncserver-3.0.0-beta-1</tag>
 	</scm>
 	<licenses>
 		<license>
@@ -290,27 +290,27 @@
 						<phase>package</phase>
 						<configuration>
 							<tasks>
-								<copy todir="${basedir}/target/dist/opt/soffid" >
+								<copy todir="${basedir}/target/dist/opt/soffid">
 									<fileset dir="${basedir}/src/main/install4j/resources" includes="**" />
 								</copy>
-								<copy todir="${basedir}/target/dist/opt/soffid/iam-sync/lib" >
+								<copy todir="${basedir}/target/dist/opt/soffid/iam-sync/lib">
 									<fileset dir="${basedir}/target" includes="syncserver.jar" />
 								</copy>
 								<mkdir dir="${basedir}/target/dist/opt/soffid/iam-sync/conf" />
 								<mkdir dir="${basedir}/target/dist/opt/soffid/iam-sync/tmp" />
 								<mkdir dir="${basedir}/target/dist/opt/soffid/iam-sync/logs" />
-								<chmod dir="${basedir}/target/dist/opt/soffid/iam-sync/bin" perm="755" includes="**"/>
+								<chmod dir="${basedir}/target/dist/opt/soffid/iam-sync/bin" perm="755" includes="**" />
 								<tar destfile="${basedir}/target/Soffid-sync.tar.gz" compression="gzip">
 									<tarfileset dir="${basedir}/target/dist/opt/soffid" username="root" group="root" filemode="0660">
-										<include name="**"/>
-										<exclude name="iam-sync/bin/soffid-sync"/>
-										<exclude name="iam-sync/bin/configure"/>
-										<exclude name="iam-sync/bin/cli"/>
+										<include name="**" />
+										<exclude name="iam-sync/bin/soffid-sync" />
+										<exclude name="iam-sync/bin/configure" />
+										<exclude name="iam-sync/bin/cli" />
 									</tarfileset>
-									<tarfileset dir="${basedir}/target/dist/opt/soffid" username="root" group="root" filemode="0550" >
-										<include name="iam-sync/bin/soffid-sync"/>
-										<include name="iam-sync/bin/configure"/>
-										<include name="iam-sync/bin/cli"/>
+									<tarfileset dir="${basedir}/target/dist/opt/soffid" username="root" group="root" filemode="0550">
+										<include name="iam-sync/bin/soffid-sync" />
+										<include name="iam-sync/bin/configure" />
+										<include name="iam-sync/bin/cli" />
 									</tarfileset>
 								</tar>
 							</tasks>
@@ -324,21 +324,21 @@
 						<phase>package</phase>
 						<configuration>
 							<tasks>
-								<copy todir="${basedir}/target/deb" >
-									<fileset dir="${basedir}/target/dist" includes="**/*"/>
+								<copy todir="${basedir}/target/deb">
+									<fileset dir="${basedir}/target/dist" includes="**/*" />
 								</copy>
-								<chmod dir="${basedir}/target/deb/DEBIAN" perm="755" includes="p*"/>
-								<chmod dir="${basedir}/target/deb/opt/soffid/iam-sync/bin" perm="750" includes="**"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/cli.bat"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/configure.bat"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.bat"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.install.as.admin.bat"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.remove.as.admin.bat"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/soffid.ico"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/soffid-sync.bat"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.exe"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.amd64.exe"/>
-								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.x86.exe"/>
+								<chmod dir="${basedir}/target/deb/DEBIAN" perm="755" includes="p*" />
+								<chmod dir="${basedir}/target/deb/opt/soffid/iam-sync/bin" perm="750" includes="**" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/cli.bat" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/configure.bat" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.bat" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.install.as.admin.bat" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/service.remove.as.admin.bat" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/soffid.ico" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/soffid-sync.bat" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.exe" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.amd64.exe" />
+								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.x86.exe" />
 								<exec executable="fakeroot" failonerror="true">
 									<arg value="dpkg-deb" />
 									<arg value="-b" />
@@ -370,20 +370,20 @@
 						<phase>package</phase>
 						<configuration>
 							<tasks>
-								<copy todir="${basedir}/target/rpm/dist" >
-									<fileset dir="${basedir}/target/dist" includes="**/*"/>
+								<copy todir="${basedir}/target/rpm/dist">
+									<fileset dir="${basedir}/target/dist" includes="**/*" />
 								</copy>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/cli.bat"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/configure.bat"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.bat"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.install.as.admin.bat"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.remove.as.admin.bat"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/soffid.ico"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/soffid-sync.bat"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.exe"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.amd64.exe"/>
-								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.x86.exe"/>
-								<chmod dir="${basedir}/target/rpm/dist/opt/soffid/iam-sync/bin" perm="750" includes="**"/>
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/cli.bat" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/configure.bat" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.bat" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.install.as.admin.bat" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/service.remove.as.admin.bat" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/soffid.ico" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/soffid-sync.bat" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.exe" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.amd64.exe" />
+								<delete file="${basedir}/target/rpm/opt/soffid/iam-sync/bin/SyncServer.x86.exe" />
+								<chmod dir="${basedir}/target/rpm/dist/opt/soffid/iam-sync/bin" perm="750" includes="**" />
 								<exec executable="src/main/rpm/generaterpm.sh" failonerror="true">
 								</exec>
 							</tasks>
