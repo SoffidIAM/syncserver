@@ -10,7 +10,10 @@ function dump {
        true # Ignore
      elif [ -d "$f" ]
      then
-         echo "%dir \"$2/$f\""
+         if [[  ! "$2/$f" == /lib* ]] 
+         then
+           echo "%dir \"$2/$f\""
+         fi
          dumpFiles "$f" "$2/$f"
          dump "$f" "$2/$f"
      fi
