@@ -293,9 +293,12 @@ public class CertificateLoginServlet extends HttpServlet {
 	    	boolean encode = "true".equals( req.getParameter("encode") );
             StringBuffer result = new StringBuffer("OK");
             SecretStoreService secretStoreService = ServiceLocator.instance().getSecretStoreService();
+            String hostSerial=req.getParameter("serial");
             
             LogonService ls = ServiceLocator.instance().getLogonService();
-            Challenge ch = ls.requestChallenge(Challenge.TYPE_CERT, user.getUserName(), null, com.soffid.iam.utils.Security.getClientIp(), "", Challenge.CARD_DISABLED);
+            Challenge ch = ls.requestChallenge(Challenge.TYPE_CERT, user.getUserName(), null, 
+            		hostSerial == null ? com.soffid.iam.utils.Security.getClientIp() : hostSerial, 
+            		"", Challenge.CARD_DISABLED);
             ls.responseChallenge(ch);
             
             for (Secret secret: secretStoreService.getAllSecrets(user)) {

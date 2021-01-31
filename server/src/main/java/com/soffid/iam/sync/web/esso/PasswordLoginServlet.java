@@ -200,6 +200,7 @@ public class PasswordLoginServlet extends HttpServlet {
             if (domain.isEmpty())
             	domain = null;
             String user = req.getParameter("user");
+            String hostSerial=req.getParameter("serial");
 
             String cardSupport = req.getParameter("cardSupport");
             String hostIP = com.soffid.iam.utils.Security.getClientIp();
@@ -209,7 +210,8 @@ public class PasswordLoginServlet extends HttpServlet {
             } catch (Exception e) {
             }
 
-            final Challenge challenge = logonService.requestChallenge(Challenge.TYPE_PASSWORD, user, domain, hostIP, clientIP,
+            final Challenge challenge = logonService.requestChallenge(Challenge.TYPE_PASSWORD, user, domain, 
+            		hostSerial == null ? hostIP: hostSerial, clientIP,
                     iCardSupport);
 
             return "OK|" + challenge.getChallengeId() + "|" + challenge.getCardNumber() + "|"

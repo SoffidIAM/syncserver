@@ -1467,7 +1467,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    		TaskEntity tasque = dao.load(newTask.getTask().getId());
 	    		if (tasque == null)
 	    		{
-	    			newTask.cancel();
+	    			if (!newTask.isComplete())
+	    				newTask.cancel();
 	    			if (isDebug())
 	    				log.info("Task {} was previously removed", newTask.toString(), null);
 	    		}

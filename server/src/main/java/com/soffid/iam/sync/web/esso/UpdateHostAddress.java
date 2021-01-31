@@ -33,12 +33,14 @@ public class UpdateHostAddress extends HttpServlet {
             xs.registerDynamicIP(name, request.getRemoteAddr(), serial);
             response.getOutputStream().println("OK");
         } catch (Exception e) {
-            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-            response.getOutputStream().println("ERROR|"+e.toString());
-            if (! (e instanceof UnknownNetworkException))
+            if (! (e instanceof UnknownNetworkException)) {
             	log.warn("Error invoking " + request.getRequestURI(), e);
-            else
+            	response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+                response.getOutputStream().println("ERROR|"+e.toString()); 
+            } else { 
             	log.warn("Error registering host: "+e.getMessage());
+                response.getOutputStream().println("OK");
+            }
         }
     }
 

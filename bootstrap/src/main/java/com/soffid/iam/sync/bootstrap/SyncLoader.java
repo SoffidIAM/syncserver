@@ -741,7 +741,7 @@ public class SyncLoader extends Object {
                 log.info("Soffid IAM Sync Server BOOTSTRAP version " + getVersion());
                 SyncLoader serverLoader = new SyncLoader();
                 serverLoader.load(args);
-                Thread.sleep(2000);
+                Thread.sleep(60000); // Do not restart before 60 seconds
                 continueIteration = serverLoader.waitProcess() != 0;
             }
         } catch (Throwable e) {

@@ -115,6 +115,7 @@ import com.soffid.iam.sync.service.server.Compile2;
 import com.soffid.iam.sync.service.server.Compile3;
 import com.soffid.iam.sync.tools.ConfigurationManager;
 import com.soffid.iam.sync.tools.JarExtractor;
+import com.soffid.iam.sync.service.server.Compile4;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -897,8 +898,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 			c = new Compile();
 		else if ("2".equals(version)) //$NON-NLS-1$
 			c = new Compile2();
-		else
+		else if ("3".equals(version))
 			c = new Compile3();
+		else
+			c = new Compile4();
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		try {

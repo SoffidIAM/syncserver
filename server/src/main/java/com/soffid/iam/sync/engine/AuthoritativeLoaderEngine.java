@@ -80,6 +80,7 @@ public class AuthoritativeLoaderEngine {
 
 	private TaskGenerator taskGenerator;
 
+	static final List<Object> NULL_LIST = new LinkedList<Object>();
 	
 	public AuthoritativeLoaderEngine(DispatcherHandlerImpl handler)
 	{
@@ -464,7 +465,7 @@ public class AuthoritativeLoaderEngine {
 					UserExtensibleObject eo = buildExtensibleObject(change);
 					if (executeTriggers(pi, null, eo, objectTranslator))
 					{
-						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom);
+						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom, out);
 					}
 					else
 					{
@@ -483,7 +484,7 @@ public class AuthoritativeLoaderEngine {
 							new UserExtensibleObject(previousUser, previousAtts, server), 
 							eo, objectTranslator))
 					{
-						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom);
+						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom, out);
 					}
 					else
 					{
@@ -494,6 +495,7 @@ public class AuthoritativeLoaderEngine {
 				}
 			}
 			if (ok) {
+				out.append("Change after trigger "+change);
 				if (! changeDetector.anyChange (change)) {
 					out.append(
 							"Ignoring user ")
@@ -515,7 +517,6 @@ public class AuthoritativeLoaderEngine {
 							.append("\n");
 					log.info(
 							"Applied authoritative change for  "+change.getUser().getUserName());
-					log.info(change.toString());
 				}
 				else
 				{
@@ -560,19 +561,21 @@ public class AuthoritativeLoaderEngine {
 				out.print(":");
 			}
 			e.printStackTrace (out);
-			out.print("User information: ");
-			if (change.getUser() != null)
-				out.println(change.getUser());
+			out.print("Change information: ");
+			out.println(change);
 		}
 		return error;
 	}
 	public void updateAuthoritativeChangeFromExtensibleObject(com.soffid.iam.sync.intf.AuthoritativeChange change, UserExtensibleObject eo,
-			ValueObjectMapper vom) throws InternalErrorException {
+			ValueObjectMapper vom, PrintWriter out) throws InternalErrorException {
 		change.setUser( vom.parseUser(eo));
 		change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
 		
-		change.setGroups( new HashSet<String>( (Collection<String>) eo.getAttribute("secondaryGroups")) );
-		if (eo.getAttribute("secondaryGroups2") != null ) {
+    	if (eo.getAttribute("secondaryGroups") != null &&
+    			eo.getAttribute("secondaryGroups") != NULL_LIST)
+			change.setGroups( new HashSet<String>( (Collection<String>) eo.getAttribute("secondaryGroups")) );
+		if (eo.getAttribute("secondaryGroups2") != null &&
+				eo.getAttribute("secondaryGroups2") != NULL_LIST) {
 			Collection<GroupUser> l = new LinkedList<GroupUser>();
 			for (Map<String,Object> eug: (Collection<Map<String,Object>>) eo.getAttribute("secondaryGroups2") ) {
 				GroupUser ug = vom.parseGroupUserFromMap(eug);
@@ -869,16 +872,20 @@ public class AuthoritativeLoaderEngine {
 					l.add( new GroupExtensibleObject(g, system.getName(), server));
 				}
 			}
+			eo.setAttribute("secondaryGroups", l);
+		} else {
+			eo.setAttribute("secondaryGroups", NULL_LIST);			
 		}
-		eo.setAttribute("secondaryGroups", l);
 		if (change.getGroups2() != null)
 		{
 			for (GroupUser s: change.getGroups2())
 			{
 				l.add( new GroupUserExtensibleObject(s, system.getName(), server));
 			}
+			eo.setAttribute("secondaryGroups2", l);
+		} else {
+			eo.setAttribute("secondaryGroups2", NULL_LIST);
 		}
-		eo.setAttribute("secondaryGroups2", l);
 		return eo;
 	}
 

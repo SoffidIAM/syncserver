@@ -270,8 +270,9 @@ public class SoffidApplication extends Object {
      *            no se espera ningún parámero
      * @throws InternalErrorException 
      * @throws RemoteException 
+     * @throws InterruptedException 
      */
-    public static void main(String args[]) throws RemoteException, InternalErrorException {
+    public static void main(String args[]) throws RemoteException, InternalErrorException, InterruptedException {
     	LogConfigurator.configureLogging();
 
     	Security.onSyncServer();
@@ -398,7 +399,6 @@ public class SoffidApplication extends Object {
         } catch (Throwable e) {
             log.warn("Unrecoverable error", e);
             // out.println (e.getMessage() );
-            System.exit(1);
         }
     }
 

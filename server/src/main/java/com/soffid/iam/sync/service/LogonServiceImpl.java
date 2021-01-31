@@ -192,12 +192,15 @@ public class LogonServiceImpl extends LogonServiceBase {
     @Override
     protected Challenge handleRequestChallenge(int type, String user, String domain, String host,
             String clientHost, int cardSupport) throws Exception {
-        if (getRemoteHost() == null)
-            return requestChallengeInternal(type, user, domain, host, clientHost, cardSupport,
+    	
+        Challenge ch;
+        
+        ch = requestChallengeInternal(type, user, domain, host, clientHost, cardSupport,
                     cardSupport);
-        else
-            return requestChallengeInternal(type, user, domain, getRemoteHost(), clientHost,
-                    cardSupport, cardSupport);
+        if (! getNetworkService().canLogin(ch.getUser().getUserName(), ch.getHost().getName())) {
+        	throw new LogonDeniedException("Not authorized");
+        }
+        return ch;
     }
 
     @Override
@@ -234,7 +237,6 @@ public class LogonServiceImpl extends LogonServiceBase {
                     				challenge.getChallengeId()));
                 }
             }
-
 
             Session sessio = null;
             if (ch.getCentinelPort() <= 0)
@@ -393,7 +395,8 @@ public class LogonServiceImpl extends LogonServiceBase {
             }
         }
         ch.setHost(findHost(hostIp));
-        ch.getHost().setIp(hostIp);
+        if (getRemoteHost() != null)
+        	ch.getHost().setIp(getRemoteHost());
         ch.setCardNumber(""); //$NON-NLS-1$
         ch.setCell(""); //$NON-NLS-1$
 
@@ -465,25 +468,29 @@ public class LogonServiceImpl extends LogonServiceBase {
         if (maquina == null)
             return null;
 
-        String ip = null;
         String hostName = maquina;
-        byte[] binaryAddress = null;
-        try {
-            InetAddress inet = InetAddress.getByName(maquina);
-            hostName = inet.getHostName();
-            binaryAddress = inet.getAddress();
-        } catch (java.net.UnknownHostException e) {
-            ip = null;
-            hostName = maquina;
-        }
-
         HostEntityDao dao = getHostEntityDao();
         HostEntity m = null;
-		for (HostEntity maq2: dao.findByIP(maquina))
-		{
-			m = maq2;
-			break;
-		}
+
+        m = dao.findBySerialNumber(maquina);
+        if (m == null) {
+	        String ip = null;
+	        byte[] binaryAddress = null;
+	        try {
+	            InetAddress inet = InetAddress.getByName(maquina);
+	            hostName = inet.getHostName();
+	            binaryAddress = inet.getAddress();
+	        } catch (java.net.UnknownHostException e) {
+	            ip = null;
+	            hostName = maquina;
+	        }
+	
+			for (HostEntity maq2: dao.findByIP(maquina))
+			{
+				m = maq2;
+				break;
+			}
+        }
         if (m == null) {
         	m = dao.findByName(hostName);
         	if (m == null) {
@@ -495,7 +502,7 @@ public class LogonServiceImpl extends LogonServiceBase {
         }
         if (m == null) {
             throw new UnknownHostException(
-				String.format(Messages.getString("LogonServiceImpl.HostNotFoundMsg"), hostName, ip)); //$NON-NLS-1$
+				String.format(Messages.getString("LogonServiceImpl.HostNotFoundMsg"), hostName, maquina)); //$NON-NLS-1$
         }
         return dao.toHost(m);
     }
