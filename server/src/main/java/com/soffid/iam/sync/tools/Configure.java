@@ -142,8 +142,18 @@ public class Configure {
 			do { url = c.readLine("Database URL (jdbc:....): ").trim();} while (url.isEmpty());
 			do { dbUser = c.readLine("Database user: ").trim();} while (dbUser.isEmpty());
 			do {dbPassword = new String (c.readPassword("Password: ")).trim(); } while (dbPassword.isEmpty());
-			hostName = c.readLine("This server host name [%s]: ", hostName0).trim().toLowerCase();
-			if (hostName.isEmpty()) hostName = hostName0;
+			boolean wrong;
+			do {
+				wrong = false;
+				hostName = c.readLine("This server host name [%s]: ", hostName0).trim().toLowerCase();
+				if (hostName.isEmpty()) hostName = hostName0;
+				try {
+					InetAddress addr = InetAddress.getByName(hostName);
+				} catch (Exception e) {
+					c.printf("The address %s is not valid", hostName);
+					wrong = true;
+				}
+			} while (wrong);
 			port = c.readLine("Port to listen to [1760]: ").trim(); 
 			if (port.isEmpty()) port = "1760";
 
@@ -177,7 +187,19 @@ public class Configure {
 			String adminPassword;
 			do {adminPassword = new String (c.readPassword("Password: ")).trim(); } while (adminPassword.isEmpty());
 			String hostName0 = InetAddress.getLocalHost().getHostName();
-			String hostName = c.readLine("This server host name [%s]: ", hostName0).trim().toLowerCase();
+			String hostName;
+			boolean wrong;
+			do {
+				wrong = false;
+				hostName = c.readLine("This server host name [%s]: ", hostName0).trim().toLowerCase();
+				if (hostName.isEmpty()) hostName = hostName0;
+				try {
+					InetAddress addr = InetAddress.getByName(hostName);
+				} catch (Exception e) {
+					c.printf("The address %s is not valid", hostName);
+					wrong = true;
+				}
+			} while (wrong);
 			if (hostName.isEmpty()) hostName = hostName0;
 			String port;
 			port = c.readLine("Port to listen to [1760]: ").trim(); 
