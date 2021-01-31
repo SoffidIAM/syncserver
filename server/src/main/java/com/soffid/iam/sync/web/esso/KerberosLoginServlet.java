@@ -180,6 +180,7 @@ public class KerberosLoginServlet extends HttpServlet {
         String cardSupport = req.getParameter("cardSupport");
         String token = req.getParameter("krbToken");
         String hostIP = Security.getClientIp();
+        String hostSerial=req.getParameter("serial");
         final KerberosManager km = new KerberosManager();
 
         int split = principal.indexOf('@');
@@ -200,7 +201,7 @@ public class KerberosLoginServlet extends HttpServlet {
         		logonService.requestChallenge(Challenge.TYPE_KERBEROS, 
         				dispatcher == null ? principal: user,
         				dispatcher==null ? null: dispatcher.getName(), 
-        				hostIP, clientIP,
+        				hostSerial == null ? hostIP: hostSerial, clientIP,
         				Integer.decode(cardSupport));
 
         challenge.setKerberosDomain(domain);
