@@ -1424,7 +1424,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		entity.setLastExecution(thl.getLast());
 		entity.setMessage(thl.getReason());
 		String stackTrace = thl.getStackTrace();
-		if (stackTrace.length() > 1024) {
+		if (stackTrace != null && stackTrace.length() > 1024) {
 			log.warn("Truncating exception log for task "+newTask.toString()+" at "+thl.getDispatcher().getSystem()+": {}\n{}", thl.getReason(), stackTrace);
 			stackTrace = stackTrace.substring(0, 1000);
 		}

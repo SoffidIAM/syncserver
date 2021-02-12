@@ -397,7 +397,6 @@ public class InterfaceWrapper {
 				}
 
 				public String findPrincipalAccount(String principal) throws InternalErrorException {
-					// TODO Auto-generated method stub
 					return null;
 				}
 
