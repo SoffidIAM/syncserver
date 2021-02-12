@@ -295,7 +295,10 @@ public class CertificateLoginServlet extends HttpServlet {
             SecretStoreService secretStoreService = ServiceLocator.instance().getSecretStoreService();
             
             LogonService ls = ServiceLocator.instance().getLogonService();
-            Challenge ch = ls.requestChallenge(Challenge.TYPE_CERT, user.getUserName(), null, com.soffid.iam.utils.Security.getClientIp(), "", Challenge.CARD_DISABLED);
+            String host = req.getParameter("serial");
+            if (host == null)
+            	host = com.soffid.iam.utils.Security.getClientIp();
+            Challenge ch = ls.requestChallenge(Challenge.TYPE_CERT, user.getUserName(), null, host, "", Challenge.CARD_DISABLED);
             ls.responseChallenge(ch);
             
             for (Secret secret: secretStoreService.getAllSecrets(user)) {
