@@ -664,7 +664,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		String tenant = newTask.getTenant() == null || newTask.getTenant().getName() == null ? 
 				Security.getCurrentTenantName(): 
 				newTask.getTenant().getName();
-		log.info("Tenant name {}", tenant, null);		
 		Security.nestedLogin(tenant, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
 		try
 		{
@@ -1404,7 +1403,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
-	private void persistLog(TaskEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity) {
+	private void persistLog(TaskHandler newTask, TaskEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity) {
 		if (thl.getId() == null)
 		{
 
@@ -1424,7 +1423,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		entity.setCompleted(thl.isComplete() ? "S" : "N");
 		entity.setLastExecution(thl.getLast());
 		entity.setMessage(thl.getReason());
-		entity.setStackTrace(thl.getStackTrace());
+		String stackTrace = thl.getStackTrace();
+		if (stackTrace.length() > 1024) {
+			log.warn("Truncating exception log for task "+newTask.toString()+" at "+thl.getDispatcher().getSystem()+": {}\n{}", thl.getReason(), stackTrace);
+			stackTrace = stackTrace.substring(0, 1000);
+		}
+		entity.setStackTrace(stackTrace);
 		if (thl.getId() == null)
 		{
 			getTaskLogEntityDao().create(entity);
@@ -1514,13 +1518,13 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	                                		tasklog.getDispatcher() != null &&
 	                                		logEntity.getSystem().getId().equals(tasklog.getDispatcher().getSystem().getId())) {
 	                                    found = true;
-	                                    persistLog(tasque, tasklog, logEntity);
+	                                    persistLog(newTask, tasque, tasklog, logEntity);
 	                                    break;
 	                                }
 	                            }
 	                            if (!found) {
 	                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
-	                                persistLog(tasque, tasklog, logEntity);
+	                                persistLog(newTask, tasque, tasklog, logEntity);
 	                            }
 	                            if (isDebug())
 	                            	log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
