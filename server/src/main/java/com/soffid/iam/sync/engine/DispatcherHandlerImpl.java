@@ -2833,13 +2833,25 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	public String parseKerberosToken(String domain, String serviceName, byte[] keytab, byte[] token) throws Exception {
 		if (isConnected() && kerberosAgent != null)
 		{
-			Object agent = connect( false, false );
-			KerberosAgent krbAgent = InterfaceWrapper.getKerberosAgent(agent);
+			KerberosAgent krbAgent = InterfaceWrapper.getKerberosAgent(kerberosAgent);
 			if (krbAgent != null)
 			{
 				String krbDomain = krbAgent.getRealmName();
 				if (domain.equalsIgnoreCase(krbDomain))
 					return krbAgent.parseKerberosToken(serviceName, keytab, token);
+			}
+		}
+		return null;
+				
+	}
+
+	public String getPrincipalAccount (String principalName) throws Exception {
+		if (isConnected() && kerberosAgent != null)
+		{
+			KerberosAgent krbAgent = InterfaceWrapper.getKerberosAgent(kerberosAgent);
+			if (krbAgent != null)
+			{
+				return krbAgent.findPrincipalAccount(principalName);
 			}
 		}
 		return null;
@@ -2923,24 +2935,55 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	@Override
 	public PasswordValidation checkPasswordSynchronizationStatus(String accountName) throws Exception {
-		Collection<Map<String, Object>> s = invoke("checkPassword", accountName, new HashMap<String, Object>());
-		for (Map<String, Object> ss: s) {
-			PasswordValidation status = (PasswordValidation) ss.get("passwordStatus");
-			if (status != null) {
-				Account account = accountService.findAccount(accountName, getName());
-				if (account != null)
-				{
-					Object oldStatus = account.getAttributes().get("passwordStatus");
-					if ( ! status.toString().equals(oldStatus))
+		if ( system.getClassName().endsWith(".SSOAgent") ) {
+			Collection<Map<String, Object>> s = invoke("checkPassword", accountName, new HashMap<String, Object>());
+			for (Map<String, Object> ss: s) {
+				PasswordValidation status = (PasswordValidation) ss.get("passwordStatus");
+				if (status != null) {
+					Account account = accountService.findAccount(accountName, getName());
+					if (account != null)
 					{
-						account.setPasswordStatus(status);
-						accountService.updateAccount(account);
+						Object oldStatus = account.getAttributes().get("passwordStatus");
+						if ( ! status.toString().equals(oldStatus))
+						{
+							account.setPasswordStatus(status);
+							accountService.updateAccount(account);
+						}
 					}
+					return status;
 				}
-				return status;
+			}
+			return PasswordValidation.PASSWORD_WRONG;
+		} else {
+			if (! isConnected())
+			{
+				throw new InternalErrorException("System "+getName()+" is offline");
+			}
+			Collection<Map<String, Object>> r = null;
+			Object agent;
+			try
+			{
+				agent = connect(false, false);
+			}
+			catch (Exception e)
+			{
+				throw new InternalErrorException ("Unable to connect to "+getName(), e);
+			}
+
+			try {
+				UserMgr userMgr = InterfaceWrapper.getUserMgr( agent );
+				if (userMgr == null)
+					return PasswordValidation.PASSWORD_GOOD;
+				Password p = ServiceLocator.instance().getServerService().getAccountPassword(accountName, getName());
+				if (p == null)
+					return PasswordValidation.PASSWORD_WRONG;
+				if (userMgr.validateUserPassword(accountName, p) ) 
+					return PasswordValidation.PASSWORD_GOOD;
+				else
+					return PasswordValidation.PASSWORD_WRONG;
+			} finally {
+				closeAgent(agent);
 			}
 		}
-		return null;
 	}
-
 }
