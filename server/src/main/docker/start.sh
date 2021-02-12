@@ -151,4 +151,13 @@ then
 fi
 
 
- exec /opt/soffid/iam-sync/bin/standalone
+for trustedcert in /opt/soffid/iam-sync/trustedcerts/*
+do   
+   if [[ -r "$trustedcert" ]]
+   then
+     echo "Loading $trustedcert"   
+     keytool -import -keystore /etc/ssl/certs/java/cacerts -storepass changeit -noprompt -alias $(basename $trustedcert) -file "$trustedcert" -trustcacerts
+   fi
+done
+
+exec /opt/soffid/iam-sync/bin/standalone

@@ -219,7 +219,6 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	
 	        String url = Config.getConfig().getURL().getServerURL().toString();
 	        String versio = Config.getConfig().getVersion();
-	        String sso = getSSOThreadStatus();
 	        String jetty = getJettyThreadStatus();
 	        String ssoDaemon = getSSODaemonThreadStatus();
 	        String taskGenerator = getTaskGeneratorThreadStatus();
@@ -255,7 +254,7 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	                                                                               // getNumTasquesPendents();
 	
 	        SyncServerInfo info = new SyncServerInfo(url, "Sync server", versio, estat, numAgents, //$NON-NLS-1$
-	                "" + numTasquesPendents, sso, jetty, ssoDaemon, taskGenerator, //$NON-NLS-1$
+	                "" + numTasquesPendents, "Deprecated", jetty, ssoDaemon, taskGenerator, //$NON-NLS-1$
 	                caducitatRootCertificate, caducitatMainCertificate, dataActualServer,
 	                databaseConnections);
 	
@@ -268,14 +267,6 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
     private boolean threadRunning(Thread thread) {
         return thread != null && thread.getState() != Thread.State.TERMINATED
                 && thread.getState() != Thread.State.NEW;
-    }
-
-    private String getSSOThreadStatus() {
-        Thread SSOServer = SoffidApplication.getSso();
-        if (threadRunning(SSOServer)) {
-            return Messages.getString("SyncStatusServiceImpl.SSORunning"); //$NON-NLS-1$
-        }
-        return Messages.getString("SyncStatusServiceImpl.SSOFailed"); //$NON-NLS-1$
     }
 
     private String getJettyThreadStatus() {

@@ -232,7 +232,6 @@ public class SoffidApplication extends Object {
      *             error de entrada/salida
      */
     protected static com.soffid.iam.sync.engine.session.SessionManager ssoDaemon = null;
-    protected static com.soffid.iam.sync.engine.socket.SSOServer sso = null;
     protected static AgentManager agentManager;
     protected static AgentManagerBaseProxy agentManagerV1;
     private static JettyServer jetty;
@@ -569,7 +568,6 @@ public class SoffidApplication extends Object {
 	                if (config.isServer()) {
 	                    shutdownPending = true;
 	                    Engine.getEngine().shutDown ();
-	                    sso.shutDown();
 	                    ssoDaemon.shutDown();
 	                    sleep (5000);
 	                } else {
@@ -586,10 +584,6 @@ public class SoffidApplication extends Object {
 
     public static com.soffid.iam.sync.engine.session.SessionManager getSsoDaemon() {
         return ssoDaemon;
-    }
-
-    public static com.soffid.iam.sync.engine.socket.SSOServer getSso() {
-        return sso;
     }
 
     public static JettyServer getJetty() {

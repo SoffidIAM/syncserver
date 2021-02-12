@@ -203,13 +203,16 @@ public class PasswordLoginServlet extends HttpServlet {
 
             String cardSupport = req.getParameter("cardSupport");
             String hostIP = com.soffid.iam.utils.Security.getClientIp();
+            String host = req.getParameter("serial");
+            if (host == null)
+            	host = com.soffid.iam.utils.Security.getClientIp();
             int iCardSupport = Challenge.CARD_IFNEEDED;
             try {
                 iCardSupport = Integer.decode(cardSupport);
             } catch (Exception e) {
             }
 
-            final Challenge challenge = logonService.requestChallenge(Challenge.TYPE_PASSWORD, user, domain, hostIP, clientIP,
+            final Challenge challenge = logonService.requestChallenge(Challenge.TYPE_PASSWORD, user, domain, host, clientIP,
                     iCardSupport);
 
             return "OK|" + challenge.getChallengeId() + "|" + challenge.getCardNumber() + "|"
