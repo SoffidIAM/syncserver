@@ -130,8 +130,8 @@ public class ChangeDetector {
 	private boolean compareUsers(User user, User oldUser) throws NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 		boolean anyChange = false;
 		for (String att : new String[]{"Active", "MailAlias", "PrimaryGroup", "Comments", "MailDomain", "MultiSession", 
-				"NationalID", "LastName", "ShortName", "FirstName", "MiddleName", "MailServer", "ProfileServer", 
-				"HomeServer", "PhoneNumber", "UserType"}) {
+				"LastName", "ShortName", "FirstName", "MiddleName", "MailServer", "ProfileServer", 
+				"HomeServer", "UserType"}) {
             Method getter = User.class.getMethod("get" + att);
             Method setter = User.class.getMethod("set" + att, getter.getReturnType());
             Object value = getter.invoke(user);

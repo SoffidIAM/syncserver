@@ -2140,7 +2140,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 					return handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
 				}
 			} catch (Exception e) {
-				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName());
+				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName(), e);
 			}
 		}
 		return null;

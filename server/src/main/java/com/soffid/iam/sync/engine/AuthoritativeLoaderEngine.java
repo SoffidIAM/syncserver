@@ -495,7 +495,6 @@ public class AuthoritativeLoaderEngine {
 				}
 			}
 			if (ok) {
-				out.append("Change after trigger "+change);
 				if (! changeDetector.anyChange (change)) {
 					out.append(
 							"Ignoring user ")
