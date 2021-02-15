@@ -41,6 +41,7 @@ public class BaseHttpConnectionFactory {
         
 
         KeyStore ks = KeyStore.getInstance("JKS");
+        ks.load(null,null);
         ks.setCertificateEntry("trusted", cert);
 
         SSLContext ctx;

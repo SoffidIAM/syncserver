@@ -1,7 +1,9 @@
 package com.soffid.iam.sync.tools;
 
 import java.io.Console;
+import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
@@ -20,6 +22,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Date;
 import java.util.Enumeration;
 
 import org.apache.commons.logging.LogFactory;
@@ -305,6 +308,10 @@ public class Configure {
 				config.setServerService(serverService);
 				config.updateFromServer();
 			}
+			File configured = new File(config.getHomeDir(), "conf/configured");
+			FileOutputStream out = new FileOutputStream(configured);
+			out.write(new Date().toString().getBytes());
+			out.close();
 			new KubernetesConfig().save();
 		} catch (NoClassDefFoundError e) {
 			System.out.println("Warning: JAVA 6 required");

@@ -118,15 +118,15 @@ function configureremote {
 	fi
     
     echo "Configuring as remote server"
-	/opt/soffid/iam-sync/bin/configure -remote -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"  && 
-	touch /opt/soffid/iam-sync/conf/configured &&
 	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
+	/opt/soffid/iam-sync/bin/configure -remote -hostname "$SOFFID_HOSTNAME" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"  && 
+	touch /opt/soffid/iam-sync/conf/configured 
 }
 
 function configure {
 	if [[ "$SOFFID_MAIN" == "yes" ]]
 	then
-	    configuremain || exit 1
+	    configuremain || (sleep 6000000 ; exit 1)
 	elif [[ "$SOFFID_MAIN" == "no" ]]
 	then
 		if [[ "$SOFFID_REMOTE" == "yes" ]]
@@ -145,10 +145,28 @@ function configure {
 	true
 }
 
+function loadconfig {
+	java=java
+	if [ ! -z "$JAVA_HOME" ]
+	then
+	  java="$JAVA_HOME/bin/java"
+	elif [ ! -z "$JRE_HOME" ] 
+	then
+	  java="$JRE_HOME/bin/java"
+	else
+	  java=java
+	fi
+	
+	$java -cp "/opt/soffid/iam-sync/bin/bootstrap.jar" com.soffid.iam.sync.bootstrap.KubernetesLoader
+}
+
+loadconfig
+
 if [[ ! -f /opt/soffid/iam-sync/conf/configured ]]
 then
    configure || exit 1
 fi
 
+cp /opt/soffid/iam-sync/conf/* /tmp
 
- exec /opt/soffid/iam-sync/bin/soffid-sync
+exec /opt/soffid/iam-sync/bin/soffid-sync

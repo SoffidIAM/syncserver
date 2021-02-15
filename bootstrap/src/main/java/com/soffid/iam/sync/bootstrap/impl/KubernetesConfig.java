@@ -2,6 +2,7 @@ package com.soffid.iam.sync.bootstrap.impl;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -20,6 +21,7 @@ import java.util.Base64;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 
 public class KubernetesConfig {
@@ -33,11 +35,13 @@ public class KubernetesConfig {
 	public void load () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
 		Config config = Config.getConfig();
 		
-		if (System.getenv("KUBERNETS_SERVICE_HOST") != null && new File("/var/run/secrets/kubernets.io/serviceaccount/token").canRead()) {
+		if (System.getenv("KUBERNETES_SERVICE_HOST") != null &&
+				System.getenv("KUBERNETES_CONFIGURATION_SECRET") != null &&
+				new File("/var/run/secrets/kubernetes.io/serviceaccount/token").canRead()) {
 			int i;
 			configure();
-			
-			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/defaults/secrets/soffid_"+hostname);
+			System.out.println("Loading kubernetes configuration from kubernetes secret "+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
+			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/default/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 			try {
 				String response = readURL(url);
 				JSONObject json = new JSONObject(response);
@@ -82,7 +86,13 @@ public class KubernetesConfig {
 		conn.addRequestProperty("Content-Type", "application/json");
 		conn.setDoInput(true);
 		conn.setDoOutput(true);
-		conn.setRequestMethod(method);
+		if ("PATCH".equals(method))
+		{
+			conn.setRequestMethod("PUT");
+			conn.setRequestProperty("X-HTTP-Method-Override", "PATCH");
+		} else {
+			conn.setRequestMethod(method);
+		}
 		
 		byte[] post = data.getBytes("UTF-8");
 		conn.addRequestProperty("Content-Length", Integer.toString( post.length) );
@@ -102,15 +112,16 @@ public class KubernetesConfig {
 
 	public void configure() throws IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException,
 			NoSuchAlgorithmException, CertificateException, FileNotFoundException {
-		host = System.getenv("KUBERNETS_SERVICE_HOST");
+		host = System.getenv("KUBERNETES_SERVICE_HOST");
 		port = System.getenv("KUBERNETES_SERVICE_PORT");
 		hostname = System.getenv("SOFFID_HOSTNAME");
-		token = readFile ("/var/run/secrets/kubernets.io/serviceaccount/token");
-		cert = readFile ("/var/run/secrets/kubernets.io/serviceaccount/ca.crt");
+		token = readFile ("/var/run/secrets/kubernetes.io/serviceaccount/token");
+		cert = readFile ("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt");
 		int i = cert.indexOf('\n');
-		cert = cert.substring(i);
+		cert = cert.substring(i+1);
 		i = cert.indexOf("\n---");
 		cert = cert.substring(0, i);
+		cert = cert.replace("\n","");
 		connectionFactory = new BaseHttpConnectionFactory(cert);
 	}
 	
@@ -124,7 +135,7 @@ public class KubernetesConfig {
 	}
 	
 	byte[] readBinaryFile(String path) throws IOException {
-		FileReader r = new FileReader(path);
+		FileInputStream r = new FileInputStream(path);
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		for (int i = r.read();  i >= 0; i = r.read()) {
 			out.write(i);
@@ -132,35 +143,44 @@ public class KubernetesConfig {
 		return out.toByteArray();
 	}
 
-	public void save () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+	public void save () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, JSONException {
 		Config config = Config.getConfig();
 		
-		if (System.getenv("KUBERNETS_SERVICE_HOST") != null && new File("/var/run/secrets/kubernets.io/serviceaccount/token").canRead()) {
-			int i;
+		if (System.getenv("KUBERNETES_SERVICE_HOST") != null &&
+				System.getenv("KUBERNETES_CONFIGURATION_SECRET") != null &&
+				new File("/var/run/secrets/kubernetes.io/serviceaccount/token").canRead()) {
+			System.out.println("Storing in kubernetes secret "+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 			configure();
 			
 			JSONObject data = new JSONObject();
 			File dir = new File (config.getHomeDir(), "conf");
 			for (File f: dir.listFiles()) {
+				System.out.println(".. "+f.getPath());
 				byte[] d = readBinaryFile(f.getPath());
 				data.put(f.getName(), Base64.getEncoder().encodeToString(d));
 			}
 			JSONObject secret = new JSONObject();
 			secret.put("data", data);
-			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/defaults/secrets/soffid_"+hostname);
+			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/default/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 			try {
-				readURL(url);
-				send("PATCH", new URL("https://"+host+":"+port+"/api/v1/namespaces/defaults/secrets"), secret.toString());
+				String s = readURL(url);
+				System.out.println("Current secret: "+s);
+				secret = new JSONObject(s);
+				secret.put("data", data);
+				System.out.println("Putting: "+secret.toString());
+				send("PUT", new URL("https://"+host+":"+port+"/api/v1/namespaces/default/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET")), secret.toString());
 			} catch (FileNotFoundException e) {
 				secret.put("apiVersion", "v1");
 				secret.put("kind", "Secret");
 				JSONObject metadata = new JSONObject();
-				metadata.put("name", "soffid_"+hostname);
+				metadata.put("name", System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 				metadata.put("type", "syncserver");
 				secret.put("metadata", metadata);
 				secret.put("type", "Opaque");
-				send("POST", new URL("https://"+host+":"+port+"/api/v1/namespaces/defaults/secrets"), secret.toString());
+				send("POST", new URL("https://"+host+":"+port+"/api/v1/namespaces/default/secrets"), secret.toString());
 			}
+		} else {
+			System.out.println("Not a kubernetes environment. Storing in local files");
 		}
 	}
 }
