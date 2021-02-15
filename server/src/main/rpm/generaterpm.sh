@@ -10,7 +10,7 @@ function dump {
        true # Ignore
      elif [ -d "$f" ]
      then
-         if [[  ! "$2/$f" == /lib* ]] 
+         if [[  ! "$2/$f" == /lib* && ! "$2/$f" == /opt && ! "$2/$f" == /opt/soffid ]] 
          then
            echo "%dir \"$2/$f\""
          fi

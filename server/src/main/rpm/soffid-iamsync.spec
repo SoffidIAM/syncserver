@@ -5,7 +5,8 @@ Release: 1
 Summary: Soffid IAM Sync
 License: GPL
 Distribution: Soffid IAM
-Group: Administration/Netwokr
+Group: Administration/Network
+Requires: java
 
 %define _rpmdir target
 %define _rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
@@ -24,7 +25,7 @@ fi
 chown -R soffid:soffid /opt/soffid/iam-sync
 
 # This will only remove masks created by d-s-h on package removal.
-/opt/soffid/iam-sync/bin/configure || true
+echo "Execute /opt/soffid/iam-sync/bin/configure to configure Soffid Sync server"
 
 systemctl enable 'soffid-iamsync.service' || true 	
 systemctl start soffid-iamsync || true 
