@@ -127,7 +127,7 @@
 								<artifactItem>
 									<groupId>${project.groupId}</groupId>
 									<artifactId>bootstrap</artifactId>
-									<version>3.0.0-beta-1</version>
+									<version>3.0.0-SNAPSHOT</version>
 									<type>jar</type>
 									<overWrite>true</overWrite>
 									<outputDirectory>${project.build.directory}/dist/opt/soffid/iam-sync/bin</outputDirectory>
@@ -416,6 +416,11 @@
 						<phase>deploy</phase>
 						<configuration>
 							<tasks>
+								<exec failonerror="true" executable="docker" dir="${project.basedir}">
+									<arg value="tag" />
+									<arg value="soffid/iam-sync:${pom.version}" />
+									<arg value="soffid/iam-sync:latest" />
+								</exec>
 								<exec failonerror="true" executable="docker" dir="${project.basedir}">
 									<arg value="push" />
 									<arg value="soffid/iam-sync:${pom.version}" />
