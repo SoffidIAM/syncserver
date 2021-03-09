@@ -98,7 +98,7 @@ public class SetHostAdministrationServlet extends HttpServlet {
             }
             synchronized (lastChange) {
 	            Date last = lastChange.get(hostname);
-	            if (last != null && last.getTime() - System.currentTimeMillis() < 3600000) // A change each hour
+	            if (last != null && System.currentTimeMillis() - last.getTime() < 3600000) // A change each hour
 	            {
 	            	log.warn("Password change storm from {}", hostname, null);
 	                throw new InternalErrorException("IncorrectHostException");
