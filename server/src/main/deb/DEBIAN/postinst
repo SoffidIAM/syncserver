@@ -5,6 +5,8 @@
 
 set -e
 
+. /usr/share/debconf/confmodule
+
 # summary of how this script can be called:
 #       * <postinst> `configure' <most-recently-configured-version>
 #       * <old-postinst> `abort-upgrade' <new version>
@@ -31,8 +33,14 @@ fi
 if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-deconfigure" ] || [ "$1" = "abort-remove" ] ; then
 	chown -R soffid:soffid /opt/soffid/iam-sync
 
-    /opt/soffid/iam-sync/bin/configure || true
-    
+	db_get soffid/configure
+	
+	if [ "$RET" = true ]
+	then
+	  /opt/soffid/iam-sync/bin/configure || true
+	    
+	  chown -R soffid:soffid /opt/soffid/iam-sync
+	fi
 	# This will only remove masks created by d-s-h on package removal.
 	systemctl enable 'soffid-iamsync.service' || true 	
 
