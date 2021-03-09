@@ -1,0 +1,12 @@
+#! /bin/bash
+# postinst script
+#
+# see: dh_installdeb(1)
+
+set -e
+
+. /usr/share/debconf/confmodule
+
+db_input critical soffid/configure || true
+db_go || true
+
