@@ -1,0 +1,5 @@
+Template: soffid/configure
+Type: boolean
+Default: false
+Description: Configure Soffid Sync-Server?
+ If you answer yes, a console configuration wizard will assist you to properly configure your Soffid sync-server

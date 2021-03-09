@@ -41,6 +41,7 @@ import com.soffid.iam.sync.engine.ChangePasswordNotification;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.engine.socket.SSOServer;
 import com.soffid.iam.sync.engine.socket.SSOThread;
+import com.soffid.iam.utils.ConfigurationCache;
 
 /**
  * Controla el LOGON y LOGOFF de las sesiones SSO. Los clientes acceden a ella a
@@ -109,7 +110,6 @@ public class SessionManager extends Thread {
         while (true) {
             int sessions = 0;
             int loggedoff = 0;
-            log.debug("Purging sessions", null, null); //$NON-NLS-1$
             try {
                 Collection<Session> sessionList = sessioService.getActiveSessions();
                 int realThreads = sessionList.size() / 20;
@@ -243,10 +243,27 @@ public class SessionManager extends Thread {
         Socket s = null;
         try {
             Host maq = xarxaService.findHostByName(sessio.getServerHostName());
-            if (maq.getIp() == null)
-                return false;
+            if (maq == null)
+            {
+            	log.info("Cannot find host {}", sessio.getServerHostName(), null);
+            	return true;
+            }
+            if (maq.getIp() == null) {
+            	log.info("Host {} {} does not have a IP address", maq.getId(), maq.getName());
+            	return false;
+            }
+            
+            
+        	String defaultNetwork = ConfigurationCache.getProperty("soffid.network.internet"); //$NON-NLS-1$
+            if ( defaultNetwork != null && defaultNetwork.equals( maq.getNetworkCode()))
+            	return false; // Internet connection
 
-            s = new Socket(maq.getIp(), sessio.getPort().intValue());
+        	log.info("Connecting to {} {}",maq.getIp(), sessio.getPort().intValue());
+        	try {
+        		s = new Socket(maq.getIp(), sessio.getPort().intValue());
+        	} catch (IOException e) {
+        		return false;
+        	}
             try {
                 s.setSoTimeout(30000); // Máximo treinta segundos para
                                        // responder

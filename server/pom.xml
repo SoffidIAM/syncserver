@@ -14,7 +14,7 @@
 	<properties>
 		<maven.compile.source>1.8</maven.compile.source>
 		<maven.compile.target>1.8</maven.compile.target>
-		<iam.version>3.0.0-beta-2</iam.version>
+		<iam.version>3.0.0</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -328,6 +328,7 @@
 									<fileset dir="${basedir}/target/dist" includes="**/*" />
 								</copy>
 								<chmod dir="${basedir}/target/deb/DEBIAN" perm="755" includes="p*" />
+								<chmod dir="${basedir}/target/deb/DEBIAN" perm="755" includes="config" />
 								<chmod dir="${basedir}/target/deb/opt/soffid/iam-sync/bin" perm="750" includes="**" />
 								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/cli.bat" />
 								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/configure.bat" />

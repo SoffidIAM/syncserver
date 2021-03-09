@@ -9,9 +9,11 @@ import org.mortbay.log.Logger;
 
 import com.soffid.iam.api.Session;
 import com.soffid.iam.utils.ConfigurationCache;
+import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.Sessio;
 import es.caib.seycon.ng.comu.TipusSessio;
+import es.caib.seycon.ng.config.Config;
 
 /**
  * Thread lanzado por Daemon para verificar las sesiones vivas. Todos los
@@ -72,6 +74,7 @@ public class LogoffThread extends Object implements Runnable {
 
     public void run() {
         Logger log = Log.getLogger(Thread.currentThread().getName());
+        log.info("Started logoff thread", null, null);
         boolean salir = false;
         Session s = null;
         long sessionTimeout = 1200000; // 20 minutes
@@ -102,13 +105,19 @@ public class LogoffThread extends Object implements Runnable {
                 	long t = s.getType() == TipusSessio.PAM ? pamSessionTimeout: sessionTimeout;
                 	if ( System.currentTimeMillis() - lastPing > t)
                 	{
-                        if (!sessionManager.check(s)) {
-                            sessionManager.deleteSession(s);
-                        } else {
-                        	sessionManager.keepAliveSession(s);
-                        }
+                		Security.nestedLogin(s.getTenantName(), Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
+                		try {
+	                        if (!sessionManager.check(s)) {
+	                            sessionManager.deleteSession(s);
+	                        } else {
+	                        	sessionManager.keepAliveSession(s);
+	                        }
+                		} finally {
+                			Security.nestedLogoff();
+                		}
                 	}
                 } catch (Exception e) {
+                	e.printStackTrace();
                     log.warn("Error checking session", e); //$NON-NLS-1$
                 }
             }
