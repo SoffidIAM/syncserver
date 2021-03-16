@@ -7,6 +7,7 @@ import com.soffid.iam.model.ServerEntity;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.SecretConfigurationServiceBase;
+import com.soffid.iam.sync.tools.KubernetesConfig;
 
 import es.caib.seycon.ng.comu.ServerType;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -178,6 +179,7 @@ public class SecretConfigurationServiceImpl extends
                 ks.setKeyEntry("secretsKey", privateKey, password.getPassword().toCharArray(),
                         new Certificate[] { cert });
                 SeyconKeyStore.saveKeyStore(ks, f);
+                new KubernetesConfig().save();
             }
             Certificate certs [] = ks.getCertificateChain("secretsKey");
             if (certs != null && certs.length > 0) {
