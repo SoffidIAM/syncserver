@@ -53,7 +53,7 @@ public class HubFromServerServlet extends HttpServlet {
 			String server = getServerForUrl(url);
 			if (server == null)
 			{
-				log.warn("Received request "+ request.getRequestURI() + "for unknown host "+hostName);
+				log.warn("Received request "+ request.getRequestURI() + " for unknown host "+hostName);
 				response.sendError(HttpServletResponse.SC_NOT_FOUND);
 			}
 			else 

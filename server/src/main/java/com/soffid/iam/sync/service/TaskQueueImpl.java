@@ -664,7 +664,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		String tenant = newTask.getTenant() == null || newTask.getTenant().getName() == null ? 
 				Security.getCurrentTenantName(): 
 				newTask.getTenant().getName();
-		log.info("Tenant name {}", tenant, null);		
 		Security.nestedLogin(tenant, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
 		try
 		{
