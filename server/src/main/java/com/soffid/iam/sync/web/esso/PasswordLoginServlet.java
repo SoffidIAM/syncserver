@@ -95,7 +95,7 @@ public class PasswordLoginServlet extends HttpServlet {
         String pass1 = req.getParameter("password1");
         String pass2 = req.getParameter("password2");
 
-    	if (domain.isEmpty() )
+    	if (domain != null && domain.trim().isEmpty() )
     		domain = null;
     	else if (domain != null)
         {
