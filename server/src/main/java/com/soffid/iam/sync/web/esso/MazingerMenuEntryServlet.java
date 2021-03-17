@@ -71,60 +71,81 @@ public class MazingerMenuEntryServlet extends HttpServlet {
         String key = req.getParameter("key");
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(),
                 "UTF-8"));
-        String[] auths = null;
+        
         try {
-            Security.nestedLogin(user, new String [] { 
-                Security.AUTO_HOST_ALL_QUERY+Security.AUTO_ALL
-            });
-
-            try {
-                Session sessio = null;
-                User usuari = usuariService.findUserByUserName(user);
-                for (Session s: sessioService.getActiveSessions(usuari.getId())) {
-                    if (key.equals (s.getKey()))
-                    {
-                        sessio = s;
-                        break;
-                    }
-                }
-                if (sessio == null) {
-                    throw new InternalErrorException("Invalid session key");
-                }
-                Host maq = xarxaService.findHostByName(sessio.getServerHostName());
-                if (maq == null || !maq.getIp().equals(com.soffid.iam.utils.Security.getClientIp())) {
-                    throw new InternalErrorException("Invalid session key");
-                }
-                AccessTree pue = null;
-				if (id != null)
-                    pue  = puntEntradaService.findApplicationAccessById(Long.decode(id).longValue());
-
-                else if (codi != null) {
-                    Collection<AccessTree> punts = puntEntradaService.findApplicationAccessByFilter("%", codi,
-                            "%", "%", "%", "%");
-                    if (punts.size() == 1)
-                        pue = punts.iterator().next();
-                }
-                if (pue == null)
-                	writer.write ("ERROR|Unknown application entry point");
-                else if (!puntEntradaService.canExecute(pue))
-                    throw new InternalErrorException("Not authorized to execute application");
-                else
-                {
-	                String result = generatePuntEntrada(pue, com.soffid.iam.utils.Security.getClientIp());
-	                writer.write("OK|");
-	                writer.write(result);
-                }
-            } catch (Exception e) {
-                log("Error getting menu id:" + id + " codi:" + codi, e);
-                writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n");
-            } finally {
-                Security.nestedLogoff();
-            }
+	        if (user == null) {
+        		Security.nestedLogin("-", new String [] { 
+        				Security.AUTO_HOST_ALL_QUERY+Security.AUTO_ALL
+        		});
+        		
+        		try {
+        			getEntryPoint(id, codi, writer);
+        		} catch (Exception e) {
+        			log("Error getting menu id:" + id + " codi:" + codi, e);
+        			writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n");
+        		} finally {
+        			Security.nestedLogoff();
+        		}	        	
+	        } else {
+        	
+        		Security.nestedLogin(user, new String [] { 
+        				Security.AUTO_HOST_ALL_QUERY+Security.AUTO_ALL
+        		});
+        		
+        		try {
+        			Session sessio = null;
+        			User usuari = usuariService.findUserByUserName(user);
+        			for (Session s: sessioService.getActiveSessions(usuari.getId())) {
+        				if (key.equals (s.getKey()))
+        				{
+        					sessio = s;
+        					break;
+        				}
+        			}
+        			if (sessio == null) {
+        				throw new InternalErrorException("Invalid session key");
+        			}
+        			Host maq = xarxaService.findHostByName(sessio.getServerHostName());
+        			if (maq == null || !maq.getIp().equals(com.soffid.iam.utils.Security.getClientIp())) {
+        				throw new InternalErrorException("Invalid session key");
+        			}
+        			getEntryPoint(id, codi, writer);
+        		} catch (Exception e) {
+        			log("Error getting menu id:" + id + " codi:" + codi, e);
+        			writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n");
+        		} finally {
+        			Security.nestedLogoff();
+        		}
+	        }
         } catch (Exception e1) {
-            throw new ServletException(e1);
+        	throw new ServletException(e1);
         }
         writer.close();
     }
+
+	public void getEntryPoint(String id, String codi, BufferedWriter writer)
+			throws InternalErrorException, IOException, SQLException {
+		AccessTree pue = null;
+		if (id != null)
+			pue  = puntEntradaService.findApplicationAccessById(Long.decode(id).longValue());
+		
+		else if (codi != null) {
+			Collection<AccessTree> punts = puntEntradaService.findApplicationAccessByFilter("%", codi,
+					"%", "%", "%", "%");
+			if (punts.size() == 1)
+				pue = punts.iterator().next();
+		}
+		if (pue == null)
+			writer.write ("ERROR|Unknown application entry point");
+		else if (!puntEntradaService.canExecute(pue))
+			throw new InternalErrorException("Not authorized to execute application");
+		else
+		{
+			String result = generatePuntEntrada(pue, com.soffid.iam.utils.Security.getClientIp());
+			writer.write("OK|");
+			writer.write(result);
+		}
+	}
 
     public String generatePuntEntrada(AccessTree pue, String ip) throws InternalErrorException,
             SQLException {
