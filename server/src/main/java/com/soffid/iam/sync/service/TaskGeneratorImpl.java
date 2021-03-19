@@ -21,6 +21,7 @@ import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.orm.hibernate3.SessionFactoryUtils;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.Task;

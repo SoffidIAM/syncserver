@@ -1210,9 +1210,25 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 		if (accountEntity == null)
         	return Collections.emptyList();
-        else
+        else {
+        	UserGrantsCache cache = UserGrantsCache.getGrantsCache();
+        	if (cache != null && cache.getUser() != null && accountEntity.getType() == AccountType.USER) {
+        		for ( UserAccountEntity userAccount: accountEntity.getUsers()) {
+        			if (userAccount.getUser().getId().equals(cache.getUser().getId())) {
+        				List<RoleGrant> rg = new LinkedList<RoleGrant>();
+        				for (RoleGrant grant: cache.getGrants()) {
+        					if (grant.getSystem().equals(dispatcherId) && 
+        							(grant.getOwnerAccountName() == null || grant.getOwnerAccountName().equals(account))) {
+                				rg.add(grant);
+        					}
+        				}
+        				return rg;
+        			}
+        		}
+        	}
 	 		return getApplicationService().findEffectiveRoleGrantByAccount(
 				accountEntity.getId());
+        }
 	}
 
 	@Override
@@ -1223,9 +1239,26 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 		if (accountEntity == null)
 			return new LinkedList<RoleGrant>();
-		else
+		else {
+        	UserGrantsCache cache = UserGrantsCache.getGrantsCache();
+        	if (cache != null && cache.getUser() != null && accountEntity.getType() == AccountType.USER) {
+        		for ( UserAccountEntity userAccount: accountEntity.getUsers()) {
+        			if (userAccount.getUser().getId().equals(cache.getUser().getId())) {
+        				List<RoleGrant> rg = new LinkedList<RoleGrant>();
+        				for (RoleGrant grant: cache.getGrants()) {
+        					if (grant.getSystem().equals(dispatcherId) && 
+        					    grant.getOwnerAccountName() != null && grant.getOwnerAccountName().equals(account)) {
+                				rg.add(grant);
+
+        					}
+        				}
+        				return rg;
+        			}
+        		}
+        	}
 			return getApplicationService().findRoleGrantByAccount(
 				accountEntity.getId());
+		}
 	}
 
 	@Override
