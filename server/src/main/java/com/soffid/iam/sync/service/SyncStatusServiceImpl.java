@@ -875,6 +875,8 @@ public class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		if ( account != null)
 		{
 			getInternalPasswordService().storeAndSynchronizeAccountPassword(account, password, mustChange, null);
+		} else {
+			throw new InternalErrorException ("Cannot find account "+accountName+" at "+serverName);
 		}
 	}
 
