@@ -1226,6 +1226,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				AccountEntity account = accDao.findByNameAndSystem(task.getTask().getUser(), task.getTask().getSystemName());
 				if (account == null)
 				{
+					log.info("Cannot find account {} {}", task.getTask().getUser(), task.getTask().getSystemName());
 					return m;
 				}
 
@@ -1233,6 +1234,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				DispatcherHandler dispatcher = getTaskGenerator().getDispatcher(task.getTask().getSystemName());
 				if (dispatcher == null || ! dispatcher.isActive()) 
 				{
+					log.info("Cannot find dispatcher for {} {}", task.getTask().getUser(), task.getTask().getSystemName());
 					storeAccountPassword(task, account);
 					notifySSOUsers(account);
    		            return m;
