@@ -47,9 +47,11 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.security.Principal;
 import java.sql.Timestamp;
+import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
@@ -59,10 +61,11 @@ import org.mortbay.log.Logger;
 
 public class LogonServiceImpl extends LogonServiceBase {
     private static final int MIN_PAIN = 100;
-    private static final int MAX_PAIN = 30000;
+    private static final int MAX_PAIN = 3000;
     private Logger log = Log.getLogger("LogonServer"); //$NON-NLS-1$
     private String remoteHost;
-
+    DateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+    
     public String getRemoteHost() {
         if (Invoker.getInvoker() != null)
             return Invoker.getInvoker().getAddr().getHostAddress();
@@ -230,11 +233,11 @@ public class LogonServiceImpl extends LogonServiceBase {
             }
 
             if (getRemoteHost() != null) {
-                Host newHost = findHost(getRemoteHost());
-                if (!newHost.getName().equals(ch.getHost().getName())) {
-                    log.warn("Ticket spoofing detected from {}", getRemoteHost(), null); //$NON-NLS-1$
-                    throw new InternalErrorException(String.format(Messages.getString("LogonServiceImpl.InvalidTokenMsg"), //$NON-NLS-1$
-                    				challenge.getChallengeId()));
+                Host host = findHost(ch.getHost().getSerialNumber());
+                if (host != null && getRemoteHost().equals(host.getIp())) {
+                    log.warn("Ticket spoofing detected from {} for host {}", getRemoteHost(), ch.getHost().getName()); //$NON-NLS-1$
+//                    throw new InternalErrorException(String.format(Messages.getString("LogonServiceImpl.InvalidTokenMsg"), //$NON-NLS-1$
+//                    				challenge.getChallengeId()));
                 }
             }
 
@@ -266,9 +269,23 @@ public class LogonServiceImpl extends LogonServiceBase {
         }
     }
 
+    static HashMap<String, UserFails> fails = new HashMap<String,UserFails>(); 
     @Override
     protected PasswordValidation handleValidatePassword(String user, String passwordDomain,
             String password) throws Exception {
+    	long maxFails = 5; // 5 fails
+    	long maxTime = 300_000; // 5 minutes 
+    	long unlockTime = 900_000; // 15 minutes
+    	try {
+    		maxFails = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.attempts"));
+    	} catch (Exception e) {}
+    	try {
+    		maxTime = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.period"))*1000;
+    	} catch (Exception e) {}
+    	try {
+    		unlockTime = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.unlock"))*1000;
+    	} catch (Exception e) {}
+
     	log.info("Validating password for {} / {}", user, passwordDomain);
     	Resolver r;
     	try {
@@ -276,6 +293,25 @@ public class LogonServiceImpl extends LogonServiceBase {
     	} catch (UnknownUserException e) {
     		return PasswordValidation.PASSWORD_WRONG;
     	}
+    	
+    	String failKey = r.getAccountEntity().getName()+" @ "+r.getAccountEntity().getSystem().getId();
+		UserFails f = fails.get(failKey);
+    	if (f == null) {
+    		f = new UserFails();
+    		f.fails = 0;
+    		f.lastTime = 0;
+    	} else if (f.lastTime + unlockTime < System.currentTimeMillis() &&
+    			f.lastTime + maxTime < System.currentTimeMillis()) {
+    		f.fails = 0;
+    		f.lastTime = 0;
+    		fails.remove(failKey);
+    	}
+    	
+    	if (f.fails >= maxFails) {
+    		f.lastTime = System.currentTimeMillis();
+        	log.warn("Rejecting login for {} / {}. User is LOCKED until "+dateFormat.format(new Date(System.currentTimeMillis()+unlockTime)), user, passwordDomain);
+    	}
+    	
     	PasswordValidation v;
     	if (r.getUserEntity() == null)
     		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), false, true);
@@ -284,47 +320,71 @@ public class LogonServiceImpl extends LogonServiceBase {
                 r.getDominiContrasenyaEntity(), new Password(password), false, true);
         if (v == PasswordValidation.PASSWORD_WRONG)
         {
-        	v = getInternalPasswordService().checkPassword(r.getUserEntity(),
+        	boolean checkTrusted = "true".equals(ConfigurationCache.getProperty("soffid.auth.trustedLogin"));
+        	if (checkTrusted)
+        		v = getInternalPasswordService().checkPassword(r.getUserEntity(),
         	                r.getDominiContrasenyaEntity(), new Password(password), true, true);
-            if (v == PasswordValidation.PASSWORD_WRONG)
-            	punish();
+            if (v == PasswordValidation.PASSWORD_WRONG) {
+            	f.fails ++;
+            	f.lastTime = System.currentTimeMillis();
+            	fails.put(failKey, f);
+            	log.warn("Wrong login attempt by {} / {}", user, passwordDomain);
+            }
             else
             	propagatePassword(user, passwordDomain, password);
         }
         return v;
     }
 
-    static long lastFail = -1;
-    static long nextPain = 0;
-
     @Override
     protected boolean handleValidatePIN(String user, String pin) throws Exception {
-        UserEntity userEntity = getUserEntityDao().findByUserName(user);
+    	long maxFails = 5; // 5 fails
+    	long maxTime = 300_000; // 5 minutes 
+    	long unlockTime = 900_000; // 15 minutes
+    	try {
+    		maxFails = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.attempts"));
+    	} catch (Exception e) {}
+    	try {
+    		maxTime = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.period"));
+    	} catch (Exception e) {}
+    	try {
+    		unlockTime = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.unlock"));
+    	} catch (Exception e) {}
+
+    	String failKey = user;
+		UserFails f = fails.get(failKey);
+    	if (f == null) {
+    		f = new UserFails();
+    		f.fails = 0;
+    		f.lastTime = 0;
+    	} else if (f.lastTime + unlockTime < System.currentTimeMillis() &&
+    			f.lastTime + maxTime < System.currentTimeMillis()) {
+    		f.fails = 0;
+    		f.lastTime = 0;
+    		fails.remove(failKey);
+    	}
+    	
+    	if (f.fails > maxFails) {
+    		f.lastTime = System.currentTimeMillis();
+        	log.warn("Rejecting PIN for {}. User is LOCKED until {}",
+        			user, dateFormat.format(new Date(System.currentTimeMillis()+unlockTime)));
+    	}
+
+    	
+    	UserEntity userEntity = getUserEntityDao().findByUserName(user);
         for (Iterator<UserDataEntity> it = userEntity.getUserData().iterator(); it.hasNext(); ) {
             UserDataEntity dada = it.next();
             if (dada.getDataType().getName().equals("PIN")) {
                 if (pin.equals(dada.getValue())) return true; else {
-                    punish();
+                	f.fails ++;
+                	f.lastTime = System.currentTimeMillis();
+            		fails.put(failKey, f);
+                	log.warn("Wrong PIN attempt by {}", user, null);
                     return false;
                 }
             }
         }
         return false;
-    }
-
-    private void punish() throws InterruptedException {
-        long pain = 0;
-        if (lastFail > System.currentTimeMillis()) {
-            pain = nextPain;
-            if (nextPain < MAX_PAIN) // 10 minuts
-                nextPain += nextPain;
-            else
-                nextPain = MAX_PAIN;
-        } else {
-            pain = nextPain = MIN_PAIN;
-        }
-        lastFail = System.currentTimeMillis() + pain + pain;
-        Thread.sleep(pain);
     }
 
 	public Challenge requestChallengeInternal (int type, String user,
@@ -535,7 +595,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 			
 			accountEntity = getAccountEntityDao().findByNameAndSystem(user, domain);
 			
-			if (accountEntity == null)
+			if (accountEntity == null || accountEntity.isDisabled())
 			{
 				throw new UnknownUserException(String.format(
 						Messages.getString("LogonServiceImpl.UnknownUserOnDomainMsg"), user, domain)); //$NON-NLS-1$
@@ -558,4 +618,9 @@ public class LogonServiceImpl extends LogonServiceBase {
 	{
    		return getPasswordService().getPolicyDescription(account, dispatcher);
 	}
+}
+
+class UserFails {
+	int fails;
+	long lastTime;
 }
