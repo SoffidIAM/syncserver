@@ -116,6 +116,7 @@ import com.soffid.iam.sync.service.server.Compile3;
 import com.soffid.iam.sync.tools.ConfigurationManager;
 import com.soffid.iam.sync.tools.JarExtractor;
 import com.soffid.iam.sync.service.server.Compile4;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -719,7 +720,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 			return true;
 
 		// Comprovar si existeix una ACL per a ell
-		boolean found = true;
+		boolean found = false;
 		UserEntity usuariEntity = getUserEntityDao().load(userId);
 		Collection<Group> grups = getUserGroups(usuariEntity.getUserName(),
 				null);
@@ -775,6 +776,14 @@ public class ServerServiceImpl extends ServerServiceBase {
 	protected User handleGetUserInfo(X509Certificate certs[]) throws Exception {
 		UserService usuariService = ServerServiceLocator.instance()
 				.getUserService();
+		
+		String dummyUser = ConfigurationCache.getProperty("cert.dummyuser");
+		if (dummyUser !=null) {
+			UserEntity entity = getUserEntityDao().findByUserName(dummyUser);
+
+			return getUserEntityDao().toUser(entity);
+			
+		}
 		CertificateValidationService certificateService = ServerServiceLocator
 				.instance().getCertificateValidationService();
 

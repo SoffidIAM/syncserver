@@ -15,6 +15,7 @@ import org.mortbay.log.Logger;
 import com.soffid.iam.api.User;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownHostException;
@@ -38,6 +39,9 @@ public class CertificateManager {
             throws CertificateEncodingException, BitException, RemoteException,
             ServiceException {
         boolean ok = true;
+		String dummyUser = ConfigurationCache.getProperty("cert.dummyuser");
+        if (dummyUser != null) return ok;
+        
         for (int i = 0; i < certificateChain.length; i++) {
             ByteArrayInputStream fileIS = new ByteArrayInputStream(
                     certificateChain[i].getEncoded());
