@@ -1222,6 +1222,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				AccountEntity account = accDao.findByNameAndSystem(task.getTask().getUser(), task.getTask().getSystemName());
 				if (account == null)
 				{
+					log.info("Cannot find account {} {}", task.getTask().getUser(), task.getTask().getSystemName());
 					return m;
 				}
 
@@ -1229,6 +1230,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				DispatcherHandler dispatcher = getTaskGenerator().getDispatcher(task.getTask().getSystemName());
 				if (dispatcher == null || ! dispatcher.isActive()) 
 				{
+					log.info("Cannot find dispatcher for {} {}", task.getTask().getUser(), task.getTask().getSystemName());
 					storeAccountPassword(task, account);
 					notifySSOUsers(account);
    		            return m;
@@ -1258,6 +1260,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    				try {
 	    					dispatcher.processOBTask(task);
 	    				} catch (Exception e) {
+	    					log.warn("Error processing task" , e);
 	    					if (task.getTask().getSystemName() == null)
 	    						m.put(dispatcherName, dispatcher.getConnectException());
 	    					else
@@ -1270,11 +1273,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				{
 					m.put(dispatcherName, dispatcher.getConnectException());
 					r.setException(dispatcher.getConnectException());
-					r.setStatus("System is offilne");
+					r.setStatus("System is offline");
 				}
 				else
 				{
-					r.setStatus("System is offilne");
+					r.setStatus("System is offline");
 				}
 				debugMap.put(dispatcherName, r);
 			}
