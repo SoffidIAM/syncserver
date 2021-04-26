@@ -219,7 +219,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        		if (! ctxInstance.getVariable("hostname").equals(subject))
 	        			throw new InternalErrorException (String.format("Certificate belongs to host %s",ctxInstance.getVariable("hostname")));
 	        		if (! ctxInstance.getVariable("remoteAddress").equals(invoker.getAddr().getHostAddress()))
-	        			throw new InternalErrorException (String.format("Certificate not accesible from %s",ctxInstance.getVariable(invoker.getAddr().getHostAddress())));
+	        			throw new InternalErrorException (String.format("Certificate not accesible from %s",invoker.getAddr().getHostAddress()));
 	        		if (pi.getEnd() != null)
 	        			throw new InternalErrorException("This certificate has already been issued");
 	        		String aproved = (String) ctxInstance.getVariable ("approve");
