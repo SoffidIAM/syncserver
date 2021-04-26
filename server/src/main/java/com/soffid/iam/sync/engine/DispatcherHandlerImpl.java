@@ -92,6 +92,7 @@ import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.SyncServerStatsService;
 import com.soffid.iam.sync.service.TaskGenerator;
 import com.soffid.iam.sync.service.TaskQueue;
+import com.soffid.iam.sync.service.UserGrantsCache;
 import com.soffid.iam.util.Syslogger;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
@@ -854,106 +855,111 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                         connectException);
         }
         String trans = t.getTask().getTransaction();
-        // /////////////////////////////////////////////////////////////////////
-        if (trans.equals(TaskHandler.UPDATE_ACCOUNT)) {
-            updateAccount(agent, t);
-        } 
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.UPDATE_USER)) {
-            updateUser(agent, t);
-        }
-        // //////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.UPDATE_USER_PASSWORD)) {
-            updateUserPassword(agent, t);
-        }
-        // //////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD)) {
-            updateAccountPassword(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD)) {
-            updatePropagatedPassword(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.EXPIRE_USER_PASSWORD)
-                || trans.equals(TaskHandler.EXPIRE_USER_UNTRUSTED_PASSWORD)) {
-            expireUserPassword(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.PROPAGATE_PASSWORD)) {
-            propagateUserPassword(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD)) {
-            propagatePassword(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.VALIDATE_PASSWORD)) {
-            validatePassword(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD)) {
-            validateAccountPassword(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.CREATE_FOLDER)) {
-            createFolder(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.UPDATE_GROUP)) {
-            updateGroup(agent, t);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.UPDATE_ROLE)) {
-            updateRole(agent, t, trans);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.UPDATE_HOST)) {
-            updateHost(agent, t);
-        } else if (trans.equals(TaskHandler.UPDATE_NETWORKS)) {
-            updateNetworks(agent);
-        }
-        // /////////////////////////////////////////////////////////////////////
-        else if (trans.equals(TaskHandler.UPDATE_USER_ALIAS)) {
-            updateUserAlias(agent, t);
-        } else if (trans.equals(TaskHandler.UPDATE_LIST_ALIAS)) {
-            updateMailList(agent, t);
-        } else if (trans.equals(TaskHandler.UPDATE_ACESS_CONTROL)) {
-            updateAccessControl(agent);
-		// /////////////////////////////////////////////////////////////////////
-        }else if (trans.equals(TaskHandler.END_RECONCILE))
-		{
-        	endReconcile(agent, t);
-		}
-        
-        else if (trans.equals(TaskHandler.RECONCILE_USERS))
-        {
-        	reconcileUsers(agent, t);
-        }
-
-		else if (trans.equals(TaskHandler.RECONCILE_USER))
-		{
-			reconcileUser(agent, t);
-		}
-
-		else if (trans.equals(TaskHandler.RECONCILE_ROLE))
-		{
-			reconcileRole(agent, t);
-		}
-
-		else if (trans.equals(TaskHandler.RECONCILE_ROLES))
-		{
-			reconcileRoles(agent, t);
-		}
-		else if (trans.equals(TaskHandler.UPDATE_OBJECT))
-		{
-			updateObject(agent, t);
-		}
-		else if (trans.equals(TaskHandler.UPDATE_PRINTER))
-		{
-			// Nothing to do
-        } else {
-        	processCustomTask(agent, t);
+        UserGrantsCache.setGrantsCache(new UserGrantsCache(getTaskUser(t), t.getGrants() ));
+        try {
+	        // /////////////////////////////////////////////////////////////////////
+	        if (trans.equals(TaskHandler.UPDATE_ACCOUNT)) {
+	            updateAccount(agent, t);
+	        } 
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.UPDATE_USER)) {
+	            updateUser(agent, t);
+	        }
+	        // //////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.UPDATE_USER_PASSWORD)) {
+	            updateUserPassword(agent, t);
+	        }
+	        // //////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD)) {
+	            updateAccountPassword(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD)) {
+	            updatePropagatedPassword(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.EXPIRE_USER_PASSWORD)
+	                || trans.equals(TaskHandler.EXPIRE_USER_UNTRUSTED_PASSWORD)) {
+	            expireUserPassword(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.PROPAGATE_PASSWORD)) {
+	            propagateUserPassword(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD)) {
+	            propagatePassword(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.VALIDATE_PASSWORD)) {
+	            validatePassword(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD)) {
+	            validateAccountPassword(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.CREATE_FOLDER)) {
+	            createFolder(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.UPDATE_GROUP)) {
+	            updateGroup(agent, t);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.UPDATE_ROLE)) {
+	            updateRole(agent, t, trans);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.UPDATE_HOST)) {
+	            updateHost(agent, t);
+	        } else if (trans.equals(TaskHandler.UPDATE_NETWORKS)) {
+	            updateNetworks(agent);
+	        }
+	        // /////////////////////////////////////////////////////////////////////
+	        else if (trans.equals(TaskHandler.UPDATE_USER_ALIAS)) {
+	            updateUserAlias(agent, t);
+	        } else if (trans.equals(TaskHandler.UPDATE_LIST_ALIAS)) {
+	            updateMailList(agent, t);
+	        } else if (trans.equals(TaskHandler.UPDATE_ACESS_CONTROL)) {
+	            updateAccessControl(agent);
+			// /////////////////////////////////////////////////////////////////////
+	        }else if (trans.equals(TaskHandler.END_RECONCILE))
+			{
+	        	endReconcile(agent, t);
+			}
+	        
+	        else if (trans.equals(TaskHandler.RECONCILE_USERS))
+	        {
+	        	reconcileUsers(agent, t);
+	        }
+	
+			else if (trans.equals(TaskHandler.RECONCILE_USER))
+			{
+				reconcileUser(agent, t);
+			}
+	
+			else if (trans.equals(TaskHandler.RECONCILE_ROLE))
+			{
+				reconcileRole(agent, t);
+			}
+	
+			else if (trans.equals(TaskHandler.RECONCILE_ROLES))
+			{
+				reconcileRoles(agent, t);
+			}
+			else if (trans.equals(TaskHandler.UPDATE_OBJECT))
+			{
+				updateObject(agent, t);
+			}
+			else if (trans.equals(TaskHandler.UPDATE_PRINTER))
+			{
+				// Nothing to do
+	        } else {
+	        	processCustomTask(agent, t);
+	        }
+        } finally {
+        	UserGrantsCache.clearGrantsCache();
         }
     }
 
@@ -2075,23 +2081,31 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         User user = task.getUser();
         if (user != null)
             return user;
-        try {
-        	if (task.getTask().getTransaction().equals (TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
-        			task.getTask().getTransaction().equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD) ||
-        			task.getTask().getTransaction().equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD) ||
-        			task.getTask().getTransaction().equals(TaskHandler.UPDATE_ACCOUNT))
-        	{
-	            user = server.getUserInfo(task.getTask().getUser(), mirroredAgent);
-        	}
-        	else
-        	{
-	            user = server.getUserInfo(task.getTask().getUser(), null);
-        	}
-            task.setUser(user);
-        } catch (UnknownUserException e) {
-            user = null;
+        if (task.getTask().getUser() == null)
+        	return null;
+        synchronized (task.getTask().getId()) {
+	        try {
+	        	Collection<RoleGrant> grants = null;
+				if (task.getTask().getTransaction().equals (TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
+	        			task.getTask().getTransaction().equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD) ||
+	        			task.getTask().getTransaction().equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD) ||
+	        			task.getTask().getTransaction().equals(TaskHandler.UPDATE_ACCOUNT))
+	        	{
+		            user = server.getUserInfo(task.getTask().getUser(), mirroredAgent);
+		            grants  = server.getUserRoles(user.getId(), null);
+	        	}
+	        	else
+	        	{
+		            user = server.getUserInfo(task.getTask().getUser(), null);
+		            grants = server.getUserRoles(user.getId(), null);
+	        	}
+	            task.setUser(user);
+	            task.setGrants(grants);
+	        } catch (UnknownUserException e) {
+	            user = null;
+	        }
+	        return user;
         }
-        return user;
     }
 
     private User getUserInfo(TaskHandler t) throws InternalErrorException, UnknownUserException {

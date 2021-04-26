@@ -30,6 +30,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Password;
@@ -625,6 +627,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	@Override
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
     protected TaskHandler handleAddTask(TaskEntity newTask) throws Exception {
 		
 		if (newTask.getId() == null)
