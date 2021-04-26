@@ -519,6 +519,7 @@ public abstract class ReconcileEngine
 				existingAccount.getLastUpdated());
 		acc.setLastLogin(existingAccount.getLastLogin());
 		acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
+		acc.setDisabled(existingAccount.isDisabled());
 
 		if (existingAccount.getType() == null)
 			acc.setType(AccountType.IGNORED);
@@ -530,6 +531,10 @@ public abstract class ReconcileEngine
 		if (existingAccount.getType() != AccountType.IGNORED && existingAccount.getType() != null )
 		{
 			acc.setType(existingAccount.getType());
+		}
+		if (existingAccount.getStatus() != null)
+		{
+			acc.setStatus(existingAccount.getStatus());
 		}
 
 		if (existingAccount.getOwnerUsers() != null)
