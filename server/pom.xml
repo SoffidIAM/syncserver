@@ -812,6 +812,12 @@
 			<artifactId>jakarta.xml.bind-api</artifactId>
 			<version>2.3.2</version>
 		</dependency>
+		<dependency>
+		  <groupId>com.sun.activation</groupId>
+		  <artifactId>jakarta.activation</artifactId>
+		  <version>1.2.1</version>
+		  <scope>compile</scope>
+		</dependency>
 	</dependencies>
 	<reporting>
 		<plugins>
