@@ -84,13 +84,17 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        		JbpmConfiguration config = getConfig();
 	        		JbpmContext ctx = config.createJbpmContext();
 	        		ProcessDefinition def;
-	        		Security.nestedLogin(Security.getMasterTenantName(), user, Security.ALL_PERMISSIONS);
-	        		try {
-	        			def = ctx.getGraphSession()
-	        					.findLatestProcessDefinition("Soffid agent enrollment");
-	        		} finally {
-	        			Security.nestedLogoff();
-	        		}
+        			def = ctx.getGraphSession()
+        					.findLatestProcessDefinition("Soffid agent enrollment");
+        			if (def == null) {
+		        		Security.nestedLogin(Security.getMasterTenantName(), user, Security.ALL_PERMISSIONS);
+		        		try {
+		        			def = ctx.getGraphSession()
+		        					.findLatestProcessDefinition("Soffid agent enrollment");
+		        		} finally {
+		        			Security.nestedLogoff();
+		        		}
+        			}
 	        		ProcessInstance pi = new ProcessInstance(def);
 	        		ContextInstance ctxInstance = pi.getContextInstance();
 	        		try {
