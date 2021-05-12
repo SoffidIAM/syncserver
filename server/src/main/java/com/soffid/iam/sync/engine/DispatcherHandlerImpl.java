@@ -2083,7 +2083,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             return user;
         if (task.getTask().getUser() == null)
         	return null;
-        synchronized (task.getTask().getId()) {
+        Long id = task.getTask().getId();
+        if (id == null)
+       	   id = new Long(0);
+        synchronized (id) {
 	        try {
 	        	Collection<RoleGrant> grants = null;
 				if (task.getTask().getTransaction().equals (TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
