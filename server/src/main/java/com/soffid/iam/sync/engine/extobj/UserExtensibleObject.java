@@ -122,6 +122,18 @@ public class UserExtensibleObject extends ExtensibleObject
     			obj = usuari.getCreatedByUser();
     		else if ("modifiedBy".equals(attribute))
     			obj = usuari.getModifiedByUser();
+    		else if ("accountStatus".equals(attribute))
+    			obj = account.getStatus();
+    		else if ("accountDisabled".equals(attribute))
+    			obj = account.isDisabled();
+    		else if ("lastUpdate".equals(attribute))
+    			obj = account.getLastUpdated();
+    		else if ("lastLogin".equals(attribute))
+    			obj = account.getLastLogin();
+    		else if ("lastPasswordUpdate".equals(attribute))
+    			obj = account.getLastPasswordSet();
+    		else if ("passwordExpiration".equals(attribute))
+    			obj = account.getPasswordExpiration();
     		else if ("primaryGroupObject".equals(attribute))
     		{
     			Group group = null;
