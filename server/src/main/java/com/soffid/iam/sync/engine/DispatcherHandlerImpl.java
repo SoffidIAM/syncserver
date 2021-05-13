@@ -1955,7 +1955,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
                 	lastLog = logEntry.date;
             } // end-try
         } // end-if (le != null)
-        log.info("Loaded log. Inserted {} rows till {}", totalInsertados, lastLog);
+        if (totalInsertados > 0)
+        	log.info("Loaded log. Inserted {} rows till {}", totalInsertados, lastLog);
     } // end method
 
     private void setStatus(String string) {
