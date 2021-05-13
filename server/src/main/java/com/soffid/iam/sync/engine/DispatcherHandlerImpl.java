@@ -755,11 +755,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				statsService.register("tasks-error", getName(), 1);
 				if ("local".equals(system.getUrl()))
 				{
-					log.warn("Error interno", e);
+					// log.warn("Error interno", e);
 				} else {
 					String error = SoffidStackTrace.getStackTrace(e)
 							.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
-					log.warn("Error interno: "+error);
+					// log.warn("Error interno: "+error);
 				}
 				ok = false;
 				Throwable e2 = e;
