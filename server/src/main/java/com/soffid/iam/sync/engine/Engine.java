@@ -112,7 +112,7 @@ public class Engine extends Thread {
                 	}
                 }
                 setStatus("Updating task queue");
-                if (enabled && !shutDownPending) {
+                if (!shutDownPending) {
            			loadMainDbTasks(config);
                     if (shutDownPending)
                         break;
