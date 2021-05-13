@@ -66,6 +66,8 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getSystem();
     		else if ("accountDescription".equals(attribute))
     			obj = account.getDescription();
+    		else if ("accountStatus".equals(attribute))
+    			obj = account.getStatus();
     		else if ("accountDisabled".equals(attribute))
     			obj = account.isDisabled();
     		else if ("type".equals(attribute))
