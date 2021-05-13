@@ -31,6 +31,7 @@ import com.soffid.iam.api.Account;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
+import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
@@ -84,6 +85,7 @@ import com.soffid.iam.sync.intf.NetworkMgr;
 import com.soffid.iam.sync.intf.ReconcileMgr;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
 import com.soffid.iam.sync.intf.RoleMgr;
+import com.soffid.iam.sync.intf.ServiceMgr;
 import com.soffid.iam.sync.intf.SharedFolderMgr;
 import com.soffid.iam.sync.intf.UserMgr;
 import com.soffid.iam.sync.service.ChangePasswordNotificationQueue;
@@ -381,6 +383,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class)||
             		implemented(agent,com.soffid.iam.sync.intf.ReconcileMgr2.class);
 	        ///////////////////////////////////////////////////////////////////////
+		}
+		else if (trans.equals(TaskHandler.UPDATE_SERVICE_PASSWORD))
+		{
+			return implemented(agent, ServiceMgr.class);
         } else {
             return implemented(agent, es.caib.seycon.ng.sync.intf.CustomTaskMgr.class) ||
             		implemented(agent,CustomTaskMgr.class);
@@ -755,11 +761,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				statsService.register("tasks-error", getName(), 1);
 				if ("local".equals(system.getUrl()))
 				{
-					log.warn("Error interno", e);
+//					log.warn("Error interno", e);
 				} else {
 					String error = SoffidStackTrace.getStackTrace(e)
 							.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
-					log.warn("Error interno: "+error);
+//					log.warn("Error interno: "+error);
 				}
 				ok = false;
 				Throwable e2 = e;
@@ -955,6 +961,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			else if (trans.equals(TaskHandler.UPDATE_PRINTER))
 			{
 				// Nothing to do
+			}
+			else if (trans.equals(TaskHandler.UPDATE_SERVICE_PASSWORD))
+			{
+				updateServicePassword(agent, t);
 	        } else {
 	        	processCustomTask(agent, t);
 	        }
@@ -962,6 +972,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	UserGrantsCache.clearGrantsCache();
         }
     }
+
+	private void updateServicePassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+		if (agent instanceof ServiceMgr) {
+			ServiceMgr mgr = (ServiceMgr) agent;
+           	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
+           	for (Host host: ServiceLocator.instance().getNetworkDiscoveryService().findSystemHosts(getSystem())) {
+           		for (HostService service: accountService.findAccountServices(acc)) {
+           			if (service.getHostName().equals(host.getName()))	
+           				mgr.setServicePassword(service.getService(), acc, t.getPassword());
+           		}
+           	}
+		}
+	}
 
 	private void processCustomTask(Object agent, TaskHandler t) throws RemoteException, InternalErrorException {
 		com.soffid.iam.sync.intf.CustomTaskMgr mgr = InterfaceWrapper.getCustomTaskMgr(agent);
@@ -1139,6 +1162,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), p,
         				 "S".equals((t.getTask().getPasswordChange())),
         				 t.getTask().getExpirationDate() == null ? null: t.getTask().getExpirationDate().getTime());
+
+        		generateUpdateServicePassword(acc, t);
 	            
 	            for (String user: accountService.getAccountUsers(acc))
 	            {
@@ -1146,6 +1171,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	            }
 	        }
     	}
+	}
+
+	private void generateUpdateServicePassword(Account acc, TaskHandler t) throws InternalErrorException {
+		if ( ! accountService.findAccountServices(acc).isEmpty()) {
+            TaskEntity te = tasqueEntityDao.newTaskEntity();
+            te.setTransaction(TaskHandler.UPDATE_SERVICE_PASSWORD);
+            te.setPasswordsDomain(getSystem().getPasswordsDomain());
+            te.setPassword(t.getPassword().toString());
+            te.setUser(t.getTask().getUser());
+            te.setPassword(t.getTask().getPassword());
+            te.setDb(t.getTask().getDatabase());
+            te.setTenant( tenantDao.load( t.getTenantId() ));
+            taskqueue.addTask(te);
+		}
 	}
 
 	private Long getPasswordTerm (PasswordPolicy politica)
@@ -2083,7 +2122,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             return user;
         if (task.getTask().getUser() == null)
         	return null;
-        synchronized (task.getTask().getId()) {
+        Long id = task.getTask().getId();
+        if (id == null)
+        	id = new Long(0);
+        synchronized (id) {
 	        try {
 	        	Collection<RoleGrant> grants = null;
 				if (task.getTask().getTransaction().equals (TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
@@ -2720,7 +2762,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	    		} 
 	    		else if (reconMgr2 != null)
 	        	{
-	        		new ReconcileEngine2 (getSystem(), reconMgr2, out).reconcile();
+	        		new ReconcileEngine2 (getSystem(), reconMgr2, InterfaceWrapper.getServiceMgr(agent), out).reconcile();
 	    		} 
 	    		else {
 	    			out.append ("This agent does not support account reconciliation");
@@ -2895,7 +2937,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				} 
 				else if (reconMgr2 != null)
 				{
-					new ReconcileEngine2 (getSystem(), reconMgr2, out).reconcileAccount(account);
+					new ReconcileEngine2 (getSystem(), reconMgr2, InterfaceWrapper.getServiceMgr(agent), out).reconcileAccount(account);
 				} 
 				else {
 					out.println ("This agent does not support account reconciliation");

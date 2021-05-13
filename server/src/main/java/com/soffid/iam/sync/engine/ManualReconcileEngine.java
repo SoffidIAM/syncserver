@@ -24,6 +24,7 @@ import com.soffid.iam.reconcile.common.ReconcileAssignment;
 import com.soffid.iam.reconcile.common.ReconcileRole;
 import com.soffid.iam.reconcile.service.ReconcileService;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
+import com.soffid.iam.sync.intf.ServiceMgr;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -38,7 +39,7 @@ public class ManualReconcileEngine extends ReconcileEngine2 {
 	private static final int MAX_ROLE_CODE_LENGTH = 50;
 
 	public ManualReconcileEngine(String tenant, com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent, PrintWriter out) {
-		super(dispatcher, agent, out);
+		super(dispatcher, agent, null, out);
 		this.tenant = tenant;
 	}
 

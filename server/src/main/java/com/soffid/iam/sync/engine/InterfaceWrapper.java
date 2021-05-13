@@ -17,6 +17,7 @@ import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Host;
+import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Network;
 import com.soffid.iam.api.PasswordDomain;
@@ -53,6 +54,7 @@ import com.soffid.iam.sync.intf.NetworkMgr;
 import com.soffid.iam.sync.intf.ReconcileMgr;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
 import com.soffid.iam.sync.intf.RoleMgr;
+import com.soffid.iam.sync.intf.ServiceMgr;
 import com.soffid.iam.sync.intf.SharedFolderMgr;
 import com.soffid.iam.sync.service.ServerService;
 
@@ -398,8 +400,12 @@ public class InterfaceWrapper {
 				}
 
 				public String findPrincipalAccount(String principal) throws InternalErrorException {
-					// TODO Auto-generated method stub
-					return null;
+					return agent.findPrincipalAccount(principal);
+				}
+
+				@Override
+				public String[] getDomainNames() throws InternalErrorException {
+					return agent.getDomainNames();
 				}
 
 			};
@@ -496,6 +502,10 @@ public class InterfaceWrapper {
 
 				public List<String[]> getRoleChangesToApply(Role role) throws RemoteException, InternalErrorException {
 					return agent.getRoleChangesToApply(Rol.toRol(role));
+				}
+
+				public List<HostService> getHostServices() throws RemoteException, InternalErrorException {
+					return agent.getHostServices();
 				}
 			};
 		}
@@ -1000,5 +1010,9 @@ public class InterfaceWrapper {
 		else
 			return null;
 		
+	}
+
+	public static ServiceMgr getServiceMgr(Object obj) {
+		 return obj instanceof ServiceMgr ? (ServiceMgr) obj: null;	
 	}
 }
