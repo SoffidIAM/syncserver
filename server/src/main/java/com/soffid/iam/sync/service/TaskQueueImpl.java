@@ -1429,7 +1429,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		entity.setCompleted(thl.isComplete() ? "S" : "N");
 		entity.setLastExecution(thl.getLast());
 		entity.setMessage(thl.getReason());
+		if (entity.getMessage() != null && entity.getMessage().length() > 1000)
+			entity.setMessage(entity.getMessage().substring(0, 1000));
 		entity.setStackTrace(thl.getStackTrace());
+		if (entity.getStackTrace() != null && entity.getStackTrace().length() > 1000)
+			entity.setStackTrace(entity.getStackTrace().substring(0, 1000));
 		if (thl.getId() == null)
 		{
 			getTaskLogEntityDao().create(entity);
