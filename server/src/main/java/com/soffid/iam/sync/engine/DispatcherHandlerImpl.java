@@ -1415,6 +1415,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 		try {
 	        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
+	        if (objectMgr == null)
+				throw new InternalErrorException("Feature not supported by "+getName());
 	        r = objectMgr.invoke (verb, command, params);
 		} finally {
 			closeAgent(agent);
@@ -2940,21 +2942,53 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	@Override
 	public PasswordValidation checkPasswordSynchronizationStatus(String accountName) throws Exception {
-		Collection<Map<String, Object>> s = invoke("checkPassword", accountName, new HashMap<String, Object>());
-		for (Map<String, Object> ss: s) {
-			PasswordValidation status = (PasswordValidation) ss.get("passwordStatus");
-			if (status != null) {
-				Account account = accountService.findAccount(accountName, getName());
-				if (account != null)
-				{
-					Object oldStatus = account.getAttributes().get("passwordStatus");
-					if ( ! status.toString().equals(oldStatus))
+		if ( ! isConnected() )
+			return null;
+		
+		ExtensibleObjectMgr objmgr = InterfaceWrapper.getExtensibleObjectMgr(getCurrentAgent());
+				
+		if (objmgr != null) {
+			Collection<Map<String, Object>> s = invoke("checkPassword", accountName, new HashMap<String, Object>());
+			for (Map<String, Object> ss: s) {
+				PasswordValidation status = (PasswordValidation) ss.get("passwordStatus");
+				if (status != null) {
+					Account account = accountService.findAccount(accountName, getName());
+					if (account != null)
 					{
-						account.setPasswordStatus(status);
-						accountService.updateAccount(account);
+						Object oldStatus = account.getAttributes().get("passwordStatus");
+						if ( ! status.toString().equals(oldStatus))
+						{
+							account.setPasswordStatus(status);
+							accountService.updateAccount(account);
+						}
 					}
+					return status;
 				}
-				return status;
+			}
+		}
+		else 
+		{
+			Object agent;
+			try
+			{
+				agent = connect(false, false);
+			}
+			catch (Exception e)
+			{
+				throw new InternalErrorException ("Unable to connect to "+getName(), e);
+			}
+
+			try {
+				UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
+		        if (userMgr == null)
+		        	return null;
+		        
+				Password password = server.getAccountPassword(accountName, getSystem().getName());
+				if (password == null)
+					return null;
+				return userMgr.validateUserPassword(accountName, password) ? PasswordValidation.PASSWORD_GOOD: PasswordValidation.PASSWORD_WRONG;
+			} finally {
+				closeAgent(agent);
 			}
 		}
 		return null;
