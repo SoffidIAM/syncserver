@@ -30,7 +30,6 @@ public class ChangeDetector {
 	Log log = LogFactory.getLog(ChangeDetector.class);
 	UserService userService = ServiceLocator.instance().getUserService();
 	GroupService groupService = ServiceLocator.instance().getGroupService();
-	Log log = LogFactory.getLog(getClass());
 	public boolean anyChange(AuthoritativeChange change) throws InternalErrorException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 		if (change.getUser() != null && change.getUser().getUserName() != null && ! change.getUser().getUserName().trim().isEmpty())
 		{
