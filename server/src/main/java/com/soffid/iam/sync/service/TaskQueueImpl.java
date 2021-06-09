@@ -1423,6 +1423,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		else
 		{
 			entity = getTaskLogEntityDao().load(thl.getId().longValue());
+			if (entity == null) {
+				entity = getTaskLogEntityDao().newTaskLogEntity();
+				entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
+				entity.setTask(tasqueEntity);
+				entity.setCreationDate(new Date());
+			}
 		}
 		entity.setExecutionsNumber(new Long(thl.getNumber()));
 		entity.setNextExecution(thl.getNext());
@@ -1534,6 +1540,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			}
 	    		}
 			} catch (Exception e) {
+				log.warn("Error persisting task", e);
 				if (isDebug())
 					log.info("Error persisting task {}", newTask.toString(), null);
 	    		newTask.setChanged(true);
