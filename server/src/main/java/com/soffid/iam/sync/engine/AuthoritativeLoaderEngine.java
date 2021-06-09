@@ -80,6 +80,7 @@ public class AuthoritativeLoaderEngine {
 
 	private TaskGenerator taskGenerator;
 
+	private List nullList = new LinkedList();
 	
 	public AuthoritativeLoaderEngine(DispatcherHandlerImpl handler)
 	{
@@ -571,10 +572,17 @@ public class AuthoritativeLoaderEngine {
 		change.setUser( vom.parseUser(eo));
 		change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
 		
-		change.setGroups( new HashSet<String>( (Collection<String>) eo.getAttribute("secondaryGroups")) );
-		if (eo.getAttribute("secondaryGroups2") != null ) {
+		Collection<String> groups = (Collection<String>) eo.getAttribute("secondaryGroups");
+		if (groups == nullList)
+			change.setGroups( null );
+		else if (groups != null)
+			change.setGroups( new HashSet<String>( groups) );
+		Collection<Map<String,Object>> groups2 = (Collection<Map<String, Object>>) eo.getAttribute("secondaryGroups2");
+		if (groups2 == nullList)
+			change.setGroups2(null);
+		else if (groups2 != null ) {
 			Collection<GroupUser> l = new LinkedList<GroupUser>();
-			for (Map<String,Object> eug: (Collection<Map<String,Object>>) eo.getAttribute("secondaryGroups2") ) {
+			for (Map<String,Object> eug:  groups2 ) {
 				GroupUser ug = vom.parseGroupUserFromMap(eug);
 				if (ug != null)
 					l.add(ug);
@@ -846,9 +854,10 @@ public class AuthoritativeLoaderEngine {
 	private UserExtensibleObject buildExtensibleObject(
 			AuthoritativeChange change) throws InternalErrorException {
 		UserExtensibleObject eo = new UserExtensibleObject(change.getUser(), change.getAttributes(), server);
-		List<ExtensibleObject> l = new LinkedList<ExtensibleObject>();
+		List<ExtensibleObject> l = nullList;
 		if (change.getGroups() != null)
 		{
+			l = new LinkedList<ExtensibleObject>();
 			for (String s: change.getGroups())
 			{
 				Group g = null;
@@ -871,8 +880,10 @@ public class AuthoritativeLoaderEngine {
 			}
 		}
 		eo.setAttribute("secondaryGroups", l);
+		l = nullList;
 		if (change.getGroups2() != null)
 		{
+			l = new LinkedList<ExtensibleObject>();
 			for (GroupUser s: change.getGroups2())
 			{
 				l.add( new GroupUserExtensibleObject(s, system.getName(), server));
