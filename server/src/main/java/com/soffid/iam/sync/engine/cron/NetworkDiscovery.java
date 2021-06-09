@@ -23,6 +23,7 @@ import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.UserDomain;
 import com.soffid.iam.api.ScheduledTask;
+import com.soffid.iam.api.Server;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.AdditionalDataService;
 import com.soffid.iam.service.DispatcherService;
@@ -65,6 +66,7 @@ public class NetworkDiscovery implements TaskHandler
 	private Network network;
 	private List<Account> discoveryAccounts;
 	private List<Password> passwords;
+	private String systemUrl;
 	
 	@Override
 	public void run(PrintWriter out) throws Exception {
@@ -187,7 +189,7 @@ public class NetworkDiscovery implements TaskHandler
 				} else {
 					out.println("Probing user "+account.getLoginName());
 					system.setId(new Long(0));
-					system.setUrl("local");
+					system.setUrl(systemUrl);
 					handler.setSystem(system);
 					Object obj = handler.connect(true, false);
 					ReconcileMgr2 agent = (ReconcileMgr2) InterfaceWrapper.getReconcileMgr2(obj); 
@@ -238,11 +240,16 @@ public class NetworkDiscovery implements TaskHandler
 		return false;
 	}
 
-	private System createSystem(Network network) {
+	private System createSystem(Network network) throws InternalErrorException {
 		System s = new System();
 		s.setName("discovery-"+network.getName());
 		s.setClassName(NetworkDiscoveryAgent.class.getCanonicalName());
 		s.setUrl("local");
+		for (Server server: ServiceLocator.instance().getDispatcherService().findTenantServers()) {
+			if (server.getName().equals(network.getDiscoveryServer()))
+				s.setUrl(server.getUrl());
+		}
+		systemUrl = s.getUrl();
 		s.setId(0L);
 		return s;
 	}
