@@ -60,7 +60,7 @@ public class UpdateTaskStatusThread extends Thread
         			{
         				for (TaskHandlerLog tl : task.getLogs())
         				{
-        					if (tl != null)
+        					if (tl != null && ! tl.isComplete())
         					{
 	        					StringBuffer sb = new StringBuffer();
 	        					sb.append (">> ");
