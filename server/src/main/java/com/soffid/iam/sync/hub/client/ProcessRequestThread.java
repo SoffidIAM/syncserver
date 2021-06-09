@@ -47,7 +47,7 @@ public class ProcessRequestThread extends Thread{
 			Object handler = server.getServiceHandler(request.getUrl());
 			if (handler == null)
 			{
-				sendResult (false, new Exception("Service not found"));
+				sendResult (false, new IOException("Service not found"));
 			}
 			else
 			{
