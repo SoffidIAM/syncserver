@@ -3,8 +3,14 @@ package com.soffid.iam.sync.hub.server;
 import java.io.Serializable;
 
 public class Request implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = -6140660152712844125L;
+	
 	// Request control
 	long start;
+	transient long accept;
 	String source;
 	boolean done;
 	boolean accepted;
@@ -94,5 +100,11 @@ public class Request implements Serializable {
 	}
 	public void setAccepted(boolean accepted) {
 		this.accepted = accepted;
+	}
+	public long getAccept() {
+		return accept;
+	}
+	public void setAccept(long accept) {
+		this.accept = accept;
 	}
 }
