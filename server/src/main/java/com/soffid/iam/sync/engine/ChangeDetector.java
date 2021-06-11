@@ -30,10 +30,10 @@ public class ChangeDetector {
 	Log log = LogFactory.getLog(ChangeDetector.class);
 	UserService userService = ServiceLocator.instance().getUserService();
 	GroupService groupService = ServiceLocator.instance().getGroupService();
-	
 	public boolean anyChange(AuthoritativeChange change) throws InternalErrorException, NoSuchMethodException, IllegalAccessException, InvocationTargetException {
 		if (change.getUser() != null && change.getUser().getUserName() != null && ! change.getUser().getUserName().trim().isEmpty())
 		{
+//			log.info("Checking change "+change.toString());
 			if (anyUserChange(change))
 				return true;
 			if (change.getAttributes() != null)
@@ -70,6 +70,7 @@ public class ChangeDetector {
 	private boolean anyAttributesChange(AuthoritativeChange change) throws InternalErrorException {
 		ObjectComparator comparator = new ObjectComparator();
 		Map<String, Object> currentAtts = userService.findUserAttributes(change.getUser().getUserName());
+//		log.info("Checking attribute changes");
 		for (String att: change.getAttributes().keySet()) {
 			Object o1 = change.getAttributes().get(att);
 			Object o2 = currentAtts.get(att);
@@ -110,7 +111,8 @@ public class ChangeDetector {
 						return true;
 					}
 				}
-			}
+			} else if (o2 == null && o1 != null)
+				return true;
 		}
 		return false;
 	}

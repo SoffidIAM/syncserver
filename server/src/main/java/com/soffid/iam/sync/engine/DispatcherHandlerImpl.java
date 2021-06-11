@@ -1110,7 +1110,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         
        	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
        	if (acc == null || acc.isDisabled())
+       	{
        		return;
+       	}
        	if (acc.getType().equals (AccountType.IGNORED) ||
        		isUnmanagedType(acc.getPasswordPolicy())) 
        	{
@@ -2086,7 +2088,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             return user;
         if (task.getTask().getUser() == null)
         	return null;
-        synchronized (task.getTask().getId()) {
+        Long id = task.getTask().getId();
+        if (id == null) id = new Long(0);
+        synchronized (id) {
 	        try {
 	        	Collection<RoleGrant> grants = null;
 				if (task.getTask().getTransaction().equals (TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
