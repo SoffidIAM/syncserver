@@ -1423,13 +1423,23 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		else
 		{
 			entity = getTaskLogEntityDao().load(thl.getId().longValue());
+			if (entity == null) {
+				entity = getTaskLogEntityDao().newTaskLogEntity();
+				entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
+				entity.setTask(tasqueEntity);
+				entity.setCreationDate(new Date());
+			}
 		}
 		entity.setExecutionsNumber(new Long(thl.getNumber()));
 		entity.setNextExecution(thl.getNext());
 		entity.setCompleted(thl.isComplete() ? "S" : "N");
 		entity.setLastExecution(thl.getLast());
 		entity.setMessage(thl.getReason());
+		if (entity.getMessage() != null && entity.getMessage().length() > 1000)
+			entity.setMessage(entity.getMessage().substring(0, 1000));
 		entity.setStackTrace(thl.getStackTrace());
+		if (entity.getStackTrace() != null && entity.getStackTrace().length() > 1000)
+			entity.setStackTrace(entity.getStackTrace().substring(0, 1000));
 		if (thl.getId() == null)
 		{
 			getTaskLogEntityDao().create(entity);
@@ -1534,6 +1544,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			}
 	    		}
 			} catch (Exception e) {
+				log.warn("Error persisting task", e);
 				if (isDebug())
 					log.info("Error persisting task {}", newTask.toString(), null);
 	    		newTask.setChanged(true);

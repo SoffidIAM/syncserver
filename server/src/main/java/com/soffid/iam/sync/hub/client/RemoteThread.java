@@ -7,6 +7,7 @@ import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
+import java.util.HashSet;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -21,7 +22,8 @@ public class RemoteThread  {
 	private Config config;
 	private String targetUrl;
 	private JettyServer server;
-
+	HashSet<Long> activeRequests = new HashSet<>();
+	
 	public RemoteThread(JettyServer server) {
 		this.server = server;
 	}
@@ -43,18 +45,34 @@ public class RemoteThread  {
 					log.warn("Error fetching request from gateway server "+targetUrl, th);
 				}
 			}
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			log.warn("Error in remote thread handler", e);
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException ee) {
+			}
 			System.exit(3);
 		}
 	}
 
 	private void processRequest(final Request request) {
-		new ProcessRequestThread(server, request, targetUrl).start();
+		synchronized (activeRequests) {
+			activeRequests.add(request.getId());
+		}
+		new ProcessRequestThread(server, request, targetUrl, activeRequests).start();
 	}
 
 	private Request fetchRequest() throws IOException, ClassNotFoundException {
-		HttpURLConnection conn = ConnectionFactory.getConnection(new URL(targetUrl));
+		String t = targetUrl + "?active=";
+		synchronized (activeRequests) {
+			boolean first = true;
+			for (Long id: activeRequests) {
+				if (first) first = false;
+				else t = t + ",";
+				t = t + id.toString();
+			}
+		}
+		HttpURLConnection conn = ConnectionFactory.getConnection(new URL(t));
 		conn.setDoInput(true);
 		conn.setDoOutput(false);
 		conn.setRequestMethod("GET");
