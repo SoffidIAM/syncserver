@@ -94,7 +94,7 @@ public class HubQueue {
 		Request r = activeRequests.get(requestId);
 		if (r == null || r.isDone())
 		{
-			log.info("Request already "+requestId+" from "+host+" processed twice");
+			log.info("Request "+requestId+" from "+host+" processed twice");
 		}
 		else {
 			synchronized (r) {
@@ -271,7 +271,7 @@ public class HubQueue {
 	
 			for (Request r: activeRequests.values()) {
 				if (r.getTarget().equals(server) &&
-						r.start < System.currentTimeMillis() - 2000) {
+						r.start < System.currentTimeMillis() - 20000) {
 					log.info("Expiring request "+r.getId());
 					post (server, r.getId(), new RemoteException("Connection reset"), false);
 					return;
