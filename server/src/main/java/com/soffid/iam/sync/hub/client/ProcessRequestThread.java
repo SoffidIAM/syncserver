@@ -72,11 +72,6 @@ public class ProcessRequestThread extends Thread{
 			}
 //			log.info("Processed thread "+request.getId());
 		}
-		try {
-			Thread.sleep(2000);
-		} catch (InterruptedException e) {
-		}
-		System.exit(0);
 	}
 
 	private void processPost(Object handler) {

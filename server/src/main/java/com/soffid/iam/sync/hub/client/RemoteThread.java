@@ -45,8 +45,12 @@ public class RemoteThread  {
 					log.warn("Error fetching request from gateway server "+targetUrl, th);
 				}
 			}
-		} catch (Exception e) {
+		} catch (Throwable e) {
 			log.warn("Error in remote thread handler", e);
+			try {
+				Thread.sleep(2000);
+			} catch (InterruptedException ee) {
+			}
 			System.exit(3);
 		}
 	}
