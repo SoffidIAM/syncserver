@@ -31,6 +31,7 @@ public class KubernetesConfig {
 	private String token;
 	private String cert;
 	private BaseHttpConnectionFactory connectionFactory;
+	private String namespace;
 
 	public void load () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
 		Config config = Config.getConfig();
@@ -41,7 +42,7 @@ public class KubernetesConfig {
 			int i;
 			configure();
 			System.out.println("Loading kubernetes configuration from kubernetes secret "+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
-			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/default/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
+			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 			try {
 				String response = readURL(url);
 				JSONObject json = new JSONObject(response);
@@ -117,6 +118,7 @@ public class KubernetesConfig {
 		hostname = System.getenv("SOFFID_HOSTNAME");
 		token = readFile ("/var/run/secrets/kubernetes.io/serviceaccount/token");
 		cert = readFile ("/var/run/secrets/kubernetes.io/serviceaccount/ca.crt");
+		namespace = readFile ("/var/run/secrets/kubernetes.io/serviceaccount/namespace");
 		int i = cert.indexOf('\n');
 		cert = cert.substring(i+1);
 		i = cert.indexOf("\n---");
@@ -161,14 +163,14 @@ public class KubernetesConfig {
 			}
 			JSONObject secret = new JSONObject();
 			secret.put("data", data);
-			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/default/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
+			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 			try {
 				String s = readURL(url);
 				System.out.println("Current secret: "+s);
 				secret = new JSONObject(s);
 				secret.put("data", data);
 				System.out.println("Putting: "+secret.toString());
-				send("PUT", new URL("https://"+host+":"+port+"/api/v1/namespaces/default/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET")), secret.toString());
+				send("PUT", new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET")), secret.toString());
 			} catch (FileNotFoundException e) {
 				secret.put("apiVersion", "v1");
 				secret.put("kind", "Secret");
@@ -177,7 +179,7 @@ public class KubernetesConfig {
 				metadata.put("type", "syncserver");
 				secret.put("metadata", metadata);
 				secret.put("type", "Opaque");
-				send("POST", new URL("https://"+host+":"+port+"/api/v1/namespaces/default/secrets"), secret.toString());
+				send("POST", new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets"), secret.toString());
 			}
 		} else {
 			System.out.println("Not a kubernetes environment. Storing in local files");

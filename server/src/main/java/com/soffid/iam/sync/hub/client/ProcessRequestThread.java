@@ -1,12 +1,15 @@
 package com.soffid.iam.sync.hub.client;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.rmi.RemoteException;
+import java.util.HashSet;
 import java.util.Locale;
 import java.util.Vector;
 
@@ -29,9 +32,12 @@ public class ProcessRequestThread extends Thread{
 
 	private String targetUrl;
 
-	public ProcessRequestThread(JettyServer server, Request request, String targetUrl) {
+	private HashSet<Long> activeRequests;
+
+	public ProcessRequestThread(JettyServer server, Request request, String targetUrl, HashSet<Long> activeRequests) {
 		super ("Request #"+request.getId());
 		setDaemon(true);
+		this.activeRequests = activeRequests;
 		this.request = request;
 		this.server = server;
 		this.targetUrl = targetUrl;
@@ -40,6 +46,7 @@ public class ProcessRequestThread extends Thread{
 	@Override
 	public void run() {
 		try {
+//			log.info("Processing thread "+request.getId());
 			if ( ! request.getUrl().startsWith("/seycon"))
 			{
 				log.warn("Unexpected request "+request.getUrl()+" does not start with /seycon");
@@ -47,7 +54,7 @@ public class ProcessRequestThread extends Thread{
 			Object handler = server.getServiceHandler(request.getUrl());
 			if (handler == null)
 			{
-				sendResult (false, new IOException("Service not found"));
+				sendResult (false, new RemoteException("Service not found"));
 			}
 			else
 			{
@@ -58,6 +65,12 @@ public class ProcessRequestThread extends Thread{
 			}
 		} catch (Exception e) {
 			log.warn("Error processing request ", e);
+		} finally 
+		{
+			synchronized (activeRequests) {
+				activeRequests.remove(request.getId());
+			}
+//			log.info("Processed thread "+request.getId());
 		}
 	}
 
@@ -105,7 +118,7 @@ public class ProcessRequestThread extends Thread{
                 	MessageFactory.setThreadLocale(previousLocale);
                 	Invoker.setInvoker(null);
                 }
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 log.warn("Error invoking " + request.getUrl(), e);
             }
         } finally {
@@ -127,7 +140,7 @@ public class ProcessRequestThread extends Thread{
 			}
 			sendResult(true, s.toString());
 		}
-		catch (Exception e)
+		catch (Throwable e)
 		{
 			log.warn("Unexpected error", e);
 			sendResult(false, e);
@@ -135,18 +148,25 @@ public class ProcessRequestThread extends Thread{
 	}
 
 	private void sendResult(boolean success, Object result) throws IOException {
-		HttpURLConnection conn = ConnectionFactory.getConnection(new URL(targetUrl));
-		conn.setDoInput(true);
-		conn.setDoOutput(true);
-		conn.setRequestMethod("POST");
-		conn.connect();
-		OutputStream out = conn.getOutputStream();
-		ObjectOutputStream oout = new ObjectOutputStream(out);
-		oout.writeLong(request.getId());
-		oout.writeBoolean(success);
-		oout.writeObject(result);
-		oout.close();
-		conn.getInputStream().close();
+//		log.info("Sending result for "+request.getId()); 
+		try {
+			HttpURLConnection conn = ConnectionFactory.getConnection(new URL(targetUrl));
+			conn.setDoInput(true);
+			conn.setDoOutput(true);
+			conn.setRequestMethod("POST");
+			conn.connect();
+			OutputStream out = conn.getOutputStream();
+			ObjectOutputStream oout = new ObjectOutputStream(out);
+			oout.writeLong(request.getId());
+			oout.writeBoolean(success);
+			oout.writeObject(result);
+			oout.close();
+			InputStream in = conn.getInputStream();
+			while (in.read() >= 0) ;
+			in.close();
+		} finally {
+//			log.info("Sent result for "+request.getId());
+		}
 	}
 
 

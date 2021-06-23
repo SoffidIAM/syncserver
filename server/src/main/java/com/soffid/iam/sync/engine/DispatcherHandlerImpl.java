@@ -1133,7 +1133,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         
        	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
        	if (acc == null || acc.isDisabled())
+       	{
        		return;
+       	}
        	if (acc.getType().equals (AccountType.IGNORED) ||
        		isUnmanagedType(acc.getPasswordPolicy())) 
        	{

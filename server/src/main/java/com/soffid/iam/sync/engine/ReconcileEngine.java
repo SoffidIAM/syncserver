@@ -60,6 +60,7 @@ import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 
 /**
@@ -92,6 +93,7 @@ public abstract class ReconcileEngine
 	private List<ReconcileTrigger> preUpdateRole;
 	Long reconcileProcessId;
 	protected ReconcileService reconcileService;
+	int errors = 0;
 	
 	List<String> roles = new LinkedList<String>();
 	List<String> accountsList = new LinkedList<String>();
@@ -136,6 +138,9 @@ public abstract class ReconcileEngine
 			}
 			
 			loadServices();
+
+			if (errors > 0)
+				throw new InternalErrorException("Found "+errors+". Review log file");
 		} finally {
 			taskGenerator.finishVirtualSourceTransaction(virtualTransactionId);
 		}
@@ -201,20 +206,26 @@ public abstract class ReconcileEngine
 
 	protected void removeRole(List<ReconcileTrigger> preDelete, List<ReconcileTrigger> postDelete, String roleName,
 			Role role, boolean ok) throws InternalErrorException {
-		RoleExtensibleObject eo = new RoleExtensibleObject(role, serverService);
-		if (! preDelete.isEmpty())
-		{
-			ok = executeTriggers(preDelete, eo, null);
-		}
-		if (ok)
-		{
-			log.append("Removing role "+roleName+"\n");
-			try {
-				appService.delete(role);
-				executeTriggers(postDelete, eo, null);
-			} catch (Exception e) {
-				log.println(" Error: "+e.toString());
+		try {
+			RoleExtensibleObject eo = new RoleExtensibleObject(role, serverService);
+			if (! preDelete.isEmpty())
+			{
+				ok = executeTriggers(preDelete, eo, null);
 			}
+			if (ok)
+			{
+				log.append("Removing role "+roleName+"\n");
+				try {
+					appService.delete(role);
+					executeTriggers(postDelete, eo, null);
+				} catch (Exception e) {
+					log.println(" Error: "+e.toString());
+				}
+			}
+		} catch (Exception e) {
+			errors ++;
+			log.println("Error unloading role "+roleName);
+			SoffidStackTrace.printStackTrace(e, log);
 		}
 	}
 
@@ -243,7 +254,9 @@ public abstract class ReconcileEngine
 						accountService.updateAccount2(account);
 						executeTriggers(postDelete, eo, null);
 					} catch (Exception e) {
-						log.println(" Error: "+e.toString());
+						errors ++;
+						log.println("Error removing account "+accountName);
+						SoffidStackTrace.printStackTrace(e, log);
 					}
 				}
 			}
@@ -315,198 +328,208 @@ public abstract class ReconcileEngine
 
 	protected void updateAccount(List<ReconcileTrigger> preUpdate, List<ReconcileTrigger> postUpdate, String accountName,
 			Account acc, Account existingAccount) throws InternalErrorException, RemoteException {
-		existingAccount.setSystem(dispatcher.getName());
+
+		boolean isUnmanaged = false;
 		Account acc2 = new Account (acc);
-		
-		boolean anyChange = false;
-		boolean isUnmanaged = acc != null && acc.getId() != null && 
-				(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
-		
-		if (!dispatcher.isReadOnly() && accountService.isUpdatePending(acc)) {
-			log.append ("Account "+acc.getName()+" is not loaded due to active synchronization task\n");			
-		}
-		
-		if (! preUpdate.isEmpty())
-		{
-			boolean isManaged2 = isUnmanaged;
-			AccountExtensibleObject eo = new AccountExtensibleObject(existingAccount, serverService);
-			isUnmanaged = executeTriggers(preUpdate, new AccountExtensibleObject(acc, serverService), eo);
-			if (isUnmanaged != isManaged2)
-			{
-				if (isUnmanaged)
-					log.append ("Account "+acc.getName()+" is loaded due to pre-update trigger success\n");
-				else
-					log.append ("Account "+acc.getName()+" is not loaded due to pre-update trigger failure\n");
+		try {
+			existingAccount.setSystem(dispatcher.getName());
+			
+			boolean anyChange = false;
+			isUnmanaged = acc != null && acc.getId() != null && 
+					(dispatcher.isReadOnly() || dispatcher.isAuthoritative() || AccountType.IGNORED.equals(acc.getType()));
+			
+			if (!dispatcher.isReadOnly() && accountService.isUpdatePending(acc)) {
+				log.append ("Account "+acc.getName()+" is not loaded due to active synchronization task\n");			
+				return;
 			}
-			existingAccount = vom.parseAccount(eo);
-		}
-
-		if (isUnmanaged &&
-				existingAccount.getDescription() != null && 
-				existingAccount.getDescription().trim().length() > 0 &&
-				!existingAccount.getDescription().equals(acc.getDescription()))
-		{
-			anyChange = true;
-			acc.setDescription(existingAccount.getDescription());
-		}
-		
-		if (existingAccount.getLastPasswordSet() != null &&
-				!existingAccount.getLastPasswordSet().equals(acc.getLastPasswordSet()))
-		{
-			anyChange = true;
-			acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
-		}
-		
-		if (existingAccount.getLastLogin() != null &&
-				!existingAccount.getLastLogin().equals(acc.getLastLogin()))
-		{
-			anyChange = true;
-			acc.setLastLogin(existingAccount.getLastLogin());
-		}
-
-		if (existingAccount.getLastUpdated() != null &&
-				!existingAccount.getLastUpdated().equals(acc.getLastUpdated()))
-		{
-			acc.setLastUpdated(existingAccount.getLastUpdated());
-			anyChange = true;
-		}
-		
-		if (existingAccount.getPasswordPolicy() != null &&
-				!existingAccount.getPasswordPolicy().equals(acc.getPasswordPolicy()))
-		{
-			acc.setPasswordPolicy(existingAccount.getPasswordPolicy());
-			anyChange = true;
-		}
-		
-		if (existingAccount.getPasswordExpiration() != null &&
-				!existingAccount.getPasswordExpiration().equals(acc.getPasswordExpiration()))
-		{
-			acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
-			anyChange = true;
-		}
-					
-		
-		if (isUnmanaged && existingAccount.getAttributes() != null)
-		{
-			for (String att: existingAccount.getAttributes().keySet())
+			
+			if (! preUpdate.isEmpty())
 			{
-				Object v = existingAccount.getAttributes().get(att);
-				Object v2 = acc.getAttributes().get(att);
-				if (v != null &&
-						!v.equals(v2))
+				boolean isManaged2 = isUnmanaged;
+				AccountExtensibleObject eo = new AccountExtensibleObject(existingAccount, serverService);
+				isUnmanaged = executeTriggers(preUpdate, new AccountExtensibleObject(acc, serverService), eo);
+				if (isUnmanaged != isManaged2)
 				{
-					acc.getAttributes().put(att, v);
-					anyChange = true;
+					if (isUnmanaged)
+						log.append ("Account "+acc.getName()+" is loaded due to pre-update trigger success\n");
+					else
+						log.append ("Account "+acc.getName()+" is not loaded due to pre-update trigger failure\n");
 				}
+				existingAccount = vom.parseAccount(eo);
 			}
-		}
-		
-		if (isUnmanaged && acc.isDisabled() != existingAccount.isDisabled())
-		{
-			acc.setDisabled(existingAccount.isDisabled());
-			acc.setStatus(acc.isDisabled() ? AccountStatus.DISABLED: AccountStatus.ACTIVE);
-			anyChange = true;
-		}
-
-		if (isUnmanaged && existingAccount.getType() != AccountType.IGNORED && existingAccount.getType() != null &&
-				acc.getType() != existingAccount.getType())
-		{
-			acc.setType(existingAccount.getType());
-			anyChange = true;
-		}
-
-		if (isUnmanaged && (acc.getOwnerUsers() == null || 
-				!acc.getOwnerUsers().equals(existingAccount.getOwnerUsers()))
-				&& existingAccount.getOwnerUsers() != null)
-		{
-			acc.setOwnerUsers(existingAccount.getOwnerUsers());
-			anyChange = true;
-		}
-		if (isUnmanaged && (acc.getOwnerGroups() == null  ||
-				!acc.getOwnerGroups().equals(existingAccount.getOwnerGroups()))  &&
-				existingAccount.getOwnerGroups() != null)
-		{
-			acc.setOwnerGroups(existingAccount.getOwnerGroups());
-			anyChange = true;
-		}
-		if (isUnmanaged && (acc.getOwnerRoles() == null || 
-				!acc.getOwnerRoles().equals(existingAccount.getOwnerRoles()))  &&
-				existingAccount.getOwnerRoles() != null)
-		{
-			acc.setOwnerRoles(existingAccount.getOwnerRoles());
-			anyChange = true;
-		}
-
-		if (isUnmanaged && (acc.getManagerRoles() == null || !acc.getManagerUsers().equals(existingAccount.getManagerUsers()))  &&
-				existingAccount.getManagerUsers() != null)
-		{
-			acc.setManagerUsers(existingAccount.getManagerUsers());
-			anyChange = true;
-		}
-		if (isUnmanaged && (acc.getManagerGroups() == null || 
-				!acc.getManagerGroups().equals(existingAccount.getManagerGroups()))  &&
-				existingAccount.getManagerGroups() != null)
-		{
-			acc.setManagerGroups(existingAccount.getManagerGroups());
-			anyChange = true;
-		}
-		if (isUnmanaged && (acc.getManagerRoles() == null || !acc.getManagerRoles().equals(existingAccount.getManagerRoles()))  &&
-				existingAccount.getManagerRoles() != null)
-		{
-			acc.setManagerRoles(existingAccount.getManagerRoles());
-			anyChange = true;
-		}
-
-		if (isUnmanaged && (acc.getGrantedUsers() == null || !acc.getGrantedUsers().equals(existingAccount.getGrantedUsers())) &&
-				existingAccount.getGrantedUsers() != null)
-		{
-			acc.setGrantedUsers(existingAccount.getGrantedUsers());
-			anyChange = true;
-		}
-		if (isUnmanaged && (acc.getGrantedGroups() == null || !acc.getGrantedGroups().equals(existingAccount.getGrantedGroups())) &&
-				existingAccount.getGrantedGroups() != null)
-		{
-			acc.setGrantedGroups(existingAccount.getGrantedGroups());
-			anyChange = true;
-		}
-		if (isUnmanaged && (acc.getGrantedRoles() == null || !acc.getGrantedRoles().equals(existingAccount.getGrantedRoles())) &&
-				existingAccount.getGrantedRoles() != null)
-		{
-			acc.setGrantedRoles(existingAccount.getGrantedRoles());
-			anyChange = true;
-		}
-		if (anyChange)
-		{
-			if (isUnmanaged)
-				log.append ("Updating account ").append (accountName).append ('\n');
-			else
-				log.append ("Fetching password attributes for ").append (accountName).append ('\n');
+	
+			if (isUnmanaged &&
+					existingAccount.getDescription() != null && 
+					existingAccount.getDescription().trim().length() > 0 &&
+					!existingAccount.getDescription().equals(acc.getDescription()))
+			{
+				anyChange = true;
+				acc.setDescription(existingAccount.getDescription());
+			}
 			
+			if (existingAccount.getLastPasswordSet() != null &&
+					!existingAccount.getLastPasswordSet().equals(acc.getLastPasswordSet()))
+			{
+				anyChange = true;
+				acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
+			}
 			
-			try {
-				if (isUnmanaged)
+			if (existingAccount.getLastLogin() != null &&
+					!existingAccount.getLastLogin().equals(acc.getLastLogin()))
+			{
+				anyChange = true;
+				acc.setLastLogin(existingAccount.getLastLogin());
+			}
+	
+			if (existingAccount.getLastUpdated() != null &&
+					!existingAccount.getLastUpdated().equals(acc.getLastUpdated()))
+			{
+				acc.setLastUpdated(existingAccount.getLastUpdated());
+				anyChange = true;
+			}
+			
+			if (existingAccount.getPasswordPolicy() != null &&
+					!existingAccount.getPasswordPolicy().equals(acc.getPasswordPolicy()))
+			{
+				acc.setPasswordPolicy(existingAccount.getPasswordPolicy());
+				anyChange = true;
+			}
+			
+			if (existingAccount.getPasswordExpiration() != null &&
+					!existingAccount.getPasswordExpiration().equals(acc.getPasswordExpiration()))
+			{
+				acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
+				anyChange = true;
+			}
+						
+			
+			if (isUnmanaged && existingAccount.getAttributes() != null)
+			{
+				for (String att: existingAccount.getAttributes().keySet())
 				{
-					if (existingAccount.getAttributes() != null)
+					Object v = existingAccount.getAttributes().get(att);
+					Object v2 = acc.getAttributes().get(att);
+					if (v != null &&
+							!v.equals(v2))
 					{
-						for (String k: existingAccount.getAttributes().keySet())
-						{
-							acc.getAttributes().put(k, existingAccount.getAttributes().get(k));
-						}
+						acc.getAttributes().put(att, v);
+						anyChange = true;
 					}
-					accountService.updateAccount2(acc);
 				}
-				else
-				{
-					accountService.updateAccount2(acc);
-				}
-
-				executeTriggers(postUpdate, 
-						new AccountExtensibleObject(acc2, serverService),
-						new AccountExtensibleObject(acc, serverService));
-			} catch (AccountAlreadyExistsException e) {
-				throw new InternalErrorException ("Unexpected exception", e);
 			}
+			
+			if (isUnmanaged && acc.isDisabled() != existingAccount.isDisabled())
+			{
+				acc.setDisabled(existingAccount.isDisabled());
+				acc.setStatus(acc.isDisabled() ? AccountStatus.DISABLED: AccountStatus.ACTIVE);
+				anyChange = true;
+			}
+	
+			if (isUnmanaged && existingAccount.getType() != AccountType.IGNORED && existingAccount.getType() != null &&
+					acc.getType() != existingAccount.getType())
+			{
+				acc.setType(existingAccount.getType());
+				anyChange = true;
+			}
+	
+			if (isUnmanaged && (acc.getOwnerUsers() == null || 
+					!acc.getOwnerUsers().equals(existingAccount.getOwnerUsers()))
+					&& existingAccount.getOwnerUsers() != null)
+			{
+				acc.setOwnerUsers(existingAccount.getOwnerUsers());
+				anyChange = true;
+			}
+			if (isUnmanaged && (acc.getOwnerGroups() == null  ||
+					!acc.getOwnerGroups().equals(existingAccount.getOwnerGroups()))  &&
+					existingAccount.getOwnerGroups() != null)
+			{
+				acc.setOwnerGroups(existingAccount.getOwnerGroups());
+				anyChange = true;
+			}
+			if (isUnmanaged && (acc.getOwnerRoles() == null || 
+					!acc.getOwnerRoles().equals(existingAccount.getOwnerRoles()))  &&
+					existingAccount.getOwnerRoles() != null)
+			{
+				acc.setOwnerRoles(existingAccount.getOwnerRoles());
+				anyChange = true;
+			}
+	
+			if (isUnmanaged && (acc.getManagerRoles() == null || !acc.getManagerUsers().equals(existingAccount.getManagerUsers()))  &&
+					existingAccount.getManagerUsers() != null)
+			{
+				acc.setManagerUsers(existingAccount.getManagerUsers());
+				anyChange = true;
+			}
+			if (isUnmanaged && (acc.getManagerGroups() == null || 
+					!acc.getManagerGroups().equals(existingAccount.getManagerGroups()))  &&
+					existingAccount.getManagerGroups() != null)
+			{
+				acc.setManagerGroups(existingAccount.getManagerGroups());
+				anyChange = true;
+			}
+			if (isUnmanaged && (acc.getManagerRoles() == null || !acc.getManagerRoles().equals(existingAccount.getManagerRoles()))  &&
+					existingAccount.getManagerRoles() != null)
+			{
+				acc.setManagerRoles(existingAccount.getManagerRoles());
+				anyChange = true;
+			}
+	
+			if (isUnmanaged && (acc.getGrantedUsers() == null || !acc.getGrantedUsers().equals(existingAccount.getGrantedUsers())) &&
+					existingAccount.getGrantedUsers() != null)
+			{
+				acc.setGrantedUsers(existingAccount.getGrantedUsers());
+				anyChange = true;
+			}
+			if (isUnmanaged && (acc.getGrantedGroups() == null || !acc.getGrantedGroups().equals(existingAccount.getGrantedGroups())) &&
+					existingAccount.getGrantedGroups() != null)
+			{
+				acc.setGrantedGroups(existingAccount.getGrantedGroups());
+				anyChange = true;
+			}
+			if (isUnmanaged && (acc.getGrantedRoles() == null || !acc.getGrantedRoles().equals(existingAccount.getGrantedRoles())) &&
+					existingAccount.getGrantedRoles() != null)
+			{
+				acc.setGrantedRoles(existingAccount.getGrantedRoles());
+				anyChange = true;
+			}
+			if (anyChange)
+			{
+				if (isUnmanaged)
+					log.append ("Updating account ").append (accountName).append ('\n');
+				else
+					log.append ("Fetching password attributes for ").append (accountName).append ('\n');
+				
+				
+				try {
+					if (isUnmanaged)
+					{
+						if (existingAccount.getAttributes() != null)
+						{
+							for (String k: existingAccount.getAttributes().keySet())
+							{
+								acc.getAttributes().put(k, existingAccount.getAttributes().get(k));
+							}
+						}
+						accountService.updateAccount2(acc);
+					}
+					else
+					{
+						accountService.updateAccount2(acc);
+					}
+	
+					executeTriggers(postUpdate, 
+							new AccountExtensibleObject(acc2, serverService),
+							new AccountExtensibleObject(acc, serverService));
+				} catch (AccountAlreadyExistsException e) {
+					throw new InternalErrorException ("Unexpected exception", e);
+				}
+			}
+		} catch (Exception e) {
+			errors ++;
+			log.println("Error updating account "+acc2.toString());
+			SoffidStackTrace.printStackTrace(e, log);
 		}
+
 		// Only reconcile grants on unmanaged accounts
 		// or read only dispatchers
 		if (isUnmanaged)
@@ -527,7 +550,7 @@ public abstract class ReconcileEngine
 		acc.setLastPasswordSet(existingAccount.getLastPasswordSet());
 		acc.setLastUpdated(existingAccount.getLastUpdated() == null ?
 				Calendar.getInstance() :
-				existingAccount.getLastUpdated());
+					existingAccount.getLastUpdated());
 		acc.setLastLogin(existingAccount.getLastLogin());
 		acc.setPasswordExpiration(existingAccount.getPasswordExpiration());
 		acc.setDisabled(existingAccount.isDisabled());
@@ -560,7 +583,7 @@ public abstract class ReconcileEngine
 		{
 			acc.setOwnerRoles(existingAccount.getOwnerRoles());
 		}
-
+		
 		if (existingAccount.getManagerUsers() != null)
 		{
 			acc.setManagerUsers(existingAccount.getManagerUsers());
@@ -573,7 +596,7 @@ public abstract class ReconcileEngine
 		{
 			acc.setManagerRoles(existingAccount.getManagerRoles());
 		}
-
+		
 		if (existingAccount.getGrantedUsers() != null)
 		{
 			acc.setGrantedUsers(existingAccount.getGrantedUsers());
@@ -586,36 +609,42 @@ public abstract class ReconcileEngine
 		{
 			acc.setGrantedRoles(existingAccount.getGrantedRoles());
 		}
-
-		boolean ok = true;
 		try {
-			
-			if (! preInsert.isEmpty())
-			{
-				AccountExtensibleObject eo = new AccountExtensibleObject(acc, serverService);
-				if (executeTriggers(preInsert, null, eo))
-					acc = vom.parseAccount(eo);
-				else
+	
+			boolean ok = true;
+			try {
+				
+				if (! preInsert.isEmpty())
 				{
-					log.append ("Account "+acc.getName()+" not loaded due to pre-insert trigger failure\n");
-					ok = false;
+					AccountExtensibleObject eo = new AccountExtensibleObject(acc, serverService);
+					if (executeTriggers(preInsert, null, eo))
+						acc = vom.parseAccount(eo);
+					else
+					{
+						log.append ("Account "+acc.getName()+" not loaded due to pre-insert trigger failure\n");
+						ok = false;
+					}
 				}
+				if (ok) 
+				{
+					acc.setGrantedGroups(new LinkedList<String>());
+					acc.setGrantedRoles(new LinkedList<String>());
+					acc.setGrantedUsers(new LinkedList<String>());
+	
+					log.append ("Creating account ");
+					log.append(acc.getName());
+					log.append ('\n');
+					acc.setAttributes(existingAccount.getAttributes());
+					acc = accountService.createAccount2(acc);
+					executeTriggers(postInsert, null, new AccountExtensibleObject(acc, serverService));
+				}
+			} catch (AccountAlreadyExistsException e) {
+				throw new InternalErrorException ("Unexpected exception", e);
 			}
-			if (ok) 
-			{
-				acc.setGrantedGroups(new LinkedList<String>());
-				acc.setGrantedRoles(new LinkedList<String>());
-				acc.setGrantedUsers(new LinkedList<String>());
-
-				log.append ("Creating account ");
-				log.append(acc.getName());
-				log.append ('\n');
-				acc.setAttributes(existingAccount.getAttributes());
-				acc = accountService.createAccount2(acc);
-				executeTriggers(postInsert, null, new AccountExtensibleObject(acc, serverService));
-			}
-		} catch (AccountAlreadyExistsException e) {
-			throw new InternalErrorException ("Unexpected exception", e);
+		} catch (Exception e) {
+			errors ++;
+			log.println("Error loading account "+acc.toString());
+			SoffidStackTrace.printStackTrace(e, log);
 		}
 		
 		reconcileRoles (acc);
@@ -736,22 +765,28 @@ public abstract class ReconcileEngine
 
 	protected void loadRole(Role r) throws InternalErrorException {
 		boolean ok = true;
-		if (!preInsertRole.isEmpty())
-		{
-			RoleExtensibleObject eo = new RoleExtensibleObject(r, serverService);
-			if (executeTriggers(preInsertRole, null, eo))
-				r = vom.parseRole(eo);
-			else
+		try {
+			if (!preInsertRole.isEmpty())
 			{
-				log.append ("Role "+r.getName()+" is not loaded due to pre-insert trigger failure\n");
-				ok = false;
+				RoleExtensibleObject eo = new RoleExtensibleObject(r, serverService);
+				if (executeTriggers(preInsertRole, null, eo))
+					r = vom.parseRole(eo);
+				else
+				{
+					log.append ("Role "+r.getName()+" is not loaded due to pre-insert trigger failure\n");
+					ok = false;
+				}
 			}
-		}
-			
-		if (ok)
-		{
-			r = createRole(r);
-			executeTriggers(postInsertRole, null, new RoleExtensibleObject(r, serverService));
+				
+			if (ok)
+			{
+				r = createRole(r);
+				executeTriggers(postInsertRole, null, new RoleExtensibleObject(r, serverService));
+			}
+		} catch (Exception e) {
+			errors ++;
+			log.println("Error loading role "+r.toString());
+			SoffidStackTrace.printStackTrace(e, log);
 		}
 	}
 
@@ -863,91 +898,105 @@ public abstract class ReconcileEngine
 	protected void unloadGrant(Account acc, RoleGrant grant) throws InternalErrorException {
 		boolean ok = true;
 		
-		if (!preDeleteGrant.isEmpty())
-		{
-			GrantExtensibleObject eo = new GrantExtensibleObject(grant, serverService);
-			if (executeTriggers(preDeleteGrant, eo, null))
-				grant = vom.parseGrant(eo);
-			else
+		try {
+			if (!preDeleteGrant.isEmpty())
 			{
-				log.append ("Grant of "+grant.getRoleName()+" to "+grant.getOwnerAccountName()+" is not removed due to pre-delete trigger failure\n");
-				ok = false;
+				GrantExtensibleObject eo = new GrantExtensibleObject(grant, serverService);
+				if (executeTriggers(preDeleteGrant, eo, null))
+					grant = vom.parseGrant(eo);
+				else
+				{
+					log.append ("Grant of "+grant.getRoleName()+" to "+grant.getOwnerAccountName()+" is not removed due to pre-delete trigger failure\n");
+					ok = false;
+				}
 			}
-		}
-		if (ok)
-		{
-			RoleAccount ra = new RoleAccount();
-			ra.setAccountId(acc.getId());
-			ra.setAccountSystem(acc.getSystem());
-			ra.setAccountName(acc.getName());
-			ra.setSystem(grant.getSystem());
-			ra.setRoleName(grant.getRoleName());
-			ra.setId(grant.getId());
-			if (grant.getDomainValue() != null)
+			if (ok)
 			{
-				ra.setDomainValue(new DomainValue());
-				ra.getDomainValue().setValue(grant.getDomainValue());
+				RoleAccount ra = new RoleAccount();
+				ra.setAccountId(acc.getId());
+				ra.setAccountSystem(acc.getSystem());
+				ra.setAccountName(acc.getName());
+				ra.setSystem(grant.getSystem());
+				ra.setRoleName(grant.getRoleName());
+				ra.setId(grant.getId());
+				if (grant.getDomainValue() != null)
+				{
+					ra.setDomainValue(new DomainValue());
+					ra.getDomainValue().setValue(grant.getDomainValue());
+				}
+				log.append ("Revoking ").append (grant.getRoleName());
+				if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
+					log.append (" [").append (grant.getDomainValue()).append("]");
+				log.append (" from ").append(acc.getName()).append('\n');
+				appService.delete(ra);
 			}
-			log.append ("Revoking ").append (grant.getRoleName());
-			if (grant.getDomainValue() != null && grant.getDomainValue().trim().length() > 0)
-				log.append (" [").append (grant.getDomainValue()).append("]");
-			log.append (" from ").append(acc.getName()).append('\n');
-			appService.delete(ra);
+		} catch (Exception e) {
+			errors ++;
+			log.println("Error unloading grant "+grant.toString());
+			SoffidStackTrace.printStackTrace(e, log);
 		}
 	}
 
 	protected void loadGrant(Account acc, RoleGrant existingGrant, Collection<RoleGrant> grants)
 			throws InternalErrorException, RemoteException {
 		boolean ok = true;
-		if (!preInsertGrant.isEmpty())
-		{
-			GrantExtensibleObject eo = new GrantExtensibleObject(existingGrant, serverService);
-			if (executeTriggers(preInsertGrant, null, eo))
-				existingGrant = vom.parseGrant(eo);
-			else
+		try {
+			if (!preInsertGrant.isEmpty())
 			{
-				ok = false;
-				log.append ("Grant of "+existingGrant.getRoleName()+" to "+existingGrant.getOwnerAccountName()+" is not loaded due to pre-insert trigger failure\n");
-			}
-
-		}
-			
-		if (ok)
-		{
-		
-			Role role2;
-			role2 = ensureRoleExist(existingGrant);
-			// Look if this role is already granted
-			if (role2 != null)
-			{
-				boolean found = false;
-				existingGrant.setRoleId(role2.getId());
-				for (Iterator<RoleGrant> it = grants.iterator(); 
-								! found && it.hasNext();)
+				GrantExtensibleObject eo = new GrantExtensibleObject(existingGrant, serverService);
+				if (executeTriggers(preInsertGrant, null, eo))
+					existingGrant = vom.parseGrant(eo);
+				else
 				{
-					RoleGrant grant = it.next();
-					if (grant.getRoleId().equals (role2.getId()))
+					ok = false;
+					log.append ("Grant of "+existingGrant.getRoleName()+" to "+existingGrant.getOwnerAccountName()+" is not loaded due to pre-insert trigger failure\n");
+				}
+	
+			}
+				
+			if (ok)
+			{
+			
+				Role role2;
+				role2 = ensureRoleExist(existingGrant);
+				// Look if this role is already granted
+				if (role2 != null)
+				{
+					boolean found = false;
+					existingGrant.setRoleId(role2.getId());
+					for (Iterator<RoleGrant> it = grants.iterator(); 
+									! found && it.hasNext();)
 					{
-						if (grant.getDomainValue() == null && existingGrant.getDomainValue() == null ||
-								grant.getDomainValue() != null && grant.getDomainValue().equals(existingGrant.getDomainValue()))
+						RoleGrant grant = it.next();
+						if (grant.getRoleId().equals (role2.getId()))
 						{
-							found = true;
-							it.remove ();
+							if (grant.getDomainValue() == null && existingGrant.getDomainValue() == null ||
+									grant.getDomainValue() != null && grant.getDomainValue().equals(existingGrant.getDomainValue()))
+							{
+								found = true;
+								it.remove ();
+							}
 						}
 					}
-				}
-				if (!found)
-				{
-					log.append ("Granting ").append (existingGrant.getRoleName());
-					if (existingGrant.getDomainValue() != null && existingGrant.getDomainValue().trim().length() > 0)
-						log.append (" [").append (existingGrant.getDomainValue()).append("]");
-					log.append (" to ").append(acc.getName()).append('\n');
-					grant(acc, existingGrant, role2) ;
-					grants.add(existingGrant);
+					if (!found)
+					{
+						log.append ("Granting ").append (existingGrant.getRoleName());
+						if (existingGrant.getDomainValue() != null && existingGrant.getDomainValue().trim().length() > 0)
+							log.append (" [").append (existingGrant.getDomainValue()).append("]");
+						log.append (" to ").append(acc.getName()).append('\n');
+						grant (acc, existingGrant, role2);
+						grants.add(existingGrant);
+					}
+				} else {
+					log.print("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());
 				}
 			} else {
 				log.print("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());
 			}
+		} catch (Exception e) {
+			errors ++;
+			log.println("Error loading grant "+existingGrant.toString());
+			SoffidStackTrace.printStackTrace(e, log);
 		}
 	}
 
@@ -1095,120 +1144,126 @@ public abstract class ReconcileEngine
 
 	protected Role updateRole (Role soffidRole, Role systemRole) throws InternalErrorException
 	{
-		Role r = new Role(soffidRole);
-		boolean anyChange = false;
-		if (systemRole.getInformationSystemName() != null &&
-				!systemRole.getInformationSystemName().equals(soffidRole.getInformationSystemName()))
-		{
-			soffidRole.setInformationSystemName(systemRole.getInformationSystemName());
-			anyChange = true;
-		}
-
-		if (systemRole.getPassword() != null &&
-				! systemRole.getPassword().equals(soffidRole.getPassword()))
-		{
-			soffidRole.setPassword(systemRole.getPassword());
-			anyChange =true;
-		}
-		
-		if (systemRole.getEnableByDefault() != null && 
-				! systemRole.getEnableByDefault().equals(soffidRole.getEnableByDefault()))
-		{
-			anyChange = true;
-			soffidRole.setEnableByDefault(systemRole.getEnableByDefault());
-		}
-
-		if (systemRole.getBpmEnforced() != null && 
-				! systemRole.getBpmEnforced().equals(soffidRole.getBpmEnforced()))
-		{
-			soffidRole.setBpmEnforced(systemRole.getBpmEnforced());
-			anyChange = true;
-		}
-
-		if (systemRole.getCategory() != null && !
-				systemRole.getCategory().equals(soffidRole.getCategory()))
-		{
-			soffidRole.setCategory(systemRole.getCategory());
-			anyChange = true;
-		}
-
-		if (systemRole.getDomain() != null &&
-				!systemRole.getDomain().equals(soffidRole.getDomain()))
-		{
-			soffidRole.setDomain(systemRole.getDomain());
-			anyChange = true;
-		}
-
-		if (systemRole.getOwnedRoles() != null && !
-				systemRole.getOwnedRoles().equals(soffidRole.getOwnedRoles()))
-		{
-			soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
-			anyChange = true;
-		}
-		
-		if (systemRole.getOwnerRoles() != null && !
-				systemRole.getOwnerRoles().equals(soffidRole.getOwnerRoles()))
-		{
-			soffidRole.setOwnerRoles(systemRole.getOwnerRoles());
-			anyChange = true;
-		}
-
-		if (systemRole.getOwnerGroups() != null && !
-				systemRole.getOwnerGroups().equals(soffidRole.getOwnerGroups()))
-		{
-			soffidRole.setOwnerGroups(systemRole.getOwnerGroups());
-			anyChange = true;
-		}
-
-		if (systemRole.getDescription() != null &&
-				!systemRole.getDescription().trim().isEmpty() &&
-				!systemRole.getDescription().equals(soffidRole.getDescription()))
-		{
-			soffidRole.setDescription(systemRole.getDescription());
-			anyChange = true;
-			if (soffidRole.getDescription().length() > 150)
-				soffidRole.setDescription(soffidRole.getDescription().substring(0, 150));
-		}
-
-		if (systemRole.getAttributes() != null && 
-				!systemRole.getAttributes().equals(soffidRole.getAttributes()))
-		{
-			for (String att: systemRole.getAttributes().keySet())
+		try {
+			Role r = new Role(soffidRole);
+			boolean anyChange = false;
+			if (systemRole.getInformationSystemName() != null &&
+					!systemRole.getInformationSystemName().equals(soffidRole.getInformationSystemName()))
 			{
-				Object v = systemRole.getAttributes().get(att);
-				Object v2 = soffidRole.getAttributes().get(att);
-				if (v != null &&
-						!v.equals(v2))
+				soffidRole.setInformationSystemName(systemRole.getInformationSystemName());
+				anyChange = true;
+			}
+	
+			if (systemRole.getPassword() != null &&
+					! systemRole.getPassword().equals(soffidRole.getPassword()))
+			{
+				soffidRole.setPassword(systemRole.getPassword());
+				anyChange =true;
+			}
+			
+			if (systemRole.getEnableByDefault() != null && 
+					! systemRole.getEnableByDefault().equals(soffidRole.getEnableByDefault()))
+			{
+				anyChange = true;
+				soffidRole.setEnableByDefault(systemRole.getEnableByDefault());
+			}
+	
+			if (systemRole.getBpmEnforced() != null && 
+					! systemRole.getBpmEnforced().equals(soffidRole.getBpmEnforced()))
+			{
+				soffidRole.setBpmEnforced(systemRole.getBpmEnforced());
+				anyChange = true;
+			}
+	
+			if (systemRole.getCategory() != null && !
+					systemRole.getCategory().equals(soffidRole.getCategory()))
+			{
+				soffidRole.setCategory(systemRole.getCategory());
+				anyChange = true;
+			}
+	
+			if (systemRole.getDomain() != null &&
+					systemRole.getDomain() != null &&
+					!systemRole.getDomain().equals(soffidRole.getDomain()))
+			{
+				soffidRole.setDomain(systemRole.getDomain());
+				anyChange = true;
+			}
+	
+			if (systemRole.getOwnedRoles() != null && !
+					systemRole.getOwnedRoles().equals(soffidRole.getOwnedRoles()))
+			{
+				soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
+				anyChange = true;
+			}
+			
+			if (systemRole.getOwnerRoles() != null && !
+					systemRole.getOwnerRoles().equals(soffidRole.getOwnerRoles()))
+			{
+				soffidRole.setOwnerRoles(systemRole.getOwnerRoles());
+				anyChange = true;
+			}
+	
+			if (systemRole.getOwnerGroups() != null && !
+					systemRole.getOwnerGroups().equals(soffidRole.getOwnerGroups()))
+			{
+				soffidRole.setOwnerGroups(systemRole.getOwnerGroups());
+				anyChange = true;
+			}
+	
+			if (systemRole.getDescription() != null && 
+					!systemRole.getDescription().equals(soffidRole.getDescription()))
+			{
+				soffidRole.setDescription(systemRole.getDescription());
+				anyChange = true;
+				if (soffidRole.getDescription().length() > 150)
+					soffidRole.setDescription(soffidRole.getDescription().substring(0, 150));
+			}
+	
+			if (systemRole.getAttributes() != null && 
+					!systemRole.getAttributes().equals(soffidRole.getAttributes()))
+			{
+				for (String att: systemRole.getAttributes().keySet())
 				{
-					soffidRole.getAttributes().put(att, v);
-					anyChange = true;
+					Object v = systemRole.getAttributes().get(att);
+					Object v2 = soffidRole.getAttributes().get(att);
+					if (v != null &&
+							!v.equals(v2))
+					{
+						soffidRole.getAttributes().put(att, v);
+						anyChange = true;
+					}
 				}
 			}
-		}
-				
-		if (anyChange)
-		{
-			boolean ok = true;
-			if (!preUpdateRole.isEmpty())
+					
+			if (anyChange)
 			{
-				RoleExtensibleObject eo = new RoleExtensibleObject(soffidRole, serverService);
-				if (executeTriggers(preUpdateRole, new RoleExtensibleObject(r, serverService), eo))
-					soffidRole = vom.parseRole(eo);
-				else
+				boolean ok = true;
+				if (!preUpdateRole.isEmpty())
 				{
-					ok = false;
-					log.append ("Role "+r.getName()+" is not loaded due to pre-update trigger failure\n");
+					RoleExtensibleObject eo = new RoleExtensibleObject(soffidRole, serverService);
+					if (executeTriggers(preUpdateRole, new RoleExtensibleObject(r, serverService), eo))
+						soffidRole = vom.parseRole(eo);
+					else
+					{
+						ok = false;
+						log.append ("Role "+r.getName()+" is not loaded due to pre-update trigger failure\n");
+					}
+				}
+					
+				if (ok)
+				{
+					log.append ("Updating role "+soffidRole.getName()+"\n");
+					soffidRole = appService.update2(soffidRole);
+					executeTriggers(postUpdateRole, 
+							new RoleExtensibleObject(r, serverService),
+							new RoleExtensibleObject(soffidRole, serverService));
 				}
 			}
-				
-			if (ok)
-			{
-				log.append ("Updating role "+soffidRole.getName()+"\n");
-				soffidRole = appService.update2(soffidRole);
-				executeTriggers(postUpdateRole, 
-						new RoleExtensibleObject(r, serverService),
-						new RoleExtensibleObject(soffidRole, serverService));
-			}
+		} catch (Exception e) {
+			errors ++;
+			log.println("Error loading role "+systemRole.toString());
+			SoffidStackTrace.printStackTrace(e, log);
 		}
 		return soffidRole;
 	}

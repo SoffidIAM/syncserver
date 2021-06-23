@@ -28,53 +28,82 @@ public class HubServlet extends HttpServlet {
 	Log log = LogFactory.getLog(getClass());
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-		String user = req.getRemoteUser();
-		
-		if (user.contains("\\"))
-			user = user.substring(user.indexOf("\\")+1);
-		
-		user = new URLDecoder().decode(user, "UTF-8");
-		
-		Request r = HubQueue.instance().get(user);
-		if ( r == null)
-		{
-			resp.setStatus( HttpServletResponse.SC_NO_CONTENT);
-		}
-		else
-		{
-			ByteArrayOutputStream o = new ByteArrayOutputStream ();
-			new ObjectOutputStream(o).writeObject(r);
-			resp.setStatus(HttpServletResponse.SC_OK);
-			resp.setContentLength(o.size());
-			ServletOutputStream o2 = resp.getOutputStream();
-			o2.write(o.toByteArray());
-			o2.close();
+		String user = null;
+		try {
+			user = req.getRemoteUser();
+			
+			if (user.contains("\\"))
+				user = user.substring(user.indexOf("\\")+1);
+			
+			user = new URLDecoder().decode(user, "UTF-8");
+			
+			String active = req.getParameter("active");
+			if (active != null) {
+				HubQueue.instance().setActive (user, active);
+			}
+			Request r = HubQueue.instance().get(user);
+			if ( r == null)
+			{
+				resp.setStatus( HttpServletResponse.SC_NO_CONTENT);
+			}
+			else
+			{
+				ByteArrayOutputStream o = new ByteArrayOutputStream ();
+				new ObjectOutputStream(o).writeObject(r);
+				resp.setStatus(HttpServletResponse.SC_OK);
+				resp.setContentLength(o.size());
+				ServletOutputStream o2 = resp.getOutputStream();
+				o2.write(o.toByteArray());
+				o2.close();
+			}
+		} catch (Exception e) {
+			log.warn("Error providing request to "+user, e);
+			if (e instanceof IOException)
+				throw e;
+			else
+				throw new IOException(e);
 		}
 	}
 
 	@Override
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        ObjectInputStream oin = new ObjectInputStream(req.getInputStream());
-        
-        long requestId = oin.readLong();
-        boolean success = oin.readBoolean();
-        Object result;
+		String user = req.getRemoteUser();
+
 		try {
-			result = oin.readObject();
+			if (user.contains("\\"))
+				user = user.substring(user.indexOf("\\")+1);
+			
+			user = new URLDecoder().decode(user, "UTF-8");
+	
+			ObjectInputStream oin = new ObjectInputStream(req.getInputStream());
+	        
+	        long requestId = oin.readLong();
+	        boolean success = oin.readBoolean();
+	        Object result;
 			try {
-				HubQueue.instance().post(requestId, result, success);
-			} catch (InternalErrorException e) {
+				result = oin.readObject();
+				try {
+					HubQueue.instance().post(user, requestId, result, success);
+				} catch (InternalErrorException e) {
+					log.warn("Error registering response", e);
+					throw new IOException(e);
+				}
+			} catch (Exception e) {
+				try {
+					HubQueue.instance().post(user, requestId, e, false);
+				} catch (InternalErrorException e2) {
+					throw new IOException(e2);
+				}
+			}
+	        oin.close();
+			resp.setStatus(HttpServletResponse.SC_OK);
+		} catch (Exception e) {
+			log.warn("Error processing response from "+user, e);
+			if (e instanceof IOException)
+				throw e;
+			else
 				throw new IOException(e);
-			}
-		} catch (ClassNotFoundException e) {
-			try {
-				HubQueue.instance().post(requestId, e, false);
-			} catch (InternalErrorException e2) {
-				throw new IOException(e2);
-			}
 		}
-        oin.close();
-		resp.setStatus(HttpServletResponse.SC_OK);
 	}
 
 }

@@ -7,6 +7,7 @@ import java.util.Iterator;
 import java.util.Map;
 
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -25,6 +26,17 @@ public class DiagnosticServlet extends HttpServlet {
 
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
+    	String token = System.getenv("DIAG_TOKEN");
+    	if (token != null) {
+    		String auth = req.getHeader("Authorization");
+    		if (auth == null || !auth.equals("Bearer "+token))
+    		{
+    			resp.setStatus(HttpServletResponse.SC_OK);
+    			ServletOutputStream out = resp.getOutputStream();
+    			out.write("Not authorized".getBytes());
+    			return;
+    		}
+    	}
         resp.setContentType("text/plain; charset=UTF-8");
         BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
         // Dump server status
