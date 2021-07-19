@@ -341,6 +341,7 @@ public class ValueObjectMapper
 			account.setId(toLong (toSingleton(object.getAttribute("accountId"))));
 			account.setSystem(toString (toSingleton(object.getAttribute("system"))));
 			account.setName(toString (toSingleton(object.getAttribute("accountName"))));
+			account.setLoginName(toString (toSingleton(object.getAttribute("loginName"))));
 			if (object.getObjectType().equals(SoffidObjectType.OBJECT_USER.getValue()))
 				account.setType(AccountType.SHARED);
 			else
