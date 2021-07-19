@@ -62,6 +62,7 @@ import com.soffid.iam.sync.web.internal.InvokerServlet;
 import com.soffid.iam.sync.web.internal.PropagatePasswordServlet;
 import com.soffid.iam.sync.web.internal.PublicCertServlet;
 import com.soffid.iam.sync.web.internal.ServerInvokerServlet;
+import com.soffid.iam.sync.web.pam.PamSessionServlet;
 import com.soffid.iam.sync.web.wsso.WebSessionServlet;
 import com.soffid.iam.utils.ConfigurationCache;
 
@@ -489,6 +490,7 @@ public class JettyServer implements PublisherInterface
             bindAdministrationServlet("/auditPassword", null, AuditPasswordQueryServlet.class);
             bindAdministrationServlet("/sethostadmin", null, SetHostAdministrationServlet.class);
             bindAdministrationServlet("/websession", null, WebSessionServlet.class);
+            bindAdministrationServlet("/pam-notify", null, PamSessionServlet.class);
             bindAdministrationServlet("/cert", null, PublicCertServlet.class);
             try {
             	Class cl = Class.forName("com.soffid.iam.doc.servlet.NASServlet");
