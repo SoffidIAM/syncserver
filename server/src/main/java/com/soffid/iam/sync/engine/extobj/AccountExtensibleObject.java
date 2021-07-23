@@ -58,6 +58,8 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getId();
     		else if ("accountName".equals(attribute))
     			obj = account.getName();
+    		else if ("loginName".equals(attribute))
+    			obj = account.getLoginName();
     		else if ("oldAccountName".equals(attribute) )
     			obj = account.getOldName();
     		else if ("passwordPolicy".equals(attribute))
@@ -66,6 +68,8 @@ public class AccountExtensibleObject extends ExtensibleObject
     			obj = account.getSystem();
     		else if ("accountDescription".equals(attribute))
     			obj = account.getDescription();
+    		else if ("accountStatus".equals(attribute))
+    			obj = account.getStatus();
     		else if ("accountDisabled".equals(attribute))
     			obj = account.isDisabled();
     		else if ("type".equals(attribute))

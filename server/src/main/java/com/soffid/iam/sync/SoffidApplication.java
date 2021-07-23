@@ -13,8 +13,6 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.RemoteException;
-import java.security.Policy;
-import java.util.Properties;
 
 import javax.security.auth.login.Configuration;
 

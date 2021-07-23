@@ -7,6 +7,7 @@ import java.util.Collection;
 import java.util.Iterator;
 
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -34,6 +35,17 @@ public class StatusServlet extends HttpServlet {
     @SuppressWarnings("unchecked")
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
+    	String token = System.getenv("DIAG_TOKEN");
+    	if (token != null) {
+    		String auth = req.getHeader("Authorization");
+    		if (auth == null || !auth.equals("Bearer "+token))
+    		{
+    			resp.setStatus(HttpServletResponse.SC_OK);
+    			ServletOutputStream out = resp.getOutputStream();
+    			out.write("Not authorized".getBytes());
+    			return;
+    		}
+    	}
         String type = req.getParameter("type");
         if (type == null)
             type = "tasks";

@@ -409,6 +409,21 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Collection<RoleGrant> handleGetUserRoles(long userId,
 			String dispatcher) throws Exception {
+    	UserGrantsCache cache = UserGrantsCache.getGrantsCache();
+    	if (cache != null && cache.getUser() != null && cache.getUser().getId().longValue() == userId) {
+    		
+    		List<RoleGrant> rg = new LinkedList<RoleGrant>();
+    		for ( AccountEntity userAccount: getAccountEntityDao().findByUserAndSystem(cache.getUser().getUserName(), dispatcher)) {
+				for (RoleGrant grant: cache.getGrants()) {
+					if (grant.getSystem().equals(dispatcher) && 
+							(grant.getOwnerAccountName() == null || grant.getOwnerAccountName().equals(userAccount.getName()))) {
+        				rg.add(grant);
+					}
+				}
+    		}
+    		return rg;
+    	}
+
 		Collection<RoleGrant> rg = getApplicationService()
 				.findEffectiveRoleGrantByUser(userId);
 		if (dispatcher != null) {

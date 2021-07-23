@@ -9,6 +9,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.User;
@@ -128,6 +129,12 @@ public class ReconcileEngine1 extends ReconcileEngine
 					throw e;
 			}
 		}
+		return null;
+	}
+
+
+	@Override
+	public List<HostService> getServicesList() throws InternalErrorException {
 		return null;
 	}
 }

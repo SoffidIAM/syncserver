@@ -14,7 +14,7 @@
 	<properties>
 		<maven.compile.source>1.8</maven.compile.source>
 		<maven.compile.target>1.8</maven.compile.target>
-		<iam.version>3.0.5-1</iam.version>
+		<iam.version>3.1.0-beta-1</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -597,7 +597,7 @@
 		<dependency>
 			<groupId>com.oracle</groupId>
 			<artifactId>ojdbc7</artifactId>
-			<version>12.1.0.1.0</version>
+			<version>12.1.0.2.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>

@@ -198,14 +198,14 @@ public class AgentManagerImpl extends AgentManagerBase {
         String version;
         Class<?> agentClassObject;
         try {
-            agentClassObject = getClass().getClassLoader().loadClass(agentClass);
+            agentClassObject = findClass(agentClass, getClass().getClassLoader());
             version = Config.getConfig().getVersion();
         } 
         catch (ClassNotFoundException e)
         {
         	loadPlugin(agentClass);
         	PluginInfo pi = pluginsLoader.get(agentClass);
-            agentClassObject = pi.classLoader.loadClass(agentClass);
+            agentClassObject = findClass(agentClass, pi.classLoader);
             version = pi.version;
             // Obtiene el constructor
         }
@@ -279,7 +279,24 @@ public class AgentManagerImpl extends AgentManagerBase {
         return agent;
     }
 
-    private static void loadPlugin(String agentClass) throws IOException, InternalErrorException
+    private Class<?> findClass(String agentClass, ClassLoader classLoader) throws ClassNotFoundException {
+    	Class<?> current = null;
+    	int iteration = 1;
+    	while (true) {
+    		String className = iteration == 1? agentClass: agentClass+"_v"+iteration;
+    		try {
+				current = classLoader.loadClass(className);
+			} catch (ClassNotFoundException e) {
+				if (current == null)
+					throw e;
+				else
+					return current;
+			}
+    		iteration ++;
+    	}
+	}
+
+	private static void loadPlugin(String agentClass) throws IOException, InternalErrorException
     {
     	synchronized (pluginsLoader)
     	{

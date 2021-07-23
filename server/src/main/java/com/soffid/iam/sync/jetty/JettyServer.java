@@ -33,6 +33,7 @@ import com.soffid.iam.sync.hub.server.HubMonitorThread;
 import com.soffid.iam.sync.hub.server.HubServlet;
 import com.soffid.iam.sync.tools.FileVersionManager;
 import com.soffid.iam.sync.web.admin.DiagnosticServlet;
+import com.soffid.iam.sync.web.admin.GatewayDiagnosticServlet;
 import com.soffid.iam.sync.web.admin.PlainLogServlet;
 import com.soffid.iam.sync.web.admin.QueryServlet;
 import com.soffid.iam.sync.web.admin.ResetServlet;
@@ -61,6 +62,7 @@ import com.soffid.iam.sync.web.internal.InvokerServlet;
 import com.soffid.iam.sync.web.internal.PropagatePasswordServlet;
 import com.soffid.iam.sync.web.internal.PublicCertServlet;
 import com.soffid.iam.sync.web.internal.ServerInvokerServlet;
+import com.soffid.iam.sync.web.pam.PamSessionServlet;
 import com.soffid.iam.sync.web.wsso.WebSessionServlet;
 import com.soffid.iam.utils.ConfigurationCache;
 
@@ -237,6 +239,7 @@ public class JettyServer implements PublisherInterface
         administracioContext = new Context(server, "/");
         administracioContext.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
         administracioContext.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+        bindAdministrationServlet("/gw-diag", null, GatewayDiagnosticServlet.class);
 
         // certificate authentication
         ctx = new Context(server, "/seycon");
@@ -487,6 +490,7 @@ public class JettyServer implements PublisherInterface
             bindAdministrationServlet("/auditPassword", null, AuditPasswordQueryServlet.class);
             bindAdministrationServlet("/sethostadmin", null, SetHostAdministrationServlet.class);
             bindAdministrationServlet("/websession", null, WebSessionServlet.class);
+            bindAdministrationServlet("/pam-notify", null, PamSessionServlet.class);
             bindAdministrationServlet("/cert", null, PublicCertServlet.class);
             try {
             	Class cl = Class.forName("com.soffid.iam.doc.servlet.NASServlet");

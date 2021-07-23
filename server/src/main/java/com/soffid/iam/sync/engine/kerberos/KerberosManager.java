@@ -14,6 +14,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Random;
 
@@ -378,6 +379,28 @@ public class KerberosManager {
         properties.setProperty(domainName + ".password", password.toString());
         storeProperties();
 
+    }
+
+    public Map<String,String> getDomainsToSystemMap() throws InternalErrorException {
+    	Map<String,String> result = new HashMap<>();
+		String dn = ConfigurationCache.getProperty("soffid.kerberos.agent");
+        Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
+        for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
+            DispatcherHandler handler = it.next();
+            if (handler != null) {
+                KerberosAgent krb = handler.getKerberosAgent();
+                try {
+                	if (krb != null)
+                	{
+                		for (String domainName: krb.getDomainNames())
+                			result.put(domainName, handler.getSystem().getName());
+                	}
+                } catch (InternalErrorException e) {
+                    log.warn("Error getting kerberos name in "+handler.getSystem().getName(), e);
+                }
+            }
+        }
+		return result;
     }
 }
 

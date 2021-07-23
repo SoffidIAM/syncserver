@@ -5,13 +5,16 @@ package com.soffid.iam.sync.engine;
 
 import java.io.PrintWriter;
 import java.rmi.RemoteException;
+import java.util.LinkedList;
 import java.util.List;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
+import com.soffid.iam.sync.intf.ServiceMgr;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 
@@ -23,11 +26,14 @@ public class ReconcileEngine2 extends ReconcileEngine
 {
 	int timeout = 10000; 
 	private ReconcileMgr2 agent;
+	private ServiceMgr serviceMgr;
 
 	public ReconcileEngine2(com.soffid.iam.api.System dispatcher, ReconcileMgr2 agent,
+			ServiceMgr serviceMgr,
 			PrintWriter out) {
 		super (dispatcher, out);
 		this.agent = agent;
+		this.serviceMgr = serviceMgr;
 		if (!"local".equals( dispatcher.getUrl()))
 			timeout = 60000; // Remote servers require longer timeout
 	}
@@ -131,7 +137,12 @@ public class ReconcileEngine2 extends ReconcileEngine
 				reconnect();
 			}
 		}
-		return agent.getAccountGrants(acc.getName());
+		List<RoleGrant> grants = agent.getAccountGrants(acc.getName());
+		for (RoleGrant grant: grants)
+		{
+			grant.setSystem(dispatcher.getName());
+		}
+		return grants;
 	}
 
 
@@ -144,6 +155,26 @@ public class ReconcileEngine2 extends ReconcileEngine
 
 	public void setAgent(ReconcileMgr2 agent) {
 		this.agent = agent;
+	}
+
+
+
+	@Override
+	public List<HostService> getServicesList() throws InternalErrorException, RemoteException {
+		if (serviceMgr != null) {
+			for (int i = 0; i < 2; i++)
+			{
+				try {
+					return serviceMgr.getHostServices();
+				} catch (Throwable e) {
+					log.append("Error getting services list. Retrying\n");
+					reconnect();
+				}
+			}
+			return serviceMgr.getHostServices();
+		}
+		else
+			return new LinkedList<>();
 	}
 
 }
