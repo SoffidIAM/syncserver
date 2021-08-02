@@ -5,8 +5,10 @@ package es.caib.seycon.ng.sync.engine.extobj;
 
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import com.soffid.iam.api.System;
@@ -47,7 +49,15 @@ public class ObjectTranslator {
 	public ObjectTranslator (Dispatcher dispatcher) throws InternalErrorException
 	{
 		delegate = new com.soffid.iam.sync.engine.extobj.ObjectTranslator (System.toSystem(dispatcher));
-		this.objects = ExtensibleObjectMapping.toExtensibleObjectMappingList(delegate.getObjects());
+		List<ExtensibleObjectMapping> l = ExtensibleObjectMapping.toExtensibleObjectMappingList(delegate.getObjects());
+		Collections.sort(l, new Comparator<ExtensibleObjectMapping>() {
+			@Override
+			public int compare(ExtensibleObjectMapping o1, ExtensibleObjectMapping o2) {
+				return o1.getSystemObject().compareTo(o2.getSystemObject());
+			}
+			
+		});
+		this.objects = l;
 	}
 
 	public ObjectTranslator (Dispatcher dispatcher, ServerService serverService, Collection<ExtensibleObjectMapping> objects) throws InternalErrorException
