@@ -358,7 +358,10 @@ public class ValueObjectMapper
 			account.setLastLogin(toCalendar (object.getAttribute("lastLogin")));
 			account.setLastPasswordSet(toCalendar (object.getAttribute("lastPasswordUpdate")));
 			account.setPasswordExpiration(toCalendar (object.getAttribute("passwordExpiration")));
-			if (object.getAttribute("accountDisabled") != null &&
+			if (object.getAttribute("status") != null) {
+				account.setStatus(AccountStatus.fromString(object.getAttribute("status").toString()));
+			}
+			else if (object.getAttribute("accountDisabled") != null &&
 					object.getAttribute("accountDisabled").toString().equals("true"))
 			{
 				account.setDisabled(true);
