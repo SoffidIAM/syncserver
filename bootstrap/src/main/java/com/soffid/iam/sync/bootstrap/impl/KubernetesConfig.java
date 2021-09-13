@@ -157,7 +157,6 @@ public class KubernetesConfig {
 			JSONObject data = new JSONObject();
 			File dir = new File (config.getHomeDir(), "conf");
 			for (File f: dir.listFiles()) {
-				System.out.println(".. "+f.getPath());
 				byte[] d = readBinaryFile(f.getPath());
 				data.put(f.getName(), Base64.getEncoder().encodeToString(d));
 			}
@@ -166,10 +165,8 @@ public class KubernetesConfig {
 			URL url = new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 			try {
 				String s = readURL(url);
-				System.out.println("Current secret: "+s);
 				secret = new JSONObject(s);
 				secret.put("data", data);
-				System.out.println("Putting: "+secret.toString());
 				send("PUT", new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets/"+System.getenv("KUBERNETES_CONFIGURATION_SECRET")), secret.toString());
 			} catch (FileNotFoundException e) {
 				secret.put("apiVersion", "v1");
@@ -182,7 +179,6 @@ public class KubernetesConfig {
 				send("POST", new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets"), secret.toString());
 			}
 		} else {
-			System.out.println("Not a kubernetes environment. Storing in local files");
 		}
 	}
 }

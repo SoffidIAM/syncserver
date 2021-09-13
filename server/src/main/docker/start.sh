@@ -167,14 +167,18 @@ then
    configure || exit 1
 fi
 
-for trustedcert in /opt/soffid/iam-sync/trustedcerts/*
-do   
-   if [[ -r "$trustedcert" ]]
-   then
-     echo "Loading $trustedcert"   
-     keytool -import -keystore /opt/soffid/iam-sync/conf/cacerts -storepass changeit -noprompt -alias $(basename $trustedcert) -file "$trustedcert" -trustcacerts
-   fi
+if [[ -d /opt/soffid/iam-sync/trustedcerts ]]
+then
+    dir=$(dirname $(readlink -f /usr/bin/java))/..
+    cp $dir/lib/security/cacerts /opt/soffid/iam-sync/conf/cacerts
+	for trustedcert in /opt/soffid/iam-sync/trustedcerts/*
+	do   
+	   if [[ -r "$trustedcert" ]]
+	   then
+	     echo "Loading $trustedcert"   
+	     keytool -import -keystore /opt/soffid/iam-sync/conf/cacerts -storepass changeit -noprompt -alias $(basename $trustedcert) -file "$trustedcert" -trustcacerts
+	   fi
+	done
 	$java -cp "/opt/soffid/iam-sync/bin/bootstrap.jar" com.soffid.iam.sync.bootstrap.KubernetesSaver
-done
-
+fi
 exec /opt/soffid/iam-sync/bin/soffid-sync
