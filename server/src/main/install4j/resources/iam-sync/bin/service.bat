@@ -194,7 +194,7 @@ rem Each command line option is prefixed with PR_
 set "PR_DESCRIPTION=Soffid 3 IAM Sync (https://www.soffid.com)"
 set "PR_INSTALL=%EXECUTABLE%"
 set "PR_LOGPATH=%CATALINA_BASE%\logs"
-set "PR_CLASSPATH=%CATALINA_HOME%\bin\bootstrap.jar;%CATALINA_BASE%\lib\mariadb-java-client-1.8.0.jar;%CATALINA_BASE%\lib\ojdbc7-12.1.0.1.0.jar;%CATALINA_BASE%\lib\postgresql-42.2.5.jre7.jar;%CATALINA_BASE%\lib\sqljdbc4-3.0.jar"
+set "PR_CLASSPATH=%CATALINA_HOME%\bin\bootstrap.jar;%CATALINA_BASE%\lib\mariadb-java-client-1.8.0.jar;%CATALINA_BASE%\lib\ojdbc7-12.1.0.2.0.jar;%CATALINA_BASE%\lib\postgresql-42.2.5.jre7.jar;%CATALINA_BASE%\lib\sqljdbc4-3.0.jar"
 
 rem Set the server jvm from JAVA_HOME
 set "PR_JVM=%JRE_HOME%\bin\server\jvm.dll"
