@@ -350,7 +350,7 @@ public class SyncLoader extends Object {
             boolean replacing = f.exists();
             
             out = new FileOutputStream(replacing? fileName+".new.jar": fileName);
-            byte buffer[] = new byte[1024];
+            byte buffer[] = new byte[10240];
             int size = in.read(buffer);
             while (size >= 0) {
                 out.write(buffer, 0, size);
@@ -365,8 +365,8 @@ public class SyncLoader extends Object {
             	FileInputStream in2 = new FileInputStream(fileName+".new.jar");
             	FileOutputStream out2 = new FileOutputStream(fileName);
             	int read;
-            	while ( (read = in2.read()) >= 0)
-            		out2.write(read);
+            	while ( (read = in2.read(buffer)) > 0)
+            		out2.write(buffer, 0, read);
             	in2.close();
             	out2.close();
             	f.delete();
@@ -466,7 +466,10 @@ public class SyncLoader extends Object {
 
             String jreExec = System.getProperty("java.home") + FILE_SEPARATOR
                     + "bin" + FILE_SEPARATOR + "java";
-            String mainClass = "com.soffid.iam.sync.SoffidApplication";
+            String mainClass = Config.getConfig().getCustomProperty("startupClass");
+            if (mainClass == null)
+            	mainClass = "com.soffid.iam.sync.SoffidApplication";
+            
             String javaopts = Config.getConfig().getJVMOptions();
 
             javaopts = javaopts.replaceAll("%d",

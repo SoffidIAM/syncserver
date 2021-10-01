@@ -65,12 +65,8 @@ echo Using CLASSPATH:       "%CLASSPATH%"
 
 set MAINCLASS=com.soffid.iam.sync.tools.Configure
 
-echo a
-
 if NOT DEFINED JAVA_HOME goto noJavaHome
-echo b
-if not exist %JAVA_HOME%\bin\java.exe goto noJavaHome
-echo c
+if not exist "%JAVA_HOME%\bin\java.exe" goto noJavaHome
 goto okJava
 
 :noJavaHome
@@ -78,7 +74,6 @@ java.exe %JAVA_OPTIONS% -classpath "%CLASSPATH%" %MAINCLASS% %*
 goto exit
 
 :okJava
-echo d
 rem Execute Java with the applicable properties
-%JAVA_HOME%\bin\java.exe %JAVA_OPTIONS% -classpath "%CLASSPATH%" %MAINCLASS% %*
+"%JAVA_HOME%\bin\java.exe" %JAVA_OPTIONS% -classpath "%CLASSPATH%" %MAINCLASS% %*
 :exit
