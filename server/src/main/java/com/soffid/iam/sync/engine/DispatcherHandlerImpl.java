@@ -2949,10 +2949,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		if ( ! isConnected() )
 			return null;
 		
-		ExtensibleObjectMgr objmgr = InterfaceWrapper.getExtensibleObjectMgr(getCurrentAgent());
+		Object agent;
+		try
+		{
+			agent = connect(false, false);
+		}
+		catch (Exception e)
+		{
+			throw new InternalErrorException ("Unable to connect to "+getName(), e);
+		}
+
+		ExtensibleObjectMgr objmgr = InterfaceWrapper.getExtensibleObjectMgr(agent);
 				
 		if (objmgr != null) {
-			Collection<Map<String, Object>> s = invoke("checkPassword", accountName, new HashMap<String, Object>());
+			Collection<Map<String, Object>> s = objmgr.invoke("checkPassword", accountName, new HashMap<String, Object>());
 			for (Map<String, Object> ss: s) {
 				PasswordValidation status = (PasswordValidation) ss.get("passwordStatus");
 				if (status != null) {
@@ -2970,32 +2980,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				}
 			}
 		}
-		else 
-		{
-			Object agent;
-			try
-			{
-				agent = connect(false, false);
-			}
-			catch (Exception e)
-			{
-				throw new InternalErrorException ("Unable to connect to "+getName(), e);
-			}
 
-			try {
-				UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
-		        if (userMgr == null)
-		        	return null;
-		        
-				Password password = server.getAccountPassword(accountName, getSystem().getName());
-				if (password == null)
-					return null;
-				return userMgr.validateUserPassword(accountName, password) ? PasswordValidation.PASSWORD_GOOD: PasswordValidation.PASSWORD_WRONG;
-			} finally {
-				closeAgent(agent);
-			}
+
+		try {
+			UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
+	        if (userMgr == null)
+	        	return null;
+	        
+			Password password = server.getAccountPassword(accountName, getSystem().getName());
+			if (password == null)
+				return null;
+			return userMgr.validateUserPassword(accountName, password) ? PasswordValidation.PASSWORD_GOOD: PasswordValidation.PASSWORD_WRONG;
+		} finally {
+			closeAgent(agent);
 		}
-		return null;
 	}
 
 }
