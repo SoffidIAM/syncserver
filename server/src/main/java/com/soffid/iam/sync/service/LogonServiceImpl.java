@@ -528,7 +528,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 			
 			accountEntity = getAccountEntityDao().findByNameAndSystem(user, domain);
 			
-			if (accountEntity == null)
+			if (accountEntity == null || accountEntity.isDisabled())
 			{
 				throw new UnknownUserException(String.format(
 						Messages.getString("LogonServiceImpl.UnknownUserOnDomainMsg"), user, domain)); //$NON-NLS-1$

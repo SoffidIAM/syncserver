@@ -248,10 +248,10 @@ public class PasswordLoginServlet extends HttpServlet {
                 return "ERROR";
             }
         } else if (result == PasswordValidation.PASSWORD_GOOD_EXPIRED) {
-            log.debug("login {}: password expired", user, null);
+            log.info("login {}: password expired", user, null);
             return "EXPIRED";
         } else {
-            log.debug("login {}: not valid", user, null);
+            log.info("login {}: not valid", user, null);
             return "ERROR";
         }
 

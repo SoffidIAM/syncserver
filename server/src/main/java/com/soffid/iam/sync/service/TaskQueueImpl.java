@@ -30,6 +30,8 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Password;
@@ -625,6 +627,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	@Override
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
     protected TaskHandler handleAddTask(TaskEntity newTask) throws Exception {
 		
 		if (newTask.getId() == null)
@@ -1222,6 +1225,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				AccountEntity account = accDao.findByNameAndSystem(task.getTask().getUser(), task.getTask().getSystemName());
 				if (account == null)
 				{
+					log.info("Cannot find account {} {}", task.getTask().getUser(), task.getTask().getSystemName());
 					return m;
 				}
 
@@ -1229,6 +1233,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				DispatcherHandler dispatcher = getTaskGenerator().getDispatcher(task.getTask().getSystemName());
 				if (dispatcher == null || ! dispatcher.isActive()) 
 				{
+					log.info("Cannot find dispatcher for {} {}", task.getTask().getUser(), task.getTask().getSystemName());
 					storeAccountPassword(task, account);
 					notifySSOUsers(account);
    		            return m;
@@ -1423,12 +1428,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		entity.setCompleted(thl.isComplete() ? "S" : "N");
 		entity.setLastExecution(thl.getLast());
 		entity.setMessage(thl.getReason());
-		String stackTrace = thl.getStackTrace();
-		if (stackTrace != null && stackTrace.length() > 1024) {
-			log.warn("Truncating exception log for task "+newTask.toString()+" at "+thl.getDispatcher().getSystem()+": {}\n{}", thl.getReason(), stackTrace);
-			stackTrace = stackTrace.substring(0, 1000);
-		}
-		entity.setStackTrace(stackTrace);
+		if (entity.getMessage() != null && entity.getMessage().length() > 1000)
+			entity.setMessage(entity.getMessage().substring(0, 1000));
+		entity.setStackTrace(thl.getStackTrace());
+		if (entity.getStackTrace() != null && entity.getStackTrace().length() > 1000)
+			entity.setStackTrace(entity.getStackTrace().substring(0, 1000));
 		if (thl.getId() == null)
 		{
 			getTaskLogEntityDao().create(entity);

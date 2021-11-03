@@ -1,6 +1,6 @@
-FROM ubuntu:16.04
+FROM ubuntu:20.04
 
-RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y openjdk-8-jre-headless
+RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y openjdk-8-jre-headless openjdk-8-jdk-headless
 
 # RUN apt-get  install -y mysql-client
 
