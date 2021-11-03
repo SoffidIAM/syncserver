@@ -879,7 +879,7 @@ public class AuthoritativeLoaderEngine {
 			}
 			eo.setAttribute("secondaryGroups", l);
 		} else {
-			eo.setAttribute("secondaryGroups", NULL_LIST);			
+			eo.setAttribute("secondaryGroups", nullList);			
 		}
 		eo.setAttribute("secondaryGroups", l);
 		l = nullList;
@@ -892,7 +892,7 @@ public class AuthoritativeLoaderEngine {
 			}
 			eo.setAttribute("secondaryGroups2", l);
 		} else {
-			eo.setAttribute("secondaryGroups2", NULL_LIST);
+			eo.setAttribute("secondaryGroups2", nullList);
 		}
 		return eo;
 	}
