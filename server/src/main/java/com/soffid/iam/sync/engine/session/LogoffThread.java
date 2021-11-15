@@ -102,7 +102,9 @@ public class LogoffThread extends Object implements Runnable {
                 	Long lastPing = s.getKeepAliveDate() == null ? 
                 						s.getStartDate().getTimeInMillis():
                 						s.getKeepAliveDate().getTimeInMillis();
-                	long t = s.getType() == TipusSessio.PAM ? pamSessionTimeout: sessionTimeout;
+                	long t = s.getType() == TipusSessio.PAM ||  s.getType() == TipusSessio.PAM.PAMRDP ||  s.getType() == TipusSessio.PAMSSH  
+                			? pamSessionTimeout
+                			: sessionTimeout;
                 	if ( System.currentTimeMillis() - lastPing > t)
                 	{
                 		Security.nestedLogin(s.getTenantName(), Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
