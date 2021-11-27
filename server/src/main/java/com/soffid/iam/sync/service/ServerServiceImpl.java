@@ -42,6 +42,7 @@ import com.soffid.iam.api.PolicyCheckResult;
 import com.soffid.iam.api.PrinterUser;
 import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.Role;
+import com.soffid.iam.api.RoleAccount;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.Server;
 import com.soffid.iam.api.SoffidObjectType;
@@ -83,6 +84,7 @@ import com.soffid.iam.model.RoleGroupEntityDao;
 import com.soffid.iam.model.ServerEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.SystemEntityDao;
+import com.soffid.iam.model.TaskEntityDao;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserDataEntity;
 import com.soffid.iam.model.UserDataEntityDao;
@@ -119,6 +121,7 @@ import com.soffid.iam.sync.service.server.Compile4;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
+import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.ServerType;
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
@@ -2248,6 +2251,44 @@ public class ServerServiceImpl extends ServerServiceBase {
 			}
 		}
 		return r;
+	}
+
+	@Override
+	protected void handleReconcileAccount(Account account, List<RoleAccount> grants) throws Exception {
+		TaskEntityDao tae = (TaskEntityDao) ServiceLocator.instance().getService("taskEntityDao");
+		String t = tae.startVirtualSourceTransaction(true);
+		try {
+			getAccountService().updateAccount2(account);
+			List<RoleAccount> l = new LinkedList<RoleAccount>( grants );
+			List<RoleAccount> current = new LinkedList<RoleAccount>( getApplicationService().findRoleAccountByAccount(account.getId()) );
+			for (Iterator<RoleAccount> iterator = l.iterator(); iterator.hasNext();) {
+				RoleAccount ra = iterator.next();
+				boolean found = false;
+				for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
+					RoleAccount ra2 = iterator2.next();
+					if (ra2.getRoleName().equals(ra.getRoleName())) {
+						if (ra2.getDomainValue() == null ||
+								ra2.getDomainValue().getValue() == null ||
+								ra.getDomainValue() != null && ra2.getDomainValue().getValue().equals(ra.getDomainValue().getValue())) {
+							found = true;
+							iterator2.remove();
+							iterator.remove();
+							break;
+						}
+					}
+				}
+				if (!found) {
+					getApplicationService().create(ra);
+				}
+			}
+			
+			for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
+				RoleAccount ra2 = iterator2.next();
+				getApplicationService().delete(ra2);
+			}
+		} finally {
+			tae.finishVirtualSourceTransaction(t);
+		}
 	}
 }
 
