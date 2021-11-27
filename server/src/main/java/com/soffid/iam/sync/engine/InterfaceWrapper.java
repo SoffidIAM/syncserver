@@ -25,6 +25,7 @@ import com.soffid.iam.api.PasswordPolicy;
 import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.PrinterUser;
 import com.soffid.iam.api.Role;
+import com.soffid.iam.api.RoleAccount;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.Server;
 import com.soffid.iam.api.SoffidObjectType;
@@ -64,6 +65,7 @@ import es.caib.seycon.ng.comu.LlistaCorreu;
 import es.caib.seycon.ng.comu.Maquina;
 import es.caib.seycon.ng.comu.Password;
 import es.caib.seycon.ng.comu.Rol;
+import es.caib.seycon.ng.comu.RolAccount;
 import es.caib.seycon.ng.comu.Tasca;
 import es.caib.seycon.ng.comu.Usuari;
 import es.caib.seycon.ng.exception.BadPasswordException;
@@ -928,6 +930,10 @@ public class InterfaceWrapper {
 						throws InternalErrorException, InternalErrorException, InternalErrorException,
 						UnknownUserException {
 					return GroupUser.toGroupUserList( agent.getUserMemberships(accountName, dispatcherId));
+				}
+				@Override
+				public void reconcileAccount(Account account, List<RoleAccount> grants) throws InternalErrorException {
+					agent.reconcileAccount(es.caib.seycon.ng.comu.Account.toAccount(account), RolAccount.toRolAccountList(grants));
 				}
 			};
 	}
