@@ -165,7 +165,9 @@ public class SessionManager extends Thread {
      * @throws InternalErrorException 
      */
     public boolean check(Session sessio) throws InternalErrorException {
-    	if (sessio.getType() == TipusSessio.PAM)
+    	if (sessio.getType() == TipusSessio.PAM ||
+    			sessio.getType() == TipusSessio.PAMRDP ||
+    			sessio.getType() == TipusSessio.PAMSSH)
     		return checkPamSession(sessio);
     	else if (sessio.getUrl() != null)
     		return checkUrlSession(sessio);

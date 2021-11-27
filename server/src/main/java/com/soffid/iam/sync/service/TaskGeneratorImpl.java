@@ -73,7 +73,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         logCollectorEnabled = false;
         logCollectorLock = new Object();
         logCollector = null;
-        memoryLimit = Runtime.getRuntime().maxMemory() * 97 / 100;
+        memoryLimit = Runtime.getRuntime().maxMemory() * 90 / 100;
     }
 
     @Override
@@ -85,9 +85,9 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     protected void handleLoadTasks() throws Exception {
         Collection<TaskEntity> tasks;
         Runtime runtime = Runtime.getRuntime();
-        if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
+        if (runtime.maxMemory() - runtime.freeMemory() > memoryLimit)
         	runtime.gc();
-        if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
+        if (runtime.maxMemory() - runtime.freeMemory() > memoryLimit)
         {
         	log.warn("Free Memory too low. New tasks are not being scheduled");
         	return;
@@ -143,7 +143,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             {
 	            taskQueue.addTask(tasca);
 	            flushAndClearSession();
-	            if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
+	            if (runtime.maxMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
 	                runtime.gc();
 	                return;
 	            }
