@@ -15,7 +15,6 @@ import java.util.regex.Pattern;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.ibm.icu.util.BytesTrie.Iterator;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.HostPort;
 import com.soffid.iam.api.Network;

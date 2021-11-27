@@ -10,8 +10,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 
-import com.ibm.icu.impl.ValidIdentifiers.Datatype;
-import com.ibm.icu.text.SimpleDateFormat;
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AccountStatus;
