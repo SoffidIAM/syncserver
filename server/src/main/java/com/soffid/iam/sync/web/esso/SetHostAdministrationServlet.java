@@ -23,6 +23,7 @@ import com.soffid.iam.service.NetworkService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 
@@ -81,14 +82,15 @@ public class SetHostAdministrationServlet extends HttpServlet {
     public void setHostAdministration(String serial, String hostname, String hostIP,
             String adminUser, String adminPass) throws InternalErrorException, SQLException {
         Host maq = xarxaService.findHostBySerialNumber(serial);
+        boolean trackIp = "true".equals( ConfigurationCache.getProperty("SSOTrackHostAddress"));
         if (maq != null) {
-            if (!hostIP.equals(maq.getIp())) {
+            if (trackIp && !hostIP.equals(maq.getIp())) {
                 InternalErrorException ex = new InternalErrorException("IncorrectHostException");
                 log.warn("Intent d'establir usuari-contrasenya d'administrador al host " + hostname
                         + " amb una ip que no correspon al host " + hostIP, ex);
                 throw ex;
             }
-            if (!hostname.equals(maq.getName())) {
+            if (trackIp && !hostname.equals(maq.getName())) {
                 InternalErrorException ex = new InternalErrorException("IncorrectHostException");
                 log.warn(
                         "Intent d'establir usuari-contrasenya d'administrador al host "

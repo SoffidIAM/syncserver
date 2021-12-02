@@ -24,6 +24,7 @@ import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.engine.session.SessionManager;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -64,8 +65,9 @@ public class MazingerMenuServlet extends HttpServlet {
             Security.nestedLogin(user, auths);
 
             try {
+                boolean trackIp = "true".equals( ConfigurationCache.getProperty("SSOTrackHostAddress"));
                 Host maq = xarxaService.findHostByIp(com.soffid.iam.utils.Security.getClientIp());
-                if (maq == null) {
+                if (maq == null && trackIp) {
                     throw new UnknownHostException(com.soffid.iam.utils.Security.getClientIp());
                 }
                 User usuari = usuariService.findUserByUserName(user);

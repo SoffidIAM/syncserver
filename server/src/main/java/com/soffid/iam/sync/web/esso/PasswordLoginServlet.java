@@ -32,6 +32,7 @@ import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.service.LogonService;
 import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.exception.BadPasswordException;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -264,7 +265,8 @@ public class PasswordLoginServlet extends HttpServlet {
 
         if (challenge == null)
             throw new InternalErrorException("Invalid token " + challengeId);
-        if (!challenge.getHost().getIp().equals(com.soffid.iam.utils.Security.getClientIp())) {
+        boolean trackIp = "true".equals( ConfigurationCache.getProperty("SSOTrackHostAddress"));
+        if (trackIp && !challenge.getHost().getIp().equals(com.soffid.iam.utils.Security.getClientIp())) {
             log.warn("Ticket spoofing detected from {}. Expected {}", com.soffid.iam.utils.Security.getClientIp(), challenge.getHost().getIp());
             throw new InternalErrorException("Invalid token " + challengeId);
         }
