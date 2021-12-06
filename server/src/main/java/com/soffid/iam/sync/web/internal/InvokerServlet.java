@@ -7,16 +7,15 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.Collection;
 import java.util.Locale;
 import java.util.Vector;
 
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import org.mortbay.jetty.Request;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
@@ -107,7 +106,7 @@ public class InvokerServlet extends HttpServlet {
                     result = method.invoke(target, data);
                     response.setStatus(HttpServletResponse.SC_OK);
                     response.setHeader("Success", "true");
-                    ((Request) request).setHandled(true);
+//                    ((Request) request).setHandled(true);
                 } catch (InvocationTargetException e) {
                     response.setStatus(HttpServletResponse.SC_OK);
                     response.setHeader("Success", "false");
@@ -140,7 +139,7 @@ public class InvokerServlet extends HttpServlet {
                 OutputStream out = response.getOutputStream();
                 out.write(baout.toByteArray());
                 out.close();
-                ((Request) request).setHandled(true);
+//                ((Request) request).setHandled(true);
             } catch (Exception e) {
                 log.warn("Error invoking " + request.getRequestURI(), e);
             } finally {
@@ -163,8 +162,6 @@ public class InvokerServlet extends HttpServlet {
             throws ServletException, IOException {
         Object obj = getTarget();
         Vector v = new Vector(3);
-
-        
         
         try
 		{
@@ -185,6 +182,9 @@ public class InvokerServlet extends HttpServlet {
 			}
 			response.setHeader("Classes", s.toString());
 			response.setStatus(HttpServletResponse.SC_OK);
+			ServletOutputStream out = response.getOutputStream();
+			out.println("OK");
+			out.close();
 		}
 		catch (IllegalArgumentException e)
 		{

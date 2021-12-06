@@ -2,26 +2,40 @@ package com.soffid.iam.sync.jetty;
 
 import java.io.File;
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.cert.CertificateException;
+import java.util.EnumSet;
+import java.util.Enumeration;
 import java.util.Hashtable;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
-import org.mortbay.jetty.Handler;
-import org.mortbay.jetty.Server;
-import org.mortbay.jetty.bio.SocketConnector;
-import org.mortbay.jetty.handler.DefaultHandler;
-import org.mortbay.jetty.handler.HandlerCollection;
-import org.mortbay.jetty.security.BasicAuthenticator;
-import org.mortbay.jetty.security.ClientCertAuthenticator;
-import org.mortbay.jetty.security.Constraint;
-import org.mortbay.jetty.security.ConstraintMapping;
-import org.mortbay.jetty.security.SecurityHandler;
-import org.mortbay.jetty.servlet.Context;
-import org.mortbay.jetty.servlet.ServletHolder;
-import org.mortbay.jetty.webapp.WebAppContext;
+import javax.servlet.DispatcherType;
+
+import org.eclipse.jetty.security.ConstraintMapping;
+import org.eclipse.jetty.security.ConstraintSecurityHandler;
+import org.eclipse.jetty.security.authentication.BasicAuthenticator;
+import org.eclipse.jetty.security.authentication.SslClientCertAuthenticator;
+import org.eclipse.jetty.server.Handler;
+import org.eclipse.jetty.server.HttpConfiguration;
+import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.Server;
+import org.eclipse.jetty.server.ServerConnector;
+import org.eclipse.jetty.server.SslConnectionFactory;
+import org.eclipse.jetty.server.handler.ContextHandlerCollection;
+import org.eclipse.jetty.servlet.ServletContextHandler;
+import org.eclipse.jetty.servlet.ServletHolder;
+import org.eclipse.jetty.util.security.Constraint;
+import org.eclipse.jetty.util.ssl.SslContextFactory;
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
@@ -80,15 +94,15 @@ public class JettyServer implements PublisherInterface
     }
 
     Logger log = Log.getLogger("JettyServer");
-    private Context ctx;
-    private SecurityHandler sh;
+    private ServletContextHandler ctx;
+    private ConstraintSecurityHandler sh;
 
-    private Context administracioContext;
-    private SecurityHandler basicSecurityHandler;
-    private Context downloadContext;
-    private WebAppContext wsContext;
+    private ServletContextHandler administracioContext;
+    private ConstraintSecurityHandler basicSecurityHandler;
+    private ServletContextHandler downloadContext;
+    private ServletContextHandler wsContext;
 	private Map<String,Object> remoteServices = new Hashtable<String, Object>();
-	private Context kubernetesContext;
+	private ServletContextHandler kubernetesContext;
 	private Server kubernetesServer;
 
     public JettyServer(String host, int port) {
@@ -117,10 +131,10 @@ public class JettyServer implements PublisherInterface
                 threadNumber = Integer.decode(threads).intValue();
         } else
             threadNumber = 30;
-        MyQueuedThreadPool pool = new MyQueuedThreadPool();
-        pool.setLowThreads(2);
+        QueuedThreadPool pool = new QueuedThreadPool();
+        pool.setLowThreadsThreshold(2);
         pool.setMaxThreads(threadNumber);
-        server.setThreadPool(pool);
+        server = new Server(pool);
 
         if (host == null)
         	addConnector(null);
@@ -137,55 +151,30 @@ public class JettyServer implements PublisherInterface
 	        	}
         	}
         }
-        // Afegir el bind alternativo
-        if (config.isServer()) {
-            String altPort = config.getServerService().getConfig("seycon.https.alternate.port");
-            if (altPort != null)
-            {
-                log.info("Listening on additional port {}", altPort, null);
-                MySslSocketConnector connector2 = new MySslSocketConnector();
-                connector2.setEnableProxyProtocol(enableProxyProtocol());
-                connector2.setPort(Integer.decode(altPort));
-                if (host != null)
-                	connector2.setHost(host);
-                connector2.setKeystore(SeyconKeyStore.getKeyStoreFile()
-                        .getAbsolutePath());
-                connector2.setPassword(SeyconKeyStore.getKeyStorePassword()
-                         .getPassword());
-                connector2.setKeyPassword(SeyconKeyStore.getKeyStorePassword()
-                        .getPassword());
-                connector2.setKeystoreType(SeyconKeyStore.getKeyStoreType());
-                connector2.setWantClientAuth(false);
-                connector2.setAcceptors(2);
-                connector2.setAcceptQueueSize(10);
-                connector2.setMaxIdleTime(5000);
-                server.addConnector(connector2);
-            }
-        }
         
 
         
+        ContextHandlerCollection contexts = new ContextHandlerCollection();
+        server.setHandler(contexts);
+
         // basic authentication
-    	log.info("Starting admin listener", null, null);
-        administracioContext = new Context(server, "/");
-
-        administracioContext.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
-        administracioContext.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+        administracioContext = new ServletContextHandler(contexts, "/");
+        administracioContext.addFilter(DiagFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
+        administracioContext.addFilter(InvokerFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
 
         if (config.isServer())
         {
-            basicSecurityHandler = new SecurityHandler();
-            basicSecurityHandler.setUserRealm(new SeyconBasicRealm());
+            basicSecurityHandler = new ConstraintSecurityHandler();
+            basicSecurityHandler.setLoginService(new SeyconBasicRealm());
+            basicSecurityHandler.setRealmName("Soffid user");
             basicSecurityHandler.setAuthenticator(new BasicAuthenticator());
-    
             basicSecurityHandler.setAuthMethod("BASIC");
-    
             administracioContext.setSecurityHandler(basicSecurityHandler);
             if (k8s && config.isServer()) {
             	log.info("Starting kubernetes internal listener", null, null);
             	kubernetesContext = createKubernetesServer();
-            	kubernetesContext.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
-            	kubernetesContext.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+            	kubernetesContext.addFilter(DiagFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
+            	kubernetesContext.addFilter(InvokerFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
             	
             	kubernetesContext.setSecurityHandler(basicSecurityHandler);
             	kubernetesServer.start();
@@ -193,41 +182,27 @@ public class JettyServer implements PublisherInterface
         }
 
         // certificate authentication
-        ctx = new Context(server, "/seycon");
-        ctx.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
-        ctx.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+        ctx = new ServletContextHandler(contexts, "/seycon");
+        ctx.addFilter(DiagFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
+        ctx.addFilter(InvokerFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
 
-        sh = new SecurityHandler();
-        sh.setUserRealm(new SeyconUserRealm());
+        sh = new ConstraintSecurityHandler();
+        sh.setLoginService(new SeyconUserRealm());
         sh.setAuthMethod("CLIENT-CERT");
-        sh.setAuthenticator(new ClientCertAuthenticator());
+        SoffidSslContextFactory sslContextFactory = new SoffidSslContextFactory();
+        sslContextFactory.setTrustStore(loadKeyStore());
+		sslContextFactory.setKeyStore(loadKeyStore());
+        sslContextFactory.setKeyStorePassword(SeyconKeyStore.getKeyStorePassword().getPassword());
+        sslContextFactory.setKeyManagerPassword(SeyconKeyStore.getKeyStorePassword().getPassword());
+        sh.setAuthenticator(new SslClientCertAuthenticator(sslContextFactory));
 
         ctx.setSecurityHandler(sh);
 
-        // certificate authentication para download
-        downloadContext = new Context(server, "/downloadLibrary");
-        downloadContext.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
-        downloadContext.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
-
-        HandlerCollection handlers = new HandlerCollection();
-
-        File ws = new FileVersionManager().getInstalledFile("seycon-webservice");
-        if (ws != null) {
-            wsContext = new WebAppContext(ws.toURI().toURL().toExternalForm(), "/ws");
-            handlers.setHandlers(new Handler[] { ctx, downloadContext, wsContext, 
-                    administracioContext,
-                    new DefaultHandler() });
-        } else {
-            handlers.setHandlers(new Handler[] { ctx, downloadContext, 
-                    administracioContext,
-                    new DefaultHandler() });
-        }
-            
-
+        // Public download site
+        downloadContext = new ServletContextHandler(contexts, "/downloadLibrary");
+        downloadContext.addFilter(DiagFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
+        downloadContext.addFilter(InvokerFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
         
-
-        server.setHandler(handlers);
-
         if (config.isServer()) 
         {
             new RemoteServicePublisher().publish (ServerServiceLocator.instance(), this);
@@ -239,36 +214,42 @@ public class JettyServer implements PublisherInterface
 		return "true".equals(System.getenv("PROXY_PROTOCOL_ENABLED"));
 	}
 
-    private Context createKubernetesServer() throws UnknownHostException {   	
-        kubernetesServer = new Server();
+    private ServletContextHandler createKubernetesServer() throws FileNotFoundException, IOException {   	
 
-        MyQueuedThreadPool pool = new MyQueuedThreadPool();
-        pool.setLowThreads(2);
-        pool.setMaxThreads(30);
-        server.setThreadPool(pool);
+        QueuedThreadPool pool = new QueuedThreadPool();
+        pool.setLowThreadsThreshold(2);
+        pool.setMaxThreads(10);
+        kubernetesServer = new Server(pool);
 
-        SocketConnector connector = new SocketConnector();
-        connector.setPort(port+1);
+    	HttpConfiguration httpConfig = new HttpConfiguration();
+    	httpConfig.setSendServerVersion(false);
+    	HttpConnectionFactory http11 = new HttpConnectionFactory();
+    	ServerConnector connector = new ServerConnector(server, http11);
+    	connector.setPort(port+1);
 
-        connector.setRequestBufferSize( 64 * 1024);
-        connector.setHeaderBufferSize( 64 * 1024);
-       	connector.setRequestBufferSize( 64000 );
-        connector.setHeaderBufferSize( 64000 );
+        connector.setAcceptedReceiveBufferSize( 64 * 1024);
+        connector.setAcceptedSendBufferSize( 64 * 1024);
+        String s =  "server".equals(Config.getConfig().getRole()) ?
+        		ConfigurationCache.getMasterProperty("soffid.syncserver.bufferSize") :
+        		null ;
+        if (s != null) {
+        	connector.setAcceptedReceiveBufferSize( Integer.parseInt(s));
+            connector.setAcceptedSendBufferSize( Integer.parseInt(s));
+        }
         
         String hostName = InetAddress.getLocalHost().getHostName();
+        connector.setHost(hostName);
+
         String url = "http://"+hostName+":"+Integer.toString(port+1);
         log.info("Listening on {}", url, null);
-        connector.setAcceptors(2);
         connector.setAcceptQueueSize(10);
-        connector.setMaxIdleTime(2000);
-        connector.setLowResourceMaxIdleTime(500);
-        connector.setSoLingerTime(100);
+        connector.setIdleTimeout(2000);
 
         kubernetesServer.addConnector(connector);
         
         new InstanceRegistrationThread(hostName, url).start();;
 
-        return new Context(kubernetesServer, "/");
+        return new ServletContextHandler(kubernetesServer, "/");
     }
 
 	public void startGateway() throws Exception {
@@ -278,45 +259,44 @@ public class JettyServer implements PublisherInterface
         	new HubMonitorThread().start();
         }
 
-        server = new Server();
 
         String threads = System.getProperty("seycon.jetty.threads");
         int threadNumber = 250;
         try {
         	threadNumber = Integer.parseInt(threads);
         } catch (Exception e) {}
-        MyQueuedThreadPool pool = new MyQueuedThreadPool();
-        pool.setLowThreads(2);
+        QueuedThreadPool pool = new QueuedThreadPool();
+        pool.setLowThreadsThreshold(2);
         pool.setMaxThreads(threadNumber);
-        server.setThreadPool(pool);
+        server = new Server(pool);
 
        	addConnector(null);
 
+       	ContextHandlerCollection handlers = new ContextHandlerCollection();
         // basic authentication
-        administracioContext = new Context(server, "/");
-        administracioContext.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
-        administracioContext.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+        administracioContext = new ServletContextHandler(handlers, "/");
+        administracioContext.addFilter(DiagFilter.class, "/*",  EnumSet.of(DispatcherType.REQUEST));
+        administracioContext.addFilter(InvokerFilter.class, "/*",  EnumSet.of(DispatcherType.REQUEST));
         bindAdministrationServlet("/gw-diag", null, GatewayDiagnosticServlet.class);
 
         // certificate authentication
-        ctx = new Context(server, "/seycon");
-        ctx.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
-        ctx.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+        ctx = new ServletContextHandler(handlers, "/seycon");
+        ctx.addFilter(DiagFilter.class, "/*",  EnumSet.of(DispatcherType.REQUEST));
+        ctx.addFilter(InvokerFilter.class, "/*",  EnumSet.of(DispatcherType.REQUEST));
 		ctx.addServlet( HubFromServerServlet.class, "/*");
 
-        sh = new SecurityHandler();
-        sh.setUserRealm(new SeyconUserRealm());
+        sh = new ConstraintSecurityHandler();
+        sh.setLoginService(new SeyconUserRealm());
         sh.setAuthMethod("CLIENT-CERT");
-        sh.setAuthenticator(new ClientCertAuthenticator());
+        SoffidSslContextFactory sslContextFactory = new SoffidSslContextFactory();
+        sslContextFactory.setTrustStore(loadKeyStore());
+        sslContextFactory.setKeyStore(loadKeyStore());
+        sslContextFactory.setKeyStorePassword(SeyconKeyStore.getKeyStorePassword().getPassword());
+        sslContextFactory.setKeyManagerPassword(SeyconKeyStore.getKeyStorePassword().getPassword());
+        sh.setAuthenticator(new SslClientCertAuthenticator(sslContextFactory));
 
         ctx.setSecurityHandler(sh);
 
-        HandlerCollection handlers = new HandlerCollection();
-
-        handlers.setHandlers(new Handler[] { ctx,  
-                    administracioContext,
-                    new DefaultHandler() });
-            
         server.setHandler(handlers);
 
         bindServlet("/hub",  Constraint.__CERT_AUTH, new String[] { "agent", "server", "remote"} ,  ctx, HubServlet.class);
@@ -325,19 +305,36 @@ public class JettyServer implements PublisherInterface
         
     }
 
-    private void addConnector(String ip) throws IOException, FileNotFoundException {
-		MySslSocketConnector connector = new MySslSocketConnector();
-        connector.setEnableProxyProtocol(enableProxyProtocol());
-        connector.setPort(port);
+    private void addConnector(String ip) throws IOException, FileNotFoundException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+    	HttpConfiguration httpConfig = new HttpConfiguration();
+    	httpConfig.setSendServerVersion(false);
+    	HttpConnectionFactory http11 = new HttpConnectionFactory();
 
-        connector.setRequestBufferSize( 64 * 1024);
-        connector.setHeaderBufferSize( 64 * 1024);
+    	// Configure the SslContextFactory with the keyStore information.
+    	SoffidSslContextFactory sslContextFactory = new SoffidSslContextFactory();
+    	
+    	KeyStore ks = loadKeyStore();
+    	sslContextFactory.setKeyStore(ks);
+    	sslContextFactory.setTrustStore(ks);
+        sslContextFactory.setKeyManagerPassword(SeyconKeyStore.getKeyStorePassword().getPassword());
+        sslContextFactory.setKeyStorePassword(SeyconKeyStore.getKeyStorePassword().getPassword());
+        sslContextFactory.setTrustStorePassword(SeyconKeyStore.getKeyStorePassword().getPassword());
+        sslContextFactory.setWantClientAuth(true);
+    	
+    	// The ConnectionFactory for TLS.
+    	SslConnectionFactory tls = new SslConnectionFactory(sslContextFactory, http11.getProtocol());
+//    	ProxyConnectionFactory proxy = new ProxyConnectionFactory(http11.getProtocol());
+    	ServerConnector connector = new ServerConnector(server, tls, http11);
+    	connector.setPort(port);
+
+        connector.setAcceptedReceiveBufferSize( 64 * 1024);
+        connector.setAcceptedSendBufferSize( 64 * 1024);
         String s =  "server".equals(Config.getConfig().getRole()) ?
         		ConfigurationCache.getMasterProperty("soffid.syncserver.bufferSize") :
         		null ;
         if (s != null) {
-        	connector.setRequestBufferSize( Integer.parseInt(s));
-            connector.setHeaderBufferSize( Integer.parseInt(s));
+        	connector.setAcceptedReceiveBufferSize( Integer.parseInt(s));
+            connector.setAcceptedSendBufferSize( Integer.parseInt(s));
         }
         
         if (ip != null) 
@@ -345,21 +342,30 @@ public class JettyServer implements PublisherInterface
         	connector.setHost(ip);
         }
         log.info("Listening on https://{}:{}/", ip == null ? "0.0.0.0": ip, new Integer(port));
-        connector.setKeystore(SeyconKeyStore.getKeyStoreFile()
-                .getAbsolutePath());
-        connector.setPassword(SeyconKeyStore.getKeyStorePassword()
-                .getPassword());
-        connector.setKeyPassword(SeyconKeyStore.getKeyStorePassword()
-                .getPassword());
-        connector.setKeystoreType(SeyconKeyStore.getKeyStoreType());
-        connector.setWantClientAuth(true);
-        connector.setAcceptors(2);
         connector.setAcceptQueueSize(10);
-        connector.setMaxIdleTime(2000);
-        connector.setLowResourceMaxIdleTime(500);
-        connector.setSoLingerTime(100);
+        connector.setShutdownIdleTimeout(100);
 
         server.addConnector(connector);
+	}
+
+	public KeyStore loadKeyStore() throws IOException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+		KeyStore keyStore = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getKeyStoreFile());
+        try 
+        {
+        	List<String> keys = new LinkedList<String>();
+        	for (Enumeration<String> e = keyStore.aliases(); e.hasMoreElements();)
+        	{
+        		String alias = e.nextElement();
+        		if ( keyStore.isKeyEntry(alias) && ! alias.equalsIgnoreCase(SeyconKeyStore.MY_KEY))
+        			keys.add(alias);
+        		if ( keyStore.isCertificateEntry(alias) && ! alias.equalsIgnoreCase(SeyconKeyStore.ROOT_CERT))
+        			keys.add(alias);
+        	}
+        	for (String key: keys)
+        		keyStore.deleteEntry(key);
+        } catch (Exception e) {
+        }
+        return keyStore;
 	}
 
     public void bindAdministrationServlet(String url, String[] rol, Class servletClass) {
@@ -379,33 +385,23 @@ public class JettyServer implements PublisherInterface
         bindServlet (url, Constraint.__CERT_AUTH, rol, ctx, servletClass);
     }
 
-    public synchronized void bindServlet(String url, String constraintName, String [] rol,Context context, Class servletClass) {
+    public synchronized void bindServlet(String url, String constraintName, String [] rol, ServletContextHandler context, Class servletClass) {
         log.debug("Binding servlet {} restricted to rol [{}]", url, rol);
         if (context.getAttribute(url) == null) {
-            ServletHolder holder = context.addServlet(servletClass,
-                    url);
+            ServletHolder holder = context.addServlet(servletClass, url);
             holder.setInitParameter("target", url);
             if (rol != null && rol.length!=0) {
-                Constraint constraint = new Constraint();
-                constraint.setName(constraintName);
-                constraint.setRoles( rol );
+                Constraint constraint = new Constraint(constraintName, "Soffid authentication");
+
+                constraint.setRoles(rol);
                 constraint.setAuthenticate(true);
+                
+                ConstraintMapping constraintMapping = new ConstraintMapping();
+                constraintMapping.setConstraint(constraint);
+                constraintMapping.setPathSpec(url);
 
-                ConstraintMapping cm = new ConstraintMapping();
-                cm.setConstraint(constraint);
-                cm.setPathSpec(url);
-
-                ConstraintMapping array[] = context.getSecurityHandler().getConstraintMappings();
-
-                ConstraintMapping array2[];
-                if (array != null) {
-                    array2 = new ConstraintMapping[array.length + 1];
-                    System.arraycopy(array, 0, array2, 0, array.length);
-                } else {
-                    array2 = new ConstraintMapping[1];
-                }
-                array2[array2.length - 1] = cm;
-                context.getSecurityHandler().setConstraintMappings(array2);
+                ConstraintSecurityHandler csh = (ConstraintSecurityHandler) context.getSecurityHandler();
+                csh.addConstraintMapping(constraintMapping);
             }
         }
     }
@@ -463,17 +459,7 @@ public class JettyServer implements PublisherInterface
         			cm.setConstraint(constraint);
         			cm.setPathSpec(url);
         			
-        			ConstraintMapping array[] = sh.getConstraintMappings();
-        			
-        			ConstraintMapping array2[];
-        			if (array != null) {
-        				array2 = new ConstraintMapping[array.length + 1];
-        				System.arraycopy(array, 0, array2, 0, array.length);
-        			} else {
-        				array2 = new ConstraintMapping[1];
-        			}
-        			array2[array2.length - 1] = cm;
-        			sh.setConstraintMappings(array2);
+        			sh.addConstraintMapping(cm);
         		}
         	} else {
         		ctx.setAttribute(url, target);
@@ -574,13 +560,13 @@ public class JettyServer implements PublisherInterface
             String role) throws IOException {
     	Server s = kubernetesServer != null &&  "SEU_CONSOLE".equals(role) ? kubernetesServer: server;
         Handler[] handlers = s.getChildHandlers();
-        Context handler = null;
+        ServletContextHandler handler = null;
         int length = 0;
         if (! path.startsWith ("/"))
         	path = "/" + path;
         for (int i = 0; i < handlers.length; i++) {
-            if (handlers[i] instanceof Context) {
-                Context ctx = (Context) handlers[i];
+            if (handlers[i] instanceof ServletContextHandler) {
+            	ServletContextHandler ctx = (ServletContextHandler) handlers[i];
                 if ("/".equals (ctx.getContextPath()) && length == 0) {
                 	handler = ctx;
                 } else if (path.startsWith(ctx.getContextPath())) {
@@ -626,17 +612,8 @@ public class JettyServer implements PublisherInterface
                 cm.setConstraint(constraint);
                 cm.setPathSpec(path);
 
-                ConstraintMapping array[] = handler.getSecurityHandler().getConstraintMappings();
-
-                ConstraintMapping array2[];
-                if (array != null) {
-                    array2 = new ConstraintMapping[array.length + 1];
-                    System.arraycopy(array, 0, array2, 0, array.length);
-                } else {
-                    array2 = new ConstraintMapping[1];
-                }
-                array2[array2.length - 1] = cm;
-                handler.getSecurityHandler().setConstraintMappings(array2);
+                ConstraintSecurityHandler csh = (ConstraintSecurityHandler) handler.getSecurityHandler();
+                csh.addConstraintMapping(cm);
             }
         } else {
             handler.setAttribute(path, target);

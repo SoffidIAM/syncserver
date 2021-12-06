@@ -2,6 +2,7 @@ package com.soffid.iam.sync.tools;
 
 import java.io.Console;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -10,13 +11,21 @@ import java.net.URL;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.KeyManagementException;
+import java.security.KeyPair;
+import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
+import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
@@ -29,9 +38,11 @@ import org.apache.commons.logging.LogFactory;
 import org.json.JSONException;
 
 import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.Server;
 import com.soffid.iam.api.Tenant;
+import com.soffid.iam.api.User;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.identity.IdentityGeneratorBean;
 import com.soffid.iam.remote.RemoteServiceLocator;
@@ -39,9 +50,11 @@ import com.soffid.iam.service.ApplicationBootService;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.TenantService;
 import com.soffid.iam.ssl.ConnectionFactory;
+import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
+import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.utils.Security;
 import com.soffid.tools.db.persistence.XmlReader;
@@ -66,7 +79,11 @@ public class Configure {
 	public static void main(String args[]) throws Exception {
 		LogConfigurator.configureMinimalLogging();
 		Security.onSyncServer();
-//        Log.setLog(new SeyconLog());
+
+		if (args.length == 0) {
+      usage();
+			System.exit(1);
+		}
 
 		try {
 			if (args.length == 0) {
@@ -80,6 +97,14 @@ public class Configure {
 				parseMainParameters(args);
 			} else if ("-renewCertificates".equals(args[0])) {
 				parseRenewParameters(args);
+			} else if ("-reencodeSecrets".equals(args[0])) {
+				reencodeSecrets();
+			} else if ("-exportCA".equals(args[0])) {
+				exportCA(args);
+			} else if ("-importCA".equals(args[0])) {
+				importCA(args);
+			} else if ("-generateCert".equals(args[0])) {
+				generateCert(args);
 			} else {
 				parseSecondParameters(args);
 			}
@@ -220,11 +245,145 @@ public class Configure {
 
 	public static void usage() {
 		System.out.println("Parameters:");
-		System.out.println("  -main [-force] -hostname .. [-port ...] -dbuser .. -dbpass .. -dburl ..");
-		System.out.println("  -hostname [-force] ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
-		System.out.println("  -remote  -hostname [-force] .. -server .. -tenant .. -user .. -pass ..");
-		System.out.println("  -renewCertificates [-force]");
+			System.out.println("  -main [-force] -hostname .. [-port ...] -dbuser .. -dbpass .. -dburl ..");
+			System.out.println("  -hostname [-force] ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
+			System.out.println("  -remote  -hostname [-force] .. -server .. -tenant .. -user .. -pass ..");
+			System.out.println("  -exportCA -out [filename] [-alias [name]] [-pass [pass]]");
+			System.out.println("  -importCA -in [filename] [-alias [name]] [-pass [pass]]");
+			System.out.println("  -generateCert -out [filename] -hostname [name] [-pass [pass]]");
+			System.out.println("  -reencodeSecrets");
+			System.out.println("  -renewCertificates [-force]");
 	}
+
+	private static void exportCA(String args[]) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InternalErrorException, UnrecoverableKeyException {
+		int i;
+		String out = null;
+		char[] pass = null;
+		String alias = "soffid-ca";
+		
+		for (i = 1; i < args.length; i++) {
+			if ("-out".equals(args[i]) && i < args.length - 1) 
+				out = args[++i];
+			else if ("-pass".equals(args[i]) && i < args.length - 1) 
+				pass = args[++i].toCharArray();
+			else if ("-alias".equals(args[i]) && i < args.length - 1) 
+				alias = args[++i];
+			else
+				throw new RuntimeException("Unknown parameter " + args[i]);
+		}
+		if (i < args.length)
+			throw new RuntimeException("Unknown parameter " + args[i]);
+		if (out == null)
+			throw new RuntimeException("Specify the output file");
+		if (pass == null)
+		{
+			pass = System.console().readPassword("Output passphrase: ");
+		}
+        KeyStore rootks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getRootKeyStoreFile());
+		Key key = rootks.getKey(SeyconKeyStore.ROOT_KEY, SeyconKeyStore.getKeyStorePassword().getPassword().toCharArray());
+		Certificate[] cert = rootks.getCertificateChain(SeyconKeyStore.ROOT_KEY);
+		
+		KeyStore ks = KeyStore.getInstance("pkcs12");
+		ks.load(null);
+		ks.setKeyEntry(alias, key, pass, cert);
+
+		log.info("Storing in PKCS12 file "+out);
+		ks.store(new FileOutputStream(out), pass);
+		
+	}
+
+	private static void importCA(String args[]) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InternalErrorException, UnrecoverableKeyException {
+		int i;
+		String in = null;
+		char[] pass = null;
+		String alias = "soffid-ca";
+		for (i = 1; i < args.length; i++) {
+			if ("-in".equals(args[i]) && i < args.length - 1) 
+				in = args[++i];
+			else if ("-pass".equals(args[i]) && i < args.length - 1) 
+				pass = args[++i].toCharArray();
+			else if ("-alias".equals(args[i]) && i < args.length - 1) 
+				alias = args[++i];
+			else
+				throw new RuntimeException("Unknown parameter " + args[i]);
+		}
+		if (i < args.length)
+			throw new RuntimeException("Unknown parameter " + args[i]);
+		if (in == null)
+			throw new RuntimeException("Specify the input file");
+		if (pass == null)
+		{
+			pass = System.console().readPassword("PKCS12 file passphrase: ");
+		}
+		KeyStore ks = KeyStore.getInstance("pkcs12");
+		ks.load(new FileInputStream(in), pass);
+		Key key = ks.getKey(alias, pass);
+		if (key == null)
+			throw new RuntimeException("No key with alias "+alias+" found");
+		
+		Certificate[] cert = ks.getCertificateChain(alias);
+		
+        KeyStore rootks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getRootKeyStoreFile());
+		rootks.setKeyEntry(SeyconKeyStore.ROOT_KEY, key, SeyconKeyStore.getKeyStorePassword().getPassword().toCharArray(), cert);
+		log.info("Storing in Soffid keystore");
+		
+        Config config = Config.getConfig();
+        File rootKeystore = new File (config.getHomeDir(), "conf/root.jks");
+
+		rootks.store(new FileOutputStream( rootKeystore ),  SeyconKeyStore.getKeyStorePassword().getPassword().toCharArray());
+	}
+
+
+	private static void generateCert(String args[]) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InternalErrorException, UnrecoverableKeyException, NoSuchProviderException, InvalidKeyException, IllegalStateException, SignatureException {
+		int i;
+		String out = null;
+		char[] pass = null;
+		String hostname = null;
+		String tenant = "master";
+		String alias = null;
+		for (i = 1; i < args.length; i++) {
+			if ("-out".equals(args[i]) && i < args.length - 1) 
+				out = args[++i];
+			else if ("-pass".equals(args[i]) && i < args.length - 1) 
+				pass = args[++i].toCharArray();
+			else if ("-hostname".equals(args[i]) && i < args.length - 1) 
+				hostname = args[++i];
+			else if ("-alias".equals(args[i]) && i < args.length - 1) 
+				alias = args[++i];
+			else if ("-tenant".equals(args[i]) && i < args.length - 1) 
+				tenant = args[++i];
+			else
+				throw new RuntimeException("Unknown parameter " + args[i]);
+		}
+		if (i < args.length)
+			throw new RuntimeException("Unknown parameter " + args[i]);
+		if (out == null)
+			throw new RuntimeException("Specify the output file");
+		if (hostname == null)
+			throw new RuntimeException("Specify the certificate name");
+		if (pass == null)
+		{
+			pass = System.console().readPassword("PKCS12 file passphrase: ");
+		}
+		if (alias == null) alias = hostname;
+
+		
+		KeyStore rootks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getRootKeyStoreFile());
+		PrivateKey rootKey = (PrivateKey) rootks.getKey(SeyconKeyStore.ROOT_KEY, SeyconKeyStore.getKeyStorePassword().getPassword().toCharArray());
+		X509Certificate rootCert = (X509Certificate) rootks.getCertificate(SeyconKeyStore.ROOT_KEY);
+		
+		CertificateServer s = new CertificateServer();
+		KeyPair keyPair = s.generateNewKey();
+		X509Certificate cert = s.createCertificate(tenant, hostname, keyPair.getPublic(), rootKey, rootCert, false);
+
+		KeyStore ks = KeyStore.getInstance("pkcs12");
+		ks.load(null);
+		ks.setKeyEntry(alias, keyPair.getPrivate(), pass, new Certificate[] { cert, rootCert} );
+
+		log.info("Storing in PKCS12 file "+out);
+		ks.store(new FileOutputStream(out), pass);
+	}
+
 
 	private static void parseSecondParameters(String[] args) throws IOException, InvalidKeyException,
 			UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, NoSuchProviderException,
@@ -538,4 +697,35 @@ public class Configure {
 			reader.parse(db, resources.nextElement().openStream());
 		}
 	}	
+	
+	public static void reencodeSecrets() throws InternalErrorException {
+		final SecretStoreService secretStoreService = ServerServiceLocator.instance().getSecretStoreService();
+		final Collection<User> usuaris = secretStoreService.getUsersWithSecrets();
+		final Collection<Account> accounts = secretStoreService.getAccountsWithPassword();
+		int max = usuaris.size() + accounts.size();
+
+		int processed = 0;
+
+		for (User usuari : usuaris) {
+			log.info("["+(100 * processed / max ) + "%] Reencoding secrets for user " + usuari.getUserName());
+			try {
+				secretStoreService.reencode(usuari);
+			} catch (InternalErrorException e) {
+				log.warn("Error reencoding secrets", e);
+			}
+			processed++;
+		}
+
+		for (Account acc : accounts) {
+			log.info("["+(100 * processed / max ) + "%] Reencoding secrets for account " + acc.getName() + " @ " + acc.getSystem());
+			try {
+				Password p = secretStoreService.getPassword(acc.getId());
+				if (p != null)
+					secretStoreService.setPassword(acc.getId(), p);
+			} catch (InternalErrorException e) {
+				log.warn("Error reencoding secrets", e);
+			}
+			processed++;
+		}
+	}
 }

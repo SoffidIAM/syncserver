@@ -6,11 +6,17 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.Principal;
 
+import javax.security.auth.Subject;
+import javax.servlet.ServletRequest;
+
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.RFC4519Style;
-import org.mortbay.jetty.Request;
-import org.mortbay.jetty.security.UserRealm;
+import org.eclipse.jetty.security.DefaultUserIdentity;
+import org.eclipse.jetty.security.IdentityService;
+import org.eclipse.jetty.security.LoginService;
+import org.eclipse.jetty.security.UserPrincipal;
+import org.eclipse.jetty.server.UserIdentity;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
@@ -19,28 +25,21 @@ import com.soffid.iam.remote.URLManager;
 
 import es.caib.seycon.ng.utils.Security;
 
-public class SeyconUserRealm implements UserRealm {
+public class SeyconUserRealm implements LoginService {
     Config config = null;
     Logger log = Log.getLogger("SeyconUserRealm");
+	private IdentityService identityService;
     
     
     public SeyconUserRealm () throws FileNotFoundException, IOException {
         config = Config.getConfig();
     }
     
-    public Principal authenticate(String username, Object credentials,
-            Request request) {
-        return getPrincipal (username);
-    }
-
-    public void disassociate(Principal user) {
-    }
-
     public String getName() {
         return ("SEYCON REALM");
     }
 
-    public Principal getPrincipal(String username) {
+    public UserPrincipal getPrincipal(String username) {
         try {
 			X500Name name = new X500Name (username);
 			String domain = null;
@@ -59,7 +58,7 @@ public class SeyconUserRealm implements UserRealm {
 				userName = URLEncoder.encode(domain, "UTF-8") + "\\" + userName;
 			else
 				userName = "master\\" + userName;
-			return new SimplePrincipal (userName);
+			return new UserPrincipal(userName, null);
 		} catch (UnsupportedEncodingException e) {
 			throw new RuntimeException(e);
 		}
@@ -93,19 +92,35 @@ public class SeyconUserRealm implements UserRealm {
         return false;
     }
 
-    public void logout(Principal user) {
-    }
 
-    public Principal popRole(Principal user) {
-        return user;
-    }
+	public UserIdentity login(String username, Object credentials, ServletRequest request) {
+		UserPrincipal principal = getPrincipal(username);
+		String roles[];
+		if (isUserInRole(principal, "server"))
+			roles = new String[] {"agent", "server"};
+		else
+			roles = new String[] {"agent"};
+        
+		Subject subject = new Subject();
+        principal.configureSubject(subject);
+        subject.setReadOnly();
 
-    public Principal pushRole(Principal user, String role) {
-        return user;
-    }
+        return new DefaultUserIdentity(null, principal, roles);
+	}
 
-    public boolean reauthenticate(Principal user) {
-        return true;
-    }
+	public boolean validate(UserIdentity user) {
+		return true;
+	}
+
+	public IdentityService getIdentityService() {
+		return identityService;
+	}
+
+	public void setIdentityService(IdentityService service) {
+		this.identityService = service;
+	}
+
+	public void logout(UserIdentity user) {
+	}
 
 }

@@ -18,7 +18,6 @@ import javax.servlet.http.HttpServletResponse;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.mortbay.jetty.Request;
 
 import com.soffid.iam.config.Config;
 import com.soffid.iam.lang.MessageFactory;
@@ -91,7 +90,7 @@ public class HubFromServerServlet extends HttpServlet {
 		    			response.setHeader("Classes", result.toString());
 		    			response.setStatus(HttpServletResponse.SC_OK);
 		                response.setHeader("Success", "true");
-		                ((Request) request).setHandled(true);
+// 		                ((Request) request).setHandled(true);
 		            } catch (InvocationTargetException e) {
 		            	throw new ServletException(e);
 		            } finally {
@@ -125,11 +124,11 @@ public class HubFromServerServlet extends HttpServlet {
 			                result = hubQueue.process(req.getRemoteUser(), server, req.getRequestURI(), methodName, classes, data);
 			                response.setStatus(HttpServletResponse.SC_OK);
 			                response.setHeader("Success", "true");
-			                ((Request) request).setHandled(true);
+//			                ((Request) request).setHandled(true);
 			            } catch (InvocationTargetException e) {
 			                response.setStatus(HttpServletResponse.SC_OK);
 			                response.setHeader("Success", "false");
-			                ((Request) request).setHandled(true);
+//			                ((Request) request).setHandled(true);
 			                result = e.getCause();
 			            } finally {
 			            	MessageFactory.setThreadLocale(previousLocale);
@@ -144,7 +143,7 @@ public class HubFromServerServlet extends HttpServlet {
 			            OutputStream out = response.getOutputStream();
 			            out.write(baout.toByteArray());
 			            out.close();
-			            ((Request) request).setHandled(true);
+//			            ((Request) request).setHandled(true);
 			        } catch (Exception e) {
 			            log.warn("Error invoking " + request.getRequestURI(), e);
 			        }

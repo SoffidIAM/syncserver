@@ -6,8 +6,13 @@ import java.net.URLDecoder;
 import java.security.Principal;
 import java.util.Collection;
 
-import org.mortbay.jetty.Request;
-import org.mortbay.jetty.security.UserRealm;
+import org.eclipse.jetty.security.DefaultUserIdentity;
+import org.eclipse.jetty.security.IdentityService;
+import org.eclipse.jetty.security.LoginService;
+import org.eclipse.jetty.security.UserPrincipal;
+import org.eclipse.jetty.server.UserIdentity;
+import org.eclipse.jetty.util.security.Credential;
+import org.eclipse.jetty.util.security.Password;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
@@ -22,14 +27,18 @@ import com.soffid.iam.sync.service.SecretConfigurationService;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.utils.Security;
 
+import javax.security.auth.Subject;
+import javax.servlet.ServletRequest;
 
-public class SeyconBasicRealm implements UserRealm {
+
+public class SeyconBasicRealm implements LoginService {
     Config config = null;
     Logger log = Log.getLogger("SeyconBasicRealm");
     ServerService server;
     private SecretConfigurationService sc;
     private LogonService logonService;
     private AuthorizationService authService;
+	private IdentityService identityService;
 
     public SeyconBasicRealm() throws FileNotFoundException, IOException {
         config = Config.getConfig();
@@ -39,73 +48,46 @@ public class SeyconBasicRealm implements UserRealm {
         authService  = ServerServiceLocator.instance().getAuthorizationService(); 
     }
 
-    public Principal authenticate(String username, Object credentials,
-            Request request) {
+    public UserIdentity login(String username, Object credentials,
+            ServletRequest request) {
         try {
             if (username.startsWith("-seu-")) 
             {
                 String token = URLDecoder.decode((String) credentials, "UTF-8");
-                if (sc.validateAuthToken(token))
-                    return new TokenPrincipal(username.substring(5));
-            }
-            String password = (String) credentials;
-            if (logonService.validatePassword(username, null, password) != PasswordValidation.PASSWORD_GOOD) {
-                return null;
+                if (sc.validateAuthToken(token)) {
+                	UserPrincipal p = new UserPrincipal(username.substring(5), new Password((String) credentials));
+                	Subject s = new Subject();
+                	p.configureSubject(s);
+                	s.setReadOnly();
+                	return new DefaultUserIdentity(s, p, new String[] {"SEU_CONSOLE"});
+                }
             }
         } catch (Throwable e) {
             log.info("Login failed for user {}", username, null);
             log.warn("Exception:", e);
             return null;
         }
-        return new SimplePrincipal(username);
-    }
-
-    public void disassociate(Principal user) {
+        return null;
     }
 
     public String getName() {
         return ("SEYCON BASIC REALM");
     }
 
-    public Principal getPrincipal(String username) {
-        return new SimplePrincipal(username);
-    }
+	public boolean validate(UserIdentity user) {
+		return true;
+	}
 
-    public boolean isUserInRole(Principal user, String role) {
-        if (config.isDebug())
-            return true;
-        boolean authorized = false;
-        try {
-            if (user instanceof TokenPrincipal) {
-                return true;
-            } else {
-                Collection<AuthorizationRole> auth = authService.getUserAuthorization(Security.AUTO_MONITOR_AGENT_RESTART, user.getName());
-                if (auth != null && auth.size() > 0)
-                    authorized = true;
-                
-                auth = authService.getUserAuthorization(Security.AUTO_AUTHORIZATION_ALL, user.getName());
-                if (auth != null && auth.size() > 0)
-                    authorized = true;
-            }
-        } catch (Throwable e) {
-            authorized = false;
-        }
-        return authorized;
-    }
+	public IdentityService getIdentityService() {
+		return identityService;
+	}
 
-    public void logout(Principal user) {
-    }
+	public void setIdentityService(IdentityService service) {
+		this.identityService = service;
+	}
 
-    public Principal popRole(Principal user) {
-        return user;
-    }
+	public void logout(UserIdentity user) {
+	}
 
-    public Principal pushRole(Principal user, String role) {
-        return user;
-    }
-
-    public boolean reauthenticate(Principal user) {
-        return true;
-    }
 
 }

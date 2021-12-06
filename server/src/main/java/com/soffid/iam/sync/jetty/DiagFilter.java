@@ -10,7 +10,7 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 
-public class DiagFilter implements Filter {
+public class DiagFilter implements javax.servlet.Filter {
 
     public void init(FilterConfig filterConfig) throws ServletException {
     }

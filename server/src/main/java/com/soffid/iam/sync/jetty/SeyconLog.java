@@ -1,12 +1,14 @@
 package com.soffid.iam.sync.jetty;
 
 import java.io.PrintStream;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 import org.mortbay.log.Logger;
-import org.mortbay.util.DateCache;
 
 public class SeyconLog implements Logger {
-    private static DateCache _dateCache;
+    private static DateFormat dateFormat;
     private static boolean debug = false;
     private String name;
     private static PrintStream stream = System.err;
@@ -15,7 +17,7 @@ public class SeyconLog implements Logger {
     {
         try
         {
-            _dateCache=new DateCache("yyyy-MM-dd HH:mm:ss");
+            dateFormat=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
         }
         catch(Exception e)
         {
@@ -46,18 +48,16 @@ public class SeyconLog implements Logger {
     
     public void info(String msg,Object arg0, Object arg1)
     {
-        String d=_dateCache.now();
-        int ms=_dateCache.lastMs();
-        stream.println(d+(ms>99?".":(ms>0?".0":".00"))+ms+":"+name+":INFO:  "+format(msg,arg0,arg1));
+        String d= dateFormat.format(new Date());
+        stream.println(d+":"+name+":INFO:  "+format(msg,arg0,arg1));
     }
     
     public void debug(String msg,Throwable th)
     {
         if (debug)
         {
-            String d=_dateCache.now();
-            int ms=_dateCache.lastMs();
-            stream.println(d+(ms>99?".":(ms>0?".0":".00"))+ms+":"+name+":DEBUG: "+msg);
+            String d= dateFormat.format(new Date());
+            stream.println(d+":"+name+":DEBUG: "+msg);
             if (th!=null) th.printStackTrace(stream);
         }
     }
@@ -66,24 +66,21 @@ public class SeyconLog implements Logger {
     {
         if (debug)
         {
-            String d=_dateCache.now();
-            int ms=_dateCache.lastMs();
-            stream.println(d+(ms>99?".":(ms>0?".0":".00"))+ms+":"+name+":DEBUG: "+format(msg,arg0,arg1));
+            String d= dateFormat.format(new Date());
+            stream.println(d+":"+name+":DEBUG: "+format(msg,arg0,arg1));
         }
     }
     
     public void warn(String msg,Object arg0, Object arg1)
     {
-        String d=_dateCache.now();
-        int ms=_dateCache.lastMs();
-        stream.println(d+(ms>99?".":(ms>0?".0":".00"))+ms+":"+name+":WARN:  "+format(msg,arg0,arg1));
+        String d= dateFormat.format(new Date());
+        stream.println(d+":"+name+":WARN:  "+format(msg,arg0,arg1));
     }
     
     public void warn(String msg, Throwable th)
     {
-        String d=_dateCache.now();
-        int ms=_dateCache.lastMs();
-        stream.println(d+(ms>99?".":(ms>0?".0":".00"))+ms+":"+name+":WARN:  "+msg);
+        String d= dateFormat.format(new Date());
+        stream.println(d+":"+name+":WARN:  "+msg);
         if (th!=null)
             th.printStackTrace(stream);
     }

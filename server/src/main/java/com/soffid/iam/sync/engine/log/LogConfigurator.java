@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.net.MalformedURLException;
 
 import org.apache.log4j.PropertyConfigurator;
-import org.mortbay.log.Slf4jLog;
+import org.eclipse.jetty.util.log.Log;
 
 import com.soffid.iam.config.Config;
 
@@ -28,7 +28,7 @@ public class LogConfigurator {
                 PropertyConfigurator.configure(ClassLoader
                     .getSystemResource(PATH2));
             }
-            org.mortbay.log.Log.setLog(new Slf4jLog());
+//            org.mortbay.log.Log.setLog(new Slf4jLog());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -40,7 +40,7 @@ public class LogConfigurator {
             Config config =  Config.getConfig ();
             PropertyConfigurator.configure(ClassLoader
                     .getSystemResource("com/soffid/iam/logging/minimal.logging.properties"));
-            org.mortbay.log.Log.setLog(new Slf4jLog());
+//            org.mortbay.log.Log.setLog(new Slf4jLog());
         } catch (Exception e) {
             e.printStackTrace();
         }
