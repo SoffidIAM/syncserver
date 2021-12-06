@@ -7,6 +7,7 @@ import java.net.Inet4Address;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -30,6 +31,7 @@ import com.soffid.iam.api.System;
 import com.soffid.iam.api.Task;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.Parameter;
+import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.TenantEntity;
@@ -505,4 +507,12 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 		String [] split = cfg.getValue().isEmpty() ? new String[0]: cfg.getValue().split(" ");
 		return split.length == 2 && split[0].equals(hostName);
 	}
+
+	@Override
+	protected void handlePurgeServerInstances() throws Exception {
+		for (ServerInstanceEntity si: getServerInstanceEntityDao().findExpired(new Date(java.lang.System.currentTimeMillis() - 60_000))) {
+			getServerInstanceEntityDao().remove(si);
+		}
+	}
+
 }

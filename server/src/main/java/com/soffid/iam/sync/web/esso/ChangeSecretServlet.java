@@ -91,6 +91,7 @@ public class ChangeSecretServlet extends HttpServlet {
         
         User usuari;
 		try {
+			log.info("Received secret from {}", user, null);
 			usuari = usuariService.findUserByUserName(user);
 			if (usuari == null)
 				throw new UnknownUserException(user);
@@ -122,8 +123,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	                if (sessio.getKey().equals(key) ) {
 	                    log.info("Found session key", null, null);
 	                    final String result = doChangeSecret(usuari, userAccount, secret, account, system, ssoAttribute, description, value);
-	                    log.warn("Result = {}", result, null);
-						writer.write(result);
+                      writer.write(result);
 	                    writer.close();
 	                    return;
 	                }

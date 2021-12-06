@@ -44,6 +44,8 @@ import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AccountEntityDao;
 import com.soffid.iam.model.PasswordDomainEntity;
 import com.soffid.iam.model.PasswordDomainEntityDao;
+import com.soffid.iam.model.ServerEntity;
+import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.TaskEntityDao;
@@ -58,6 +60,7 @@ import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.intf.DebugTaskResults;
+import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
@@ -84,6 +87,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	private final Logger log = Log.getLogger("TaskQueue");
 	private ApplicationContext applicationContext;
 	private Boolean debug;
+	private String instanceName;
 
 	boolean isDebug() {
 		if (debug == null) {
@@ -113,21 +117,27 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		globalCurrentTasks = new Hashtable<Long, Hashtable<String, TaskHandler>>();
 		globalTaskList = new Hashtable<Long, PrioritiesList>();
+		String hn = null;
+		try
+		{
+			hn = InetAddress.getLocalHost().getHostName();
+		}
+		catch (UnknownHostException e1)
+		{
+			throw new RuntimeException(e1);
+		}
 		try
 		{
 			hostname = Config.getConfig().getHostName();
 		}
 		catch (IOException e)
 		{
-			try
-			{
-				hostname = InetAddress.getLocalHost().getHostName();
-			}
-			catch (UnknownHostException e1)
-			{
-				throw new RuntimeException(e1);
-			}
+			hostname = hn;
 		}
+		if (new KubernetesConfig().isKubernetes())
+			instanceName = hn;
+		else
+			instanceName = null;
 	}
 
 	@Override
@@ -492,10 +502,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			newTask.getTask().setStatus("P");
 			newTask.getTask().setServer(hostname);
 			newTask.getTask().setHash(hash);
+			newTask.getTask().setServerInstance(instanceName);
 			//  Now update database (it's really needed)
 			tasqueEntity.setStatus("P");
 			tasqueEntity.setServer(hostname);
 			tasqueEntity.setHash(hash);
+			tasqueEntity.setServerInstance(instanceName);
 			getTaskEntityDao().update(tasqueEntity);
 //			getTaskEntityDao().cancelUnscheduledCopies(tasqueEntity);
 		} else {
@@ -608,11 +620,23 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			RemoteServiceLocator rsl = new RemoteServiceLocator();
 			try
 			{
-				rsl.setServer(task.getServer());
-				ServerService server = rsl.getServerService();
-				if (isDebug())
-					log.info("Cancelling remote task {}", task.getId(), null);
-				server.cancelTask(task.getId());
+				String url = null;
+				
+				if ( task.getServerInstance() != null ) {
+					ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(task.getServer(), task.getServerInstance());
+					if (si != null) url = si.getUrl();
+				} else {
+					ServerEntity s = getServerEntityDao().findByName(task.getServer());
+					if (s != null) url = s.getUrl();
+					
+				}
+				if (url != null) {
+					rsl.setServer(url);
+					ServerService server = rsl.getServerService();
+					if (isDebug())
+						log.info("Cancelling remote task {}", task.getId(), null);
+					server.cancelTask(task.getId());					
+				}
 			}
 			catch (Exception e)
 			{

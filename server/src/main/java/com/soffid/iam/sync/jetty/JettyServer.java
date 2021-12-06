@@ -5,11 +5,13 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
+import java.net.UnknownHostException;
 import java.util.Hashtable;
 import java.util.Map;
 
 import org.mortbay.jetty.Handler;
 import org.mortbay.jetty.Server;
+import org.mortbay.jetty.bio.SocketConnector;
 import org.mortbay.jetty.handler.DefaultHandler;
 import org.mortbay.jetty.handler.HandlerCollection;
 import org.mortbay.jetty.security.BasicAuthenticator;
@@ -28,10 +30,12 @@ import com.soffid.iam.remote.PublisherInterface;
 import com.soffid.iam.remote.RemoteServicePublisher;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerServiceLocator;
+import com.soffid.iam.sync.engine.InstanceRegistrationThread;
 import com.soffid.iam.sync.hub.server.HubFromServerServlet;
 import com.soffid.iam.sync.hub.server.HubMonitorThread;
 import com.soffid.iam.sync.hub.server.HubServlet;
 import com.soffid.iam.sync.tools.FileVersionManager;
+import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.sync.web.admin.DiagnosticServlet;
 import com.soffid.iam.sync.web.admin.GatewayDiagnosticServlet;
 import com.soffid.iam.sync.web.admin.PlainLogServlet;
@@ -84,6 +88,8 @@ public class JettyServer implements PublisherInterface
     private Context downloadContext;
     private WebAppContext wsContext;
 	private Map<String,Object> remoteServices = new Hashtable<String, Object>();
+	private Context kubernetesContext;
+	private Server kubernetesServer;
 
     public JettyServer(String host, int port) {
         super();
@@ -96,6 +102,8 @@ public class JettyServer implements PublisherInterface
     }
 
     public void start() throws Exception {
+    	boolean k8s = new KubernetesConfig().isKubernetes();
+    	
         server = new Server();
 
         // Dimensionar el pool
@@ -136,6 +144,7 @@ public class JettyServer implements PublisherInterface
             {
                 log.info("Listening on additional port {}", altPort, null);
                 MySslSocketConnector connector2 = new MySslSocketConnector();
+                connector2.setEnableProxyProtocol(enableProxyProtocol());
                 connector2.setPort(Integer.decode(altPort));
                 if (host != null)
                 	connector2.setHost(host);
@@ -155,8 +164,11 @@ public class JettyServer implements PublisherInterface
         }
         
 
+        
         // basic authentication
+    	log.info("Starting admin listener", null, null);
         administracioContext = new Context(server, "/");
+
         administracioContext.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
         administracioContext.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
 
@@ -169,6 +181,15 @@ public class JettyServer implements PublisherInterface
             basicSecurityHandler.setAuthMethod("BASIC");
     
             administracioContext.setSecurityHandler(basicSecurityHandler);
+            if (k8s && config.isServer()) {
+            	log.info("Starting kubernetes internal listener", null, null);
+            	kubernetesContext = createKubernetesServer();
+            	kubernetesContext.addFilter(DiagFilter.class, "/*", Handler.REQUEST);
+            	kubernetesContext.addFilter(InvokerFilter.class, "/*", Handler.REQUEST);
+            	
+            	kubernetesContext.setSecurityHandler(basicSecurityHandler);
+            	kubernetesServer.start();
+            } 
         }
 
         // certificate authentication
@@ -214,7 +235,43 @@ public class JettyServer implements PublisherInterface
         server.start();
     }
 
-    public void startGateway() throws Exception {
+	public boolean enableProxyProtocol() {
+		return "true".equals(System.getenv("PROXY_PROTOCOL_ENABLED"));
+	}
+
+    private Context createKubernetesServer() throws UnknownHostException {   	
+        kubernetesServer = new Server();
+
+        MyQueuedThreadPool pool = new MyQueuedThreadPool();
+        pool.setLowThreads(2);
+        pool.setMaxThreads(30);
+        server.setThreadPool(pool);
+
+        SocketConnector connector = new SocketConnector();
+        connector.setPort(port+1);
+
+        connector.setRequestBufferSize( 64 * 1024);
+        connector.setHeaderBufferSize( 64 * 1024);
+       	connector.setRequestBufferSize( 64000 );
+        connector.setHeaderBufferSize( 64000 );
+        
+        String hostName = InetAddress.getLocalHost().getHostName();
+        String url = "http://"+hostName+":"+Integer.toString(port+1);
+        log.info("Listening on {}", url, null);
+        connector.setAcceptors(2);
+        connector.setAcceptQueueSize(10);
+        connector.setMaxIdleTime(2000);
+        connector.setLowResourceMaxIdleTime(500);
+        connector.setSoLingerTime(100);
+
+        kubernetesServer.addConnector(connector);
+        
+        new InstanceRegistrationThread(hostName, url).start();;
+
+        return new Context(kubernetesServer, "/");
+    }
+
+	public void startGateway() throws Exception {
         if ("true".equals(System.getProperty("soffid.gateway.debug")))
         {
         	log.info("Starting hub mointor", null, null);
@@ -270,6 +327,7 @@ public class JettyServer implements PublisherInterface
 
     private void addConnector(String ip) throws IOException, FileNotFoundException {
 		MySslSocketConnector connector = new MySslSocketConnector();
+        connector.setEnableProxyProtocol(enableProxyProtocol());
         connector.setPort(port);
 
         connector.setRequestBufferSize( 64 * 1024);
@@ -305,6 +363,11 @@ public class JettyServer implements PublisherInterface
 	}
 
     public void bindAdministrationServlet(String url, String[] rol, Class servletClass) {
+        bindServlet (url, Constraint.__BASIC_AUTH, rol,
+        		kubernetesContext != null ? kubernetesContext: administracioContext, servletClass);
+    }
+
+    public void bindEssoServlet(String url, String[] rol, Class servletClass) {
         bindServlet (url, Constraint.__BASIC_AUTH, rol, administracioContext, servletClass);
     }
 
@@ -468,33 +531,33 @@ public class JettyServer implements PublisherInterface
     private void bindPublicWeb() throws FileNotFoundException, IOException {
         if (Config.getConfig().isServer())
         {
-            bindAdministrationServlet("/query/*", null, QueryServlet.class);
-            bindAdministrationServlet("/propagatepass", null, PropagatePasswordServlet.class);
-            bindAdministrationServlet("/changepass", null, ChangePasswordServlet.class);
-            bindAdministrationServlet("/login", null, KerberosLoginServlet.class);
-            bindAdministrationServlet("/logout", null, LogoutServlet.class);
-            bindAdministrationServlet("/passwordLogin", null, PasswordLoginServlet.class);
-            bindAdministrationServlet("/kerberosLogin", null, KerberosLoginServlet.class);
-            bindAdministrationServlet("/certificateLogin", null, CertificateLoginServlet.class);
-            bindAdministrationServlet("/keepAliveSession", null, KeepaliveSessionServlet.class);
-            bindAdministrationServlet("/getSecrets", null, GetSecretsServlet.class);
-            bindAdministrationServlet("/createsession", null, CreateSessionServlet.class);
-            bindAdministrationServlet("/getmazingerconfig", null, MazingerServlet.class);
-            bindAdministrationServlet("/getapplications", null, MazingerMenuServlet.class);
-            bindAdministrationServlet("/getapplication", null, MazingerMenuEntryServlet.class);
-            bindAdministrationServlet("/getapplicationicon", null, MazingerIconsServlet.class);
-            bindAdministrationServlet("/gethostadmin", null, GetHostAdministrationServlet.class);
-            bindAdministrationServlet("/updateHostAddress", null, UpdateHostAddress.class);
-            bindAdministrationServlet("/setSecret", null, ChangeSecretServlet.class);
-            bindAdministrationServlet("/generatePassword", null, GeneratePasswordServlet.class);
-            bindAdministrationServlet("/auditPassword", null, AuditPasswordQueryServlet.class);
-            bindAdministrationServlet("/sethostadmin", null, SetHostAdministrationServlet.class);
-            bindAdministrationServlet("/websession", null, WebSessionServlet.class);
-            bindAdministrationServlet("/pam-notify", null, PamSessionServlet.class);
-            bindAdministrationServlet("/cert", null, PublicCertServlet.class);
+            bindEssoServlet("/query/*", null, QueryServlet.class);
+            bindEssoServlet("/propagatepass", null, PropagatePasswordServlet.class);
+            bindEssoServlet("/changepass", null, ChangePasswordServlet.class);
+            bindEssoServlet("/login", null, KerberosLoginServlet.class);
+            bindEssoServlet("/logout", null, LogoutServlet.class);
+            bindEssoServlet("/passwordLogin", null, PasswordLoginServlet.class);
+            bindEssoServlet("/kerberosLogin", null, KerberosLoginServlet.class);
+            bindEssoServlet("/certificateLogin", null, CertificateLoginServlet.class);
+            bindEssoServlet("/keepAliveSession", null, KeepaliveSessionServlet.class);
+            bindEssoServlet("/getSecrets", null, GetSecretsServlet.class);
+            bindEssoServlet("/createsession", null, CreateSessionServlet.class);
+            bindEssoServlet("/getmazingerconfig", null, MazingerServlet.class);
+            bindEssoServlet("/getapplications", null, MazingerMenuServlet.class);
+            bindEssoServlet("/getapplication", null, MazingerMenuEntryServlet.class);
+            bindEssoServlet("/getapplicationicon", null, MazingerIconsServlet.class);
+            bindEssoServlet("/gethostadmin", null, GetHostAdministrationServlet.class);
+            bindEssoServlet("/updateHostAddress", null, UpdateHostAddress.class);
+            bindEssoServlet("/setSecret", null, ChangeSecretServlet.class);
+            bindEssoServlet("/generatePassword", null, GeneratePasswordServlet.class);
+            bindEssoServlet("/auditPassword", null, AuditPasswordQueryServlet.class);
+            bindEssoServlet("/sethostadmin", null, SetHostAdministrationServlet.class);
+            bindEssoServlet("/websession", null, WebSessionServlet.class);
+            bindEssoServlet("/pam-notify", null, PamSessionServlet.class);
+            bindEssoServlet("/cert", null, PublicCertServlet.class);
             try {
             	Class cl = Class.forName("com.soffid.iam.doc.servlet.NASServlet");
-                bindAdministrationServlet("/doc", null, cl);
+                bindEssoServlet("/doc", null, cl);
             } catch (ClassNotFoundException e) 
             {
             }
@@ -509,7 +572,8 @@ public class JettyServer implements PublisherInterface
 
     public void publish(Object target, String path,
             String role) throws IOException {
-        Handler[] handlers = server.getChildHandlers();
+    	Server s = kubernetesServer != null &&  "SEU_CONSOLE".equals(role) ? kubernetesServer: server;
+        Handler[] handlers = s.getChildHandlers();
         Context handler = null;
         int length = 0;
         if (! path.startsWith ("/"))
@@ -558,6 +622,7 @@ public class JettyServer implements PublisherInterface
                 constraint.setAuthenticate(true);
 
                 ConstraintMapping cm = new ConstraintMapping();
+                cm.setConstraint(constraint);
                 cm.setConstraint(constraint);
                 cm.setPathSpec(path);
 

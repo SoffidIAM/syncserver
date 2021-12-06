@@ -48,6 +48,8 @@ public class HubFromServerServlet extends HttpServlet {
 		String hostName = request.getHeader("Host");
 		String url;
 		try {
+			if (hostName.contains(":"))
+				hostName = hostName.substring(0, hostName.indexOf(":"));
 			String port = Config.getConfig().getPort();
 			url = "https://"+hostName+":"+port+"/";
 			String server = getServerForUrl(url);

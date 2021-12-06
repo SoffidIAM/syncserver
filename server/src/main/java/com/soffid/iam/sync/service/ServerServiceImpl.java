@@ -2,6 +2,8 @@ package com.soffid.iam.sync.service;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
@@ -54,6 +56,7 @@ import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
 import com.soffid.iam.api.sso.Secret;
 import com.soffid.iam.common.security.SoffidPrincipal;
+import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AccessControlEntity;
 import com.soffid.iam.model.AccessControlEntityDao;
 import com.soffid.iam.model.AccountEntity;
@@ -82,6 +85,7 @@ import com.soffid.iam.model.RoleEntityDao;
 import com.soffid.iam.model.RoleGroupEntity;
 import com.soffid.iam.model.RoleGroupEntityDao;
 import com.soffid.iam.model.ServerEntity;
+import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.SystemEntityDao;
 import com.soffid.iam.model.TaskEntityDao;
@@ -2290,6 +2294,29 @@ public class ServerServiceImpl extends ServerServiceBase {
 			tae.finishVirtualSourceTransaction(t);
 		}
 	}
+
+	@Override
+	public void handleRegisterServerInstance(String name, String url) throws InternalErrorException, FileNotFoundException, IOException {
+		String syncserverName = Security.getCurrentAccount();
+		if (syncserverName == null)
+			syncserverName = Config.getConfig().getHostName();
+		ServerEntity s = getServerEntityDao().findByName(syncserverName);
+		if (s == null)
+			throw new InternalErrorException("Cannot find sync server "+syncserverName);
+		ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(syncserverName, name);
+		if (si == null) {
+			si = getServerInstanceEntityDao().newServerInstanceEntity();
+			si.setServer(s);
+			si.setLastSeen(new Date());
+			si.setName(name);
+			si.setUrl(url);
+			getServerInstanceEntityDao().create(si);
+		} else {
+			si.setLastSeen(new Date());
+			getServerInstanceEntityDao().update(si);
+		}
+	}
+
 }
 
 class TriggerCache {

@@ -41,9 +41,7 @@ public class KubernetesConfig {
 	public void load () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
 		Config config = Config.getConfig();
 		
-		if (System.getenv("KUBERNETES_SERVICE_HOST") != null &&
-				System.getenv("KUBERNETES_CONFIGURATION_SECRET") != null &&
-				new File("/var/run/secrets/kubernetes.io/serviceaccount/token").canRead()) {
+		if (isKubernetes()) {
 			int i;
 			configure();
 			
@@ -61,6 +59,12 @@ public class KubernetesConfig {
 				// Not found
 			}
 		}
+	}
+
+	public boolean isKubernetes() {
+		return System.getenv("KUBERNETES_SERVICE_HOST") != null &&
+				System.getenv("KUBERNETES_CONFIGURATION_SECRET") != null &&
+				new File("/var/run/secrets/kubernetes.io/serviceaccount/token").canRead();
 	}
 
 	private void dump(Config config, String tag, String value) throws IOException {
@@ -154,9 +158,7 @@ public class KubernetesConfig {
 	public void save () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, JSONException {
 		Config config = Config.getConfig();
 		
-		if (System.getenv("KUBERNETES_SERVICE_HOST") != null &&
-				System.getenv("KUBERNETES_CONFIGURATION_SECRET") != null &&
-				new File("/var/run/secrets/kubernetes.io/serviceaccount/token").canRead()) {
+		if (isKubernetes()) {
 			log.info("Storing configuration in kubernetes secret "+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 			configure();
 			

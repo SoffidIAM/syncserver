@@ -935,6 +935,9 @@ public class InterfaceWrapper {
 				public void reconcileAccount(Account account, List<RoleAccount> grants) throws InternalErrorException {
 					agent.reconcileAccount(es.caib.seycon.ng.comu.Account.toAccount(account), RolAccount.toRolAccountList(grants));
 				}
+				public void registerServerInstance(String name, String url) throws InternalErrorException {
+					agent.registerServerInstance(name, url);
+				}
 			};
 	}
 

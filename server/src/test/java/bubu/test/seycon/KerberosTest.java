@@ -136,7 +136,7 @@ public class KerberosTest {
         String url = "https://epreinf14.test.lab:750/kerberosLogin?action=start&principal=u00003@TEST-AD.LAB&clientIP=&cardSupport=2&krbToken="+
             b64;
         System.out.println(url);
-        HttpsURLConnection conn = ConnectionFactory.getConnection(new URL(
+        HttpURLConnection conn = ConnectionFactory.getConnection(new URL(
                 url));
         conn.setDoInput(true);
         conn.setDoOutput(true);

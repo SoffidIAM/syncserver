@@ -4,6 +4,7 @@ import com.soffid.iam.api.Password;
 import com.soffid.iam.api.Server;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.ServerEntity;
+import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.SecretConfigurationServiceBase;
@@ -16,6 +17,7 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.net.InetAddress;
 import java.security.InvalidKeyException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
@@ -100,9 +102,17 @@ public class SecretConfigurationServiceImpl extends
     protected void handleChangeAuthToken() throws Exception {
         init ();
         generateAuthToken();
-        ServerEntity server = getServerEntityDao().load(currentServer.getId());
-        server.setAuth(currentToken);
-        getServerEntityDao().update(server);
+    	if (new KubernetesConfig().isKubernetes()) {
+    		ServerInstanceEntity instance = getServerInstanceEntityDao().findByServerNameAndInstanceName(config.getHostName(), hostName);
+	        if (instance != null) {
+	        	instance.setAuth(currentToken);
+	        	getServerInstanceEntityDao().update(instance);
+	        }
+    	}  else {
+	        ServerEntity server = getServerEntityDao().load(currentServer.getId());
+	        server.setAuth(currentToken);
+	        getServerEntityDao().update(server);
+    	}
     }
 
     private void generateAuthToken() {
@@ -137,12 +147,14 @@ public class SecretConfigurationServiceImpl extends
 
 
     boolean initialized =false;
+	private String hostName;
     public void init() {
         if (initialized)
             return;
         try {
             config = Config.getConfig();
-            
+            hostName = InetAddress.getLocalHost().getHostName();
+
             Password password = SeyconKeyStore.getKeyStorePassword();
             // Localizar clave publica y privada
             File f = SeyconKeyStore.getKeyStoreFile();
@@ -195,12 +207,6 @@ public class SecretConfigurationServiceImpl extends
         }
     }
 
-    private void storeAuthSecret(String token) throws InternalErrorException, SQLException {
-        ServerEntity server = getServerEntityDao().load(currentServer.getId());
-        server.setAuth(token);
-        getServerEntityDao().update(server);
-    }
-
     private void storePublicKey(PublicKey publickey) throws InternalErrorException, SQLException {
         ServerEntity server = getServerEntityDao().load(currentServer.getId());
         server.setPk(publickey.getEncoded());
@@ -209,7 +215,15 @@ public class SecretConfigurationServiceImpl extends
 
 
     private void updateServerEntity () throws InternalErrorException, SQLException, FileNotFoundException, IOException {
-        ServerEntity server = getServerEntityDao().findByName(config.getHostName());
+    	ServerEntity server = getServerEntityDao().findByName(config.getHostName());
+    	if (new KubernetesConfig().isKubernetes()) {
+    		ServerInstanceEntity instance = getServerInstanceEntityDao().findByServerNameAndInstanceName(config.getHostName(), hostName);
+	        if (instance != null) {
+	        	instance.setAuth(currentToken);
+	        	getServerInstanceEntityDao().update(instance);
+	        }
+    	} 
+    	
         if (server == null) {
             generateAuthToken();
             server = getServerEntityDao().newServerEntity();
@@ -221,6 +235,6 @@ public class SecretConfigurationServiceImpl extends
             server.setPk(publicKey.getEncoded());
             getServerEntityDao().update(server);
         }
-        currentServer = getServerEntityDao().toServer(server);
+    	currentServer = getServerEntityDao().toServer(server);
     }
 }

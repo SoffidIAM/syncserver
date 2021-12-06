@@ -17,6 +17,7 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
 import javax.net.ssl.SSLException;
 import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ssl.SSLSocket;
 import javax.net.ssl.TrustManager;
 import javax.net.ssl.TrustManagerFactory;
 import javax.net.ssl.X509KeyManager;
@@ -33,7 +34,8 @@ public class MySslSocketConnector extends SslSocketConnector {
 	private Object pass;
 	private String _keyPassword;
 	private String _trustPassword;
-
+	boolean enableProxyProtocol;
+	String[] trustedProxies;
 
 	/* ------------------------------------------------------------ */
     public void accept(int acceptorID)
@@ -42,14 +44,21 @@ public class MySslSocketConnector extends SslSocketConnector {
         try
         {
             Socket socket = _serverSocket.accept();
+            if (enableProxyProtocol) {
+            	try {
+            		socket = new ProxySocket((SSLSocket) socket);
+            	} catch (IOException e) {
+            		socket.close();
+            		return;
+            	}
+            }
             configure(socket);
 
-            Connection connection=new MySslConnection(socket);
+            Connection connection = new MySslConnection(socket);
             connection.dispatch();
         }
         catch(SSLException e)
         {
-            Log.warn(e);
             try
             {
                 stop();
@@ -61,7 +70,7 @@ public class MySslSocketConnector extends SslSocketConnector {
         }
     }
 
-    protected SSLServerSocketFactory createFactory() 
+	protected SSLServerSocketFactory createFactory() 
         throws Exception
     {
         if (getTruststore()==null)
@@ -154,6 +163,23 @@ public class MySslSocketConnector extends SslSocketConnector {
         }
         
     }
+
+
+	public boolean isEnableProxyProtocol() {
+		return enableProxyProtocol;
+	}
+
+	public void setEnableProxyProtocol(boolean enableProxyProtocol) {
+		this.enableProxyProtocol = enableProxyProtocol;
+	}
+
+	public String[] getTrustedProxies() {
+		return trustedProxies;
+	}
+
+	public void setTrustedProxies(String[] trustedProxies) {
+		this.trustedProxies = trustedProxies;
+	}
 
 }
 
