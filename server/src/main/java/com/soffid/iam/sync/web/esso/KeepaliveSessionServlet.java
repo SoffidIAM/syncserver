@@ -28,6 +28,7 @@ import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.engine.challenge.ChallengeStore;
 import com.soffid.iam.sync.engine.session.SessionManager;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -98,9 +99,10 @@ public class KeepaliveSessionServlet extends HttpServlet {
                 }
                 else
                 {
+                    boolean trackIp = "true".equals( ConfigurationCache.getProperty("SSOTrackHostAddress"));
                     Host maq = xarxaService.findHostByName(sessio.getServerHostName());
-                    if (maq == null || (maq.getIp() != null &&
-                    		!maq.getIp().equals(com.soffid.iam.utils.Security.getClientIp()))) {
+                    if (trackIp && (maq == null || (maq.getIp() != null &&
+                    		!maq.getIp().equals(com.soffid.iam.utils.Security.getClientIp())))) {
                     	log ("User "+user+" trying to keep alive session created on "+maq.getIp()+" from host "+com.soffid.iam.utils.Security.getClientIp());
                         writer.write("EXPIRED|Invalid host");
                     } else {

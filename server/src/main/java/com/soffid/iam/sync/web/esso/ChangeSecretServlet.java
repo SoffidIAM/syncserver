@@ -76,8 +76,10 @@ public class ChangeSecretServlet extends HttpServlet {
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
 
+    	
         String ssoAttribute = req.getParameter("sso"); //$NON-NLS-1$
         String user = req.getParameter("user"); //$NON-NLS-1$
+        log.info("Processing change secret for {}", user, null);
         String key = req.getParameter("key"); //$NON-NLS-1$
         String secret = req.getParameter("secret"); //$NON-NLS-1$
         String description = req.getParameter("description"); //$NON-NLS-1$
@@ -115,11 +117,13 @@ public class ChangeSecretServlet extends HttpServlet {
 	        try {
 
 	            Collection<Session> activeSessions = ss.getActiveSessions(usuari.getId());
-//	            log.info("Got {} sessions", activeSessions.size(), null);
+	            log.info("Got {} sessions", activeSessions.size(), null);
 				for (Session sessio : activeSessions) {
 	                if (sessio.getKey().equals(key) ) {
-//	                    log.info("Found session key", null, null);
-	                    writer.write(doChangeSecret(usuari, userAccount, secret, account, system, ssoAttribute, description, value));
+	                    log.info("Found session key", null, null);
+	                    final String result = doChangeSecret(usuari, userAccount, secret, account, system, ssoAttribute, description, value);
+	                    log.warn("Result = {}", result, null);
+						writer.write(result);
 	                    writer.close();
 	                    return;
 	                }
@@ -178,6 +182,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	           	}
 	    		else
 	    		{
+	    			log.warn("User {} is not authorized to create account {}", usuari.getUserName(), account);
 	    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
 	    		}
 	        }
@@ -187,13 +192,16 @@ public class ChangeSecretServlet extends HttpServlet {
 	        	
 	        	if (acc == null)
 	        	{
+	    			log.warn("User {} is trying to modify non existing account {}", usuari.getUserName(), account+"@"+system);
 	    			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
 	        	}
 	        	
 	        	if (acc instanceof UserAccount)
 	        	{
-	        		if (! ((UserAccount) acc).getUser().equals(usuari.getUserName()))
+	        		if (! ((UserAccount) acc).getUser().equals(usuari.getUserName())) {
+		    			log.warn("User {} is trying to modify personal account {}", usuari.getUserName(), account+"@"+system);
 	        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        		}
 	        	}
 	        	else
 	        	{
@@ -206,15 +214,17 @@ public class ChangeSecretServlet extends HttpServlet {
 	        				break;
 	        			}
 	        		}
-	        		if (! found)
+	        		if (! found) {
+		    			log.warn("User {} is trying to modify account {} without permission", usuari.getUserName(), account+"@"+system);
 	        			return Messages.getString("ChangeSecretServlet.NotAuth"); //$NON-NLS-1$
+	        		}
 	        	}
 	           	
 	           	AccountService acs = ServiceLocator.instance().getAccountService();
 	
 	           	if (ssoAttribute == null || ssoAttribute.length() == 0)
 	           	{
-//					log.info("Setting password for {} at {}", account, system);
+					log.info("Setting password for {} at {}", account, system);
 	               	sss.setPassword(acc.getId(), new Password(value));
 	
 	               	UserDomainService dominiService = ServiceLocator.instance().getUserDomainService();
@@ -357,12 +367,14 @@ public class ChangeSecretServlet extends HttpServlet {
 		if (authSystem != null && authSystem.equals(system))
 		{
 			System soffid = ServiceLocator.instance().getDispatcherService().findSoffidDispatcher();
+			log.info("Searching for user acounts {} at {}", usuari.getUserName(), soffid.getName());
 			for (UserAccount account: accountSvc.findUsersAccounts(usuari.getUserName(), soffid.getName()))
 			{
 				Collection<AuthorizationRole> auts = ServiceLocator
 						.instance()
 						.getAuthorizationService()
 						.getUserAuthorization("sso:manageAccounts", account.getName());
+				log.info("Auths {}", auts, null);
 				if (! auts.isEmpty())
 					return true;
 			}
@@ -370,6 +382,7 @@ public class ChangeSecretServlet extends HttpServlet {
 		}
 		else 
 		{
+			log.info("Asking for {} vs {}", system, authSystem);
 			if (authSystem == null)
 			{
 				log.info("Missing configuration property AutoSSOSystem. Please,  configure to enable ESSO clients", null, null);

@@ -13,6 +13,8 @@ RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
 RUN locale-gen
 
 RUN echo "Adding sync server ${pom.version} "
+RUN groupadd soffid --gid 10000
+RUN useradd soffid --gid 10000 --uid 10000
 ADD target/Soffid-sync.tar.gz /opt/soffid/
 COPY src/main/docker/start.sh /opt/soffid/iam-sync/start.sh
 
@@ -20,6 +22,7 @@ ENV LANG en_US.UTF-8
 ENV LANGUAGE en_US:en
 ENV LC_ALL en_US.UTF-8
 
+RUN chown -R soffid /opt/soffid/iam-sync/
 EXPOSE 760
 
 VOLUME  /opt/soffid/iam-sync/conf

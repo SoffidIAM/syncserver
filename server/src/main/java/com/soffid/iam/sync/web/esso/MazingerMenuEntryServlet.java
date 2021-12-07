@@ -33,6 +33,7 @@ import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.engine.session.SessionManager;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -106,7 +107,8 @@ public class MazingerMenuEntryServlet extends HttpServlet {
         				throw new InternalErrorException("Invalid session key");
         			}
         			Host maq = xarxaService.findHostByName(sessio.getServerHostName());
-        			if (maq == null || !maq.getIp().equals(com.soffid.iam.utils.Security.getClientIp())) {
+        	        boolean trackIp = "true".equals( ConfigurationCache.getProperty("SSOTrackHostAddress"));
+        			if (trackIp && (maq == null || !maq.getIp().equals(com.soffid.iam.utils.Security.getClientIp()))) {
         				throw new InternalErrorException("Invalid session key");
         			}
         			getEntryPoint(id, codi, writer);

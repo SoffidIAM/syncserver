@@ -31,6 +31,7 @@ import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.LogonService;
 import com.soffid.iam.sync.web.Messages;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -118,6 +119,8 @@ public class GetHostAdministrationServlet extends HttpServlet
         AuthorizationService as = ServerServiceLocator.instance().getAuthorizationService();
         String[] auths = as.getUserAuthorizationsString(usuariPeticio);
         
+        boolean trackIp = "true".equals( ConfigurationCache.getProperty("SSOTrackHostAddress"));
+        
         Host maq = xs.findHostByName(hostname);
         if (maq == null)
             throw new InternalErrorException(String.format(
@@ -129,7 +132,7 @@ public class GetHostAdministrationServlet extends HttpServlet
 				hostname, hostIP), ex);
             throw ex;
         }
-        else if (!maq.getIp().equals(hostIP))
+        else if (trackIp && !maq.getIp().equals(hostIP))
         {
             InternalErrorException ex = new InternalErrorException("IncorrectHostException"); //$NON-NLS-1$
             log.warn(String.format("Attempt to obtain admin user-password for host '%1$s' from mismatch IP '%2$s'", 
