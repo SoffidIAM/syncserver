@@ -27,6 +27,7 @@ import org.eclipse.jetty.security.authentication.SslClientCertAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
+import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -161,7 +162,7 @@ public class JettyServer implements PublisherInterface
         administracioContext = new ServletContextHandler(contexts, "/");
         administracioContext.addFilter(DiagFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
         administracioContext.addFilter(InvokerFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
-
+        administracioContext.setErrorHandler(new ErrorServlet());
         if (config.isServer())
         {
             basicSecurityHandler = new ConstraintSecurityHandler();
@@ -172,11 +173,17 @@ public class JettyServer implements PublisherInterface
             administracioContext.setSecurityHandler(basicSecurityHandler);
             if (k8s && config.isServer()) {
             	log.info("Starting kubernetes internal listener", null, null);
-            	kubernetesContext = createKubernetesServer();
+            	kubernetesContext = createKubernetesServer(host);
             	kubernetesContext.addFilter(DiagFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
             	kubernetesContext.addFilter(InvokerFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
             	
-            	kubernetesContext.setSecurityHandler(basicSecurityHandler);
+                ConstraintSecurityHandler basicSecurityHandler2 = new ConstraintSecurityHandler();
+                basicSecurityHandler2.setLoginService(new SeyconBasicRealm());
+                basicSecurityHandler2.setRealmName("Soffid user");
+                basicSecurityHandler2.setAuthenticator(new BasicAuthenticator());
+                basicSecurityHandler2.setAuthMethod("BASIC");
+            	kubernetesContext.setSecurityHandler(basicSecurityHandler2);
+            	kubernetesContext.setErrorHandler(new ErrorServlet());
             	kubernetesServer.start();
             } 
         }
@@ -185,7 +192,8 @@ public class JettyServer implements PublisherInterface
         ctx = new ServletContextHandler(contexts, "/seycon");
         ctx.addFilter(DiagFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
         ctx.addFilter(InvokerFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
-
+        ctx.setErrorHandler(new ErrorServlet());
+        
         sh = new ConstraintSecurityHandler();
         sh.setLoginService(new SeyconUserRealm());
         sh.setAuthMethod("CLIENT-CERT");
@@ -202,6 +210,7 @@ public class JettyServer implements PublisherInterface
         downloadContext = new ServletContextHandler(contexts, "/downloadLibrary");
         downloadContext.addFilter(DiagFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
         downloadContext.addFilter(InvokerFilter.class, "/*", EnumSet.of(DispatcherType.REQUEST));
+        downloadContext.setErrorHandler(new ErrorServlet());
         
         if (config.isServer()) 
         {
@@ -214,7 +223,7 @@ public class JettyServer implements PublisherInterface
 		return "true".equals(System.getenv("PROXY_PROTOCOL_ENABLED"));
 	}
 
-    private ServletContextHandler createKubernetesServer() throws FileNotFoundException, IOException {   	
+    private ServletContextHandler createKubernetesServer(String host) throws FileNotFoundException, IOException {   	
 
         QueuedThreadPool pool = new QueuedThreadPool();
         pool.setLowThreadsThreshold(2);
@@ -224,7 +233,7 @@ public class JettyServer implements PublisherInterface
     	HttpConfiguration httpConfig = new HttpConfiguration();
     	httpConfig.setSendServerVersion(false);
     	HttpConnectionFactory http11 = new HttpConnectionFactory();
-    	ServerConnector connector = new ServerConnector(server, http11);
+    	ServerConnector connector = new ServerConnector(kubernetesServer, http11);
     	connector.setPort(port+1);
 
         connector.setAcceptedReceiveBufferSize( 64 * 1024);
@@ -237,8 +246,9 @@ public class JettyServer implements PublisherInterface
             connector.setAcceptedSendBufferSize( Integer.parseInt(s));
         }
         
+        if (host != null)
+        	connector.setHost(host);
         String hostName = InetAddress.getLocalHost().getHostName();
-        connector.setHost(hostName);
 
         String url = "http://"+hostName+":"+Integer.toString(port+1);
         log.info("Listening on {}", url, null);
@@ -277,6 +287,8 @@ public class JettyServer implements PublisherInterface
         administracioContext = new ServletContextHandler(handlers, "/");
         administracioContext.addFilter(DiagFilter.class, "/*",  EnumSet.of(DispatcherType.REQUEST));
         administracioContext.addFilter(InvokerFilter.class, "/*",  EnumSet.of(DispatcherType.REQUEST));
+        administracioContext.setErrorHandler(new ErrorServlet());
+        
         bindAdministrationServlet("/gw-diag", null, GatewayDiagnosticServlet.class);
 
         // certificate authentication
@@ -284,7 +296,8 @@ public class JettyServer implements PublisherInterface
         ctx.addFilter(DiagFilter.class, "/*",  EnumSet.of(DispatcherType.REQUEST));
         ctx.addFilter(InvokerFilter.class, "/*",  EnumSet.of(DispatcherType.REQUEST));
 		ctx.addServlet( HubFromServerServlet.class, "/*");
-
+		ctx.setErrorHandler(new ErrorServlet());
+        
         sh = new ConstraintSecurityHandler();
         sh.setLoginService(new SeyconUserRealm());
         sh.setAuthMethod("CLIENT-CERT");
@@ -323,8 +336,13 @@ public class JettyServer implements PublisherInterface
     	
     	// The ConnectionFactory for TLS.
     	SslConnectionFactory tls = new SslConnectionFactory(sslContextFactory, http11.getProtocol());
-//    	ProxyConnectionFactory proxy = new ProxyConnectionFactory(http11.getProtocol());
-    	ServerConnector connector = new ServerConnector(server, tls, http11);
+    	ServerConnector connector;
+    	if (enableProxyProtocol()) {
+    		ProxyConnectionFactory proxy = new ProxyConnectionFactory(tls.getProtocol());
+    		connector = new ServerConnector(server, proxy, tls, http11);
+    	} else {
+    		connector = new ServerConnector(server, tls, http11);
+    	}
     	connector.setPort(port);
 
         connector.setAcceptedReceiveBufferSize( 64 * 1024);
@@ -511,7 +529,7 @@ public class JettyServer implements PublisherInterface
             bindPublicWeb();
         }
         bindAdministrationServlet("/status", null, StatusServlet.class);
-        bindAdministrationServlet("/trace-ip", null, TraceIPServlet.class);
+        bindServlet ("/trace-ip", Constraint.__BASIC_AUTH, null, administracioContext, TraceIPServlet.class);
     }
 
     private void bindPublicWeb() throws FileNotFoundException, IOException {
