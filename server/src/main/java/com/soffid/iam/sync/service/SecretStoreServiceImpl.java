@@ -400,6 +400,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 			
 			boolean foundUrl = false;
 			boolean foundSso0 = false;
+			boolean foundServer = false;
 			for (AccountAttributeEntity data: account.getAttributes())
 			{
 				Object v = data.getObjectValue();
@@ -407,12 +408,19 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 				if (name.startsWith("SSO:") &&  v != null && v.toString().length() > 0)
 				{
 					if (name.equals("SSO:URL")) foundUrl = true;
+					if (name.equalsIgnoreCase("SSO:Server")) foundServer = true;
 					if (name.equals("SSO:0")) foundSso0 = true;
 					Secret secret = new Secret ();
 					secret.setName("sso."+account.getSystem().getName()+"."+account.getName()+"."+name.substring(4));
 					secret.setValue( new Password ( v.toString() ) );
 					secrets.add (secret);
 				}
+			}
+			if (!foundServer && account.getServerName() != null) {
+				Secret secret = new Secret ();
+				secret.setName("sso."+account.getSystem().getName()+"."+account.getName()+".Server");
+				secret.setValue( new Password ( account.getServerName() ) );
+				secrets.add (secret);
 			}
 			
 			if (!foundSso0 && account.getLoginName() != null) {
