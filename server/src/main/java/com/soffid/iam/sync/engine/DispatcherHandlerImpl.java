@@ -319,7 +319,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.UPDATE_ROLE)) {
-            return !readOnly && (implemented(agent, es.caib.seycon.ng.sync.intf.RoleMgr.class) ||
+        	if (! getName().equals(t.getTask().getSystemName()) &&
+        			mirroredAgent.equals(t.getTask().getSystemName()))
+        		return false;
+        	else
+        		return !readOnly && (implemented(agent, es.caib.seycon.ng.sync.intf.RoleMgr.class) ||
             		implemented(agent, com.soffid.iam.sync.intf.RoleMgr.class));
         }
         // /////////////////////////////////////////////////////////////////////
