@@ -27,7 +27,6 @@ import org.eclipse.jetty.security.authentication.SslClientCertAuthenticator;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.HttpConfiguration;
 import org.eclipse.jetty.server.HttpConnectionFactory;
-import org.eclipse.jetty.server.ProxyConnectionFactory;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.server.ServerConnector;
 import org.eclipse.jetty.server.SslConnectionFactory;
@@ -220,7 +219,7 @@ public class JettyServer implements PublisherInterface
     }
 
 	public boolean enableProxyProtocol() {
-		return "true".equals(System.getenv("PROXY_PROTOCOL_ENABLED"));
+		return null != System.getenv("PROXY_PROTOCOL_ENABLED");
 	}
 
     private ServletContextHandler createKubernetesServer(String host) throws FileNotFoundException, IOException {   	
@@ -249,8 +248,9 @@ public class JettyServer implements PublisherInterface
         if (host != null)
         	connector.setHost(host);
         String hostName = InetAddress.getLocalHost().getHostName();
+        String hostAddress = InetAddress.getLocalHost().getHostAddress();
 
-        String url = "http://"+hostName+":"+Integer.toString(port+1);
+        String url = "http://"+hostAddress+":"+Integer.toString(port+1);
         log.info("Listening on {}", url, null);
         connector.setAcceptQueueSize(10);
         connector.setIdleTimeout(2000);
@@ -338,8 +338,16 @@ public class JettyServer implements PublisherInterface
     	SslConnectionFactory tls = new SslConnectionFactory(sslContextFactory, http11.getProtocol());
     	ServerConnector connector;
     	if (enableProxyProtocol()) {
-    		ProxyConnectionFactory proxy = new ProxyConnectionFactory(tls.getProtocol());
-    		connector = new ServerConnector(server, proxy, tls, http11);
+    		String trustedProxy = System.getenv("PROXY_PROTOCOL_ENABLED");
+    		if ("true".equalsIgnoreCase(trustedProxy)) {
+	    		log.warn("Accepting proxy requests from ANY server. It is a potential security vulnerability", null, null);
+	    		ProxyConnectionFactory proxy = new ProxyConnectionFactory(tls.getProtocol());
+	    		connector = new ServerConnector(server, proxy, tls, http11);
+    		} else {
+    			log.info("Accepting proxy requests from {}", trustedProxy, null);
+	    		ProxyConnectionFactory proxy = new ProxyConnectionFactory(tls.getProtocol(), trustedProxy);
+	    		connector = new ServerConnector(server, proxy, tls, http11);
+    		}
     	} else {
     		connector = new ServerConnector(server, tls, http11);
     	}

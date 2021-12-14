@@ -12,6 +12,8 @@ RUN sed -i -e 's/# en_US.UTF-8 UTF-8/en_US.UTF-8 UTF-8/' /etc/locale.gen && \
 
 RUN locale-gen
 
+RUN apt install -y libcap2-bin
+
 RUN echo "Adding sync server ${pom.version} "
 RUN groupadd soffid --gid 10000
 RUN useradd soffid --gid 10000 --uid 10000
@@ -24,6 +26,8 @@ ENV LC_ALL en_US.UTF-8
 
 RUN chown -R soffid /opt/soffid/iam-sync/
 EXPOSE 760
+
+RUN setcap 'cap_net_bind_service=+ep' /usr/lib/jvm/java-11-openjdk-amd64/bin/java
 
 VOLUME  /opt/soffid/iam-sync/conf
 ENTRYPOINT /opt/soffid/iam-sync/start.sh
