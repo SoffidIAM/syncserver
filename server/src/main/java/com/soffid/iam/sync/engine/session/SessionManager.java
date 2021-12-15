@@ -37,8 +37,6 @@ import com.soffid.iam.ssl.AlwaysTrustConnectionFactory;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.ChangePasswordNotification;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
-import com.soffid.iam.sync.engine.socket.SSOServer;
-import com.soffid.iam.sync.engine.socket.SSOThread;
 
 /**
  * Controla el LOGON y LOGOFF de las sesiones SSO. Los clientes acceden a ella a

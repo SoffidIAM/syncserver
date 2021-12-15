@@ -100,6 +100,8 @@ import com.soffid.iam.sync.agent.Plugin;
 import com.soffid.iam.sync.bootstrap.ConfigurationManager;
 import com.soffid.iam.sync.bootstrap.JarExtractor;
 import com.soffid.iam.sync.engine.DispatcherHandler;
+import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
+import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.LogWriter;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
@@ -110,10 +112,12 @@ import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
 import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
+import com.soffid.iam.sync.intf.KerberosAgent;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.server.Compile;
 import com.soffid.iam.sync.service.server.Compile2;
 import com.soffid.iam.sync.service.server.Compile3;
+import com.soffid.iam.sync.service.server.Compile4;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -883,8 +887,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 			c = new Compile();
 		else if ("2".equals(version)) //$NON-NLS-1$
 			c = new Compile2();
-		else
+		else if ("3".equals(version))
 			c = new Compile3();
+		else
+			c = new Compile4();
 
 		ByteArrayOutputStream out = new ByteArrayOutputStream();
 		try {
@@ -2147,13 +2153,34 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 	@Override
 	protected Account handleParseKerberosToken(String domain, String serviceName, byte keytab[], byte token[]) throws Exception {
+		String principal = null;
 		for ( DispatcherHandler dispatcherHandler: getTaskGenerator().getDispatchers())
 		{
 			try {
-				String account = dispatcherHandler.parseKerberosToken (domain, serviceName, keytab, token);
+				principal = dispatcherHandler.parseKerberosToken (domain, serviceName, keytab, token);
+				if (principal != null)
+					break;
+			} catch (Exception e) {
+				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName());
+			}
+		}
+		if (principal == null)
+			return null;
+
+		log.info("Principal name = "+principal+". Translating to account");
+		for ( DispatcherHandler dispatcherHandler: getTaskGenerator().getDispatchers())
+		{
+			try {
+				String account = ((DispatcherHandlerImpl) dispatcherHandler).getPrincipalAccount(principal);
 				if (account != null)
 				{
-					return handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
+					log.info("System : "+dispatcherHandler.getSystem().getName());
+					log.info("Account: "+account);
+					Account acc = handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
+					if (acc != null)
+						return acc;
+					else
+						log.info("Cannot find account "+account+" @ "+dispatcherHandler.getSystem().getName()+" not found in Soffid database");
 				}
 			} catch (Exception e) {
 				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName());

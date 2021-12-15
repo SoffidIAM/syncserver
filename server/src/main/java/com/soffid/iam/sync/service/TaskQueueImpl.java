@@ -667,7 +667,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		String tenant = newTask.getTenant() == null || newTask.getTenant().getName() == null ? 
 				Security.getCurrentTenantName(): 
 				newTask.getTenant().getName();
-		log.info("Tenant name {}", tenant, null);		
 		Security.nestedLogin(tenant, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
 		try
 		{
@@ -1409,7 +1408,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
-	private void persistLog(TaskEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity) {
+	private void persistLog(TaskHandler newTask, TaskEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity) {
 		if (thl.getId() == null)
 		{
 
@@ -1476,7 +1475,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    		TaskEntity tasque = dao.load(newTask.getTask().getId());
 	    		if (tasque == null)
 	    		{
-	    			newTask.cancel();
+	    			if (!newTask.isComplete())
+	    				newTask.cancel();
 	    			if (isDebug())
 	    				log.info("Task {} was previously removed", newTask.toString(), null);
 	    		}
@@ -1522,13 +1522,13 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	                                		tasklog.getDispatcher() != null &&
 	                                		logEntity.getSystem().getId().equals(tasklog.getDispatcher().getSystem().getId())) {
 	                                    found = true;
-	                                    persistLog(tasque, tasklog, logEntity);
+	                                    persistLog(newTask, tasque, tasklog, logEntity);
 	                                    break;
 	                                }
 	                            }
 	                            if (!found) {
 	                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
-	                                persistLog(tasque, tasklog, logEntity);
+	                                persistLog(newTask, tasque, tasklog, logEntity);
 	                            }
 	                            if (isDebug())
 	                            	log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");

@@ -465,7 +465,7 @@ public class AuthoritativeLoaderEngine {
 					UserExtensibleObject eo = buildExtensibleObject(change);
 					if (executeTriggers(pi, null, eo, objectTranslator))
 					{
-						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom);
+						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom, out);
 					}
 					else
 					{
@@ -484,7 +484,7 @@ public class AuthoritativeLoaderEngine {
 							new UserExtensibleObject(previousUser, previousAtts, server), 
 							eo, objectTranslator))
 					{
-						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom);
+						updateAuthoritativeChangeFromExtensibleObject(change, eo, vom, out);
 					}
 					else
 					{
@@ -495,6 +495,7 @@ public class AuthoritativeLoaderEngine {
 				}
 			}
 			if (ok) {
+				out.append("Change after trigger "+change);
 				if (! changeDetector.anyChange (change)) {
 					out.append(
 							"Ignoring user ")
@@ -516,7 +517,6 @@ public class AuthoritativeLoaderEngine {
 							.append("\n");
 					log.info(
 							"Applied authoritative change for  "+change.getUser().getUserName());
-					log.info(change.toString());
 				}
 				else
 				{
@@ -561,14 +561,13 @@ public class AuthoritativeLoaderEngine {
 				out.print(":");
 			}
 			e.printStackTrace (out);
-			out.print("User information: ");
-			if (change.getUser() != null)
-				out.println(change.getUser());
+			out.print("Change information: ");
+			out.println(change);
 		}
 		return error;
 	}
 	public void updateAuthoritativeChangeFromExtensibleObject(com.soffid.iam.sync.intf.AuthoritativeChange change, UserExtensibleObject eo,
-			ValueObjectMapper vom) throws InternalErrorException {
+			ValueObjectMapper vom, PrintWriter out) throws InternalErrorException {
 		change.setUser( vom.parseUser(eo));
 		change.setAttributes((Map<String, Object>) eo.getAttribute("attributes"));
 		
@@ -878,6 +877,9 @@ public class AuthoritativeLoaderEngine {
 					l.add( new GroupExtensibleObject(g, system.getName(), server));
 				}
 			}
+			eo.setAttribute("secondaryGroups", l);
+		} else {
+			eo.setAttribute("secondaryGroups", nullList);			
 		}
 		eo.setAttribute("secondaryGroups", l);
 		l = nullList;
@@ -888,8 +890,10 @@ public class AuthoritativeLoaderEngine {
 			{
 				l.add( new GroupUserExtensibleObject(s, system.getName(), server));
 			}
+			eo.setAttribute("secondaryGroups2", l);
+		} else {
+			eo.setAttribute("secondaryGroups2", nullList);
 		}
-		eo.setAttribute("secondaryGroups2", l);
 		return eo;
 	}
 
