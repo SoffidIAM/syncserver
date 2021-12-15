@@ -3,6 +3,8 @@ package com.soffid.iam.sync.web.internal;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.rmi.RemoteException;
+import java.util.Collection;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -64,32 +66,20 @@ public class PropagatePasswordServlet extends HttpServlet {
 	    	       			user = prefix + user;
 		        		acc = accountService.findAccount(user, domain);
 	        		}
-	            	if (testOnly)
-	            	{
-	            		// When modifying a.d. passwod, a.d. will ask for password correctnes, but this password
-	            		// does not apply to password policy as it is the current password
-	            		if ( passwordService.checkPassword(user, domain, new Password(pass), false, true) )
-	            			writer.write ("OK");
-	            		// 
-	            		else
-	            		{
-		            		PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
-		            		if (r == null)
-		            			writer.write("IGNORE");
-		            		else if (r.isValid())
-		            			writer.write ("OK");
-		            		else
-		            			writer.write ("ERROR|"+r.getReason());
-	            		}
-	            	}
-	            	else if (acc == null) {
-	            		log.info("Ignoring request for unknown account {} at {}", user, domain);
-	            	}
-	            	else
-	            	{
-	            		logonService.propagatePassword(user, domain, pass);
-	            		writer.write("ok");
-	            	}
+	        		if (acc == null)
+	        		{
+	        			boolean first = true;
+	        			for (Account account: accountService.findAccountByJsonQuery("system eq \""+quote(domain)+"\" and name ew \"\\\\"+quote(user)+"\"")) {
+	        				doPropagate(account.getName(), pass, domain, testOnly, first ? writer: null);
+	        				first = false;
+	        			}
+	        			if (first && testOnly)
+			            	doPropagate(user, pass, domain, testOnly, writer);
+	        		}
+	        		else
+	        		{
+		            	doPropagate(user, pass, domain, testOnly, writer);
+	        		}
             	}
             } catch (InternalErrorException e) {
                 resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
@@ -98,5 +88,40 @@ public class PropagatePasswordServlet extends HttpServlet {
             }
             writer.close ();
     }
+
+	public void doPropagate(String user, String pass, String domain, boolean testOnly, BufferedWriter writer) 
+			throws InternalErrorException, IOException, RemoteException {
+		if (testOnly)
+		{
+			// When modifying a.d. passwod, a.d. will ask for password correctnes, but this password
+			// does not apply to password policy as it is the current password
+			if ( passwordService.checkPassword(user, domain, new Password(pass), false, true) )
+				writer.write ("OK");
+			// 
+			else
+			{
+				PolicyCheckResult r = passwordService.checkPolicy(user, domain, new Password(pass));
+				if (writer != null) {
+					if (r == null)
+						writer.write("IGNORE");
+					else if (r.isValid())
+						writer.write ("OK");
+					else
+						writer.write ("ERROR|"+r.getReason());
+				}
+			}
+		}
+		else
+		{
+			logonService.propagatePassword(user, domain, pass);
+			if (writer != null)
+				writer.write("ok");
+		}
+	}
+
+	private String quote(String user) {
+		return user.replace("\\", "\\\\")
+				.replace("\"", "\\\"");
+	}
 
 }
