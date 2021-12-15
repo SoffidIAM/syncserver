@@ -87,9 +87,9 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     protected void handleLoadTasks() throws Exception {
         Collection<TaskEntity> tasks;
         Runtime runtime = Runtime.getRuntime();
-        if (runtime.maxMemory() - runtime.freeMemory() > memoryLimit)
+        if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
         	runtime.gc();
-        if (runtime.maxMemory() - runtime.freeMemory() > memoryLimit)
+        if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
         {
         	log.warn("Free Memory too low. New tasks are not being scheduled");
         	return;
