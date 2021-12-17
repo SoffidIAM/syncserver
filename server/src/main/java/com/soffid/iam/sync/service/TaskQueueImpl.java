@@ -1414,15 +1414,11 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	private void persistLog(TaskEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity) throws InternalErrorException {
-		if (thl.getId() == null)
+		if (entity.getId() == null)
 		{
 
 			if (thl.getLast() == 0) return; // Still not done task
 				
-			if (thl.isComplete() && getTaskGenerator().getDispatchers().size() > 500 &&
-					thl.getLast() < System.currentTimeMillis() - 300_000)
-				return; // Do not store succesful logs
-			
 			entity = getTaskLogEntityDao().newTaskLogEntity();
 			entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
 			entity.setTask(tasqueEntity);
@@ -1432,9 +1428,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			entity = getTaskLogEntityDao().load(thl.getId().longValue());
 			if (entity == null) {
-				if (thl.isComplete() && getTaskGenerator().getDispatchers().size() > 500 &&
-						thl.getLast() < System.currentTimeMillis() - 300_000)
-					return; // Do not store succesful logs
 				entity = getTaskLogEntityDao().newTaskLogEntity();
 				entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
 				entity.setTask(tasqueEntity);
@@ -1453,7 +1446,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			entity.setStackTrace(thl.getStackTrace());
 			if (entity.getStackTrace() != null && entity.getStackTrace().length() > 1000)
 				entity.setStackTrace(entity.getStackTrace().substring(0, 1000));
-			if (thl.getId() == null)
+			if (entity.getId() == null)
 			{
 				getTaskLogEntityDao().create(entity);
 				thl.setId(entity.getId());
