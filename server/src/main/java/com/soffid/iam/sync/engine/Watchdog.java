@@ -5,8 +5,6 @@ import java.util.LinkedList;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
-import com.lowagie.text.pdf.hyphenation.TernaryTree.Iterator;
-
 public class Watchdog extends Thread {
 
 	private static Watchdog instance = null;
