@@ -398,8 +398,12 @@ public class InterfaceWrapper {
 				}
 
 				public String findPrincipalAccount(String principal) throws InternalErrorException {
-					// TODO Auto-generated method stub
-					return null;
+					return agent.findPrincipalAccount(principal);
+				}
+
+				@Override
+				public String[] getDomainNames() throws InternalErrorException {
+					return agent.getDomainNames();
 				}
 
 			};
