@@ -40,13 +40,7 @@ public class InstanceRegistrationThread extends Thread {
 
 	private void register() {
 		try {
-			ServerService server;
-			if ( Security.isSyncServer()) {
-				server = ServiceLocator.instance().getServerService();
-			} else {
-				server = new RemoteServiceLocator().getServerService();
-			}
-			server.registerServerInstance(name, url);
+			ServiceLocator.instance().getTaskQueue().registerServerInstance(name, url);
 		} catch (Exception e) {
 			
 		}

@@ -27,7 +27,6 @@ import com.soffid.iam.doc.exception.DocumentBeanException;
 import com.soffid.iam.doc.service.DocumentService;
 import com.soffid.iam.service.ScheduledTaskService;
 import com.soffid.iam.service.TaskHandler;
-import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.ServiceLocator;
@@ -61,6 +60,7 @@ public class TaskScheduler
 		private final ScheduledTask task;
 		private boolean spawnThread;
 		private PrintWriter out;
+		private boolean force;
 
 		/**
 		 * @param handler
@@ -70,19 +70,28 @@ public class TaskScheduler
 		 */
 		private ScheduledTaskRunnable (TaskHandler handler,
 						ScheduledTaskService taskSvc, ScheduledTask task,
-						boolean spawnThread, PrintWriter printWriter)
+						boolean spawnThread, PrintWriter printWriter, boolean force)
 		{
 			this.handler = handler;
 			this.taskSvc = taskSvc;
 			this.task = task;
 			this.spawnThread = spawnThread;
 			this.out = printWriter;
+			this.force = force;
 		}
 
 		public void run ()
 		{
 			Runnable runnable = new Runnable () {
 				public void run() {
+					try {
+						if (! force && !
+							ServiceLocator.instance().getTaskQueue().isBestServer())
+							return;
+					} catch (InternalErrorException e1) {
+						log.warn("Error guessing the best server instance");
+						return;
+					}
 					PrintWriter actualOut = null;
 					DocumentService ds = null;
 					Security.nestedLogin(task.getTenant(),
@@ -221,7 +230,7 @@ public class TaskScheduler
 				}
 				final TaskHandler h = handlerObject;
 				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, ! sync,
-						printWriter);
+						printWriter, true);
 				r.run();
 			}
 		}
@@ -347,7 +356,7 @@ public class TaskScheduler
     					handlerObject = (TaskHandler) cl.newInstance();
     				}
     				final TaskHandler h = handlerObject;
-    				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, true, null);
+    				Runnable r = new ScheduledTaskRunnable(h, taskSvc, task, true, null, false);
     				newCronScheduler.schedule(task.getMinutesPattern()+" "+task.getHoursPattern()+
     								" "+task.getDayPattern()+" "+task.getMonthsPattern()+
     								" "+task.getDayOfWeekPattern(), r);

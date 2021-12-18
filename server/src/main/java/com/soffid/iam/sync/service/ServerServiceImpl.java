@@ -2297,28 +2297,6 @@ public class ServerServiceImpl extends ServerServiceBase {
 		}
 	}
 
-	@Override
-	public void handleRegisterServerInstance(String name, String url) throws InternalErrorException, FileNotFoundException, IOException {
-		String syncserverName = Security.getCurrentAccount();
-		if (syncserverName == null)
-			syncserverName = Config.getConfig().getHostName();
-		ServerEntity s = getServerEntityDao().findByName(syncserverName);
-		if (s == null)
-			throw new InternalErrorException("Cannot find sync server "+syncserverName);
-		ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(syncserverName, name);
-		if (si == null) {
-			si = getServerInstanceEntityDao().newServerInstanceEntity();
-			si.setServer(s);
-			si.setLastSeen(new Date());
-			si.setName(name);
-			si.setUrl(url);
-			getServerInstanceEntityDao().create(si);
-		} else {
-			si.setLastSeen(new Date());
-			getServerInstanceEntityDao().update(si);
-		}
-	}
-
 }
 
 class TriggerCache {

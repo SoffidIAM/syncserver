@@ -43,6 +43,7 @@ import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGeneratorBase;
 import com.soffid.iam.sync.service.TaskQueue;
+import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -85,6 +86,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 
     @Override
     protected void handleLoadTasks() throws Exception {
+    	TaskQueue taskQueue = getTaskQueue();
         Collection<TaskEntity> tasks;
         Runtime runtime = Runtime.getRuntime();
         if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
@@ -94,10 +96,29 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         	log.warn("Free Memory too low. New tasks are not being scheduled");
         	return;
         }
+        
     	CriteriaSearchConfiguration csc = new CriteriaSearchConfiguration();
-    	csc.setMaximumResultSize(5000);
+    	csc.setMaximumResultSize(100);
         log.info("Looking for new tasks to schedule");
-        if (firstRun) {
+        if ( new KubernetesConfig().isKubernetes()) {
+        	if (isMainServer() && taskQueue.isBestServer()) {
+	            tasks = getTaskEntityDao().query("select distinct tasca "
+	            		+ "from com.soffid.iam.model.TaskEntity as tasca "
+	            		+ "left join tasca.tenant as tenant "
+	            		+ "left join tenant.servers as servers "
+	            		+ "left join servers.tenantServer as server "
+	            		+ "where (tasca.server is null or tasca.server=:server and tasca.serverInstance is null) and server.name=:server "
+	            		+ "and   tenant.enabled=:true "
+	            		+ "order by tasca.priority, tasca.id",
+	            		new Parameter[]{
+	            				new Parameter("server", config.getHostName()),
+	            				new Parameter("true", true)},
+	            		csc);
+        	} 
+        	else
+        		tasks = new LinkedList<>();
+        }
+        else if (firstRun) {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
@@ -135,7 +156,6 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             				new Parameter("true", true)},
             		csc);
         }
-        TaskQueue taskQueue = getTaskQueue();
         int i = 0;
         flushAndClearSession();
         long lastUpdate = java.lang.System.currentTimeMillis();
@@ -162,7 +182,9 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             }
         }
         getSyncServerService().updatePendingTasks();
-   		firstRun = false;
+        taskQueue.updateServerInstanceTasks();
+        if (tasks.isEmpty())
+        	firstRun = false;
     }
 
     @Override

@@ -1,6 +1,7 @@
 package com.soffid.iam.sync.service;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -19,6 +20,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -53,6 +55,7 @@ import com.soffid.iam.model.TaskLogEntity;
 import com.soffid.iam.model.TaskLogEntityDao;
 import com.soffid.iam.model.UserEntity;
 import com.soffid.iam.model.UserEntityDao;
+import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.sync.ServerServiceLocator;
@@ -1617,6 +1620,62 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			}
 		}
 		return null;
+	}
+
+	
+
+	@Override
+	protected boolean handleIsBestServer() throws Exception {
+    	if (!new KubernetesConfig().isKubernetes()) {
+    		return true;
+    	}
+    	String hostName = InetAddress.getLocalHost().getHostName();
+    	
+    	CriteriaSearchConfiguration csc = new CriteriaSearchConfiguration();
+    	csc.setMaximumResultSize(1);
+   		List<ServerInstanceEntity> instances = getServerInstanceEntityDao()
+   				.findBestServerInstances(csc, Config.getConfig().getHostName());
+   		if (instances.isEmpty())
+   			return true;
+   		ServerInstanceEntity instance = instances.iterator().next();
+   		return instance.getName().equals(hostName);
+	}
+
+	@Override
+	protected void handleUpdateServerInstanceTasks() throws Exception {
+		int tasks = 0;
+		for (Entry<Long, Hashtable<String, TaskHandler>> entry : globalCurrentTasks.entrySet()) {
+			tasks += entry.getValue().size();
+		}
+				
+		String hostName = InetAddress.getLocalHost().getHostName();
+		ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(Config.getConfig().getHostName(), hostName);
+		if (si != null) {
+			si.setTasks(tasks);
+			getServerInstanceEntityDao().update(si);
+		}
+	}
+
+	@Override
+	public void handleRegisterServerInstance(String name, String url) throws InternalErrorException, FileNotFoundException, IOException {
+		String syncserverName = Security.getCurrentAccount();
+		if (syncserverName == null)
+			syncserverName = Config.getConfig().getHostName();
+		ServerEntity s = getServerEntityDao().findByName(syncserverName);
+		if (s == null)
+			throw new InternalErrorException("Cannot find sync server "+syncserverName);
+		ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(syncserverName, name);
+		if (si == null) {
+			si = getServerInstanceEntityDao().newServerInstanceEntity();
+			si.setServer(s);
+			si.setLastSeen(new Date());
+			si.setName(name);
+			si.setUrl(url);
+			getServerInstanceEntityDao().create(si);
+		} else {
+			si.setLastSeen(new Date());
+			getServerInstanceEntityDao().update(si);
+		}
 	}
 }
 
