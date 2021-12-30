@@ -148,7 +148,7 @@
 							</outputDirectory>
 							<includeGroupIds>
 								com.oracle,org.mariadb.jdbc,org.postgresql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
-								org.hibernate,javax.mail,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
+								org.hibernate,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
 								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
 								jakarta.xml.bind ,					
 								org.json,org.w3c,org.apache.cxf
@@ -589,10 +589,10 @@
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>javax.mail</groupId>
-			<artifactId>mail</artifactId>
-			<version>1.4</version>
-			<scope>provided</scope>
+		    <groupId>com.sun.mail</groupId>
+		    <artifactId>javax.mail</artifactId>
+		    <version>1.6.2</version>
+		    <scope>provided</scope>
 		</dependency>
 		<dependency>
 			<groupId>com.oracle</groupId>
@@ -801,9 +801,9 @@
 			<version>7.0-1</version>
 		</dependency>
 		<dependency>
-			<groupId>org.apache.geronimo.javamail</groupId>
-			<artifactId>geronimo-javamail_1.4_mail</artifactId>
-			<version>1.9.0-alpha-2</version>
+		    <groupId>org.apache.geronimo.javamail</groupId>
+		    <artifactId>geronimo-javamail_1.6_mail</artifactId>
+		    <version>1.0.1</version>
 		</dependency>
 		<dependency>
 			<groupId>org.apache.cxf</groupId>
@@ -820,6 +820,16 @@
 		  <artifactId>jakarta.activation</artifactId>
 		  <version>1.2.1</version>
 		  <scope>compile</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.opensaml</groupId>
+			<artifactId>opensaml-saml-impl</artifactId>
+			<version>3.3.0</version>
+		</dependency>
+		<dependency>
+			<groupId>org.opensaml</groupId>
+			<artifactId>opensaml-saml-api</artifactId>
+			<version>3.3.0</version>
 		</dependency>
 	</dependencies>
 	<reporting>
