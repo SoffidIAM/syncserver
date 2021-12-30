@@ -1889,7 +1889,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     	if (debugEnabled)
     		log.info("Cancelling task "+t.toString());
     	t.cancel();
-        taskqueue.cancelTask(t.getTask().getId());
+        taskqueue.cancelTask(t.getTask().getId(), t.getTask().getHash());
     }
 
     private String getName() {

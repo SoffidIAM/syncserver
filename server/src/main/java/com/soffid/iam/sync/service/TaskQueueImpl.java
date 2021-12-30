@@ -55,7 +55,6 @@ import com.soffid.iam.model.TaskLogEntity;
 import com.soffid.iam.model.TaskLogEntityDao;
 import com.soffid.iam.model.UserEntity;
 import com.soffid.iam.model.UserEntityDao;
-import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.sync.ServerServiceLocator;
@@ -71,7 +70,6 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
-import jcifs.util.Base64;
 
 public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAware
 {
@@ -481,9 +479,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 		String hash = tasqueEntity.getHash();
 		// Eliminar tareas similares
-		if (hash == null || tasqueEntity.getServer() == null)
+		if (hash == null || tasqueEntity.getServer() == null || 
+				tasqueEntity.getServerInstance() == null && instanceName != null)
 		{
-			
 			getSyncServerStatsService().register("queue", "scheduled", 1);
 			hash = newTask.getHash();
 			// Cancel local tasks
@@ -512,7 +510,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			tasqueEntity.setHash(hash);
 			tasqueEntity.setServerInstance(instanceName);
 			getTaskEntityDao().update(tasqueEntity);
-//			getTaskEntityDao().cancelUnscheduledCopies(tasqueEntity);
 		} else {
 			// Cancel local tasks
 			TaskHandler oldTask = null;
@@ -609,17 +606,18 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
-		TaskHandler th = new TaskHandler ();
-		th.setTask(getTaskEntityDao().toTask(task));
-		th.setTenantId(Security.getCurrentTenantId());
-		th.setTenant(Security.getCurrentTenantName());
-		if (isDebug())
-			log.info("Cancelling remote task {}", th.toString(), null);
-		th.cancel();
-		pushTaskToPersist(th);
 		
-		if (task.getServer() != null && !task.getServer().equals(hostname))
-		{
+		if (task.getServer() != null && 
+				(!task.getServer().equals(hostname)) ||
+            	 task.getServer().equals(hostname) && instanceName != null && !instanceName.equals(task.getServerInstance()))
+        {
+			TaskHandler th = new TaskHandler ();
+			th.setTask(getTaskEntityDao().toTask(task));
+			th.setTenantId(Security.getCurrentTenantId());
+			th.setTenant(Security.getCurrentTenantName());
+			th.cancel();
+			log.info("Cancelling remote task {}", th.toString(), null);
+			pushTaskToPersist(th);
 			RemoteServiceLocator rsl = new RemoteServiceLocator();
 			try
 			{
@@ -627,7 +625,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				
 				if ( task.getServerInstance() != null ) {
 					ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(task.getServer(), task.getServerInstance());
-					if (si != null) url = si.getUrl();
+					if (si != null) {
+						url = si.getUrl();
+						rsl.setAuthToken(si.getAuth());
+					}
 				} else {
 					ServerEntity s = getServerEntityDao().findByName(task.getServer());
 					if (s != null) url = s.getUrl();
@@ -636,9 +637,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (url != null) {
 					rsl.setServer(url);
 					ServerService server = rsl.getServerService();
-					if (isDebug())
-						log.info("Cancelling remote task {}", task.getId(), null);
-					server.cancelTask(task.getId());					
+					log.info("Cancelling remote task {}", task.getId(), null);
+					server.cancelTask(task.getId(), task.getHash());					
 				}
 			}
 			catch (Exception e)
@@ -1170,25 +1170,24 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	@Override
-	protected void handleCancelTask (long taskId) throws Exception
+	protected void handleCancelTask (long taskId, String hash) throws Exception
 	{
+		log.info("Cancelling task {}", taskId, null);
 		TaskEntity taskEntity = getTaskEntityDao().load(taskId);
-		if (taskEntity != null)
+		Hashtable<String, TaskHandler> ct = globalCurrentTasks.get(Security.getCurrentTenantId());
+		if (ct != null)
 		{
-			Hashtable<String, TaskHandler> ct = globalCurrentTasks.get(Security.getCurrentTenantId());
-			if (ct != null)
+			if (taskEntity != null && taskEntity.getHash() != null)
+				hash = taskEntity.getHash();
+			TaskHandler task = ct.get(hash);
+			if (task != null)
 			{
-				TaskHandler task = ct.get(taskEntity.getHash());
-				if (task != null)
+				if (task.getTask().getId().longValue() == taskId)
 				{
-					if (task.getTask().getId().longValue() == taskId)
-					{
-						if (isDebug())
-							log.info("Cancelling task on demand {}", task.toString(), null);
-						task.cancel();
-						pushTaskToPersist(task);
-						ct.remove(taskEntity.getHash());
-					}
+					log.info("Cancelled task {}:{}", taskId, task.toString());
+					task.cancel();
+					if (taskEntity != null) pushTaskToPersist(task);
+					ct.remove(hash);
 				}
 			}
 		}
@@ -1553,6 +1552,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			tasque.setStatus(newTask.getTask().getStatus());
 	    			tasque.setHash(newTask.getTask().getHash());
 	    			tasque.setServer(newTask.getTask().getServer());
+	    			tasque.setServerInstance(instanceName);
 	    			tasque.setPriority(new Long(newTask.getPriority()));
 	    			dao.update(tasque);
 	    
@@ -1626,30 +1626,36 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	@Override
 	protected boolean handleIsBestServer() throws Exception {
-    	if (!new KubernetesConfig().isKubernetes()) {
+    	if (instanceName == null) {
     		return true;
     	}
     	String hostName = InetAddress.getLocalHost().getHostName();
     	
-    	CriteriaSearchConfiguration csc = new CriteriaSearchConfiguration();
-    	csc.setMaximumResultSize(1);
+//    	CriteriaSearchConfiguration csc = new CriteriaSearchConfiguration();
+//    	csc.setMaximumResultSize(1);
    		List<ServerInstanceEntity> instances = getServerInstanceEntityDao()
-   				.findBestServerInstances(csc, Config.getConfig().getHostName());
+   				.findBestServerInstances(Config.getConfig().getHostName());
    		if (instances.isEmpty())
    			return true;
    		ServerInstanceEntity instance = instances.iterator().next();
+   		if (instance.getName().equals(hostName))
+   			log.info("Lowest workload server: {} ***", instance.getName(), null);
+   		else
+			log.info("Lowest workload server: {}", instance.getName(), null);
    		return instance.getName().equals(hostName);
 	}
 
 	@Override
 	protected void handleUpdateServerInstanceTasks() throws Exception {
 		int tasks = 0;
+		log.info("Counting active tasks", null, null);
 		for (Entry<Long, Hashtable<String, TaskHandler>> entry : globalCurrentTasks.entrySet()) {
-			tasks += entry.getValue().size();
+			int size = entry.getValue().size();
+			log.info(">> Tenant {}: {}", entry.getKey(), size);
+			tasks += size;
 		}
 				
-		String hostName = InetAddress.getLocalHost().getHostName();
-		ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(Config.getConfig().getHostName(), hostName);
+		ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(Config.getConfig().getHostName(), instanceName);
 		if (si != null) {
 			si.setTasks(tasks);
 			getServerInstanceEntityDao().update(si);

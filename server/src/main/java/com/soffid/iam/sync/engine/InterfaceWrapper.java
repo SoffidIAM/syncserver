@@ -520,9 +520,9 @@ public class InterfaceWrapper {
 
 		final es.caib.seycon.ng.sync.servei.ServerService agent = obj;
 			return new ServerService() {
-				public void cancelTask(long taskid)
+				public void cancelTask(long taskid, String hash)
 						throws InternalErrorException, InternalErrorException {
-					agent.cancelTask(taskid);
+					agent.cancelTask(taskid, hash);
 				}
 				public void changePassword(String account, String dispatcherId,
 						com.soffid.iam.api.Password p, boolean mustChange)
@@ -934,9 +934,6 @@ public class InterfaceWrapper {
 				@Override
 				public void reconcileAccount(Account account, List<RoleAccount> grants) throws InternalErrorException {
 					agent.reconcileAccount(es.caib.seycon.ng.comu.Account.toAccount(account), RolAccount.toRolAccountList(grants));
-				}
-				public void registerServerInstance(String name, String url) throws InternalErrorException {
-					agent.registerServerInstance(name, url);
 				}
 			};
 	}
