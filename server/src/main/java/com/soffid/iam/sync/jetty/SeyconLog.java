@@ -17,7 +17,7 @@ public class SeyconLog implements Logger {
     {
         try
         {
-            dateFormat=new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+            dateFormat=new SimpleDateFormat("HH:mm:ss.SSS");
         }
         catch(Exception e)
         {
@@ -49,7 +49,7 @@ public class SeyconLog implements Logger {
     public void info(String msg,Object arg0, Object arg1)
     {
         String d= dateFormat.format(new Date());
-        stream.println(d+":"+name+":INFO:  "+format(msg,arg0,arg1));
+        stream.println(d+"  INFO ["+Thread.currentThread().getName()+"] "+name+":"+format(msg,arg0,arg1));
     }
     
     public void debug(String msg,Throwable th)
@@ -57,7 +57,7 @@ public class SeyconLog implements Logger {
         if (debug)
         {
             String d= dateFormat.format(new Date());
-            stream.println(d+":"+name+":DEBUG: "+msg);
+            stream.println(d+"  DEBUG ["+Thread.currentThread().getName()+"] "+name+":"+msg);
             if (th!=null) th.printStackTrace(stream);
         }
     }
@@ -67,20 +67,20 @@ public class SeyconLog implements Logger {
         if (debug)
         {
             String d= dateFormat.format(new Date());
-            stream.println(d+":"+name+":DEBUG: "+format(msg,arg0,arg1));
+            stream.println(d+"  DEBUG ["+Thread.currentThread().getName()+"] "+name+":"+format(msg,arg0,arg1));
         }
     }
     
     public void warn(String msg,Object arg0, Object arg1)
     {
         String d= dateFormat.format(new Date());
-        stream.println(d+":"+name+":WARN:  "+format(msg,arg0,arg1));
+        stream.println(d+"  WARN ["+Thread.currentThread().getName()+"] "+name+":"+format(msg,arg0,arg1));
     }
     
     public void warn(String msg, Throwable th)
     {
         String d= dateFormat.format(new Date());
-        stream.println(d+":"+name+":WARN:  "+msg);
+        stream.println(d+"  WARN ["+Thread.currentThread().getName()+"] "+name+":"+msg);
         if (th!=null)
             th.printStackTrace(stream);
     }
