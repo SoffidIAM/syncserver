@@ -184,6 +184,8 @@ public class JettyServer implements PublisherInterface
             	kubernetesContext.setSecurityHandler(basicSecurityHandler2);
             	kubernetesContext.setErrorHandler(new ErrorServlet());
             	kubernetesServer.start();
+            	
+    			publish(ServerServiceLocator.instance().getServerService(), "/seycon/ServerService-en", "SEU_CONSOLE");
             } 
         }
 
