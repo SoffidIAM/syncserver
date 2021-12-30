@@ -49,7 +49,6 @@ public class MazingerIconsServlet extends HttpServlet
 
 		try
 		{
-			log.info("Obtaining image icon for {}", appID, null);
 			String iconImage = generateAppIcon(appID);
 
 			writer.write("OK|");
