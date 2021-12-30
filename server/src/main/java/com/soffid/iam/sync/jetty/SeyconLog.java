@@ -15,7 +15,7 @@ public class SeyconLog implements Logger {
     {
         try
         {
-            _dateCache=new DateCache("yyyy-MM-dd HH:mm:ss");
+            _dateCache=new DateCache("HH:mm:ss,sss");
         }
         catch(Exception e)
         {

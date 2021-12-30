@@ -27,6 +27,7 @@ import org.mortbay.log.Logger;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.ssl.ConnectionFactory;
+import com.soffid.iam.sync.engine.log.LogConfigurator;
 import com.soffid.iam.sync.jetty.DupOutputStream;
 import com.soffid.iam.sync.jetty.SeyconLog;
 import com.soffid.iam.sync.service.ServerService;
@@ -184,7 +185,7 @@ public class SeyconLoader extends Object {
 		File f = fvm.getInstalledFile(file);
 		if ( f != null)
 		{
-			System.out.println ("Parsing dependencies of "+f.toString());
+			log.info("Parsing dependencies of {}", f.toString(), null);
 			JarFile jf = new JarFile(f);
 			String classPath = jf.getManifest().getMainAttributes().getValue("Class-Path");
 			if (classPath != null)
@@ -741,7 +742,7 @@ public class SeyconLoader extends Object {
      */
     public static void main(String[] args) {
         try {
-            Log.setLog(new SeyconLog());
+            LogConfigurator.configureLogging();
             log = Log.getLogger("Bootstrap");
 
             SeyconLog.setStream(new PrintStream(getLogStream()));
