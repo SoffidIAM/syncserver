@@ -11,6 +11,7 @@ import java.net.URL;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -30,6 +31,7 @@ import org.apache.commons.logging.LogFactory;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.AttributeTranslation;
+import com.soffid.iam.api.Audit;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.GroupUser;
@@ -61,6 +63,7 @@ import com.soffid.iam.model.AccessControlEntity;
 import com.soffid.iam.model.AccessControlEntityDao;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AgentDescriptorEntity;
+import com.soffid.iam.model.AuditEntity;
 import com.soffid.iam.model.AuthorizationEntity;
 import com.soffid.iam.model.AuthorizationEntityDao;
 import com.soffid.iam.model.ConfigEntity;
@@ -853,7 +856,33 @@ public class ServerServiceImpl extends ServerServiceBase {
 		}
 	}
 
-	@Override
+    private void auditAccountPassword(AccountEntity account) throws Exception {
+        Audit auditoria = new Audit();
+        auditoria.setAction("p"); //$NON-NLS-1$
+        auditoria.setAccount(account.getName());
+        auditoria.setDatabase(account.getSystem().getName());
+        auditoria.setCalendar(Calendar.getInstance());
+        auditoria.setObject("SC_ACCOUN"); //$NON-NLS-1$
+
+        AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
+        getAuditEntityDao().create(auditoriaEntity);
+    }
+
+    private void auditUserPassword(UserEntity account, PasswordDomainEntity dominiContrasenyaEntity) throws Exception {
+
+    	Audit auditoria = new Audit();
+        auditoria.setAction("p"); //$NON-NLS-1$
+        auditoria.setUser(account.getUserName());
+        auditoria.setPasswordDomain(dominiContrasenyaEntity.getName());
+        auditoria.setAuthor(null);
+        auditoria.setCalendar(Calendar.getInstance());
+        auditoria.setObject("SC_USUARI"); //$NON-NLS-1$
+
+        AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
+        getAuditEntityDao().create(auditoriaEntity);
+    }
+
+    @Override
 	protected void handleChangePassword(String user, String dispatcher,
 			Password p, boolean mustChange) throws Exception {
 		UserEntity userEntity;
@@ -873,11 +902,13 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 		if (acc.getType().equals(AccountType.USER)) {
 			for (UserAccountEntity uae : acc.getUsers()) {
+				auditUserPassword(uae.getUser(), acc.getSystem().getPasswordDomain());
 				getInternalPasswordService().storeAndForwardPassword(
 						uae.getUser(), acc.getSystem().getPasswordDomain(), p,
 						mustChange);
 			}
 		} else {
+			auditAccountPassword(acc);
 			getInternalPasswordService().storeAndForwardAccountPassword(acc, p,
 					mustChange, null);
 		}
@@ -1085,8 +1116,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 	}
 
 	@Override
-	protected void handleCancelTask(long taskid) throws Exception {
-		getTaskQueue().cancelTask(taskid);
+	protected void handleCancelTask(long taskid, String hash) throws Exception {
+		getTaskQueue().cancelTask(taskid, hash);
 	}
 
 	@Override
