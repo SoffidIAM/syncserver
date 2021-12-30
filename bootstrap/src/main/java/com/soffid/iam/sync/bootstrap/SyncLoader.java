@@ -34,6 +34,8 @@ import com.soffid.iam.sync.bootstrap.impl.HttpConnectionFactory;
 import com.soffid.iam.sync.bootstrap.impl.JarExtractor;
 import com.soffid.iam.sync.bootstrap.impl.KubernetesConfig;
 import com.soffid.iam.sync.bootstrap.impl.Logger;
+import org.mortbay.log.Log;
+import org.mortbay.log.Logger;
 
 /**
  * Sync server bootstrap class
@@ -180,7 +182,7 @@ public class SyncLoader extends Object {
 		File f = fvm.getInstalledFile(file);
 		if ( f != null)
 		{
-			System.out.println ("Parsing dependencies of "+f.toString());
+			log.info("Parsing dependencies of {}", f.toString(), null);
 			JarFile jf = new JarFile(f);
 			String classPath = jf.getManifest().getMainAttributes().getValue("Class-Path");
 			if (classPath != null)
@@ -737,6 +739,8 @@ public class SyncLoader extends Object {
     public static void main(String[] args) {
         try {
         	BASE_DIRECTORY = Config.getConfig().getHomeDir().getPath();
+            LogConfigurator.configureLogging();
+
             SeyconLog.setStream(new PrintStream(getLogStream()));
             boolean continueIteration = true;
             while (continueIteration) {
