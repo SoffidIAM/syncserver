@@ -4,8 +4,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.util.logging.LogManager;
 
-import org.mortbay.log.Slf4jLog;
-
 import com.soffid.iam.config.Config;
 
 public class LogConfigurator {
@@ -23,7 +21,6 @@ public class LogConfigurator {
             {
             	LogManager.getLogManager().readConfiguration(ClassLoader.getSystemResourceAsStream(PATH2));
             }
-            org.mortbay.log.Log.setLog(new Slf4jLog());
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -34,7 +31,6 @@ public class LogConfigurator {
         try {
             LogManager.getLogManager().readConfiguration(ClassLoader
                     .getSystemResourceAsStream("com/soffid/iam/logging/minimal.logging.properties"));
-            org.mortbay.log.Log.setLog(new Slf4jLog());
         } catch (Exception e) {
             e.printStackTrace();
         }
