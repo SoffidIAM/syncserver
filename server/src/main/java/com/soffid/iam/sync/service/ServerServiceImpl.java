@@ -265,14 +265,16 @@ public class ServerServiceImpl extends ServerServiceBase {
 		Collection<RoleGrant> rgs = getApplicationService()
 				.findEffectiveRoleGrantsByRoleId(roleId);
 		for (RoleGrant rg : rgs) {
-			AccountEntity account = getAccountEntityDao().findByNameAndSystem(
-					rg.getOwnerAccountName(), rg.getOwnerSystem());
-			if (!account.isDisabled()) {
-				if (account.getUsers().isEmpty())
-					acc.add(getAccountEntityDao().toAccount(account));
-				else
-					for (UserAccountEntity uae : account.getUsers())
-						acc.add(getUserAccountEntityDao().toUserAccount(uae));
+			if (rg.getOwnerAccountName() != null) {
+				AccountEntity account = getAccountEntityDao().findByNameAndSystem(
+						rg.getOwnerAccountName(), rg.getOwnerSystem());
+				if (!account.isDisabled()) {
+					if (account.getUsers().isEmpty())
+						acc.add(getAccountEntityDao().toAccount(account));
+					else
+						for (UserAccountEntity uae : account.getUsers())
+							acc.add(getUserAccountEntityDao().toUserAccount(uae));
+				}
 			}
 		}
 		return acc;
