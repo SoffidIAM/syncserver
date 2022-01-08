@@ -1648,10 +1648,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	protected void handleUpdateServerInstanceTasks() throws Exception {
 		int tasks = 0;
-		log.info("Counting active tasks", null, null);
+//		log.info("Counting active tasks", null, null);
 		for (Entry<Long, Hashtable<String, TaskHandler>> entry : globalCurrentTasks.entrySet()) {
 			int size = entry.getValue().size();
-			log.info(">> Tenant {}: {}", entry.getKey(), size);
+//			log.info(">> Tenant {}: {}", entry.getKey(), size);
 			tasks += size;
 		}
 				

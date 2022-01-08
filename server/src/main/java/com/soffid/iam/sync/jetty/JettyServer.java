@@ -386,8 +386,6 @@ public class JettyServer implements PublisherInterface
         		String alias = e.nextElement();
         		if ( keyStore.isKeyEntry(alias) && ! alias.equalsIgnoreCase(SeyconKeyStore.MY_KEY))
         			keys.add(alias);
-        		if ( keyStore.isCertificateEntry(alias) && ! alias.equalsIgnoreCase(SeyconKeyStore.ROOT_CERT))
-        			keys.add(alias);
         	}
         	for (String key: keys)
         		keyStore.deleteEntry(key);

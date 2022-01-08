@@ -67,7 +67,7 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
         	return null;
     }
 
-    private HostEntity findMaquina(String server) throws UnknownHostException, InternalErrorException {
+    private HostEntity findMaquina(String server) throws InternalErrorException, UnknownHostException {
         HostEntityDao dao = getHostEntityDao();
         HostEntity maq = dao.findByName(server);
         if (maq == null)
@@ -100,11 +100,9 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
 			}
 			catch (UnknownNetworkException e)
 			{
-	            throw new UnknownHostException(server);
+				return null;
 			}
         }
-        if (maq == null)
-            throw new UnknownHostException(server);
         return maq;
     }
 
@@ -112,13 +110,14 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
     protected void handleRegisterLogon(String dispatcher, String sessionId, Date date, String user,
             String server, String client, String protocol, String info) throws Exception {
 
-        List<AccessLogEntity> result = getAccessLogEntityDao().findAccessLogBySessionIDAndStartDate(dispatcher, sessionId, date, findMaquina(server));
+    	HostEntity host = findMaquina(server);
+        List<AccessLogEntity> result = host == null ?
+        		getAccessLogEntityDao().findAccessLogBySessionIDAndStartDate2(dispatcher, sessionId, date,  server) :
+        		getAccessLogEntityDao().findAccessLogBySessionIDAndStartDate(dispatcher, sessionId, date, host);
         if (result.isEmpty()) {
     
         	AccessLogEntity rac = getAccessLogEntityDao().newAccessLogEntity();
             HostEntityDao dao = getHostEntityDao();
-            
-            
             
             rac.setInformation(info);
             rac.setSystem(dispatcher);
@@ -128,20 +127,21 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
             rac.setProtocol(findServei(protocol));
             rac.setAccessType("L");
             rac.setUser(findUser(user, dispatcher));
-            assignHost(rac, server);
+            assignHost(rac, host, server);
             assignClientHost(rac, client);
             
             getAccessLogEntityDao().create(rac);
         }
     }
 
-	private void assignHost(AccessLogEntity rac, String server) throws InternalErrorException {
-		try {
-        	rac.setServer(findMaquina(server));
-        	rac.setHostName(rac.getServer().getName());
-        } catch (UnknownHostException e) {
-        	rac.setHostName(server);
-        }
+	private void assignHost(AccessLogEntity rac, HostEntity host, String server) throws InternalErrorException {
+		if (host == null) {
+			rac.setServer(null);
+			rac.setHostName(server);
+		} else {
+        	rac.setServer(host);
+        	rac.setHostName(host.getName());
+		}
     	try
     	{
        		InetAddress addr = InetAddress.getByName(rac.getHostName());
@@ -151,14 +151,16 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
     	}
 	}
 
-	private void assignClientHost(AccessLogEntity rac, String client) throws InternalErrorException {
+	private void assignClientHost(AccessLogEntity rac, String client) throws InternalErrorException, UnknownHostException {
 		if (client != null && client.length() > 0) {
-            try {
-                rac.setClient(findMaquina(client));
-            	rac.setClientHostName(rac.getClient().getName());
-            } catch (UnknownHostException e) {
-            	rac.setClientHostName(client);
-            }
+			HostEntity host = findMaquina(client);
+			if (host == null) {
+				rac.setClient(null);
+				rac.setClientHostName(client);
+			} else {
+				rac.setClient(findMaquina(client));
+				rac.setClientHostName(rac.getClient().getName());
+			}
         	try
         	{
            		InetAddress addr = InetAddress.getByName(rac.getClientHostName());
@@ -172,7 +174,10 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
     @Override
     protected void handleRegisterFailedLogon(String dispatcher, String sessionId, Date date,
             String user, String server, String client, String protocol, String info) throws Exception {
-        List<AccessLogEntity> result = getAccessLogEntityDao().findAccessLogBySessionIDAndStartDate(dispatcher, sessionId, date, findMaquina(server));
+    	HostEntity host = findMaquina(server);
+        List<AccessLogEntity> result = host == null ?
+        		getAccessLogEntityDao().findAccessLogBySessionIDAndStartDate2(dispatcher, sessionId, date,  server) :
+        		getAccessLogEntityDao().findAccessLogBySessionIDAndStartDate(dispatcher, sessionId, date, host);
         if (result.isEmpty()) {
     
             AccessLogEntity rac = getAccessLogEntityDao().newAccessLogEntity();
@@ -187,7 +192,7 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
                 rac.setProtocol(findServei(protocol));
                 rac.setAccessType("D");
                 rac.setUser(findUser(user, dispatcher));
-                assignHost(rac, server);
+                assignHost(rac, host, server);
                 assignClientHost(rac, client);
                 
                 getAccessLogEntityDao().create(rac);
@@ -201,7 +206,10 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
     protected void handleRegisterLogoff(String dispatcher, String sessionId, Date date,
             String user, String server, String client, String protocol, String info) throws Exception {
         
-        List<AccessLogEntity> result = getAccessLogEntityDao().findAccessLogByAgentAndSessionIDAndEndDate(dispatcher, sessionId, date, findMaquina(server));
+    	HostEntity host = findMaquina(server);
+        List<AccessLogEntity> result = host == null ?
+        		getAccessLogEntityDao().findAccessLogByAgentAndSessionIDAndEndDate2(dispatcher, sessionId, date,  server) :
+        		getAccessLogEntityDao().findAccessLogByAgentAndSessionIDAndEndDate(dispatcher, sessionId, date, host);
         if (result.isEmpty()) {
     
             AccessLogEntity rac = getAccessLogEntityDao().newAccessLogEntity();
@@ -213,7 +221,7 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
             rac.setProtocol(findServei(protocol));
             rac.setAccessType("L");
             rac.setUser(findUser(user, dispatcher));
-            assignHost(rac, server);
+            assignHost(rac, host, server);
             assignClientHost(rac, client);
             
             getAccessLogEntityDao().create(rac);

@@ -512,7 +512,6 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 						split[0].equals(hostName) ||
 						Long.parseLong(split[1]) < timeout)
 				{
-					log.warn("Setting as master server: "+hostName);
 					cfg.setValue(hostName+" "+now);
 					svc.update(cfg);
 				}

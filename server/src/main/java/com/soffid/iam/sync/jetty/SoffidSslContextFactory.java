@@ -1,29 +1,23 @@
 package com.soffid.iam.sync.jetty;
 
-import java.security.GeneralSecurityException;
 import java.security.KeyStore;
-import java.security.Security;
 import java.security.cert.CRL;
-import java.security.cert.CertPathBuilder;
-import java.security.cert.CertPathBuilderResult;
-import java.security.cert.CertPathValidator;
-import java.security.cert.CertStore;
-import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
-import java.security.cert.CollectionCertStoreParameters;
-import java.security.cert.PKIXBuilderParameters;
-import java.security.cert.X509CertSelector;
 import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+
+import javax.net.ssl.TrustManager;
 
 import org.eclipse.jetty.util.annotation.ManagedObject;
 import org.eclipse.jetty.util.resource.Resource;
-import org.eclipse.jetty.util.security.CertificateValidator;
-import org.eclipse.jetty.util.ssl.SslContextFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.soffid.iam.sync.engine.cert.CertificateServer;
 
 /**
 * <p>SslContextFactory is used to configure SSL parameters
@@ -35,12 +29,15 @@ import org.slf4j.LoggerFactory;
 public class SoffidSslContextFactory extends org.eclipse.jetty.util.ssl.SslContextFactory.Server
 {
     private static final Logger LOG = LoggerFactory.getLogger(SoffidSslContextFactory.class);
+    HashMap<String, X509Certificate> certs = new HashMap<>();
 
     public SoffidSslContextFactory() {
 		super();
 	}
 	
 	KeyStore trustStore;
+	private List<X509Certificate> trustedCerts;
+	
 	@Override
 	protected KeyStore loadTrustStore(Resource resource) throws Exception {
 		return trustStore;
@@ -51,41 +48,39 @@ public class SoffidSslContextFactory extends org.eclipse.jetty.util.ssl.SslConte
 	}
 	public void setTrustStore(KeyStore trustStore) {
 		this.trustStore = trustStore;
+
+		trustedCerts = new LinkedList<X509Certificate>();
+		try {
+			for (Enumeration<String> e = trustStore.aliases(); e.hasMoreElements();) {
+				String alias = e.nextElement();
+				X509Certificate cert = (X509Certificate) trustStore.getCertificate(alias);
+	
+				if (cert != null)
+					trustedCerts.add(cert);
+			}
+		} catch (Exception e) {
+			throw new RuntimeException(e);
+		}
 	}
+
+    protected TrustManager[] getTrustManagers(KeyStore trustStore, Collection<? extends CRL> crls) throws Exception {
+    	return TRUST_ALL_CERTS;
+    }
 
     public void validateCerts(X509Certificate[] certs) throws Exception
     {
-        try
+        if (certs.length == 0)
         {
-            if (certs.length == 0)
-            {
-                throw new IllegalStateException("Invalid certificate chain");
-            }
-
-            X509CertSelector certSelect = new X509CertSelector();
-            certSelect.setCertificate(certs[0]);
-
-            // Configure certification path builder parameters
-            PKIXBuilderParameters pbParams = new PKIXBuilderParameters(trustStore, certSelect);
-            pbParams.addCertStore(CertStore.getInstance("Collection", new CollectionCertStoreParameters(Arrays.asList(certs))));
-
-            // Set maximum certification path length
-            pbParams.setMaxPathLength(-1);
-
-            // Disable revocation checking
-            pbParams.setRevocationEnabled(false);
-
-            // Build certification path
-            CertPathBuilderResult buildResult = CertPathBuilder.getInstance("PKIX").build(pbParams);
-
-            // Validate certification path
-            CertPathValidator.getInstance("PKIX").validate(buildResult.getCertPath(), pbParams);
+            throw new IllegalStateException("Invalid certificate chain");
         }
-        catch (GeneralSecurityException gse)
-        {
-            LOG.debug("Unable to validate certificate chain", gse);
-            throw new CertificateException("Unable to validate certificate: " + gse.getMessage(), gse);
-        }
+
+        if (trustedCerts.contains(certs[0]))
+        	return;
+        LOG.debug("Unable to validate certificate chain", certs[0].getSubjectX500Principal().getName());
+        trustedCerts = new CertificateServer().loadTrustedCertificates();
+        // Try again
+        if (trustedCerts.contains(certs[0]))
+        	return;
+        throw new CertificateException("Unable to validate certificate: " + certs[0].getSubjectX500Principal().getName());
     }
-
 }

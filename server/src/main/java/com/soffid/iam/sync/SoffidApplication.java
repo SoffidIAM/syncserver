@@ -13,6 +13,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.RemoteException;
+import java.security.cert.X509Certificate;
+import java.util.List;
 
 import javax.security.auth.login.Configuration;
 
@@ -23,9 +25,13 @@ import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteInvokerFactory;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
+import com.soffid.iam.ssl.ConnectionFactory;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.agent.AgentManagerImpl;
 import com.soffid.iam.sync.engine.Engine;
+import com.soffid.iam.sync.engine.cert.CertificateServer;
+import com.soffid.iam.sync.engine.cert.SyncServerTrustedCertificateLoader;
+import com.soffid.iam.sync.engine.cert.UpdateCertsTask;
 import com.soffid.iam.sync.engine.kerberos.ChainConfiguration;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
 import com.soffid.iam.sync.hub.client.RemoteThread;
@@ -168,7 +174,6 @@ public class SoffidApplication extends Object {
             configureSecurityHeaders();
             configureSecurity ();
             configureSystemOut();
-            
             configureCerts(config);
 
             if ("gateway".equals(config.getRole()))
@@ -312,9 +317,12 @@ public class SoffidApplication extends Object {
             } else {
                 log.warn("Important: Could not establish the cacerts file");
             }
+            
+			ConnectionFactory.setTrustedCertificateLoader(new SyncServerTrustedCertificateLoader());
         } catch (Throwable th) {
             log.warn("Error setting the cacerts file: ", th);
         }
+        new Thread(new UpdateCertsTask()).start();
     }
 
     /**
@@ -338,7 +346,7 @@ public class SoffidApplication extends Object {
         	String m = "Server list not found, please: 1) stop syncserver, 2) unpublish syncserver in IAM, 3) configure again, 4) start service";
         	log.error(m);
           try {
-                        Thread.sleep(60000);
+            Thread.sleep(60000);
           } catch (InterruptedException e) {}
         	throw new InternalErrorException(m);
         }

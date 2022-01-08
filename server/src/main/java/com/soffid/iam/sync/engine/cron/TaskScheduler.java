@@ -27,6 +27,7 @@ import com.soffid.iam.doc.exception.DocumentBeanException;
 import com.soffid.iam.doc.service.DocumentService;
 import com.soffid.iam.service.ScheduledTaskService;
 import com.soffid.iam.service.TaskHandler;
+import com.soffid.iam.sync.engine.cert.UpdateCertsTask;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.ServiceLocator;
@@ -391,6 +392,7 @@ public class TaskScheduler
 		
 		newCronScheduler.schedule("0,5,10,15,20,25,30,35,40,45,50,55 * * * *", new UpdateAgentsTask());
 		newCronScheduler.schedule("1,6,11,16,21,26,31,36,41,46,51,56 * * * *", new RenewAuthTokenTask());
+		newCronScheduler.schedule("0 5 * * *", new UpdateCertsTask());
 
 		if (cronScheduler != null && cronScheduler.isStarted())
 			cronScheduler.stop();

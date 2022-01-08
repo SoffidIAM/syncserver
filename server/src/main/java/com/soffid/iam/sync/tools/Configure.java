@@ -445,15 +445,6 @@ public class Configure {
 			config.setPort(port);
 
 		try {
-			/*
-			 * // Configurar servidor java.io.Console cons = System.console(); if (cons !=
-			 * null) { String hostname = java.net.InetAddress.getLocalHost().getHostName();
-			 * config.setHostName( read (cons, "Hostname", config.getHostName(), hostname)
-			 * ); adminUser = read (cons, "Admin user", adminUser, ""); char[] passwd;
-			 * passwd = cons.readPassword("%s [%s]: ", "Admin Password", adminPassword); if
-			 * (passwd.length > 0) { adminPassword = new Password (new String(passwd)); }
-			 * serverUrl = read (cons, "Server URL", serverUrl, ""); }
-			 */
 			config.setRole(remote ? "remote" : "agent");
 			CertificateServer cs = new CertificateServer();
 			if (force || !cs.hasServerKey())
@@ -573,29 +564,15 @@ public class Configure {
 		DispatcherService dispatcherSvc = ServerServiceLocator.instance().getDispatcherService();
 		Collection<Server> servers = dispatcherSvc.findAllServers();
 		Server server = null;
-		if (!servers.isEmpty()) {
-			if (!force)
-				throw new InternalErrorException(
-						"This server cannot be configured as the main server as long as there are some servers created at Soffid console.\nPlease remove them to proceed.");
-			for (Server server2 : servers) {
-				if (server2.getName().equals(oldHostName))
-					server = server2;
-			}
-			if (server == null)
-				throw new InternalErrorException("Unable to find server configuration for " + oldHostName);
-			server.setName(config.getHostName());
-			dispatcherSvc.update(server);
-		} else {
-			server = new Server();
-			server.setName(hostName);
-			server.setUrl("https://" + hostName + ":" + config.getPort() + "/");
-			server.setType(ServerType.MASTERSERVER);
-			server.setUseMasterDatabase(true);
-			server = dispatcherSvc.create(server);
-			TenantService tenantSvc = ServiceLocator.instance().getTenantService();
-			Tenant t = tenantSvc.getMasterTenant();
-			tenantSvc.addTenantServer(t, server.getName());
-		}
+		server = new Server();
+		server.setName(hostName);
+		server.setUrl("https://" + hostName + ":" + config.getPort() + "/");
+		server.setType(ServerType.MASTERSERVER);
+		server.setUseMasterDatabase(true);
+		server = dispatcherSvc.create(server);
+		TenantService tenantSvc = ServiceLocator.instance().getTenantService();
+		Tenant t = tenantSvc.getMasterTenant();
+		tenantSvc.addTenantServer(t, server.getName());
 		config.setHostName(hostName);
 		CertificateServer s = new CertificateServer();
 
@@ -605,7 +582,7 @@ public class Configure {
 		log.info("Server list: " + config.getServerList());
 
 		log.info("Generating security keys");
-		s.createRoot();
+		s.createRoot(server);
 	}
 
 	private static void configureAgent(String adminTenant, String adminUser, Password adminPassword, String adminDomain,

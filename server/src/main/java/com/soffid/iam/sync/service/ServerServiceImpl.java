@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.URL;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -87,6 +88,7 @@ import com.soffid.iam.model.RoleEntity;
 import com.soffid.iam.model.RoleEntityDao;
 import com.soffid.iam.model.RoleGroupEntity;
 import com.soffid.iam.model.RoleGroupEntityDao;
+import com.soffid.iam.model.ServerCertificateEntity;
 import com.soffid.iam.model.ServerEntity;
 import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.model.SystemEntity;
@@ -2327,6 +2329,15 @@ public class ServerServiceImpl extends ServerServiceBase {
 			}
 		} finally {
 			tae.finishVirtualSourceTransaction(t);
+		}
+	}
+
+	@Override
+	protected void handleAddCertificate(X509Certificate cert) throws Exception {
+		String account = Security.getCurrentAccount();
+		ServerEntity server = getServerEntityDao().findByName(account);
+		if (server != null) {
+			getDispatcherService().addCertificate(getServerEntityDao().toServer(server), cert);
 		}
 	}
 
