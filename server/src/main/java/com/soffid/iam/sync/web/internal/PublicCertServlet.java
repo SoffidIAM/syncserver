@@ -29,7 +29,7 @@ public class PublicCertServlet extends HttpServlet {
         	if ("2".equals(request.getParameter("version"))) {
         		List<X509Certificate> certs = cs.loadTrustedCertificates();
         		StringBuffer sb = new StringBuffer();
-        		sb.append("----- CERTS _-----\n");
+        		sb.append("------ CERTS ------\n");
         		for (X509Certificate cert: certs) {
         			sb.append(Base64.encodeBytes(cert.getEncoded(), Base64.DONT_BREAK_LINES));
         			sb.append("\n");
