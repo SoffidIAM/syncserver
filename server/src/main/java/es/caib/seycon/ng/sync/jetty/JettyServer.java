@@ -4,8 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URL;
 
-import org.mortbay.jetty.security.Constraint;
-import org.mortbay.jetty.servlet.Context;
+import org.eclipse.jetty.webapp.WebAppContext;
 
 import com.soffid.iam.remote.PublisherInterface;
 
@@ -31,7 +30,7 @@ public class JettyServer implements PublisherInterface
     	delegate.bindDownloadServlet(url, rol, servletClass);
     }
 
-    public synchronized void bindServlet(String url, String constraintName, String [] rol,Context context, Class servletClass) {
+    public synchronized void bindServlet(String url, String constraintName, String [] rol, WebAppContext context, Class servletClass) {
     	delegate.bindServlet(url, constraintName, rol, context, servletClass);
     }
 

@@ -1,6 +1,7 @@
 package com.soffid.iam.sync.service;
 
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -19,6 +20,7 @@ import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
@@ -44,6 +46,8 @@ import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AccountEntityDao;
 import com.soffid.iam.model.PasswordDomainEntity;
 import com.soffid.iam.model.PasswordDomainEntityDao;
+import com.soffid.iam.model.ServerEntity;
+import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.TaskEntityDao;
@@ -58,6 +62,7 @@ import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.intf.DebugTaskResults;
+import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
@@ -65,7 +70,6 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
-import jcifs.util.Base64;
 
 public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAware
 {
@@ -84,6 +88,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	private final Logger log = Log.getLogger("TaskQueue");
 	private ApplicationContext applicationContext;
 	private Boolean debug;
+	private String instanceName;
 
 	boolean isDebug() {
 		if (debug == null) {
@@ -113,21 +118,27 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		globalCurrentTasks = new Hashtable<Long, Hashtable<String, TaskHandler>>();
 		globalTaskList = new Hashtable<Long, PrioritiesList>();
+		String hn = null;
+		try
+		{
+			hn = InetAddress.getLocalHost().getHostName();
+		}
+		catch (UnknownHostException e1)
+		{
+			throw new RuntimeException(e1);
+		}
 		try
 		{
 			hostname = Config.getConfig().getHostName();
 		}
 		catch (IOException e)
 		{
-			try
-			{
-				hostname = InetAddress.getLocalHost().getHostName();
-			}
-			catch (UnknownHostException e1)
-			{
-				throw new RuntimeException(e1);
-			}
+			hostname = hn;
 		}
+		if (new KubernetesConfig().isKubernetes())
+			instanceName = hn;
+		else
+			instanceName = null;
 	}
 
 	@Override
@@ -468,9 +479,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 		String hash = tasqueEntity.getHash();
 		// Eliminar tareas similares
-		if (hash == null || tasqueEntity.getServer() == null)
+		if (hash == null || tasqueEntity.getServer() == null || 
+				tasqueEntity.getServerInstance() == null && instanceName != null)
 		{
-			
 			getSyncServerStatsService().register("queue", "scheduled", 1);
 			hash = newTask.getHash();
 			// Cancel local tasks
@@ -492,12 +503,13 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			newTask.getTask().setStatus("P");
 			newTask.getTask().setServer(hostname);
 			newTask.getTask().setHash(hash);
+			newTask.getTask().setServerInstance(instanceName);
 			//  Now update database (it's really needed)
 			tasqueEntity.setStatus("P");
 			tasqueEntity.setServer(hostname);
 			tasqueEntity.setHash(hash);
+			tasqueEntity.setServerInstance(instanceName);
 			getTaskEntityDao().update(tasqueEntity);
-//			getTaskEntityDao().cancelUnscheduledCopies(tasqueEntity);
 		} else {
 			// Cancel local tasks
 			TaskHandler oldTask = null;
@@ -594,25 +606,40 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
-		TaskHandler th = new TaskHandler ();
-		th.setTask(getTaskEntityDao().toTask(task));
-		th.setTenantId(Security.getCurrentTenantId());
-		th.setTenant(Security.getCurrentTenantName());
-		if (isDebug())
-			log.info("Cancelling remote task {}", th.toString(), null);
-		th.cancel();
-		pushTaskToPersist(th);
 		
-		if (task.getServer() != null && !task.getServer().equals(hostname))
-		{
+		if (task.getServer() != null && 
+				(!task.getServer().equals(hostname)) ||
+            	 task.getServer().equals(hostname) && instanceName != null && !instanceName.equals(task.getServerInstance()))
+        {
+			TaskHandler th = new TaskHandler ();
+			th.setTask(getTaskEntityDao().toTask(task));
+			th.setTenantId(Security.getCurrentTenantId());
+			th.setTenant(Security.getCurrentTenantName());
+			th.cancel();
+			log.info("Cancelling remote task {}", th.toString(), null);
+			pushTaskToPersist(th);
 			RemoteServiceLocator rsl = new RemoteServiceLocator();
 			try
 			{
-				rsl.setServer(task.getServer());
-				ServerService server = rsl.getServerService();
-				if (isDebug())
+				String url = null;
+				
+				if ( task.getServerInstance() != null ) {
+					ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(task.getServer(), task.getServerInstance());
+					if (si != null) {
+						url = si.getUrl();
+						rsl.setAuthToken(si.getAuth());
+					}
+				} else {
+					ServerEntity s = getServerEntityDao().findByName(task.getServer());
+					if (s != null) url = s.getUrl();
+					
+				}
+				if (url != null) {
+					rsl.setServer(url);
+					ServerService server = rsl.getServerService();
 					log.info("Cancelling remote task {}", task.getId(), null);
-				server.cancelTask(task.getId());
+					server.cancelTask(task.getId(), task.getHash());					
+				}
 			}
 			catch (Exception e)
 			{
@@ -931,6 +958,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					DispatcherHandler taskDispatcher, boolean bOK, String sReason,
 					Throwable t) throws Exception
 	{
+		if (bOK)
+			log.info("Task {} finished OK", task.toString(), null);
+		else
+			log.info("Task {} FAILED", task.toString(), null);
 		long now = System.currentTimeMillis();
 
 		// Afegir (si cal) nous task logs
@@ -1139,25 +1170,24 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	@Override
-	protected void handleCancelTask (long taskId) throws Exception
+	protected void handleCancelTask (long taskId, String hash) throws Exception
 	{
+		log.info("Cancelling task {}", taskId, null);
 		TaskEntity taskEntity = getTaskEntityDao().load(taskId);
-		if (taskEntity != null)
+		Hashtable<String, TaskHandler> ct = globalCurrentTasks.get(Security.getCurrentTenantId());
+		if (ct != null)
 		{
-			Hashtable<String, TaskHandler> ct = globalCurrentTasks.get(Security.getCurrentTenantId());
-			if (ct != null)
+			if (taskEntity != null && taskEntity.getHash() != null)
+				hash = taskEntity.getHash();
+			TaskHandler task = ct.get(hash);
+			if (task != null)
 			{
-				TaskHandler task = ct.get(taskEntity.getHash());
-				if (task != null)
+				if (task.getTask().getId().longValue() == taskId)
 				{
-					if (task.getTask().getId().longValue() == taskId)
-					{
-						if (isDebug())
-							log.info("Cancelling task on demand {}", task.toString(), null);
-						task.cancel();
-						pushTaskToPersist(task);
-						ct.remove(taskEntity.getHash());
-					}
+					log.info("Cancelled task {}:{}", taskId, task.toString());
+					task.cancel();
+					if (taskEntity != null) pushTaskToPersist(task);
+					ct.remove(hash);
 				}
 			}
 		}
@@ -1409,12 +1439,16 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
-	private void persistLog(TaskEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity) {
+	private void persistLog(TaskEntity tasqueEntity, TaskHandlerLog thl, TaskLogEntity entity) throws InternalErrorException {
 		if (thl.getId() == null)
 		{
 
 			if (thl.getLast() == 0) return; // Still not done task
 				
+			if (thl.isComplete() && getTaskGenerator().getDispatchers().size() > 500 &&
+					thl.getLast() < System.currentTimeMillis() - 300_000)
+				return; // Do not store succesful logs
+			
 			entity = getTaskLogEntityDao().newTaskLogEntity();
 			entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
 			entity.setTask(tasqueEntity);
@@ -1424,30 +1458,36 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			entity = getTaskLogEntityDao().load(thl.getId().longValue());
 			if (entity == null) {
+				if (thl.isComplete() && getTaskGenerator().getDispatchers().size() > 500 &&
+						thl.getLast() < System.currentTimeMillis() - 300_000)
+					return; // Do not store succesful logs
 				entity = getTaskLogEntityDao().newTaskLogEntity();
 				entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
 				entity.setTask(tasqueEntity);
 				entity.setCreationDate(new Date());
 			}
 		}
-		entity.setExecutionsNumber(new Long(thl.getNumber()));
-		entity.setNextExecution(thl.getNext());
-		entity.setCompleted(thl.isComplete() ? "S" : "N");
-		entity.setLastExecution(thl.getLast());
-		entity.setMessage(thl.getReason());
-		if (entity.getMessage() != null && entity.getMessage().length() > 1000)
-			entity.setMessage(entity.getMessage().substring(0, 1000));
-		entity.setStackTrace(thl.getStackTrace());
-		if (entity.getStackTrace() != null && entity.getStackTrace().length() > 1000)
-			entity.setStackTrace(entity.getStackTrace().substring(0, 1000)); 
-		if (thl.getId() == null || entity.getId() == null)
-		{
-			getTaskLogEntityDao().create(entity);
-			thl.setId(entity.getId());
-		}
-		else
-		{
-			getTaskLogEntityDao().update(entity);
+		if (entity.getExecutionsNumber() == null ||
+				entity.getExecutionsNumber() != thl.getNext()) {
+			entity.setExecutionsNumber(new Long(thl.getNumber()));
+			entity.setNextExecution(thl.getNext());
+			entity.setCompleted(thl.isComplete() ? "S" : "N");
+			entity.setLastExecution(thl.getLast());
+			entity.setMessage(thl.getReason());
+			if (entity.getMessage() != null && entity.getMessage().length() > 1000)
+				entity.setMessage(entity.getMessage().substring(0, 1000));
+			entity.setStackTrace(thl.getStackTrace());
+			if (entity.getStackTrace() != null && entity.getStackTrace().length() > 1000)
+				entity.setStackTrace(entity.getStackTrace().substring(0, 1000));
+			if (entity.getId() == null)
+			{
+				getTaskLogEntityDao().create(entity);
+				thl.setId(entity.getId());
+			}
+			else
+			{
+				getTaskLogEntityDao().update(entity);
+			}
 		}
 	}
 	
@@ -1512,6 +1552,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			tasque.setStatus(newTask.getTask().getStatus());
 	    			tasque.setHash(newTask.getTask().getHash());
 	    			tasque.setServer(newTask.getTask().getServer());
+	    			tasque.setServerInstance(instanceName);
 	    			tasque.setPriority(new Long(newTask.getPriority()));
 	    			dao.update(tasque);
 	    
@@ -1579,6 +1620,68 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			}
 		}
 		return null;
+	}
+
+	
+
+	@Override
+	protected boolean handleIsBestServer() throws Exception {
+    	if (instanceName == null) {
+    		return true;
+    	}
+    	String hostName = InetAddress.getLocalHost().getHostName();
+    	
+//    	CriteriaSearchConfiguration csc = new CriteriaSearchConfiguration();
+//    	csc.setMaximumResultSize(1);
+   		List<ServerInstanceEntity> instances = getServerInstanceEntityDao()
+   				.findBestServerInstances(Config.getConfig().getHostName());
+   		if (instances.isEmpty())
+   			return true;
+   		ServerInstanceEntity instance = instances.iterator().next();
+   		if (instance.getName().equals(hostName))
+   			log.info("Lowest workload server: {} ***", instance.getName(), null);
+   		else
+			log.info("Lowest workload server: {}", instance.getName(), null);
+   		return instance.getName().equals(hostName);
+	}
+
+	@Override
+	protected void handleUpdateServerInstanceTasks() throws Exception {
+		int tasks = 0;
+//		log.info("Counting active tasks", null, null);
+		for (Entry<Long, Hashtable<String, TaskHandler>> entry : globalCurrentTasks.entrySet()) {
+			int size = entry.getValue().size();
+//			log.info(">> Tenant {}: {}", entry.getKey(), size);
+			tasks += size;
+		}
+				
+		ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(Config.getConfig().getHostName(), instanceName);
+		if (si != null) {
+			si.setTasks(tasks);
+			getServerInstanceEntityDao().update(si);
+		}
+	}
+
+	@Override
+	public void handleRegisterServerInstance(String name, String url) throws InternalErrorException, FileNotFoundException, IOException {
+		String syncserverName = Security.getCurrentAccount();
+		if (syncserverName == null)
+			syncserverName = Config.getConfig().getHostName();
+		ServerEntity s = getServerEntityDao().findByName(syncserverName);
+		if (s == null)
+			throw new InternalErrorException("Cannot find sync server "+syncserverName);
+		ServerInstanceEntity si = getServerInstanceEntityDao().findByServerNameAndInstanceName(syncserverName, name);
+		if (si == null) {
+			si = getServerInstanceEntityDao().newServerInstanceEntity();
+			si.setServer(s);
+			si.setLastSeen(new Date());
+			si.setName(name);
+			si.setUrl(url);
+			getServerInstanceEntityDao().create(si);
+		} else {
+			si.setLastSeen(new Date());
+			getServerInstanceEntityDao().update(si);
+		}
 	}
 }
 

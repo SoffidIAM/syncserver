@@ -7,6 +7,7 @@ import java.net.Inet4Address;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -30,6 +31,7 @@ import com.soffid.iam.api.System;
 import com.soffid.iam.api.Task;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.Parameter;
+import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.TenantEntity;
@@ -41,6 +43,7 @@ import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGeneratorBase;
 import com.soffid.iam.sync.service.TaskQueue;
+import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -81,30 +84,53 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         return status;
     }
 
+    long lastId = -1;
     @Override
     protected void handleLoadTasks() throws Exception {
+    	TaskQueue taskQueue = getTaskQueue();
         Collection<TaskEntity> tasks;
         Runtime runtime = Runtime.getRuntime();
-        if (runtime.maxMemory() - runtime.freeMemory() > memoryLimit)
+        if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
         	runtime.gc();
-        if (runtime.maxMemory() - runtime.freeMemory() > memoryLimit)
+        if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit)
         {
         	log.warn("Free Memory too low. New tasks are not being scheduled");
         	return;
         }
+        
     	CriteriaSearchConfiguration csc = new CriteriaSearchConfiguration();
-    	csc.setMaximumResultSize(5000);
+    	csc.setMaximumResultSize(500);
         log.info("Looking for new tasks to schedule");
-        if (firstRun) {
+        if ( new KubernetesConfig().isKubernetes()) {
+        	if (isMainServer() && taskQueue.isBestServer()) {
+	            tasks = getTaskEntityDao().query("select distinct tasca "
+	            		+ "from com.soffid.iam.model.TaskEntity as tasca "
+	            		+ "left join tasca.tenant as tenant "
+	            		+ "left join tenant.servers as servers "
+	            		+ "left join servers.tenantServer as server "
+	            		+ "where (tasca.server is null or tasca.server=:server and tasca.serverInstance is null) "
+	            		+ "and   server.name=:server "
+	            		+ "and   tenant.enabled=:true "
+	            		+ "order by tasca.priority, tasca.id",
+	            		new Parameter[]{
+	            				new Parameter("server", config.getHostName()),
+	            				new Parameter("true", true)},
+	            		csc);
+        	} 
+        	else
+        		tasks = new LinkedList<>();
+        }
+        else if (firstRun) {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
-            		+ "where tasca.server = :server and "
+            		+ "where tasca.server = :server and tasca.id > :lastId and "
             		+ "tenant.enabled=:true "
             		+ "order by tasca.id", 
             		new Parameter[]{
             				new Parameter("server", config.getHostName()),
-            				new Parameter("true", true)});
+            				new Parameter("true", true),
+            				new Parameter("lastId", lastId)});
         } else if (isMainServer()) {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
@@ -133,7 +159,6 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             				new Parameter("true", true)},
             		csc);
         }
-        TaskQueue taskQueue = getTaskQueue();
         int i = 0;
         flushAndClearSession();
         long lastUpdate = java.lang.System.currentTimeMillis();
@@ -143,7 +168,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             {
 	            taskQueue.addTask(tasca);
 	            flushAndClearSession();
-	            if (runtime.maxMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
+	            if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
 	                runtime.gc();
 	                return;
 	            }
@@ -154,13 +179,16 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             		getTaskEntityDao().update(tasca);
             	}
             }
+            lastId = tasca.getId().longValue();
             if (java.lang.System.currentTimeMillis() - lastUpdate > 60000) {
             	lastUpdate = java.lang.System.currentTimeMillis();
                 getSyncServerService().updatePendingTasks();
             }
         }
         getSyncServerService().updatePendingTasks();
-   		firstRun = false;
+        taskQueue.updateServerInstanceTasks();
+        if (tasks.isEmpty())
+        	firstRun = false;
     }
 
     @Override
@@ -484,7 +512,6 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 						split[0].equals(hostName) ||
 						Long.parseLong(split[1]) < timeout)
 				{
-					log.warn("Setting as master server: "+hostName);
 					cfg.setValue(hostName+" "+now);
 					svc.update(cfg);
 				}
@@ -505,4 +532,12 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 		String [] split = cfg.getValue().isEmpty() ? new String[0]: cfg.getValue().split(" ");
 		return split.length == 2 && split[0].equals(hostName);
 	}
+
+	@Override
+	protected void handlePurgeServerInstances() throws Exception {
+		for (ServerInstanceEntity si: getServerInstanceEntityDao().findExpired(new Date(java.lang.System.currentTimeMillis() - 60_000))) {
+			getServerInstanceEntityDao().remove(si);
+		}
+	}
+
 }

@@ -180,7 +180,7 @@ public class SyncLoader extends Object {
 		File f = fvm.getInstalledFile(file);
 		if ( f != null)
 		{
-			System.out.println ("Parsing dependencies of "+f.toString());
+			log.info("Parsing dependencies of "+f.toString());
 			JarFile jf = new JarFile(f);
 			String classPath = jf.getManifest().getMainAttributes().getValue("Class-Path");
 			if (classPath != null)
@@ -737,15 +737,16 @@ public class SyncLoader extends Object {
     public static void main(String[] args) {
         try {
         	BASE_DIRECTORY = Config.getConfig().getHomeDir().getPath();
+
             boolean continueIteration = true;
             while (continueIteration) {
-            	log = new Logger("main");
-                log.info("*************************************************");
-                log.info("Soffid IAM Sync Server BOOTSTRAP version " + getVersion());
-                SyncLoader serverLoader = new SyncLoader();
-                serverLoader.load(args);
-                Thread.sleep(60000); // Do not restart before 60 seconds
-                continueIteration = serverLoader.waitProcess() != 0;
+              log = new Logger("main");
+              log.info("*************************************************");
+              log.info("Soffid IAM Sync Server BOOTSTRAP version " + getVersion());
+              SyncLoader serverLoader = new SyncLoader();
+              serverLoader.load(args);
+              Thread.sleep(60000); // Do not restart before 60 seconds
+              continueIteration = serverLoader.waitProcess() != 0;
             }
         } catch (Throwable e) {
         	System.err.println("Error starting soffid sync server");

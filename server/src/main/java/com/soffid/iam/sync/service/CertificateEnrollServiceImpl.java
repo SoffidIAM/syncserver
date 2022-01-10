@@ -2,17 +2,34 @@ package com.soffid.iam.sync.service;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
 import java.rmi.RemoteException;
+import java.security.InvalidKeyException;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
 import java.security.PublicKey;
+import java.security.SignatureException;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateEncodingException;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 
+import javax.security.auth.x500.X500Principal;
+
+import org.bouncycastle.asn1.x500.RDN;
+import org.bouncycastle.asn1.x500.X500Name;
+import org.bouncycastle.asn1.x500.style.RFC4519Style;
+import org.eclipse.jetty.security.UserPrincipal;
 import org.jbpm.JbpmConfiguration;
 import org.jbpm.JbpmContext;
 import org.jbpm.context.exe.ContextInstance;
@@ -48,7 +65,7 @@ import es.caib.seycon.ng.exception.UnknownUserException;
 
 public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     static JbpmConfiguration config = null;
-    static Map<Long,PublicKey> preapprovedRequests = new HashMap<Long,PublicKey>();
+    static Map<Long,Object> preapprovedRequests = new HashMap<Long,Object>();
     private CertificateServer certificateServer;
 
     private static JbpmConfiguration getConfig () {
@@ -127,7 +144,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     	}
     }
     
-    private Long autoCreateRequest(String tenant, String hostName, PublicKey key) {
+    private Long autoCreateRequest(String tenant, String hostName, Object key) {
     	Long l = new Random().nextLong();
     	preapprovedRequests.put(l, key);
     	return l;
@@ -195,98 +212,34 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        	X509Certificate cert;
 	        	if (isAllowedAutoRegister(user, domain) && preapprovedRequests.containsKey(request))
 	        	{
-	        		pk = preapprovedRequests.get(request);
-	        		if (certificateServer == null)
-	        			certificateServer = new CertificateServer();
-	        		cert = certificateServer.createCertificate(tenant, subject, pk);
+	        		Object o = preapprovedRequests.get(request);
+	        		if (o instanceof X509Certificate)
+	        			cert = (X509Certificate) o;
+	        		else {
+		        		pk = (PublicKey) o; 
+		        		if (certificateServer == null)
+		        			certificateServer = new CertificateServer();
+		        		cert = certificateServer.createCertificate(tenant, subject, pk);
+	        		}
 	        		preapprovedRequests.remove(request);
 	        	}
 	        	else
 	        	{
-	        		JbpmConfiguration config = getConfig();
-	        		JbpmContext ctx = config.createJbpmContext();
-	        		ProcessInstance pi = ctx.getProcessInstance(request.longValue());
-	        		if (pi == null) 
-	        			throw new InternalErrorException("Wrong request ID");
-	        		ContextInstance ctxInstance = pi.getContextInstance();
-	        		User userData;
-	        		try {
-	        			userData = getServerService().getUserInfo(user, domain);
-	        		} catch (UnknownUserException e) {
-	        			userData = new User();
-	        			userData.setUserName(user);
-	        		}
-	        		Invoker invoker = Invoker.getInvoker();
-	        		
-	        		if (! ctxInstance.getVariable("user").equals(userData.getUserName()))
-	        			throw new InternalErrorException (String.format("Certificate must be retrieved by %s",ctxInstance.getVariable("user")));
-	        		if (! ctxInstance.getVariable("hostname").equals(subject))
-	        			throw new InternalErrorException (String.format("Certificate belongs to host %s",ctxInstance.getVariable("hostname")));
-	        		if (! ctxInstance.getVariable("remoteAddress").equals(invoker.getAddr().getHostAddress()))
-	        			throw new InternalErrorException (String.format("Certificate not accesible from %s",invoker.getAddr().getHostAddress()));
-	        		if (pi.getEnd() != null)
-	        			throw new InternalErrorException("This certificate has already been issued");
-	        		String aproved = (String) ctxInstance.getVariable ("approve");
-	        		if (aproved == null)
-	        			throw new CertificateEnrollWaitingForAproval();
-	        		if (! aproved.equals("yes")) {
-	        			pi.signal();
-	        			ctx.save(pi);
-	        			ctx.close();
-	        			throw new CertificateEnrollDenied();
-	        		}
-	        		pk = (PublicKey) ctxInstance.getVariable("publicKey");
-	        		if (certificateServer == null)
-	        			certificateServer = new CertificateServer();
-	        		cert = certificateServer.createCertificate(tenant, subject, pk);
-	        		pi.signal();
-	        		ctx.save(pi);
-	        		ctx.close();
+	        		cert = generateCertificateFromProcess(request, tenant, user, domain, subject);
 	        	}
-	        	boolean found = false;
-	        	for (Server server: getDispatcherService().findAllServers())
+	        	Server server = null;
+	        	for (Server s: getDispatcherService().findAllServers())
 	        	{
-	        		if (server.getName().equals(subject))
+	        		if (s.getName().equals(subject))
 	        		{
-	        			found = true;
+	        			getDispatcherService().delete(server);
 	        		}
 	        	}
-	        	if (! found)
+	        	if (server == null)
 	        	{
-	        		Server server = new Server();
-	        		server.setName(subject);
-	        		server.setBackupDatabase(null);
-	        		if (remote)
-	        		{
-	        			server.setType(ServerType.REMOTESERVER);
-	        			String gateway = getDispatcherService().createRemoteServer(subject, tenant);
-	        			for ( Server gatewayServer: getDispatcherService().findAllServers())
-	        			{
-	        				if ( gatewayServer.getUrl() != null && gateway.endsWith(gatewayServer.getName()))
-	        				{
-	        					port = Integer.toString( new URL(gatewayServer.getUrl()).getPort() );
-	        				}
-	        			}
-	        			server.setUrl("https://"+gateway+":"+port+"/");
-	        		}
-	        		else
-	        		{
-	        			server.setType(ServerType.PROXYSERVER);
-	        			server.setUrl("https://"+subject+":"+port+"/");
-	        		}
-	        		server.setUseMasterDatabase(Boolean.FALSE);
-	        		server = getDispatcherService().create(server);
-	        		TenantService tenantSvc = ServiceLocator.instance().getTenantService();
-	        		TenantCriteria criteria = new TenantCriteria();
-	        		criteria.setName(tenant);
-	        		for (Tenant t: tenantSvc.find(criteria ))
-	        		{
-	        			if (t.getName().equals(tenant))
-	        			{
-	        				tenantSvc.addTenantServer(t, server.getName());
-	        			}
-	        		}
+	        		server = registerNewServer(tenant, remote, subject, port);
 	        	}
+	        	getDispatcherService().addCertificate(server, cert);
 	        	return cert;
 	        } else {
 	            throw new InvalidPasswordException();
@@ -295,6 +248,95 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
     		Security.nestedLogoff();
     	}
     }
+	public X509Certificate generateCertificateFromProcess(Long request, String tenant, String user, String domain,
+			String subject) throws InternalErrorException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied,
+			KeyStoreException, NoSuchAlgorithmException, CertificateException, FileNotFoundException, IOException,
+			CertificateEncodingException, InvalidKeyException, NoSuchProviderException, SignatureException,
+			UnrecoverableKeyException {
+		PublicKey pk;
+		X509Certificate cert;
+		JbpmConfiguration config = getConfig();
+		JbpmContext ctx = config.createJbpmContext();
+		ProcessInstance pi = ctx.getProcessInstance(request.longValue());
+		if (pi == null) 
+			throw new InternalErrorException("Wrong request ID");
+		ContextInstance ctxInstance = pi.getContextInstance();
+		User userData;
+		try {
+			userData = getServerService().getUserInfo(user, domain);
+		} catch (UnknownUserException e) {
+			userData = new User();
+			userData.setUserName(user);
+		}
+		Invoker invoker = Invoker.getInvoker();
+		
+		if (! ctxInstance.getVariable("user").equals(userData.getUserName()))
+			throw new InternalErrorException (String.format("Certificate must be retrieved by %s",ctxInstance.getVariable("user")));
+		if (! ctxInstance.getVariable("hostname").equals(subject))
+			throw new InternalErrorException (String.format("Certificate belongs to host %s",ctxInstance.getVariable("hostname")));
+		if (! ctxInstance.getVariable("remoteAddress").equals(invoker.getAddr().getHostAddress()))
+			throw new InternalErrorException (String.format("Certificate not accesible from %s",invoker.getAddr().getHostAddress()));
+		if (pi.getEnd() != null)
+			throw new InternalErrorException("This certificate has already been issued");
+		String aproved = (String) ctxInstance.getVariable ("approve");
+		if (aproved == null)
+			throw new CertificateEnrollWaitingForAproval();
+		if (! aproved.equals("yes")) {
+			pi.signal();
+			ctx.save(pi);
+			ctx.close();
+			throw new CertificateEnrollDenied();
+		}
+		cert = (X509Certificate) ctxInstance.getVariable("certificate");
+		if (cert == null) {
+			pk = (PublicKey) ctxInstance.getVariable("publicKey");
+			if (certificateServer == null)
+				certificateServer = new CertificateServer();
+			cert = certificateServer.createCertificate(tenant, subject, pk);
+		}
+		pi.signal();
+		ctx.save(pi);
+		ctx.close();
+		return cert;
+	}
+	public Server registerNewServer(String tenant, boolean remote, String subject, String port)
+			throws InternalErrorException, MalformedURLException {
+		Server server;
+		server = new Server();
+		server.setName(subject);
+		server.setBackupDatabase(null);
+		if (remote)
+		{
+			server.setType(ServerType.REMOTESERVER);
+			String gateway = getDispatcherService().createRemoteServer(subject, tenant);
+			for ( Server gatewayServer: getDispatcherService().findAllServers())
+			{
+				if ( gatewayServer.getUrl() != null && gateway.endsWith(gatewayServer.getName()))
+				{
+					port = Integer.toString( new URL(gatewayServer.getUrl()).getPort() );
+				}
+			}
+			server.setUrl("https://"+gateway+":"+port+"/");
+		}
+		else
+		{
+			server.setType(ServerType.PROXYSERVER);
+			server.setUrl("https://"+subject+":"+port+"/");
+		}
+		server.setUseMasterDatabase(Boolean.FALSE);
+		server = getDispatcherService().create(server);
+		TenantService tenantSvc = ServiceLocator.instance().getTenantService();
+		TenantCriteria criteria = new TenantCriteria();
+		criteria.setName(tenant);
+		for (Tenant t: tenantSvc.find(criteria ))
+		{
+			if (t.getName().equals(tenant))
+			{
+				tenantSvc.addTenantServer(t, server.getName());
+			}
+		}
+		return server;
+	}
 
     @Override
     protected String handleGetServerList() throws Exception {
@@ -312,5 +354,94 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
             certificateServer = new CertificateServer();
         return certificateServer.getRoot();
     }
+	@Override
+	protected long handleCreateRequest(String tenant, String user, String password, String domain, String hostName,
+			X509Certificate cert) throws Exception {
+    	Security.nestedLogin(tenant, user, Security.ALL_PERMISSIONS);
+    	try
+    	{
+			String port = "760";
+			String subject = hostName;
+			int i = hostName.indexOf(":");
+			if (i >= 0)
+			{
+				port = hostName.substring(i+1);
+				subject = hostName.substring(0, i);
+			}
+	        PasswordValidation vs;
+	        vs = validatePassword(user, password, domain);
+	        if (vs == PasswordValidation.PASSWORD_GOOD) {
+	        	checkRightTenant(cert, tenant);
+	        	if (isAllowedAutoRegister (user, domain))
+	        	{
+	        		return autoCreateRequest (tenant, subject, cert);
+	        	}
+	        	else
+	        	{
+	        		JbpmConfiguration config = getConfig();
+	        		JbpmContext ctx = config.createJbpmContext();
+	        		ProcessDefinition def;
+	    			def = ctx.getGraphSession()
+	    					.findLatestProcessDefinition("Soffid agent enrollment");
+	    			if (def == null) {
+		        		Security.nestedLogin(Security.getMasterTenantName(), user, Security.ALL_PERMISSIONS);
+		        		try {
+		        			def = ctx.getGraphSession()
+		        					.findLatestProcessDefinition("Soffid agent enrollment");
+		        		} finally {
+		        			Security.nestedLogoff();
+		        		}
+	    			}
+	        		ProcessInstance pi = new ProcessInstance(def);
+	        		ContextInstance ctxInstance = pi.getContextInstance();
+	        		try {
+	        			User userData = getServerService().getUserInfo(user, domain);
+	        			ctxInstance.setVariable("tenant", tenant);
+	        			ctxInstance.setVariable("user", userData.getUserName());
+	        			ctxInstance.setVariable("name", userData.getFirstName());
+	        			ctxInstance.setVariable("surname", userData.getLastName());
+	        		} catch (UnknownUserException e) {
+	        			ctxInstance.setVariable("tenant", tenant);
+	        			ctxInstance.setVariable("user", user);
+	        			ctxInstance.setVariable("name", user);
+	        			ctxInstance.setVariable("surname", "");
+	        		}
+	        		ctxInstance.setVariable("hostname", subject);
+	        		ctxInstance.setVariable("certificate", cert);
+	        		Invoker invoker = Invoker.getInvoker();
+	        		ctxInstance.setVariable("remoteAddress", invoker.getAddr().getHostAddress());
+	        		ctx.save(pi);
+	        		pi.signal();
+	        		ctx.save(pi);
+	        		ctx.close();
+	        		return pi.getId();
+	        	}
+	        } else {
+	            throw new InvalidPasswordException();
+	        }
+		} finally {
+			Security.nestedLogoff();
+		}
+	}
+
+	private void checkRightTenant(X509Certificate cert, String tenant) {
+		X500Name name = new X500Name (cert.getSubjectX500Principal().getName());
+		String domain = null;
+		for ( RDN rdn: name.getRDNs())
+		{
+			if (rdn.getFirst() != null &&
+					rdn.getFirst().getType().equals( RFC4519Style.ou))
+				domain = rdn.getFirst().getValue().toString();
+		}
+		if ( tenant.equals(Security.getMasterTenantName()) && domain == null || 
+				tenant.equals(domain))
+			return; // OK
+		throw new SecurityException("Certificate OU must be "+tenant+" but it is ["+domain+"]");
+	}
+	
+	@Override
+	public List<X509Certificate> handleGetCertificates() throws InternalErrorException, InternalErrorException {
+		return getDispatcherService().findValidCertificates();
+	}
     
 }

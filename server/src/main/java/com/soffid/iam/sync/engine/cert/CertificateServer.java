@@ -28,6 +28,7 @@ import java.util.Calendar;
 import java.util.Date;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
@@ -50,6 +51,7 @@ import com.soffid.iam.remote.RemoteInvokerFactory;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.ssl.SeyconKeyStore;
+import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.service.CertificateEnrollService;
 import com.soffid.iam.sync.tools.KubernetesConfig;
@@ -84,33 +86,17 @@ public class CertificateServer {
         return cert;
     }
 
-    public void createRoot() throws KeyStoreException, NoSuchAlgorithmException,
+    public void createRoot(Server server) throws KeyStoreException, NoSuchAlgorithmException,
             NoSuchProviderException, CertificateException, FileNotFoundException, IOException,
             InvalidKeyException, IllegalStateException, SignatureException,
             UnrecoverableKeyException, InternalErrorException, KeyManagementException {
         log.info("Generating RSA keys ");
         
-
         KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
         SecureRandom random = new SecureRandom();
         
         keyGen.initialize(2048, random);
-        X509Certificate cert = (X509Certificate) rootks.getCertificate(SeyconKeyStore.ROOT_CERT);
         
-        if (! rootks.containsAlias(SeyconKeyStore.ROOT_CERT))
-        {
-        	// Generar clave raiz
-        	KeyPair pair = keyGen.generateKeyPair();
-        	cert = createCertificate("master", "RootCA", pair.getPublic(), pair.getPrivate(), null, true);
-        	rootks.setKeyEntry(SeyconKeyStore.ROOT_KEY, pair.getPrivate(), password.getPassword()
-        			.toCharArray(), new X509Certificate[] { cert });
-        	
-        	// Guardar trusted cert
-        	ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, cert);
-        	
-        }
-
-
         // Generar clave servidor
         Certificate oldCert = (Certificate) ks.getCertificate(SeyconKeyStore.MY_KEY);
         PrivateKey secretKey = (PrivateKey) ks.getKey(SeyconKeyStore.MY_KEY, password.getPassword().toCharArray());
@@ -125,19 +111,18 @@ public class CertificateServer {
         {
         	publicKey = oldCert.getPublicKey();
         }
-        File ksFile = new File (config.getHomeDir(), "conf/root.jks");
-        log.info("Storing keystore "+ ksFile);
-        SeyconKeyStore.saveKeyStore(rootks, ksFile);
-        	
-        X509Certificate servercert = createCertificate("master", config.getHostName(), publicKey, false);
+        X509Certificate servercert = createSelfSignedCertificate("master", config.getHostName(), publicKey, secretKey);
 		ks.setKeyEntry(SeyconKeyStore.MY_KEY, secretKey, password.getPassword()
-                .toCharArray(), new X509Certificate[] { servercert, cert });
+                .toCharArray(), new X509Certificate[] { servercert });
 
         // Guardar certificado
+		ServiceLocator.instance().getDispatcherService().addCertificate(server, servercert);
         log.info("Storing keystore "+SeyconKeyStore.getKeyStoreFile());
         SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
+        new KubernetesConfig().save();
     }
 
+    @Deprecated
     public X509Certificate createCertificate(String tenant, String hostName, PublicKey certificateKey)
             throws CertificateEncodingException, InvalidKeyException, IllegalStateException,
             NoSuchProviderException, NoSuchAlgorithmException, SignatureException,
@@ -145,7 +130,7 @@ public class CertificateServer {
     	return createCertificate(tenant, hostName, certificateKey, false);
     }
 
-    
+    @Deprecated
     public X509Certificate createCertificate(String tenant, String hostName, PublicKey certificateKey, boolean root)
             throws CertificateEncodingException, InvalidKeyException, IllegalStateException,
             NoSuchProviderException, NoSuchAlgorithmException, SignatureException,
@@ -166,11 +151,47 @@ public class CertificateServer {
         return createCertificate(tenant, hostName, certificateKey, (PrivateKey) key, rootCert, root);
     }
 
+    
+    public X509Certificate createSelfSignedCertificate(String tenant, String hostName, PublicKey certificateKey,
+            PrivateKey signerKey) throws CertificateEncodingException, InvalidKeyException,
+            IllegalStateException, NoSuchProviderException, NoSuchAlgorithmException,
+            SignatureException {
+        Vector<ASN1ObjectIdentifier> tags = new Vector<ASN1ObjectIdentifier>();
+        Vector<String> values = new Vector<String>();
+        tags.add (RFC4519Style.cn); values.add (hostName);
+        tags.add (RFC4519Style.ou); values.add (tenant);
+        tags.add (RFC4519Style.o); values.add ("Soffid");
+        X509Name name = new X509Name(tags, values);
+        X509V3CertificateGenerator generator = getX509Generator(null, name);
+        generator.setSubjectDN(name);
+        generator.setPublicKey(certificateKey);
+        Calendar c2 = Calendar.getInstance();
+        c2.add(Calendar.DAY_OF_MONTH, -1);
+        generator.setNotBefore(c2.getTime());
+        String algorithm = "SHA256WithRSA";
+        generator.setSignatureAlgorithm(algorithm);
+        Calendar c = Calendar.getInstance();
+        c.add(Calendar.YEAR, 2);
+        generator.setNotAfter(c.getTime());
+        GeneralNames subjectAltName = new GeneralNames(
+        		new GeneralName[] {
+            			new GeneralName(GeneralName.dNSName, hostName),
+            			new GeneralName(GeneralName.dNSName, "*." + hostName)
+        		});
+        generator.addExtension(X509Extensions.SubjectAlternativeName, false, subjectAltName);
+
+        log.debug("Creating cert for "+certificateKey+" publickey");
+        X509Certificate cert = generator.generate(signerKey, "BC");
+        log.debug("Generated cert "+cert);
+
+        return cert;
+    }
+
     public X509Certificate createCertificate(String tenant, String hostName, PublicKey certificateKey,
             PrivateKey signerKey, X509Certificate rootCert, boolean root) throws CertificateEncodingException, InvalidKeyException,
             IllegalStateException, NoSuchProviderException, NoSuchAlgorithmException,
             SignatureException {
-        X509V3CertificateGenerator generator = getX509Generator(rootCert);
+        X509V3CertificateGenerator generator = getX509Generator(rootCert, null);
         Vector<ASN1ObjectIdentifier> tags = new Vector<ASN1ObjectIdentifier>();
         Vector<String> values = new Vector<String>();
         tags.add (RFC4519Style.cn); values.add (hostName);
@@ -185,7 +206,7 @@ public class CertificateServer {
         String algorithm = "SHA256WithRSA";
         generator.setSignatureAlgorithm(algorithm);
         Calendar c = Calendar.getInstance();
-        c.add(Calendar.YEAR, 10);
+        c.add(Calendar.YEAR, 2);
         generator.setNotAfter(c.getTime());
         if (root)
         {
@@ -218,7 +239,6 @@ public class CertificateServer {
             InvalidKeyException, UnrecoverableKeyException, IllegalStateException,
             SignatureException, InternalErrorException,
             CertificateEnrollWaitingForAproval, CertificateEnrollDenied, KeyManagementException, JSONException {
-        System.out.println("Obtain certificate");
         PrivateKey privateKey = (PrivateKey) ks.getKey(PRIVATE_KEY, SeyconKeyStore
                 .getKeyStorePassword().getPassword().toCharArray());
 
@@ -234,12 +254,19 @@ public class CertificateServer {
             KeyPair pair = generateNewKey();
             publicKey = pair.getPublic();
             privateKey = pair.getPrivate();
+            selfSigned = createSelfSignedCertificate(adminTenant, hostName, publicKey, privateKey);
             RemoteInvokerFactory factory = new RemoteInvokerFactory();
             CertificateFactory certfactory = CertificateFactory.getInstance("X509", "BC");
 
             X509Certificate root = enrollService.getRootCertificate();
-            ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, root);
-            selfSigned = createCertificate(adminTenant, hostName, publicKey, privateKey, root, false);
+            if (root != null)
+            	ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, root);
+            int i = 0;
+            for (X509Certificate trustedCert: enrollService.getCertificates()) {
+            	ks.setCertificateEntry("trusted-"+i, trustedCert);
+            	i ++;
+            }
+
             ks.setKeyEntry(PRIVATE_KEY, privateKey, password.getPassword().toCharArray(),
                     new Certificate[] { selfSigned });
             SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
@@ -247,7 +274,7 @@ public class CertificateServer {
         
         if (config.getRequestId() == null) {
             long id = enrollService.createRequest(adminTenant, adminUser, adminPassword.getPassword(), domain,
-            				hostName+":"+port, publicKey);
+            				hostName+":"+port, selfSigned);
             config.setRequestId(Long.toString(id));
             System.out.println ("The certificate request has been issued.");
         } 
@@ -258,12 +285,11 @@ public class CertificateServer {
         {
             try {
                 Long l = Long.decode(config.getRequestId());
-                X509Certificate root = enrollService.getRootCertificate();
                 X509Certificate cert = enrollService.getCertificate(adminTenant, adminUser,
                         adminPassword.getPassword(), domain, hostName+":"+port, l, remote);
                 ks.setKeyEntry(SeyconKeyStore.MY_KEY, privateKey, SeyconKeyStore
                         .getKeyStorePassword().getPassword().toCharArray(), new X509Certificate[] {
-                        cert, root });
+                        cert });
                 ks.deleteEntry(PRIVATE_KEY);
                 // Guardar certificado
                 SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
@@ -301,12 +327,16 @@ public class CertificateServer {
 		return pair;
 	}
 
-    private X509V3CertificateGenerator getX509Generator(X509Certificate rootCert) {
+    private X509V3CertificateGenerator getX509Generator(X509Certificate rootCert, X509Name signerName) {
 
-        long now = System.currentTimeMillis() - 1000 * 60 * 10; // 10 minutos
-        long l = now + 1000L * 60L * 60L * 24L * 365L * 5L; // 5 años
+        long now = System.currentTimeMillis() - 1000 * 60 * 10; // 10 minutes
+        long l = now + 1000L * 60L * 60L * 24L * 365L * 5L; // 5 years
         X509V3CertificateGenerator generator = new X509V3CertificateGenerator();
-        if (rootCert == null)
+        if (signerName != null)
+        {
+        	generator.setIssuerDN(signerName);	
+        }
+        else if (rootCert == null)
         {
         	generator.setIssuerDN(new X509Name(MASTER_CA_NAME));
         }
@@ -440,5 +470,24 @@ public class CertificateServer {
         
         log.info("DONE");
         
+	}
+	
+	public List<X509Certificate> loadTrustedCertificates() throws InternalErrorException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+        List<X509Certificate> certs;
+		if (config.isServer()) {
+        	final CertificateEnrollService certificateEnrollService = ServerServiceLocator.instance().getCertificateEnrollService();
+			certs = certificateEnrollService.getCertificates();
+        	final X509Certificate rootCertificate = certificateEnrollService.getRootCertificate();
+        	if (rootCertificate != null)
+        		certs.add(rootCertificate);
+		}
+        else {
+        	final CertificateEnrollService certificateEnrollService = new RemoteServiceLocator().getCertificateEnrollService();
+			certs = certificateEnrollService.getCertificates();
+        	final X509Certificate rootCertificate = certificateEnrollService.getRootCertificate();
+        	if (rootCertificate != null)
+        		certs.add(rootCertificate);
+        }
+		return certs;
 	}
 }

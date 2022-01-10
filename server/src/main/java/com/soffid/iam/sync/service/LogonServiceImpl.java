@@ -14,6 +14,7 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.lang.MessageFactory;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AuditEntity;
+import com.soffid.iam.model.ChallengeEntity;
 import com.soffid.iam.model.HostEntity;
 import com.soffid.iam.model.HostEntityDao;
 import com.soffid.iam.model.Parameter;
@@ -50,6 +51,7 @@ import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -617,6 +619,30 @@ public class LogonServiceImpl extends LogonServiceBase {
 	protected String handleGetPasswordPolicy (String account, String dispatcher) throws Exception
 	{
    		return getPasswordService().getPolicyDescription(account, dispatcher);
+	}
+
+	@Override
+	protected Challenge handleGetChallenge(String challengeId) throws Exception {
+		ChallengeEntity che = getChallengeEntityDao().findByChallengeId(challengeId);
+		if (che == null)
+			return null;
+		else
+			return getChallengeEntityDao().toChallenge(che);
+	}
+
+	@Override
+	protected void handlePurgeChallenges() throws Exception {
+		Date then = new Date (System.currentTimeMillis() - 300_000); // 5 minutes
+		Collection<ChallengeEntity> l = getChallengeEntityDao().findExpiredChallenges(then);
+		getChallengeEntityDao().remove(l);
+	}
+
+	@Override
+	protected void handleRegisterChallenge(Challenge challenge) throws Exception {
+		if (getChallengeEntityDao().findByChallengeId(challenge.getChallengeId()) != null) 
+			throw new InternalErrorException("Challenge collision, please try again");
+		ChallengeEntity che = getChallengeEntityDao().challengeToEntity(challenge);
+		getChallengeEntityDao().create(che);
 	}
 }
 

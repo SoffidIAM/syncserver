@@ -12,9 +12,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
+
 import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.jetty.JettyServer;
-import com.soffid.iam.sync.jetty.MyQueuedThreadPool;
 
 public class TraceIPServlet extends HttpServlet {
 
@@ -29,8 +30,6 @@ public class TraceIPServlet extends HttpServlet {
         resp.setContentType("text/plain; charset=UTF-8");
         BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
         // Dump server status
-        JettyServer jetty = SoffidApplication.getJetty();
-        MyQueuedThreadPool mqtp = (MyQueuedThreadPool) jetty.getServer().getThreadPool();
         writer.write("Remote address: ");
         writer.write(req.getRemoteAddr());
         writer.write("\n");

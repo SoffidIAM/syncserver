@@ -55,9 +55,13 @@ public class JarExtractor {
     }
     
 
+    class FlagContainer {
+    	boolean found;
+    }
     public void extractModule (String id, final OutputStream out) throws InternalErrorException, SQLException, IOException 
     {
-    	final List<String> modules = new LinkedList<String>();
+    	final FlagContainer fc = new FlagContainer();
+    	fc.found = false;
     	Long l = Long.decode(id);
     	QueryHelper qh = new QueryHelper(ConnectionPool.getPool().getPoolConnection());
     	try {
@@ -66,6 +70,7 @@ public class JarExtractor {
     				new Object[] {Boolean.FALSE, l},
     				new QueryAction() {
 						public void perform(ResultSet rset) throws SQLException, IOException {
+							fc.found = true;
 							InputStream in = rset.getBinaryStream(3);
 							byte b[] = new byte [2048];
 							int read;
@@ -75,8 +80,26 @@ public class JarExtractor {
 									break;
 								out.write (b,0, read);
 							}
+							in.close();
 						}
 					});
+    		if (!fc.found && !id.contains("/") && !id.contains("\\")) {
+    			File home = Config.getConfig().getHomeDir();
+    			File lib = new File(home, "lib");
+    			File f = new File(lib, id);
+    			if (f.canRead()) {
+    				FileInputStream in = new FileInputStream(f);
+					byte b[] = new byte [2048];
+					int read;
+					while (true) {
+						read = in.read(b);
+						if (read <= 0)
+							break;
+						out.write (b,0, read);
+					}
+					in.close();
+    			}
+    		}
     	}
     	finally {
     		ConnectionPool.getPool().releaseConnection();

@@ -111,6 +111,13 @@ public class Engine extends Thread {
                 		log.warn("Error updating cluster status");
                 	}
                 }
+                
+                try {
+                    taskGenerator.purgeServerInstances();
+                } catch (Throwable t) {
+                    log.warn("Error purging server instances", t);
+                }
+
                 setStatus("Updating task queue");
                 if (!shutDownPending) {
            			loadMainDbTasks(config);

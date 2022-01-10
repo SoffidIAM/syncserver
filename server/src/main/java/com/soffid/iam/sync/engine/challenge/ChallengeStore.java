@@ -4,21 +4,27 @@ import java.sql.Timestamp;
 import java.util.Hashtable;
 import java.util.Random;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Challenge;
+import com.soffid.iam.sync.service.LogonService;
+
+import es.caib.seycon.ng.exception.InternalErrorException;
 
 public class ChallengeStore {
     private static final int MAX_SECRET_CHAR = 62;
     private static ChallengeStore theChallengeStore;
     private int nextChallenge = 1;
     private Hashtable<String, Challenge> challenges = new Hashtable<String, Challenge>();
-
+    LogonService logonService = ServiceLocator.instance().getLogonService();
+    	
+    
     public static ChallengeStore getInstance() {
         if (theChallengeStore == null)
             theChallengeStore = new ChallengeStore();
         return theChallengeStore;
     }
     
-    public Challenge newChallenge (int type)
+    public Challenge newChallenge (int type) throws InternalErrorException
     {
         String id ;
         do {
@@ -37,6 +43,8 @@ public class ChallengeStore {
         ch.setTimeStamp( new Timestamp (System.currentTimeMillis()));
         ch.setType(type);
         challenges.put(id, ch);
+        
+        logonService.registerChallenge(ch);
         
         return ch;
     }
@@ -79,14 +87,17 @@ public class ChallengeStore {
         challenges.remove(ch.getChallengeId());
     }
     
-    public Challenge getChallenge(String id) {
+    public Challenge getChallenge(String id) throws InternalErrorException {
         long currentTime = System.currentTimeMillis();
         Challenge ch = challenges.get(id);
+        if (ch == null) 
+        	ch = logonService.getChallenge(id);
         if (ch != null && 
             currentTime - ch.getTimeStamp().getTime() > 10 * 60 * 1000) { // 10 minuts
             // es.caib.seycon.ServerApplication.out.println ("Challenge
             // "+ch.id+" timed out");
             challenges.remove(id);
+            logonService.purgeChallenges();
             ch = null;
         }
         return ch;

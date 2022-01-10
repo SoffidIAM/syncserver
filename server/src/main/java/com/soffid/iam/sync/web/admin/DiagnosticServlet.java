@@ -12,9 +12,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import org.eclipse.jetty.util.thread.QueuedThreadPool;
+
 import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.jetty.JettyServer;
-import com.soffid.iam.sync.jetty.MyQueuedThreadPool;
 
 public class DiagnosticServlet extends HttpServlet {
 
@@ -41,8 +42,9 @@ public class DiagnosticServlet extends HttpServlet {
         BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
         // Dump server status
         JettyServer jetty = SoffidApplication.getJetty();
-        MyQueuedThreadPool mqtp = (MyQueuedThreadPool) jetty.getServer().getThreadPool();
-        writer.write(mqtp.getStatus());
+        QueuedThreadPool mqtp = (QueuedThreadPool) jetty.getServer().getThreadPool();
+        mqtp.dump(writer);
+        writer.write("--------------------------------------------------\n");
         Map m = Thread.getAllStackTraces();
         for (Iterator it = m.keySet().iterator(); it.hasNext();)
         {

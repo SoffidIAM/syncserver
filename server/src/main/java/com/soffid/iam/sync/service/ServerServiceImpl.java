@@ -2,13 +2,17 @@ package com.soffid.iam.sync.service;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.PrintWriter;
 import java.net.InetAddress;
 import java.net.URL;
+import java.security.cert.CertificateFactory;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
@@ -28,6 +32,7 @@ import org.apache.commons.logging.LogFactory;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.AttributeTranslation;
+import com.soffid.iam.api.Audit;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.GroupUser;
@@ -54,10 +59,12 @@ import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.api.UserData;
 import com.soffid.iam.api.sso.Secret;
 import com.soffid.iam.common.security.SoffidPrincipal;
+import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AccessControlEntity;
 import com.soffid.iam.model.AccessControlEntityDao;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AgentDescriptorEntity;
+import com.soffid.iam.model.AuditEntity;
 import com.soffid.iam.model.AuthorizationEntity;
 import com.soffid.iam.model.AuthorizationEntityDao;
 import com.soffid.iam.model.ConfigEntity;
@@ -81,7 +88,9 @@ import com.soffid.iam.model.RoleEntity;
 import com.soffid.iam.model.RoleEntityDao;
 import com.soffid.iam.model.RoleGroupEntity;
 import com.soffid.iam.model.RoleGroupEntityDao;
+import com.soffid.iam.model.ServerCertificateEntity;
 import com.soffid.iam.model.ServerEntity;
+import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.SystemEntityDao;
 import com.soffid.iam.model.TaskEntityDao;
@@ -258,14 +267,16 @@ public class ServerServiceImpl extends ServerServiceBase {
 		Collection<RoleGrant> rgs = getApplicationService()
 				.findEffectiveRoleGrantsByRoleId(roleId);
 		for (RoleGrant rg : rgs) {
-			AccountEntity account = getAccountEntityDao().findByNameAndSystem(
-					rg.getOwnerAccountName(), rg.getOwnerSystem());
-			if (!account.isDisabled()) {
-				if (account.getUsers().isEmpty())
-					acc.add(getAccountEntityDao().toAccount(account));
-				else
-					for (UserAccountEntity uae : account.getUsers())
-						acc.add(getUserAccountEntityDao().toUserAccount(uae));
+			if (rg.getOwnerAccountName() != null) {
+				AccountEntity account = getAccountEntityDao().findByNameAndSystem(
+						rg.getOwnerAccountName(), rg.getOwnerSystem());
+				if (!account.isDisabled()) {
+					if (account.getUsers().isEmpty())
+						acc.add(getAccountEntityDao().toAccount(account));
+					else
+						for (UserAccountEntity uae : account.getUsers())
+							acc.add(getUserAccountEntityDao().toUserAccount(uae));
+				}
 			}
 		}
 		return acc;
@@ -849,7 +860,33 @@ public class ServerServiceImpl extends ServerServiceBase {
 		}
 	}
 
-	@Override
+    private void auditAccountPassword(AccountEntity account) throws Exception {
+        Audit auditoria = new Audit();
+        auditoria.setAction("p"); //$NON-NLS-1$
+        auditoria.setAccount(account.getName());
+        auditoria.setDatabase(account.getSystem().getName());
+        auditoria.setCalendar(Calendar.getInstance());
+        auditoria.setObject("SC_ACCOUN"); //$NON-NLS-1$
+
+        AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
+        getAuditEntityDao().create(auditoriaEntity);
+    }
+
+    private void auditUserPassword(UserEntity account, PasswordDomainEntity dominiContrasenyaEntity) throws Exception {
+
+    	Audit auditoria = new Audit();
+        auditoria.setAction("p"); //$NON-NLS-1$
+        auditoria.setUser(account.getUserName());
+        auditoria.setPasswordDomain(dominiContrasenyaEntity.getName());
+        auditoria.setAuthor(null);
+        auditoria.setCalendar(Calendar.getInstance());
+        auditoria.setObject("SC_USUARI"); //$NON-NLS-1$
+
+        AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
+        getAuditEntityDao().create(auditoriaEntity);
+    }
+
+    @Override
 	protected void handleChangePassword(String user, String dispatcher,
 			Password p, boolean mustChange) throws Exception {
 		UserEntity userEntity;
@@ -869,11 +906,13 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 		if (acc.getType().equals(AccountType.USER)) {
 			for (UserAccountEntity uae : acc.getUsers()) {
+				auditUserPassword(uae.getUser(), acc.getSystem().getPasswordDomain());
 				getInternalPasswordService().storeAndForwardPassword(
 						uae.getUser(), acc.getSystem().getPasswordDomain(), p,
 						mustChange);
 			}
 		} else {
+			auditAccountPassword(acc);
 			getInternalPasswordService().storeAndForwardAccountPassword(acc, p,
 					mustChange, null);
 		}
@@ -1081,8 +1120,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 	}
 
 	@Override
-	protected void handleCancelTask(long taskid) throws Exception {
-		getTaskQueue().cancelTask(taskid);
+	protected void handleCancelTask(long taskid, String hash) throws Exception {
+		getTaskQueue().cancelTask(taskid, hash);
 	}
 
 	@Override
@@ -2259,37 +2298,49 @@ public class ServerServiceImpl extends ServerServiceBase {
 		String t = tae.startVirtualSourceTransaction(true);
 		try {
 			getAccountService().updateAccount2(account);
-			List<RoleAccount> l = new LinkedList<RoleAccount>( grants );
-			List<RoleAccount> current = new LinkedList<RoleAccount>( getApplicationService().findRoleAccountByAccount(account.getId()) );
-			for (Iterator<RoleAccount> iterator = l.iterator(); iterator.hasNext();) {
-				RoleAccount ra = iterator.next();
-				boolean found = false;
-				for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
-					RoleAccount ra2 = iterator2.next();
-					if (ra2.getRoleName().equals(ra.getRoleName())) {
-						if (ra2.getDomainValue() == null ||
-								ra2.getDomainValue().getValue() == null ||
-								ra.getDomainValue() != null && ra2.getDomainValue().getValue().equals(ra.getDomainValue().getValue())) {
-							found = true;
-							iterator2.remove();
-							iterator.remove();
-							break;
+			if (grants != null) {
+				List<RoleAccount> l = new LinkedList<RoleAccount>( grants );
+				List<RoleAccount> current = new LinkedList<RoleAccount>( getApplicationService().findRoleAccountByAccount(account.getId()) );
+				for (Iterator<RoleAccount> iterator = l.iterator(); iterator.hasNext();) {
+					RoleAccount ra = iterator.next();
+					boolean found = false;
+					for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
+						RoleAccount ra2 = iterator2.next();
+						if (ra2.getRoleName().equals(ra.getRoleName())) {
+							if (ra2.getDomainValue() == null ||
+									ra2.getDomainValue().getValue() == null ||
+									ra.getDomainValue() != null && ra2.getDomainValue().getValue().equals(ra.getDomainValue().getValue())) {
+								found = true;
+								iterator2.remove();
+								iterator.remove();
+								break;
+							}
 						}
 					}
+					if (!found) {
+						getApplicationService().create(ra);
+					}
 				}
-				if (!found) {
-					getApplicationService().create(ra);
+				
+				for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
+					RoleAccount ra2 = iterator2.next();
+					getApplicationService().delete(ra2);
 				}
-			}
-			
-			for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
-				RoleAccount ra2 = iterator2.next();
-				getApplicationService().delete(ra2);
 			}
 		} finally {
 			tae.finishVirtualSourceTransaction(t);
 		}
 	}
+
+	@Override
+	protected void handleAddCertificate(X509Certificate cert) throws Exception {
+		String account = Security.getCurrentAccount();
+		ServerEntity server = getServerEntityDao().findByName(account);
+		if (server != null) {
+			getDispatcherService().addCertificate(getServerEntityDao().toServer(server), cert);
+		}
+	}
+
 }
 
 class TriggerCache {

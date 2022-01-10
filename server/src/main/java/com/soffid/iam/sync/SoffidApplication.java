@@ -13,6 +13,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.rmi.RemoteException;
+import java.security.cert.X509Certificate;
+import java.util.List;
 
 import javax.security.auth.login.Configuration;
 
@@ -23,9 +25,13 @@ import com.soffid.iam.config.Config;
 import com.soffid.iam.remote.RemoteInvokerFactory;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
+import com.soffid.iam.ssl.ConnectionFactory;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.agent.AgentManagerImpl;
 import com.soffid.iam.sync.engine.Engine;
+import com.soffid.iam.sync.engine.cert.CertificateServer;
+import com.soffid.iam.sync.engine.cert.SyncServerTrustedCertificateLoader;
+import com.soffid.iam.sync.engine.cert.UpdateCertsTask;
 import com.soffid.iam.sync.engine.kerberos.ChainConfiguration;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
 import com.soffid.iam.sync.hub.client.RemoteThread;
@@ -40,158 +46,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.agent.AgentManagerBaseProxy;
 import es.caib.seycon.util.TimedProcess;
 
-/**
- * Clase principal del servidor SEYCON
- * 
- * @author $Author: u07286 $
- * @version $Revision: 1.1 $
- */
 
-// $Log: SeyconApplication.java,v $
-// Revision 1.1  2012-11-07 07:50:12  u07286
-// Refactoring hibernate
-//
-// Revision 1.38 2012-06-06 12:12:53 u07286
-// Suport per a SAML
-//
-// Revision 1.36 2012-05-16 10:57:57 u07286
-// Reestructuració de paquets seycon antics
-//
-// Revision 1.35 2012-03-27 11:19:19 u88683
-// tornem a posar el Naming.rebind(url.getRMIString(), new ServerAgent());
-//
-// Revision 1.34 2012-02-28 11:33:31 u88683
-// fem binding del serverstatus per a la crida des de seu
-//
-// Revision 1.33 2012-02-24 07:41:20 u07286
-// Protegir paths SEU
-//
-// Revision 1.32 2012-02-24 07:35:04 u07286
-// Usuari virtual per a SEU
-//
-// Revision 1.31 2012-02-16 11:20:24 u07286
-// Llevat ServerAgent
-//
-// Revision 1.30 2012-02-10 13:34:28 u88683
-// Afegim el SeyconServerStatus per obtindre informaci� de l'estat del server i
-// els seus agents
-//
-// Revision 1.29 2011-10-10 08:42:28 u07286
-// Solo crear servidor RMI si la url es RMI
-//
-// Revision 1.28 2011-05-02 11:41:48 u07286
-// Corregir error RMI
-//
-// Revision 1.27 2011-04-05 12:02:42 u07286
-// Activación syslog
-//
-// Revision 1.26 2011-01-11 07:07:00 u07286
-// Suport per a secrets
-//
-// Revision 1.25 2010-12-07 13:37:14 u07286
-// Renombrar LogoffDaemon a SessionManager
-//
-// Revision 1.24 2010-08-27 12:26:31 u88683
-// cacerts: fem que es faci una c�pia al directori conf del seycon3 des de la
-// m�quina virtual java, i establim la propietat javax.net.ssl.trustStore al
-// fitxer cacerts de conf
-//
-// Revision 1.23 2010-03-15 10:23:31 u07286
-// Movido a tag HEAD
-//
-// Revision 1.9.2.3 2009-07-17 10:02:40 u88683
-// Cambios en la versi�n 3.0.16 aplicados a la 3.1
-//
-// Revision 1.9.2.3 2009-07-17 12:01:01 u88683
-// Merge a seycon-3.0.16
-//
-// Revision 1.22 2009-07-01 07:48:25 u07286
-// Generación de diagnósticos
-//
-// Revision 1.9.2.2 2009-06-16 11:23:01 u07286
-// Merge a seycon-3.0.15
-//
-// Revision 1.9.2.1 2009-03-23 07:52:00 u89559
-// *** empty log message ***
-//
-// Revision 1.21 2009-04-28 02:45:16 u07286
-// Desproteger el downloadLibrary
-//
-// Revision 1.20 2009-04-23 12:22:46 u07286
-// Soporte para JVM_OPTS
-//
-// Revision 1.19 2009-04-22 07:30:18 u07286
-// Eliminada actualización automática de IPTables
-//
-// Revision 1.18 2009-04-16 10:24:24 u07286
-// Proteger download en un contexto privado
-//
-// Revision 1.17 2009-03-04 09:07:42 u07286
-// Cambiado nivel de protección de DownloadLibrary
-//
-// Revision 1.16 2009-03-03 13:46:57 u07286
-// Posibilidad de reiniciar servidores y agentes
-//
-// Revision 1.15 2009-03-03 13:30:02 u07286
-// Cambiado mecanismo de registro de la aplicación web de administración
-//
-// Revision 1.14 2009-03-02 13:16:07 u89559
-// *** empty log message ***
-//
-// Revision 1.13 2009-02-27 07:54:58 u89559
-// *** empty log message ***
-//
-// Revision 1.12 2009-02-25 08:55:51 u89559
-// *** empty log message ***
-//
-// Revision 1.11 2009-02-24 14:16:01 u89559
-// *** empty log message ***
-//
-// Revision 1.10 2009-02-03 13:01:13 u89559
-// *** empty log message ***
-//
-// Revision 1.9 2008-12-17 09:31:30 u89559
-// *** empty log message ***
-//
-// Revision 1.8 2008-12-16 08:39:16 u89559
-// *** empty log message ***
-//
-// Revision 1.7 2008-10-31 07:15:56 u89559
-// *** empty log message ***
-//
-// Revision 1.6 2008-10-29 10:35:36 u89559
-// *** empty log message ***
-//
-// Revision 1.5 2008-10-24 12:05:56 u89559
-// *** empty log message ***
-//
-// Revision 1.4 2008-10-21 10:24:40 u89559
-// *** empty log message ***
-//
-// Revision 1.3 2008-10-20 10:03:44 u07286
-// Habilitar gestión de IPTABLES
-//
-// Revision 1.2 2008-10-17 09:58:36 u07286
-// Adaptación al paso intermedio de migración
-//
-// Revision 1.1 2008-10-16 11:43:42 u07286
-// Migrado de RMI a HTTP
-//
-// Revision 1.2 2008-10-03 13:29:04 u89559
-// *** empty log message ***
-//
-// Revision 1.1 2007-09-06 12:51:10 u89559
-// [T252]
-//
-// Revision 1.4 2005-05-20 08:41:10 u07286
-// Migracion a SSL
-//
-// Revision 1.3 2004/03/15 12:08:05 u07286
-// Conversion UTF-8
-//
-// Revision 1.2 2004/03/15 11:57:49 u07286
-// Agregada documentacion JavaDoc
-//
 public class SoffidApplication extends Object {
 
     /** pendiente de finalizar ordenadamente */
@@ -319,7 +174,6 @@ public class SoffidApplication extends Object {
             configureSecurityHeaders();
             configureSecurity ();
             configureSystemOut();
-            
             configureCerts(config);
 
             if ("gateway".equals(config.getRole()))
@@ -463,9 +317,12 @@ public class SoffidApplication extends Object {
             } else {
                 log.warn("Important: Could not establish the cacerts file");
             }
+            
+			ConnectionFactory.setTrustedCertificateLoader(new SyncServerTrustedCertificateLoader());
         } catch (Throwable th) {
             log.warn("Error setting the cacerts file: ", th);
         }
+        new Thread(new UpdateCertsTask()).start();
     }
 
     /**
@@ -489,7 +346,7 @@ public class SoffidApplication extends Object {
         	String m = "Server list not found, please: 1) stop syncserver, 2) unpublish syncserver in IAM, 3) configure again, 4) start service";
         	log.error(m);
           try {
-                        Thread.sleep(60000);
+            Thread.sleep(60000);
           } catch (InterruptedException e) {}
         	throw new InternalErrorException(m);
         }

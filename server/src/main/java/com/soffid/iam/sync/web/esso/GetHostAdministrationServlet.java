@@ -120,7 +120,6 @@ public class GetHostAdministrationServlet extends HttpServlet
         String[] auths = as.getUserAuthorizationsString(usuariPeticio);
         
         boolean trackIp = "true".equals( ConfigurationCache.getProperty("SSOTrackHostAddress"));
-        
         Host maq = xs.findHostByName(hostname);
         if (maq == null)
             throw new InternalErrorException(String.format(

@@ -53,10 +53,6 @@ public class SetHostAdministrationServlet extends HttpServlet {
         BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(resp.getOutputStream(),
                 "UTF-8"));
         try {
-            log.info(
-                    "SetHostAdministrationServlet: INICI d'establiment d'usuari-contrasenya d'administrador al host {} amb l'usuari administrador {} des d'ip "
-                            + hostIP, hostName, adminUser);
-
             // Verifiquem paràmeters
             if (hostName == null || (hostName != null && "".equals(hostName.trim()))
                     || adminUser == null || (adminUser != null && "".equals(adminUser.trim()))
@@ -65,12 +61,9 @@ public class SetHostAdministrationServlet extends HttpServlet {
 
             setHostAdministration(serial, hostName, hostIP, adminUser, adminPass);
             writer.write("OK|" + hostName);
-            log.info(
-                    "SetHostAdministrationServlet: FI correcte d'establiment d'usuari-contrasenya d'administrador al host {} per l'usuari {} des d'ip "
-                            + hostIP, hostName, adminUser);
         } catch (Exception e) {
             log.warn(
-                    "SetHostAdministrationServlet: ERROR performing setHostAdministration al host {} amb l'usuari administrador {} des d'ip "
+                    "SetHostAdministrationServlet: ERROR performing setHostAdministration on host {} for user {} from IP address "
                             + hostIP, hostName, adminUser);
             writer.write(e.getClass().getName() + "|" + e.getMessage() + "\n");
         }
@@ -86,15 +79,14 @@ public class SetHostAdministrationServlet extends HttpServlet {
         if (maq != null) {
             if (trackIp && !hostIP.equals(maq.getIp())) {
                 InternalErrorException ex = new InternalErrorException("IncorrectHostException");
-                log.warn("Intent d'establir usuari-contrasenya d'administrador al host " + hostname
-                        + " amb una ip que no correspon al host " + hostIP, ex);
+                log.warn("Trying to set password for host " + hostname+ " from an invalid IP Address " + hostIP, ex);
                 throw ex;
             }
             if (trackIp && !hostname.equals(maq.getName())) {
                 InternalErrorException ex = new InternalErrorException("IncorrectHostException");
                 log.warn(
-                        "Intent d'establir usuari-contrasenya d'administrador al host "
-                                + maq.getName() + " amb un nom que no correspon al host " + hostname,
+                        "Trying to set password for host "
+                                + maq.getName() + " with a wrong host name: " + hostname,
                         ex);
                 throw ex;
             }
@@ -112,7 +104,7 @@ public class SetHostAdministrationServlet extends HttpServlet {
             xarxaService.setAdministratorPassword(maq.getName(), adminUser, adminPass);
 
         } else {
-            throw new InternalErrorException("No existeix cap màquina amb el nom " + hostname);
+            throw new InternalErrorException("Host not found " + hostname);
         }
 
     }

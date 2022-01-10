@@ -62,6 +62,8 @@ public class MailListExtensibleObject extends ExtensibleObject
 				obj = resolveAddresses (mailList.getExplodedUsersList());
 			else if ("attributes".equals(attribute))
 				obj = mailList.getAttributes();
+			else if ("externalList".equals(attribute))
+				obj = mailList.getExternalList();
 			else
 				return null;
 		}

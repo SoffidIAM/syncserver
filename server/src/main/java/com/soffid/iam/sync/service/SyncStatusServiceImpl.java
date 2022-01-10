@@ -20,6 +20,7 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AccountEntityDao;
+import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntityDao;
 import com.soffid.iam.remote.RemoteServiceLocator;
@@ -828,7 +829,7 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 
 	@Override
 	protected void handleCancelTask(long taskId) throws Exception {
-		getTaskQueue().cancelTask(taskId);
+		getTaskQueue().cancelTask(taskId, Long.toString(taskId));
 	}
 
 	@Override

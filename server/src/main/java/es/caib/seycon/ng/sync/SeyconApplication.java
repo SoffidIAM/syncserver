@@ -7,6 +7,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.HttpURLConnection;
 import java.net.URL;
 import java.rmi.RemoteException;
 
@@ -74,7 +75,7 @@ public class SeyconApplication {
         InputStream in = null;
         OutputStream out = null;
         try {
-            javax.net.ssl.HttpsURLConnection connection = null;
+            HttpURLConnection connection = null;
             try {
                 URL url = new URL(sourceURL);
                 connection = ConnectionFactory.getConnection(url);

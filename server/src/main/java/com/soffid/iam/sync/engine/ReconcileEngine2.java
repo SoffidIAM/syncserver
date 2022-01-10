@@ -13,6 +13,7 @@ import com.soffid.iam.api.Account;
 import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
+import com.soffid.iam.sync.agent.Agent;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
 import com.soffid.iam.sync.intf.ServiceMgr;
 
