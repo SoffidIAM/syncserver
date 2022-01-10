@@ -361,22 +361,22 @@ public class CertificateServer {
         return (rootks.getKey(SeyconKeyStore.ROOT_KEY, password.getPassword().toCharArray()) != null);
     }
 
-//	public void storeCertificate(KeyPair temporaryKey, X509Certificate cert, X509Certificate root) throws KeyStoreException, KeyManagementException, UnrecoverableKeyException, FileNotFoundException, NoSuchAlgorithmException, CertificateException, IOException {
-//		File f = SeyconKeyStore.getKeyStoreFile();
-//		File oldFile = new File (f.getPath()+"-"+new Date().toString());
-//        SeyconKeyStore.saveKeyStore(ks, oldFile);
-//		
-//        ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, root);
-//        SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
-//
-//        PrivateKey privateKey = temporaryKey.getPrivate();
-//        ks.setKeyEntry(SeyconKeyStore.MY_KEY, privateKey, SeyconKeyStore
-//                .getKeyStorePassword().getPassword().toCharArray(), new X509Certificate[] {
-//                cert, root });
-//        ks.deleteEntry(PRIVATE_KEY);
-//        // Guardar certificado
-//        SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
-//	}
+	public void storeCertificate(KeyPair temporaryKey, X509Certificate cert, X509Certificate root) throws KeyStoreException, KeyManagementException, UnrecoverableKeyException, FileNotFoundException, NoSuchAlgorithmException, CertificateException, IOException {
+		File f = SeyconKeyStore.getKeyStoreFile();
+		File oldFile = new File (f.getPath()+"-"+new Date().toString());
+        SeyconKeyStore.saveKeyStore(ks, oldFile);
+		
+        ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, root);
+        SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
+
+        PrivateKey privateKey = temporaryKey.getPrivate();
+        ks.setKeyEntry(SeyconKeyStore.MY_KEY, privateKey, SeyconKeyStore
+                .getKeyStorePassword().getPassword().toCharArray(), new X509Certificate[] {
+                cert, root });
+        ks.deleteEntry(PRIVATE_KEY);
+        // Guardar certificado
+        SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
+	}
 	
 	public void regenerateCertificates(boolean force)  throws Exception
 	{
