@@ -658,12 +658,12 @@
 		<dependency>
 			<artifactId>iam-common</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>3.3.0-RC-1</version>
+			<version>${iam.version}</version>
 		</dependency>
 		<dependency>
 			<artifactId>iam-tomee</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>3.3.0-RC-1</version>
+			<version>${iam.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.apache.tomee</groupId>
@@ -674,7 +674,7 @@
 		<dependency>
 			<artifactId>iam-core</artifactId>
 			<groupId>com.soffid.iam.console</groupId>
-			<version>3.3.0-RC-1</version>
+			<version>${iam.version}</version>
 			<scope>provided</scope>
 			<exclusions>
 				<exclusion>
