@@ -247,10 +247,9 @@ public class JettyServer implements PublisherInterface
             connector.setAcceptedSendBufferSize( Integer.parseInt(s));
         }
         
-        if (host != null)
-        	connector.setHost(host);
         String hostName = InetAddress.getLocalHost().getHostName();
         String hostAddress = InetAddress.getLocalHost().getHostAddress();
+       	connector.setHost(hostAddress);
 
         String url = "http://"+hostAddress+":"+Integer.toString(port+1);
         log.info("Listening on {}", url, null);
