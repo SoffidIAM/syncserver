@@ -1,5 +1,24 @@
 package com.soffid.iam.sync.service;
 
+import java.io.ByteArrayOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.security.KeyStore;
+import java.security.cert.X509Certificate;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Collection;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+
+import org.apache.commons.logging.LogFactory;
+
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AgentStatusInfo;
 import com.soffid.iam.api.Configuration;
@@ -20,7 +39,6 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AccountEntityDao;
-import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntityDao;
 import com.soffid.iam.remote.RemoteServiceLocator;
@@ -29,10 +47,8 @@ import com.soffid.iam.service.AccountService;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.SoffidApplication;
 import com.soffid.iam.sync.agent.AgentManager;
-import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
-import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.cron.TaskScheduler;
@@ -47,15 +63,12 @@ import com.soffid.iam.sync.engine.extobj.MembershipExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
+import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.intf.GetObjectResults;
 import com.soffid.iam.sync.intf.ExtensibleObject;
-import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.jetty.JettyServer;
-import com.soffid.iam.sync.service.SyncStatusServiceBase;
-import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.utils.ConfigurationCache;
 
-import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -65,30 +78,6 @@ import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.utils.Security;
-
-import java.io.ByteArrayOutputStream;
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintStream;
-import java.io.PrintWriter;
-import java.io.StringWriter;
-import java.net.URL;
-import java.security.KeyStore;
-import java.security.cert.X509Certificate;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.Collection;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
-import java.util.Vector;
-
-import javax.servlet.ServletException;
-
-import org.apache.commons.logging.LogFactory;
-import org.jfree.util.Log;
 
 public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	org.apache.commons.logging.Log log = LogFactory.getLog(getClass());
@@ -933,5 +922,9 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		}
 	}
 
+	@Override
+	protected Collection<Map<String,Object>> handleInvoke(java.lang.String dispatcher, java.lang.String verb, java.lang.String object, java.util.Map<java.lang.String,java.lang.Object> attributes) throws Exception {
+		return getServerService().invoke(dispatcher, verb, object, attributes);
+	}
 
 }
