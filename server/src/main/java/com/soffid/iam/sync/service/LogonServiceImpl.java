@@ -282,7 +282,10 @@ public class LogonServiceImpl extends LogonServiceBase {
                 r.getDominiContrasenyaEntity(), new Password(password), false, true);
         if (v == PasswordValidation.PASSWORD_WRONG)
         {
-        	v = getInternalPasswordService().checkPassword(r.getUserEntity(),
+        	if (r.getUserEntity() == null)
+        		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), true, true);
+        	else
+        		v = getInternalPasswordService().checkPassword(r.getUserEntity(),
         	                r.getDominiContrasenyaEntity(), new Password(password), true, true);
             if (v == PasswordValidation.PASSWORD_WRONG)
             	punish();
