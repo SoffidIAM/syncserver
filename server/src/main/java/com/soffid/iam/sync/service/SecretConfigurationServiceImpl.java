@@ -152,7 +152,7 @@ public class SecretConfigurationServiceImpl extends
                 // Generate key pair
                 KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
                 SecureRandom r = SecureRandom.getInstance("SHA1PRNG");
-                keyGen.initialize(1024, r);
+                keyGen.initialize(2048, r);
                 KeyPair pair = keyGen.genKeyPair();
                 
                 privateKey = pair.getPrivate();
