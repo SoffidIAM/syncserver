@@ -607,7 +607,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
 		
-		if (task.getServer() != null && 
+		if (task != null && 				task.getServer() != null && 
 				(!task.getServer().equals(hostname)) ||
             	 task.getServer().equals(hostname) && instanceName != null && !instanceName.equals(task.getServerInstance()))
         {
@@ -791,9 +791,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 //					log.info("No tasks for priority {}", priority, null);
 	    		}
 			}
+		} catch (Exception e) {
+			log.warn("Error getting tasks", e);
+			throw e;
 		} finally {
-    		removeTaskList(tasksToRemove);
-    		notifyUnmanagedTasks(taskDispatcher, tasksToNotify);
+			removeTaskList(tasksToRemove);
+			notifyUnmanagedTasks(taskDispatcher, tasksToNotify);
 		}
 		return null;
 
