@@ -244,10 +244,16 @@ public class ChangeSecretServlet extends HttpServlet {
 	           		if ( value.length() < 1024)
 	           		{
 	           			
-	           			if (ssoAttribute.equals("Server") ) 
+	           			if (ssoAttribute.equals("Server") ) {
+	           				if (value.length() > 256)
+	           					value = value.substring(0, 255);
 	           				acc.setServerName(value);
-	           			else if (ssoAttribute.equals("URL"))
+	           			}
+	           			else if (ssoAttribute.equals("URL")) {
+	           				if (value.length() > 256)
+	           					value = value.substring(0, 255);
 	           				acc.setLoginUrl(value);
+	           			}
 	           			else {
 	           				String actualAttribute = "SSO:"+ssoAttribute;
 	           				acc.getAttributes().put(actualAttribute, value);
