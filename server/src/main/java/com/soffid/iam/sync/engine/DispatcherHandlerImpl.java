@@ -321,8 +321,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.UPDATE_ROLE)) {
-        	if (! getName().equals(t.getTask().getSystemName()) &&
-        			mirroredAgent.equals(t.getTask().getSystemName()))
+        	if (! getName().equals(t.getTask().getDatabase()) &&
+        			mirroredAgent != null && mirroredAgent.equals(t.getTask().getSystemName()))
         		return false;
         	else
         		return !readOnly && (implemented(agent, es.caib.seycon.ng.sync.intf.RoleMgr.class) ||
