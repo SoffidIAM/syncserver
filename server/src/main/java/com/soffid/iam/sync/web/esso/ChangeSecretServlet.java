@@ -257,6 +257,14 @@ public class ChangeSecretServlet extends HttpServlet {
 	           			else {
 	           				String actualAttribute = "SSO:"+ssoAttribute;
 	           				acc.getAttributes().put(actualAttribute, value);
+	           				if (acc.getLoginName() == null || acc.getLoginName().equals(acc.getName())) {
+	           					int i = value.indexOf("=");
+	           					if (i > 0) {
+	           						String vv = URLDecoder.decode(value.substring(i+1), "UTF-8");
+	           						if (!vv.isEmpty())
+	           							acc.setLoginName(vv);
+	           					}
+	           				}
 	           				// Attribute not found
 	           				AdditionalDataService metadataService = ServiceLocator.instance().getAdditionalDataService();
 	           				DataType md = metadataService.findSystemDataType(system, actualAttribute);
