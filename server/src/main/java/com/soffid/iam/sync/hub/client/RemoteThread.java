@@ -73,6 +73,8 @@ public class RemoteThread  {
 			}
 		}
 		HttpURLConnection conn = ConnectionFactory.getConnection(new URL(t));
+		conn.setConnectTimeout(5000);
+		conn.setReadTimeout(30000);
 		conn.setDoInput(true);
 		conn.setDoOutput(false);
 		conn.setRequestMethod("GET");
