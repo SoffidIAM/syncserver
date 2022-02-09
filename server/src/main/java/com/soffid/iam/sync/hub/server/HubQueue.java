@@ -271,8 +271,9 @@ public class HubQueue {
 	
 			for (Request r: activeRequests.values()) {
 				if (r.getTarget().equals(server) &&
-						r.start < System.currentTimeMillis() - 20000) {
-					log.info("Expiring request "+r.getId());
+						r.start < System.currentTimeMillis() - 20000 &&
+						! a.contains(r.getId())) {
+					log.info("Expiring request "+r.getId()+" (active requests = "+active+")");
 					post (server, r.getId(), new RemoteException("Connection reset"), false);
 					return;
 				}
