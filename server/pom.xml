@@ -14,7 +14,7 @@
 	<properties>
 		<maven.compile.source>11</maven.compile.source>
 		<maven.compile.target>11</maven.compile.target>
-		<iam.version>3.3.1-SNAPSHOT</iam.version>
+		<iam.version>3.3.1</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -127,7 +127,7 @@
 								<artifactItem>
 									<groupId>${project.groupId}</groupId>
 									<artifactId>bootstrap</artifactId>
-									<version>3.0.7</version>
+									<version>3.0.8</version>
 									<type>jar</type>
 									<overWrite>true</overWrite>
 									<outputDirectory>${project.build.directory}/dist/opt/soffid/iam-sync/bin</outputDirectory>

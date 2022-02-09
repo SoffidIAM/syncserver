@@ -15,6 +15,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
@@ -34,6 +35,7 @@ import com.soffid.iam.sync.bootstrap.impl.HttpConnectionFactory;
 import com.soffid.iam.sync.bootstrap.impl.JarExtractor;
 import com.soffid.iam.sync.bootstrap.impl.KubernetesConfig;
 import com.soffid.iam.sync.bootstrap.impl.Logger;
+import com.soffid.iam.sync.bootstrap.impl.SQLConnectionFactory;
 
 /**
  * Sync server bootstrap class
@@ -111,6 +113,9 @@ public class SyncLoader extends Object {
 
         try {
         	
+            if (canUseDatabase()) 
+            	waitForDatabase();
+            
         	updateConfig ();
         
             if (canUseDatabase()) {
@@ -127,7 +132,20 @@ public class SyncLoader extends Object {
         }
     }
 
-    /**
+    private void waitForDatabase() throws InterruptedException {
+    	while (true) {
+        	try {
+				Connection conn = SQLConnectionFactory.getConnection();
+				conn.close();
+				return;
+			} catch (Exception e) {
+				log.warn("Database is not available", e);
+				Thread.sleep(15_000);
+			}
+    	}
+	}
+
+	/**
      * @throws IOException 
      * @throws FileNotFoundException 
      * @throws ServerRedirectException 
