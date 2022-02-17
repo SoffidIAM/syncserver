@@ -431,7 +431,8 @@ public class SyncLoader extends Object {
 
     private boolean canUseDatabase () throws FileNotFoundException, IOException
     {
-        return "server".equals(Config.getConfig().getRole());
+        return "server".equals(Config.getConfig().getRole()) && 
+        		Config.getConfig().getDB() != null;
     }
     
     private String getBaseLibraryName() throws SQLException, IOException {
