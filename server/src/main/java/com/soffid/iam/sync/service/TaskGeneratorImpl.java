@@ -30,6 +30,8 @@ import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.Task;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.model.ConfigEntity;
+import com.soffid.iam.model.ConfigEntityDao;
 import com.soffid.iam.model.Parameter;
 import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.model.SystemEntity;
@@ -495,15 +497,16 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 			String hostName = Config.getConfig().getHostName();
 			long now = java.lang.System.currentTimeMillis();
 			long timeout = now - 300000; // 5 minutes ago
-			ConfigurationService svc = ServiceLocator.instance().getConfigurationService();
-			Configuration cfg = svc.findParameterByNameAndNetworkName("soffid.syncserver.main", null);
+			ConfigEntityDao dao = (ConfigEntityDao) ServiceLocator.instance().getService("configEntityDao");
+			ConfigEntity cfg = dao.findByCodeAndNetworkCode("soffid.syncserver.main", null);
 			if (cfg == null)
 			{
 				log.warn("Becoming master server");
-				cfg = new Configuration();
-				cfg.setCode("soffid.syncserver.main");
+				cfg = dao.newConfigEntity();
+				cfg.setName("soffid.syncserver.main");
 				cfg.setValue(hostName+" "+now);
-				svc.create(cfg);
+				cfg.setDescription("Master server");
+				dao.create(cfg);
 			}
 			else
 			{
@@ -513,9 +516,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 						Long.parseLong(split[1]) < timeout)
 				{
 					cfg.setValue(hostName+" "+now);
-					svc.update(cfg);
+					dao.update(cfg);
 				}
-						
 			}
 		} catch (Throwable e) {
 //			e.printStackTrace();
