@@ -30,7 +30,7 @@ public class UpdateHostAddress extends HttpServlet {
             String serial = request.getParameter("serial");
             String ip = com.soffid.iam.utils.Security.getClientIp();
             NetworkService xs = ServerServiceLocator.instance().getNetworkService();
-            xs.registerDynamicIP(name, request.getRemoteAddr(), serial);
+            xs.registerDynamicIP(name, ip, serial);
             response.getOutputStream().println("OK");
         } catch (Exception e) {
             if (! (e instanceof UnknownNetworkException)) {

@@ -63,8 +63,8 @@ public class ConfigurationManager
 					{
 						public void perform (ResultSet rset) throws SQLException, IOException
 						{
-							boolean useMainDataBase = rset.getBoolean(1);
-							if (useMainDataBase )
+							String type = rset.getString(2);
+							if ("server".equals(type) )
 							{
 								if (config.getDB() == null) {
 									servers.addAll(forwardToMainDBServer(conn, prop));
