@@ -1683,6 +1683,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			getServerInstanceEntityDao().create(si);
 		} else {
 			si.setLastSeen(new Date());
+			si.setUrl(url);
 			getServerInstanceEntityDao().update(si);
 		}
 	}
