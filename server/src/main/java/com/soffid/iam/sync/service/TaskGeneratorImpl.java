@@ -4,6 +4,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.net.Inet4Address;
+import java.net.InetAddress;
 import java.sql.Connection;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -104,7 +105,19 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     	csc.setMaximumResultSize(500);
         log.info("Looking for new tasks to schedule");
         if ( new KubernetesConfig().isKubernetes()) {
-        	if (isMainServer() && taskQueue.isBestServer()) {
+            if (firstRun) {
+                tasks = getTaskEntityDao().query("select distinct tasca "
+                		+ "from com.soffid.iam.model.TaskEntity as tasca "
+                		+ "left join tasca.tenant as tenant "
+                		+ "where tasca.server = :server and tasca.serverInstance=:serverInstance and "
+                		+ "tenant.enabled=:true "
+                		+ "order by tasca.id", 
+                		new Parameter[]{
+                				new Parameter("server", config.getHostName()),
+                				new Parameter("serverInstance", InetAddress.getLocalHost().getHostName()),
+                				new Parameter("lastId", lastId),
+                				new Parameter("true", true)});
+            } else if (isMainServer() && taskQueue.isBestServer()) {
 	            tasks = getTaskEntityDao().query("select distinct tasca "
 	            		+ "from com.soffid.iam.model.TaskEntity as tasca "
 	            		+ "left join tasca.tenant as tenant "
