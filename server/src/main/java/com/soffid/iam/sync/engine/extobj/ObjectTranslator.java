@@ -14,6 +14,7 @@ import com.soffid.iam.api.AttributeMapping;
 import com.soffid.iam.api.ObjectMapping;
 import com.soffid.iam.api.ObjectMappingProperty;
 import com.soffid.iam.api.SoffidObjectType;
+import com.soffid.iam.interp.Evaluator;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMapping;
@@ -21,12 +22,6 @@ import com.soffid.iam.sync.intf.ExtensibleObjects;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.tools.NullSqlObjet;
 
-import bsh.EvalError;
-import bsh.Interpreter;
-import bsh.NameSpace;
-import bsh.ParseException;
-import bsh.Primitive;
-import bsh.TargetError;
 import es.caib.seycon.ng.comu.AttributeDirection;
 import es.caib.seycon.ng.exception.InternalErrorException;
 
@@ -226,33 +221,15 @@ public class ObjectTranslator
 			else
 				AttributeReferenceParser.parse(targetObject, attribute).setValue( ar.getValue() );
 		} catch (Exception ear) {
-			Interpreter interpret = new Interpreter();
-			NameSpace ns = interpret.getNameSpace();
-	
-			ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-							"translator" + dispatcher.getName(), sourceObject, serverService,
-							agentObject);
-			
+			Map<String,Object> vars = new ExtensibleObjectVars(sourceObject, serverService, agentObject);
 			try {
-				Object result = interpret.eval(attributeExpression, newNs);
-				if (result != null && result instanceof Primitive)
-				{
-					result = ((Primitive)result).getValue();
-				}
+				Object result = Evaluator.instance().evaluate(attributeExpression, vars, "attribute "+attribute);
 				AttributeReferenceParser.parse(targetObject, attribute)
 					.setValue(result);
-			} catch (TargetError e) {
-				throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+
-						e.getTarget().getMessage(),
-						e.getTarget());
-			} catch (EvalError e) {
-				String msg;
-				try {
-					msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
-				} catch (Exception e2) {
-					msg = e.getMessage();
-				}
-				throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
+			} catch (InternalErrorException e) {
+				throw e;
+			} catch (Exception e) {
+				throw new InternalErrorException ("Error evaluating attribute "+attribute, e);
 			}
 		}
 	}
@@ -297,32 +274,15 @@ public class ObjectTranslator
 						try { 
 							return AttributeReferenceParser.parse(sourceObject, attribute.getSystemAttribute()).getValue();
 						} catch (Exception ear) {
-							Interpreter interpret = new Interpreter();
-							NameSpace ns = interpret.getNameSpace();
-	
-							ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-											"translator" + dispatcher.getName(), sourceObject, serverService,
+							ExtensibleObjectVars newNs = new ExtensibleObjectVars(
+											sourceObject, serverService,
 											agentObject);
 	
 							try {
-								Object result = interpret.eval(attribute.getSystemAttribute(), newNs);
-								if (result instanceof Primitive)
-								{
-									result = ((Primitive)result).getValue();
-								}
+								Object result = Evaluator.instance().evaluate(attribute.getSystemAttribute(), newNs, "attribute "+attribute.getSoffidAttribute());
 								return result;
-							} catch (TargetError e) {
-								throw new InternalErrorException ("Error evaluating attribute "+attribute.getSystemAttribute()+": "+
-										e.getTarget().getMessage(),
-										e.getTarget());
-							} catch (EvalError e) {
-								String msg;
-								try {
-									msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
-								} catch (Exception e2) {
-									msg = e.getMessage();
-								}
-								throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
+							} catch (Exception e) {
+								throw new InternalErrorException ("Error evaluating attribute "+attribute.getSoffidAttribute(), e);
 							}
 						}
 					}
@@ -347,32 +307,14 @@ public class ObjectTranslator
 									|| attribute.getDirection().equals(
 													AttributeDirection.INPUTOUTPUT))
 					{
-						Interpreter interpret = new Interpreter();
-						NameSpace ns = interpret.getNameSpace();
-
-						ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-										"translator" + dispatcher.getName(), sourceObject, serverService,
+						ExtensibleObjectVars newNs = new ExtensibleObjectVars(sourceObject, serverService,
 										agentObject);
 
 						try {
-							Object result = interpret.eval(attribute.getSoffidAttribute(), newNs);
-							if (result instanceof Primitive)
-							{
-								result = ((Primitive)result).getValue();
-							}
+							Object result = Evaluator.instance().evaluate(attribute.getSoffidAttribute(), newNs, "attribute "+attribute.getSystemAttribute());
 							return result;
-						} catch (TargetError e) {
-							throw new InternalErrorException ("Error evaluating attribute "+attribute.getSoffidAttribute()+": "+
-									e.getTarget().getMessage(),
-									e.getTarget());
-						} catch (EvalError e) {
-							String msg;
-							try {
-								msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
-							} catch (Exception e2) {
-								msg = e.getMessage();
-							}
-							throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
+						} catch (Exception e) {
+							throw new InternalErrorException ("Error evaluating attribute "+attribute.getSystemAttribute(), e);
 						}
 					}
 				}
@@ -391,59 +333,28 @@ public class ObjectTranslator
 		if (condition == null || condition.trim().length() == 0)
 			return true;
 		
-		Interpreter interpret = new Interpreter();
-		NameSpace ns = interpret.getNameSpace();
-
-		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-						"translator" + dispatcher.getName(), sourceObject, serverService,
+		ExtensibleObjectVars newNs = new ExtensibleObjectVars(sourceObject, serverService,
 						agentObject);
 		try {
-			Object result = interpret.eval(condition, newNs);
-			if (result instanceof Primitive)
-			{
-				result = ((Primitive)result).getValue();
-			}
+			Object result = Evaluator.instance().evaluate(condition, newNs, condition);
 			if (result == null || "false".equalsIgnoreCase(result.toString()))
 				return false;
 			else
 				return true;
-		} catch (ParseException ex) {
-			throw new InternalErrorException ("Error parsing expression "+condition+": "+
-					ex.getMessage());
-		} catch (TargetError ex) {
-			throw new InternalErrorException (ex.getMessage()+" executing expression  at "+ex.getScriptStackTrace(), ex.getTarget());
-		} catch (EvalError ex) {
-			throw new InternalErrorException ("Error evaluating expression "+ex.getMessage()+" at line "+ex.getErrorLineNumber()+" "+ex.getScriptStackTrace());
+		} catch (Exception ex) {
+			throw new InternalErrorException ("Error parsing expression "+condition, ex);
 		}
 	}
 	
 	public Object eval(String expr, ExtensibleObject eo) throws InternalErrorException {
-		Interpreter interpret = new Interpreter();
-		NameSpace ns = interpret.getNameSpace();
-
-		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-						"translator" + dispatcher.getName(), eo, serverService,
+		ExtensibleObjectVars newNs = new ExtensibleObjectVars(eo, serverService,
 						agentObject);
 
 		try {
-			Object result = interpret.eval(expr, newNs);
-			if (result instanceof Primitive)
-			{
-				result = ((Primitive)result).getValue();
-			}
+			Object result = Evaluator.instance().evaluate(expr, newNs, expr);
 			return result;
-		} catch (TargetError e) {
-			throw new InternalErrorException ("Error evaluating expression "+expr+": "+
-					e.getTarget().getMessage(),
-					e.getTarget());
-		} catch (EvalError e) {
-			String msg;
-			try {
-				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
-			} catch (Exception e2) {
-				msg = e.getMessage();
-			}
-			throw new InternalErrorException ("Error evaluating attribute "+expr+": "+msg);
+		} catch (Exception e) {
+			throw new InternalErrorException ("Error evaluating expression "+expr, e);
 		}
 	}
 
