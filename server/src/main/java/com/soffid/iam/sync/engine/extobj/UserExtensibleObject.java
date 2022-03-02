@@ -179,7 +179,7 @@ public class UserExtensibleObject extends ExtensibleObject
     		{
     			if (usuari.getId() == null)
     				return new HashMap<String, Object>();
-    			Map<String, Object> dades = serverService.getUserAttributes(usuari.getId());
+    			Map<String, Object> dades = usuari.getAttributes();
     			Map<String, Object> dadesMap = new HashMap<String, Object>();
    				if (account != null && account.getAttributes() != null)
     				dadesMap.putAll(account.getAttributes());
