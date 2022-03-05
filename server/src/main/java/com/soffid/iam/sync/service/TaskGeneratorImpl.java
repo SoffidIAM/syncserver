@@ -87,7 +87,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         return status;
     }
 
-    long lastId = -1;
+    long lastId = Integer.MIN_VALUE;
     @Override
     protected void handleLoadTasks() throws Exception {
     	TaskQueue taskQueue = getTaskQueue();
@@ -110,7 +110,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                 		+ "from com.soffid.iam.model.TaskEntity as tasca "
                 		+ "left join tasca.tenant as tenant "
                 		+ "where tasca.server = :server and tasca.serverInstance=:serverInstance and "
-                		+ "tenant.enabled=:true "
+                		+ "tenant.enabled=:true and tasca.id > :lastId "
                 		+ "order by tasca.id", 
                 		new Parameter[]{
                 				new Parameter("server", config.getHostName()),
