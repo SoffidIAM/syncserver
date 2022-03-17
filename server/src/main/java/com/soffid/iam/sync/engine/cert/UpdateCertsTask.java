@@ -72,6 +72,10 @@ public class UpdateCertsTask implements Runnable {
 				Thread.sleep(oneDay);
 			} catch (Exception e) {
 				log.warn("Error running update certs task", e);
+				try {
+					Thread.sleep(60 * 60 * 1000);
+				} catch (InterruptedException e1) {
+				}
 			}
 		} while (true);
 	}
