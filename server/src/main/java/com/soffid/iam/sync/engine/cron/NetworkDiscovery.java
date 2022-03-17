@@ -156,7 +156,7 @@ public class NetworkDiscovery implements TaskHandler
 		}
 		else
 		{
-			if (event.getOs() != null) {
+			if (event.getOs() != null && "ALT".equals(host.getOs())) {
 				host.setOs(event.getOs());
 				networkService.update(host);
 			}
@@ -166,17 +166,24 @@ public class NetworkDiscovery implements TaskHandler
 		if ( discoveryService.findHostSystems(host).isEmpty()) {
 			if (containsPort(event.getPorts(), "22/tcp")) {
 				createSystem(host, "Linux", event.getPorts());
+				host.setOs("LIN");
+				networkService.update(host);
 			} 
 			if (containsPort(event.getPorts(), "389/tcp", "Active Directory")) { // Kerberos
 				createSystem(host, "AD", event.getPorts());
+				host.setOs("NTS");
+				networkService.update(host);
 			} 
-			else if (containsPort(event.getPorts(), "135/tcp")) {
+			else if (containsPort(event.getPorts(), "139/tcp") || containsPort(event.getPorts(), "3389/tcp")) {
 				createSystem(host, "Windows", event.getPorts());
+				host.setOs("NTS");
+				networkService.update(host);
 			} 
 		}
 	}
 
-	public void createSystem(Host host, String type, List<HostPort> ports) {
+	public boolean createSystem(Host host, String type, List<HostPort> ports) {
+		boolean newSystem = false;
 		DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
 		for (int i = 0; i < discoveryAccounts.size(); i++) {
 			try {
@@ -192,6 +199,7 @@ public class NetworkDiscovery implements TaskHandler
 					system.setUrl(systemUrl);
 					handler.setSystem(system);
 					Object obj = handler.connect(true, false);
+					newSystem = true;
 					ReconcileMgr2 agent = (ReconcileMgr2) InterfaceWrapper.getReconcileMgr2(obj); 
 					if (agent == null) {
 						out.println("Cannot get reconcile interface for "+host.getName());
@@ -213,11 +221,12 @@ public class NetworkDiscovery implements TaskHandler
 						registerUser(account, password, system);
 					}
 				}
-				return;
+				return newSystem;
 			} catch (Exception e) {
 				out.println("Failed to probe  "+host.getName()+": "+e.toString());
 			}
 		}
+		return newSystem;
 	}
 
 	private void registerUser(Account account, Password password, System system) throws InternalErrorException, BadPasswordException {
