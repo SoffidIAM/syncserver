@@ -524,7 +524,7 @@ public abstract class ReconcileEngine
 			reconcileRoles (acc);
 	}
 
-	protected boolean loadAccount(String passwordPolicy, List<ReconcileTrigger> preInsert, List<ReconcileTrigger> postInsert,
+	protected void loadAccount(String passwordPolicy, List<ReconcileTrigger> preInsert, List<ReconcileTrigger> postInsert,
 			String accountName, Account existingAccount) throws InternalErrorException, RemoteException {
 		Account acc;
 		acc = new Account ();
