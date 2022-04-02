@@ -2,8 +2,6 @@ package com.soffid.iam.sync.engine.log;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.Date;
 import java.util.logging.Formatter;
 import java.util.logging.Level;
