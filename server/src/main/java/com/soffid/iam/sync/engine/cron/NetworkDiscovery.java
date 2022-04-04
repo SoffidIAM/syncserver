@@ -174,7 +174,7 @@ public class NetworkDiscovery implements TaskHandler
 				host.setOs("NTS");
 				networkService.update(host);
 			} 
-			else if (containsPort(event.getPorts(), "139/tcp") || containsPort(event.getPorts(), "3389/tcp")) {
+			else if (containsPort(event.getPorts(), "445/tcp") || containsPort(event.getPorts(), "3389/tcp")) {
 				createSystem(host, "Windows", event.getPorts());
 				host.setOs("NTS");
 				networkService.update(host);
