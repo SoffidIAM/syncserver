@@ -429,7 +429,7 @@ public class ServerServiceImpl extends ServerServiceBase {
     		List<RoleGrant> rg = new LinkedList<RoleGrant>();
     		for ( AccountEntity userAccount: getAccountEntityDao().findByUserAndSystem(cache.getUser().getUserName(), dispatcher)) {
 				for (RoleGrant grant: cache.getGrants()) {
-					if (grant.getSystem().equals(dispatcher) && 
+					if ((dispatcher == null || grant.getSystem().equals(dispatcher)) && 
 							(grant.getOwnerAccountName() == null || grant.getOwnerAccountName().equals(userAccount.getName()))) {
         				rg.add(grant);
 					}
