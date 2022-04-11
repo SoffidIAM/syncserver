@@ -11,7 +11,14 @@ import java.security.cert.CertificateException;
 import com.soffid.iam.sync.bootstrap.impl.KubernetesConfig;
 
 public class KubernetesLoader {
-	public static void main(String args[]) throws KeyManagementException, UnrecoverableKeyException, FileNotFoundException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
-		new KubernetesConfig().load();
+	public static void main(String args[]) throws KeyManagementException, UnrecoverableKeyException, FileNotFoundException, KeyStoreException, NoSuchAlgorithmException, CertificateException, Exception {
+		try {
+			new KubernetesConfig().load();
+		} catch (Exception e ) {
+			System.out.println("Configuration loader failed. Trying in 10 seconds");
+			Thread.sleep(10000);
+			new KubernetesConfig().load();
+		}
+
 	}
 }
