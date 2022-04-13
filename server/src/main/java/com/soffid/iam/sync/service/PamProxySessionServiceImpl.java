@@ -195,7 +195,7 @@ public class PamProxySessionServiceImpl extends PamProxySessionServiceBase {
 				dt.setType(TypeEnumeration.STRING_TYPE);
 				dt.setLabel("SSH Public key");
 				dt.setMultiValued(true);
-				dt.setName("ssh-key");
+				dt.setName("ssh_key");
 				dt.setOrder(9999L);
 				dt.setScope(MetadataScope.USER);
 				dt.setUnique(false);
