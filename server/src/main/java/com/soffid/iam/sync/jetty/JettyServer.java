@@ -249,7 +249,7 @@ public class JettyServer implements PublisherInterface
         
         String hostName = InetAddress.getLocalHost().getHostName();
         String hostAddress = InetAddress.getLocalHost().getHostAddress();
-       	connector.setHost(hostAddress);
+//       	connector.setHost(hostAddress);
 
         String url = "http://"+hostAddress+":"+Integer.toString(port+1);
         log.info("Listening on {}", url, null);
