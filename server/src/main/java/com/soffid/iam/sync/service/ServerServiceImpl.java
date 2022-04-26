@@ -29,6 +29,7 @@ import java.util.regex.Pattern;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
+import com.soffid.iam.api.AccessControl;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.AttributeTranslation;
@@ -1163,11 +1164,35 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 		SystemAccessControl dispatcherInfo = new SystemAccessControl();
 		dispatcherInfo.setSystem(dispatcher.getName());
-		dispatcherInfo.setEnabled(new Boolean("S".equals(dispatcher
-				.getEnableAccessControl())));
-		Collection<AccessControlEntity> acl = dispatcher.getAccessControls();
-		AccessControlEntityDao aclDao = getAccessControlEntityDao();
-		dispatcherInfo.setControlAcces(aclDao.toAccessControlList(acl));
+		dispatcherInfo.setEnabled(new Boolean("S".equals(dispatcher.getEnableAccessControl())));
+		LinkedList<AccessControl> r = new LinkedList<AccessControl>();
+		
+		for (AccessControlEntity ace: dispatcher.getAccessControls()) {
+			AccessControl ac = getAccessControlEntityDao().toAccessControl(ace);
+			StringBuffer sb = new StringBuffer();
+			boolean added = false;
+			if (ac.getGenericHost() != null && 
+					!ac.getGenericHost().trim().isEmpty() &&
+					! ac.getGenericHost().equals("%")) {
+				for (HostEntity h: 
+						getHostEntityDao().query("select maq "
+								+ "from com.soffid.iam.model.HostEntityImpl as maq "
+								+ "where maq.name like :pattern and "
+								+ "maq.hostIP is not null and maq.deleted=:deleted", 
+									new Parameter[] { new Parameter("pattern", ac.getGenericHost()),
+									new Parameter("deleted", false)})) {
+					AccessControl ac2 = new AccessControl(ac);
+					ac2.setRemoteIp(h.getHostIP());
+					r.add(ac2);
+					added = true;
+				}
+			}
+			if (! added) {
+				ac.setRemoteIp(ac.getGenericHost());
+				r.add(ac);
+			}
+		}
+		dispatcherInfo.setControlAcces(r);
 
 		return dispatcherInfo;
 	}
