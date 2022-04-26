@@ -8,7 +8,7 @@
 	<modelVersion>4.0.0</modelVersion>
 	<groupId>com.soffid.iam.sync</groupId>
 	<artifactId>syncserver</artifactId>
-	<version>3.3.14-SNAPSHOT</version>
+	<version>3.3.15-SNAPSHOT</version>
 	<packaging>jar</packaging>
 	<name>Soffid IAM Sync server</name>
 	<properties>
