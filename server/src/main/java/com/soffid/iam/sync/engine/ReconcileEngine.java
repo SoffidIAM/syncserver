@@ -609,9 +609,10 @@ public abstract class ReconcileEngine
 		{
 			acc.setGrantedRoles(existingAccount.getGrantedRoles());
 		}
+
+		boolean ok = true;
 		try {
 	
-			boolean ok = true;
 			try {
 				
 				if (! preInsert.isEmpty())
@@ -647,7 +648,8 @@ public abstract class ReconcileEngine
 			SoffidStackTrace.printStackTrace(e, log);
 		}
 		
-		reconcileRoles (acc);
+		if (ok)
+			reconcileRoles (acc);
 
 	}
 
