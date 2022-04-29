@@ -1173,7 +1173,8 @@ public class ServerServiceImpl extends ServerServiceBase {
 			boolean added = false;
 			if (ac.getGenericHost() != null && 
 					!ac.getGenericHost().trim().isEmpty() &&
-					! ac.getGenericHost().equals("%")) {
+					! ac.getGenericHost().equals("%") &&
+					! Character.isDigit(ac.getGenericHost().charAt(0))) {
 				for (HostEntity h: 
 						getHostEntityDao().query("select maq "
 								+ "from com.soffid.iam.model.HostEntityImpl as maq "
