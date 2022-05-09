@@ -391,6 +391,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		else if (trans.equals(TaskHandler.UPDATE_SERVICE_PASSWORD))
 		{
 			return implemented(agent, ServiceMgr.class);
+		}
+		else if (trans.equals(TaskHandler.UPDATE_ACESS_CONTROL))
+		{
+			return implemented(agent, AccessControlMgr.class) || implemented(agent, es.caib.seycon.ng.sync.intf.AccessControlMgr.class);
         } else {
             return implemented(agent, es.caib.seycon.ng.sync.intf.CustomTaskMgr.class) ||
             		implemented(agent,CustomTaskMgr.class);
