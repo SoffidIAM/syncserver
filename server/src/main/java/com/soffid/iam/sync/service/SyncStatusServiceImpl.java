@@ -723,6 +723,7 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			SoffidObjectType type, String object1, String object2)
 			throws InternalErrorException, InternalErrorException {
 		TaskHandler task = generateObjectTask(dispatcher, type, object1, object2);
+		getTaskGenerator().updateAgents();
 		Map<String, DebugTaskResults> map = getTaskQueue().debugTask(task);
 		return map.get(dispatcher);
 	}
@@ -838,9 +839,12 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	protected GetObjectResults handleGetNativeObject(String systemName, SoffidObjectType type, String object1,
 			String object2) throws Exception {
 
+		getTaskGenerator().updateAgents();
+
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(systemName);
 		if (handler == null || !handler.isActive())
 			return null;
+
 
 		return handler.getNativeObject(systemName, type, object1, object2);
 	}
@@ -848,6 +852,8 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	@Override
 	protected GetObjectResults handleGetSoffidObject(String systemName, SoffidObjectType type, String object1,
 			String object2) throws Exception {
+
+		getTaskGenerator().updateAgents();
 
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(systemName);
 		if (handler == null || !handler.isActive())

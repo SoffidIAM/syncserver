@@ -1285,7 +1285,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					dispatcherName.equals (task.getTask().getSystemName()))
 			{
 				DebugTaskResults  r = new DebugTaskResults();
-				if (dispatcher.isConnected() && dispatcher.isActive())
+				if (dispatcher.isActive()  && (
+						dispatcher.isConnected() ||   // The agent is connected or
+						dispatcher.getSystem().getTimeStamp() != null &&
+						dispatcher.getSystem().getTimeStamp().getTime().getTime() > System.currentTimeMillis() - 60_000)) // The configuration changed recently
 				{
 					if (debug)
 					{

@@ -258,6 +258,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         return list;
     }
 
+    
     @Override
     protected synchronized void handleUpdateAgents() throws Exception {
     	boolean anySharedThreadChange = false;
