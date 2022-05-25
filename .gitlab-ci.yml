@@ -76,7 +76,7 @@ maven_release:
     - 'echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
     - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
     - rm -rf ../clone
-    - mvn -f server/pom.xml scm:checkout -DscmVersion="$CI_COMMIT_BRANCH" -DscmVersionType=branch -DcheckoutDirectory=../clone
+    - mvn -f server/pom.xml scm:checkout -DscmVersion="$CI_COMMIT_BRANCH" -DscmVersionType=branch -DcheckoutDirectory=$PWD/clone
     - cd ../clone
     - 'git remote add gitlab "ssh://git@gitlab.internal.soffid.com:2224/${CI_PROJECT_PATH}.git"' 
     - git pull gitlab "$CI_COMMIT_PATH" --no-edit
