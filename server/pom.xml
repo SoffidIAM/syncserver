@@ -438,6 +438,22 @@
 					</execution>
 				</executions>
 			</plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+	      <version>2.4.2</version>
+	      <dependencies>
+	        <dependency>
+	          <groupId>org.apache.maven.scm</groupId>
+	          <artifactId>maven-scm-provider-gitexe</artifactId>
+	          <version>1.8.1</version>
+	        </dependency>
+	       </dependencies>
+        <configuration>
+          <preparationGoals>clean install integration-test</preparationGoals>
+          <goals>clean install deploy</goals>
+        </configuration>
+      </plugin>
 		</plugins>
 		<pluginManagement>
 			<plugins>
@@ -860,7 +876,7 @@
 	<pluginRepositories>
 		<pluginRepository>
 			<id>soffid-open</id>
-			<url>http://www.soffid.com/maven</url>
+			<url>https://download.soffid.com/maven</url>
 		</pluginRepository>
 	</pluginRepositories>
 	<repositories>
@@ -870,11 +886,7 @@
 		</repository>
 		<repository>
 			<id>soffid-open</id>
-			<url>http://www.soffid.com/maven</url>
-		</repository>
-		<repository>
-			<id>jboss</id>
-			<url>https://repository.jboss.org/nexus/content/repositories/releases</url>
+			<url>https://download.soffid.com/maven</url>
 		</repository>
 	</repositories>
 	<distributionManagement>
@@ -885,7 +897,7 @@
 			<url>${soffid.deploy.url}</url>
 		</repository>
 		<site>
-			<id>soffid-open</id>
+			<id>soffid-open-site</id>
 			<name>Soffid Maven site repository</name>
 			<url>${soffid.deploy.site.url}/syncserver</url>
 		</site>

@@ -1,0 +1,117 @@
+variables:
+  # This will suppress any download for dependencies and plugins or upload messages which would clutter the console log.
+  # `showDateTime` will show the passed time in milliseconds. You need to specify `--batch-mode` to make this work.
+  MAVEN_OPTS: "-Dhttps.protocols=TLSv1.2 -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository -Dorg.slf4j.simpleLogger.log.org.apache.maven.cli.transfer.Slf4jMavenTransferListener=WARN -Dorg.slf4j.simpleLogger.showDateTime=true -Djava.awt.headless=true"
+  # As of Maven 3.3.0 instead of this you may define these options in `.mvn/maven.config` so the same config is used
+  # when running from the command line.
+  # `installAtEnd` and `deployAtEnd` are only effective with recent version of the corresponding plugins.
+  MAVEN_CERT_OPTS: "-Djavax.net.ssl.keyStore=/tmp/keystore.p12  -Djavax.net.ssl.keyStoreType=pkcs12 -Djavax.net.ssl.keyStorePassword=$KEYSTORE_PASSWORD"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version -DinstallAtEnd=true -DdeployAtEnd=true $MAVEN_CERT_OPTS"
+
+# This template uses jdk8 for verifying and deploying images
+image: soffid/maven:3.8.5-openjdk11
+stages:
+  - verify
+  - compile
+  - deploy
+  - release
+# Cache downloaded dependencies and plugins between builds.
+# To keep cache across branches add 'key: "$CI_JOB_NAME"'
+cache:
+  paths:
+    - .m2/repository
+    - .m2/tags.json
+
+# For merge requests do not `deploy` but only run `verify`.
+# See https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
+verify: 
+  stage: verify
+  script:
+    - 'base64 -d $KEYSTORE_JKS >/tmp/keystore.p12'
+    - 'mvn $MAVEN_CLI_OPTS verify'
+  except:
+    variables:
+      - $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+
+maven_install:
+  stage: compile
+  script:
+    - 'which ssh-agent'
+    - 'eval $(ssh-agent -s)'
+    - chmod 600 "$GITLAB_SSH_KEY"  "$GITHUB_SSH_KEY"
+    - 'ssh-add "$GITLAB_SSH_KEY"'
+    - 'ssh-add "$GITHUB_SSH_KEY"'
+    - mkdir -p ~/.ssh
+    - 'echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
+    - mkdir "$HOME/.docker"
+    - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
+    - mvn -f server/pom.xml install $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS
+  only:
+    variables:
+      - $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+
+maven_deploy:
+  stage: deploy
+  script:
+    - 'which ssh-agent'
+    - 'eval $(ssh-agent -s)'
+    - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
+    - mkdir "$HOME/.docker"
+    - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
+    - mvn -f server/pom.xml deploy $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS  -Darguments="$MAVEN_CERT_OPTS"
+  rules:
+    - if: $CI_COMMIT_TAG == null
+      when: manual
+      
+maven_release:
+  stage: deploy
+  script:
+    - 'eval $(ssh-agent -s)'
+    - chmod 600 "$GITLAB_SSH_KEY"  "$GITHUB_SSH_KEY"
+    - 'ssh-add "$GITLAB_SSH_KEY"'
+    - 'ssh-add "$GITHUB_SSH_KEY"'
+    - mkdir -p ~/.ssh
+    - 'echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
+    - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
+    - rm -rf ../clone
+    - mvn -f server/pom.xml scm:checkout -DscmVersion="$CI_COMMIT_BRANCH" -DscmVersionType=branch -DcheckoutDirectory=../clone
+    - cd ../clone
+    - 'git remote add gitlab "ssh://git@gitlab.internal.soffid.com:2224/${CI_PROJECT_PATH}.git"' 
+    - git pull gitlab "$CI_COMMIT_PATH" --no-edit
+    - git config --global user.email "$GITLAB_USER_EMAIL"
+    - git config --global user.name "$GITLAB_USER_NAME"
+    - mvn -f server/pom.xml release:prepare $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS --batch-mode -DtagNameFormat='version-@{project.version}' -DpreparationGoals='install'
+    - git remote -v
+    - git push gitlab "$CI_COMMIT_BRANCH"
+    - git push gitlab --tags
+    - mkdir "$HOME/.docker"
+    - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
+    - mvn -f server/pom.xml  release:perform $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS -Dgoals=install -DskipTests=true -Darguments="$MAVEN_CERT_OPTS -Dmaven.javadoc.skip=true -Dmaven.test.skip=true"
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+
+release:
+  stage: release
+  script:
+    - mkdir -p target
+    - > 
+      (
+      echo '{"tag_name": "'$CI_COMMIT_TAG'", ' ;
+      echo '"name": "Release '$CI_COMMIT_TAG'", ' ;
+      echo '"assets":{"links": [';
+      first="true" ;
+      mvn  -f server/pom.xml -q -Dexec.executable='echo' -Dexec.args='${project.groupId} ${project.version} ${project.artifactId} ${project.packaging}' exec:exec | 
+      while read a b c d ;
+      do if [[ "$first" == "false" ]] ; then  echo ,  ;  fi ;  first=false ;
+      echo '{"name":"'$c'","url":"https://download.soffid.com/maven/'$(echo $a|sed 's/\./\//g' )/$c/$b/$c-$b.$d'","link_type":"other"}'; 
+      done ;
+      echo ']}, "description": "Automatically created '$EXTRA_DESCRIPTION'"}'
+      ) > target/release.json
+    - cat target/release.json
+    - "wget -O - --header \"JOB-TOKEN: $CI_JOB_TOKEN\" --header \"Content-Type: application/json\" --content-on-error https://gitlab.internal.soffid.com/api/v4/projects/$CI_PROJECT_ID/releases --method POST --body-file=target/release.json" 
+  rules: 
+     - if: $CI_COMMIT_TAG                  # Run this job when a tag is created manually
+
