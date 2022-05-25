@@ -334,6 +334,16 @@ public class JettyServer implements PublisherInterface
         sslContextFactory.setKeyStorePassword(SeyconKeyStore.getKeyStorePassword().getPassword());
         sslContextFactory.setTrustStorePassword(SeyconKeyStore.getKeyStorePassword().getPassword());
         sslContextFactory.setWantClientAuth(true);
+        if (System.getProperty("soffid.tls.protocols") != null) {
+        	sslContextFactory.setIncludeProtocols(System.getProperty("soffid.tls.protocols").split("[, ]+"));
+        	sslContextFactory.setExcludeCipherSuites("^.*_(MD5)$");
+        }
+        if (System.getProperty("soffid.tls.ciphers") != null) {
+        	sslContextFactory.setIncludeCipherSuites(System.getProperty("soffid.tls.ciphers").split("[, ]+"));
+        }
+        if (System.getProperty("soffid.tls.excludedCiphers") != null) {
+        	sslContextFactory.setExcludeCipherSuites(System.getProperty("soffid.tls.excludedCiphers").split("[, ]+"));
+        }
     	
     	// The ConnectionFactory for TLS.
     	SslConnectionFactory tls = new SslConnectionFactory(sslContextFactory, http11.getProtocol());
