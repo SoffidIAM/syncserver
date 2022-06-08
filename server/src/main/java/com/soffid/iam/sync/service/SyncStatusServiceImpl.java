@@ -919,6 +919,7 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	
 	@Override
 	protected void handleCheckConnectivity(java.lang.String dispatcher) throws Exception {
+		getTaskGenerator().updateAgents();
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(dispatcher);
 		if (handler == null)
 			throw new InternalErrorException ("System "+dispatcher+" is not enabled yet");
