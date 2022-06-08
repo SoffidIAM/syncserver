@@ -41,6 +41,7 @@ import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -601,8 +602,8 @@ public class AuthoritativeLoaderEngine {
 				groupNames.add(change.getGroup().getName());
 			}
 			Group previousGroup = change.getGroup() == null ||
-					change.getGroup().getName() == null ? null :
-						groupService.findGroupByGroupName(change.getGroup().getName());
+							change.getGroup().getName() == null ? null :
+								groupService.findGroupByGroupName(change.getGroup().getName());
 			boolean ok = true;
 			if (previousGroup == null)
 			{

@@ -4,6 +4,7 @@
 package com.soffid.iam.sync.engine.extobj;
 
 import java.lang.reflect.Array;
+import java.lang.reflect.InvocationTargetException;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
@@ -12,6 +13,10 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.Map;
 
+import org.apache.commons.logging.LogFactory;
+import org.jfree.util.Log;
+
+import com.soffid.iam.api.AbstractGroup;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AccountStatus;
 import com.soffid.iam.api.CustomObject;
@@ -437,6 +442,15 @@ public class ValueObjectMapper
 		grup.setSection(toSingleString(object.get("accountingGroup")));
 		grup.setType(toSingleString(object.get("type")));
 		grup.setDriveLetter(toSingleString(object.get("driveLetter")));
+		try {
+			AbstractGroup.class.getMethod("setStartDate", Date.class)
+				.invoke(grup, toDate(object.get("startDate")));
+			AbstractGroup.class.getMethod("setEndDate", Date.class)
+				.invoke(grup, toDate(object.get("endDate")));
+		} catch (NoSuchMethodException | SecurityException | IllegalAccessException | IllegalArgumentException | InvocationTargetException e) {
+			// Old version
+			LogFactory.getLog(getClass()).warn("Error setting group properties. Upgrade soffid console", e);
+		}
 		Object map = object.get("attributes");
 		if (map != null && map instanceof Map)
 			grup.setAttributes((Map<String, Object>) map);
