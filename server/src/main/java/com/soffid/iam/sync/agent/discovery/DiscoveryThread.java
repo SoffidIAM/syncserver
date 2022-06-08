@@ -132,7 +132,7 @@ public class DiscoveryThread extends Thread {
 
 	private void createProcess(byte[] next) throws IOException {
 		InetAddress addr = InetAddress.getByAddress(next);
-		Process process = Runtime.getRuntime().exec(new String[] {"nmap", "-Pn", "-An", addr.getHostAddress()} );
+		Process process = Runtime.getRuntime().exec(new String[] {"nmap", "-Pn", "-An", "-p", "1-1024,1500-1600,5432,3306,1433", addr.getHostAddress()} );
 		log.info("Starting discovery for ip address "+addr.getHostAddress());
 		ProcessTracker t = new ProcessTracker();
 		process.getOutputStream().close();
