@@ -60,7 +60,7 @@ maven_deploy:
     - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
     - mkdir "$HOME/.docker"
     - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
-    - mvn -f server/pom.xml deploy $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS  -Darguments="$MAVEN_CERT_OPTS"
+    - mvn -f pom.xml deploy $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS  -Darguments="$MAVEN_CERT_OPTS"
   rules:
     - if: $CI_COMMIT_TAG == null
       when: manual
@@ -76,19 +76,19 @@ maven_release:
     - 'echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
     - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
     - rm -rf ../clone
-    - mvn -f server/pom.xml scm:checkout -DscmVersion="$CI_COMMIT_BRANCH" -DscmVersionType=branch -DcheckoutDirectory=$PWD/../clone
+    - mvn -f pom.xml scm:checkout -DscmVersion="$CI_COMMIT_BRANCH" -DscmVersionType=branch -DcheckoutDirectory=$PWD/../clone
     - cd ../clone
     - 'git remote add gitlab "ssh://git@gitlab.internal.soffid.com:2224/${CI_PROJECT_PATH}.git"' 
     - git pull gitlab "$CI_COMMIT_PATH" --no-edit
     - git config --global user.email "$GITLAB_USER_EMAIL"
     - git config --global user.name "$GITLAB_USER_NAME"
-    - mvn -f server/pom.xml release:prepare $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS --batch-mode -DtagNameFormat='version-@{project.version}' -DpreparationGoals='install'
+    - mvn -f pom.xml release:prepare $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS --batch-mode -DtagNameFormat='version-@{project.version}' -DpreparationGoals='install'
     - git remote -v
     - git push gitlab "$CI_COMMIT_BRANCH"
     - git push gitlab --tags
     - mkdir "$HOME/.docker"
     - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
-    - mvn -f server/pom.xml  release:perform $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS -Dgoals=install -DskipTests=true -Darguments="$MAVEN_CERT_OPTS -Dmaven.javadoc.skip=true -Dmaven.test.skip=true"
+    - mvn -f pom.xml  release:perform $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS -Dgoals=install -DskipTests=true -Darguments="$MAVEN_CERT_OPTS -Dmaven.javadoc.skip=true -Dmaven.test.skip=true"
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
       when: manual
