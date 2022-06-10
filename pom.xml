@@ -12,10 +12,41 @@
   <name>Synchronization module</name>
 	<version>3.3.20-SNAPSHOT</version>
   <url>http://forge.dev.lab</url>
+  <scm>
+        <connection>scm:git:ssh://git@github.com/SoffidIAM/syncserver.git</connection>
+        <tag>HEAD</tag>
+  </scm>
   <modules>
     <module>bootstrap</module>
     <module>server</module>
   </modules>
+  <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-release-plugin</artifactId>
+	      <version>2.4.2</version>
+	      <dependencies>
+	        <dependency>
+	          <groupId>org.apache.maven.scm</groupId>
+	          <artifactId>maven-scm-provider-gitexe</artifactId>
+	          <version>1.8.1</version>
+	        </dependency>
+	       </dependencies>
+        <configuration>
+          <preparationGoals>clean install integration-test</preparationGoals>
+          <goals>clean install deploy</goals>
+        </configuration>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-compiler-plugin</artifactId>
+        <configuration>
+          <source>11</source>
+          <target>11</target>
+        </configuration>
+      </plugin>
+    </plugins>
+  </plugins>
   <profiles>
     <profile>
       <id>amd64</id>
