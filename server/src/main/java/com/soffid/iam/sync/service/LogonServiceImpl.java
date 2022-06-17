@@ -42,10 +42,14 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.LogonDeniedException;
 import es.caib.seycon.ng.exception.UnknownHostException;
 import es.caib.seycon.ng.exception.UnknownUserException;
+import es.caib.seycon.util.Base64;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.InetAddress;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.sql.Timestamp;
 import java.text.DateFormat;
@@ -132,9 +136,25 @@ public class LogonServiceImpl extends LogonServiceBase {
         }
     }
 
+	public boolean debugPasswords() {
+		return "true".equals(ConfigurationCache.getProperty("soffid.server.trace-passwords"));
+	}
+
+    public String hash(String s) {
+    	MessageDigest d;
+		try {
+			d = MessageDigest.getInstance("SHA-256");
+			return Base64.encodeBytes(d.digest(s.getBytes( StandardCharsets.UTF_8 ) ), Base64.DONT_BREAK_LINES);
+		} catch (NoSuchAlgorithmException e) {
+			return s;
+		}
+    }
+
     @Override
     protected void handlePropagatePassword(String user, String domain, String password)
             throws Exception {
+		if (debugPasswords())
+			log.info("PropagatePassword {} / {}", user, domain);
         Resolver r = new Resolver(user, domain);
 
         TaskEntity tasque = getTaskEntityDao().newTaskEntity();
@@ -142,18 +162,25 @@ public class LogonServiceImpl extends LogonServiceBase {
     	InternalPasswordService ips = getInternalPasswordService();
     	
     	Password p = new Password(password);
-       	if (ips.checkAccountPassword(r.getAccountEntity(), p, false, true) != 
-       		PasswordValidation.PASSWORD_WRONG)
+       	final PasswordValidation status = ips.checkAccountPassword(r.getAccountEntity(), p, false, true);
+		if (status != PasswordValidation.PASSWORD_WRONG)
         {
+			if (debugPasswords())
+				log.info("PropagatePassword {} / {} Ignoring change as the password is accepted: "+hash(password), user, domain);
     		// Password is already known
     		return;
         }
        	
        	if (ips.isOldAccountPassword(r.getAccountEntity(), p))
        	{
+			if (debugPasswords())
+				log.info("PropagatePassword {} / {} Ignoring change as the password is old: "+hash(password), user, domain);
        		// Password is an ancient one
        		return;
         }
+
+       	if (debugPasswords())
+       		log.info("PropagatePassword {} / {} Creating sync server task", user, domain);
 
        	if (r.getUserEntity() != null)
        	{

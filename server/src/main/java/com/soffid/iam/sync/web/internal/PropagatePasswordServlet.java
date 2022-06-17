@@ -3,7 +3,12 @@ package com.soffid.iam.sync.web.internal;
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.rmi.RemoteException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.util.Base64;
 import java.util.Collection;
 
 import javax.servlet.ServletException;
@@ -42,6 +47,16 @@ public class PropagatePasswordServlet extends HttpServlet {
         passwordService = ServiceLocator.instance().getPasswordService();
     }
     
+    public String hash(String s) {
+    	MessageDigest d;
+		try {
+			d = MessageDigest.getInstance("SHA-256");
+			return Base64.getEncoder().encodeToString(d.digest(s.getBytes( StandardCharsets.UTF_8 )));
+		} catch (NoSuchAlgorithmException e) {
+			return s;
+		}
+    }
+    
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
             String user = req.getParameter("user");
@@ -54,6 +69,9 @@ public class PropagatePasswordServlet extends HttpServlet {
             	log.info("CheckPasswordPolicy: user={} domain={} source="+req.getRemoteHost()+"("+com.soffid.iam.utils.Security.getClientIp()+")", user, domain);
             else
             	log.info("PropagatePassword: user={} domain={} source="+req.getRemoteHost()+"("+com.soffid.iam.utils.Security.getClientIp()+")", user, domain);
+            if ("true".equals(ConfigurationCache.getProperty("soffid.server.trace-passwords"))) {
+            	log.info("PropagatePassword: user={} password={}", user, hash(pass));
+            }
             BufferedWriter writer = new BufferedWriter (new OutputStreamWriter(resp.getOutputStream(),"UTF-8"));
             try {
             	if (domain == null) {
