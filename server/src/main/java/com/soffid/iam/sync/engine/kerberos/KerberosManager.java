@@ -37,6 +37,7 @@ import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.intf.KerberosAgent;
 import com.soffid.iam.sync.intf.KerberosPrincipalInfo;
 import com.soffid.iam.sync.service.TaskGenerator;
+import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -231,6 +232,8 @@ public class KerberosManager {
 		writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
 		writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc");
 		writer.println("default_realm="+defaultRealm);
+		if (new KubernetesConfig().isKubernetes())
+			writer.println("udp_preference_limit=1");
 		writer.println();
 		writer.println("[realms]");
 		writer.println(realms.toString());
