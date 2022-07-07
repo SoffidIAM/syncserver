@@ -885,11 +885,11 @@ public abstract class ReconcileEngine
 		// Now remove not present roles
 		for (RoleGrant grant: grants)
 		{
-			log.println("Removing grant "+ grant.getRoleName());
 			if (grant.getOwnerGroup() == null &&
 					grant.getOwnerRole() == null &&
 					grant.getId() != null)
 			{
+				log.println("Removing grant "+ grant.getRoleName());
 				unloadGrant(acc, grant);
 			}
 		}
