@@ -227,10 +227,10 @@ public class ObjectTranslator
 			else
 				AttributeReferenceParser.parse(targetObject, attribute).setValue( ar.getValue() );
 		} catch (Exception ear) {
-			Map<String,Object> vars = new ExtensibleObjectVars(sourceObject, serverService, agentObject);
 			if (! useEvaluator ()) {
-				evaluateBeanshell(targetObject, attribute, attributeExpression, vars);
+				evaluateBeanshell(targetObject, attribute, attributeExpression, sourceObject);
 			} else {
+				Map<String,Object> vars = new ExtensibleObjectVars(sourceObject, serverService, agentObject);
 	
 				try {
 					Object result = Evaluator.instance().evaluate(attributeExpression, vars, "attribute "+attribute);
@@ -244,13 +244,13 @@ public class ObjectTranslator
 	}
 
 	private void evaluateBeanshell(ExtensibleObject targetObject, String attribute, String attributeExpression,
-			Map<String, Object> vars) throws InternalErrorException {
+			ExtensibleObject sourceObject) throws InternalErrorException {
 		Interpreter interpret = new Interpreter();
 		NameSpace ns = interpret.getNameSpace();
 
-		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
-						"translator" + dispatcher.getName(), vars);
-		
+		LegacyExtensibleObjectNamespace newNs = new LegacyExtensibleObjectNamespace(ns, interpret.getClassManager(),
+				"translator" + dispatcher.getName(), sourceObject, serverService,
+				agentObject);		
 		try {
 			Object result = interpret.eval(attributeExpression, newNs);
 			if (result instanceof Primitive)
