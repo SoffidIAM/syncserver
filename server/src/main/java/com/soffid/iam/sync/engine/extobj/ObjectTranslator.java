@@ -15,6 +15,7 @@ import com.soffid.iam.api.ObjectMapping;
 import com.soffid.iam.api.ObjectMappingProperty;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.interp.Evaluator;
+import com.soffid.iam.interp.ExtensibleObjectNamespace;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.intf.ExtensibleObjectMapping;
@@ -22,6 +23,11 @@ import com.soffid.iam.sync.intf.ExtensibleObjects;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.tools.NullSqlObjet;
 
+import bsh.EvalError;
+import bsh.Interpreter;
+import bsh.NameSpace;
+import bsh.Primitive;
+import bsh.TargetError;
 import es.caib.seycon.ng.comu.AttributeDirection;
 import es.caib.seycon.ng.exception.InternalErrorException;
 
@@ -222,19 +228,62 @@ public class ObjectTranslator
 				AttributeReferenceParser.parse(targetObject, attribute).setValue( ar.getValue() );
 		} catch (Exception ear) {
 			Map<String,Object> vars = new ExtensibleObjectVars(sourceObject, serverService, agentObject);
-			try {
-				Object result = Evaluator.instance().evaluate(attributeExpression, vars, "attribute "+attribute);
-				AttributeReferenceParser.parse(targetObject, attribute)
-					.setValue(result);
-			} catch (InternalErrorException e) {
-				throw e;
-			} catch (Exception e) {
-				throw new InternalErrorException ("Error evaluating attribute "+attribute, e);
+			if (! useEvaluator ()) {
+				evaluateBeanshell(targetObject, attribute, attributeExpression, vars);
+			} else {
+	
+				try {
+					Object result = Evaluator.instance().evaluate(attributeExpression, vars, "attribute "+attribute);
+					AttributeReferenceParser.parse(targetObject, attribute)
+						.setValue(result);
+				} catch (Exception e) {
+					throw new InternalErrorException ("Error evaluating attribute "+attribute, e);
+				}
+		}
+		}
+	}
+
+	private void evaluateBeanshell(ExtensibleObject targetObject, String attribute, String attributeExpression,
+			Map<String, Object> vars) throws InternalErrorException {
+		Interpreter interpret = new Interpreter();
+		NameSpace ns = interpret.getNameSpace();
+
+		ExtensibleObjectNamespace newNs = new ExtensibleObjectNamespace(ns, interpret.getClassManager(),
+						"translator" + dispatcher.getName(), vars);
+		
+		try {
+			Object result = interpret.eval(attributeExpression, newNs);
+			if (result instanceof Primitive)
+			{
+				result = ((Primitive)result).getValue();
 			}
+			AttributeReferenceParser.parse(targetObject, attribute)
+				.setValue(result);
+		} catch (TargetError e) {
+			throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+
+					e.getTarget().getMessage(),
+					e.getTarget());
+		} catch (EvalError e) {
+			String msg;
+			try {
+				msg = e.getMessage() + "[ "+ e.getErrorText()+"] ";
+			} catch (Exception e2) {
+				msg = e.getMessage();
+			}
+			throw new InternalErrorException ("Error evaluating attribute "+attribute+": "+msg);
 		}
 	}
 
 	
+	private boolean useEvaluator() {
+		try {
+			Class.forName("com.soffid.iam.interp.Evaluator");
+			return true;
+		} catch (Throwable th) {
+			return false;
+		}
+	}
+
 	public Collection<ExtensibleObjectMapping> getObjectsBySoffidType (SoffidObjectType type)
 	{
 		Collection<ExtensibleObjectMapping> result = new LinkedList<ExtensibleObjectMapping>();
