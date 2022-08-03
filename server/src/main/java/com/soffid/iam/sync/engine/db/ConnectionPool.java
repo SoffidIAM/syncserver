@@ -16,19 +16,14 @@ import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 import com.soffid.iam.config.Config;
+import com.soffid.iam.sync.engine.pool.AbstractPool;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.sync.servei.TaskGenerator;
 
-public class ConnectionPool {
+public class ConnectionPool extends AbstractPool<WrappedConnection> {
     private static ConnectionPool thePool = null;
     Logger log = Log.getLogger("DB-ConnectionPool");
-    private Hashtable<Thread,QueryConnectionInfo> currentDB = new Hashtable<Thread,QueryConnectionInfo>();
-    private Stack<QueryConnectionInfo> freeMainConnections = new Stack<QueryConnectionInfo>();
-
-    public enum ThreadBound { MASTER, BACKUP, ANY };
-    
-    ThreadLocal<ThreadBound> threadStatus = new ThreadLocal<ConnectionPool.ThreadBound>();
 	private boolean driversRegistered = false;
     
 	long lastEmptyTime = 0;
@@ -39,6 +34,20 @@ public class ConnectionPool {
 			{
 				Config config = Config.getConfig();
 	            thePool = new ConnectionPool();
+	            if (System.getenv("DBPOOL_MIN_IDLE") != null) {
+	            	thePool.setMinIdle(Integer.parseInt(System.getenv("DBPOOL_MIN_IDLE")));
+	            }
+	            if (System.getenv("DBPOOL_MAX_IDLE") != null) {
+	            	thePool.setMaxIdle(Integer.parseInt(System.getenv("DBPOOL_MAX_IDLE")));
+	            }
+	            if (System.getenv("DBPOOL_MAX") != null) {
+	            	thePool.setMaxSize(Integer.parseInt(System.getenv("DBPOOL_MAX")));
+	            } else {
+	            	thePool.setMaxSize(255);
+	            }
+	            if (System.getenv("DBPOOL_INITIAL") != null) {
+	            	thePool.setMinSize(Integer.parseInt(System.getenv("DBPOOL_INITIAL")));
+	            }
 			}
 			catch (IOException e)
 			{
@@ -46,154 +55,6 @@ public class ConnectionPool {
 			}
         }
         return thePool;
-    }
-
-    
-    /**
-	 * 
-	 */
-	private void cancelAllConnections ()
-	{
-		for (QueryConnectionInfo qci: currentDB.values())
-		{
-			cancelConnection(qci);
-		}
-		
-		Stack<QueryConnectionInfo> freeConnections = freeMainConnections;
-		
-		while (!freeConnections.isEmpty())
-		{
-			QueryConnectionInfo qci = freeConnections.pop();
-			cancelConnection(qci);
-		}
-	}
-
-
-	private void cancelConnection (QueryConnectionInfo qci)
-	{
-		qci.cancelled = true;
-		try {
-			qci.connection.realClose();
-		} catch (SQLException e) 
-		{
-		}
-	}
-	/**
-     * Clase que controla el uso de las conexiones SQL
-     */
-    protected class QueryConnectionInfo {
-        /** número de usos realizados sobre la conexión */
-        int locks;
-        /** thread al cual es asignado */
-        java.lang.Thread thread;
-        /** conexión SQL */
-        WrappedConnection connection;
-        public String info;
-        public boolean cancelled = false;
-        public boolean uncancellable = false;
-    }
-
-
-    /**
-     * Obtener acceso a una conexión de base de datos. Si el thread invocante
-     * tiene alguna conexión ya asignada, se le retorna dicha conexión,
-     * incrementando el número de bloqueos realizados.<BR>
-     * Si no dispone de ninguna conexión ya asignada y hay alguna conexión sin
-     * asignar a nadie, se le asigna<BR>
-     * Si no dispone de conexión y están todas ocupadas, el sistema esperará
-     * indefinidamente hasta que se libere. Para optimizar la espera se usa un
-     * mecanismo de sincronización/notificación sobre el vector de conexiones
-     * activas.
-     * 
-     * @return conexión SQL de uso por el thread invocante.
-     * @throws InternalErrorException 
-     */
-
-    public Connection getPoolConnection() throws InternalErrorException {
-		Stack<QueryConnectionInfo> freeConnections = freeMainConnections;
-        QueryConnectionInfo qci = (QueryConnectionInfo) currentDB.get(Thread.currentThread());
-        
-        try {
-            while  (qci == null )
-            {
-                qci = (QueryConnectionInfo) freeConnections.pop();
-                if (freeConnections.isEmpty())
-                	lastEmptyTime = System.currentTimeMillis();
-               	Statement stmt = null;
-                ResultSet rset = null;
-                try {
-                	stmt = qci.connection.createStatement();
-                	String type = System.getProperty("dbDriverString"); //$NON-NLS-1$
-                	if (type == null) {
-                        try {
-                            String driver = Config.getConfig().getDB();
-                            type = getDriverType (driver);
-                        } catch (Exception e) {
-                            throw new RuntimeException("Unable to get dialect for database", e); //$NON-NLS-1$
-                        }
-                    }
-                	rset = stmt.executeQuery (getDummyQuery(type));
-                    rset.next();
-
-                    try {
-                        qci.connection.setThread();
-                    } catch (SQLException e) {
-                    	log.warn("Error getting connection", e);
-                    	if (qci.connection !=null)
-                    	{
-                    		try {
-                    			qci.connection.close();
-                    		} catch (SQLException e2) {}
-                    	}
-                        qci = null;
-                    }
-                    
-                } catch (Exception e) {
-                    try {
-                        //System.out.println ("Tancant conexió "+e.toString());
-                        qci.connection.close();
-                    } catch (SQLException e2) {
-                    }
-                    qci = null;
-                } finally {
-                    try {
-                        if (rset != null)
-                            rset.close();
-                    } catch (SQLException e2) {
-                    }
-                    try {
-                        if (stmt != null)
-                            stmt.close();
-                    } catch (SQLException e2) {
-                    }
-                }
-                
-            }
-        } catch (EmptyStackException e) {
-            Connection c;
-            lastEmptyTime = System.currentTimeMillis();
-            try {
-           		c = createDatabaseConnection();
-            } catch (Exception e1) {
-                log.warn("Cannot connect to database", e1);
-                throw new InternalErrorException("Cannot connect to database", e1);
-            }
-            qci = new QueryConnectionInfo();
-            qci.locks = 0;
-            qci.info = null;
-            qci.thread = Thread.currentThread();
-            qci.connection = new WrappedConnection(c);
-            try {
-                qci.connection.setThread();
-            } catch (SQLException e1) {
-                log.warn("Error assigning SQL Connection", e);
-                throw new NullPointerException();
-            }
-        }
-        currentDB.put(Thread.currentThread(),qci);
-        qci.locks = qci.locks + 1;
-        qci.thread = Thread.currentThread();
-        return qci.connection;
     }
 
     /**
@@ -228,84 +89,8 @@ public class ConnectionPool {
 	}
 
 
-	/**
-     * Retornar al pool de conexiones una conexión obtenida mediante
-     * {@link TaskGenerator#getQueryConnection}. Si el thread había solicitado
-     * la conexión más de una vez, la conexión SQL no será todavía retornada al
-     * pool, pero sí que se decrementará el número de usos que de ella se hacen.<BR>
-     * Eventualmente se despertará y asignará la conexión a algun thread en
-     * espera.
-     * 
-     * @param conn
-     *                conexión a retornar al pool
-     */
-    public void releaseConnection(Connection conn) {
-        releaseConnection();
-    }
-
-    /**
-     * Retornar al pool de conexiones una conexión obtenida mediante
-     * {@link TaskGenerator#getQueryConnection}. Si el thread había solicitado
-     * la conexión más de una vez, la conexión SQL no será todavía retornada al
-     * pool, pero sí que se decrementará el número de usos que de ella se hacen.<BR>
-     * Eventualmente se despertará y asignará la conexión a algun thread en
-     * espera.
-     * 
-     * @param conn
-     *                conexión a retornar al pool
-     */
-    public void releaseConnection() {
-        QueryConnectionInfo qci = (QueryConnectionInfo) currentDB.get(Thread.currentThread());
-        if (qci != null)
-        {
-            qci.locks = qci.locks - 1;
-            if (qci.locks <= 0)
-            {
-                try {
-                	if (! qci.connection.getAutoCommit())
-                	{
-                		qci.connection.rollback();
-                		qci.connection.setAutoCommit(true);
-                	}
-                } catch (SQLException e) {
-                    
-                }
-                currentDB.remove (Thread.currentThread());
-                qci.thread = null;
-                try {
-                    qci.connection.unsetThread();
-                } catch (SQLException e) {
-                    log.warn ("Error releasing connection", e);
-                    throw new NullPointerException();
-                }
-                if ( lastEmptyTime > 0 && 
-                		System.currentTimeMillis() - lastEmptyTime > 60000 ) // 1 minute
-                {
-                	lastEmptyTime = System.currentTimeMillis();
-                	cancelConnection(qci);
-                }
-                
-                if (! qci.cancelled)
-                {
-            		Stack<QueryConnectionInfo> freeConnections = freeMainConnections;
-                	freeConnections.push(qci);
-                }
-            }
-        }
-    }
-
-    /**
-     * Instancia una conexión a la base de datos. Utiliza el driver
-     * 
-     * @throws SQLException
-     *                 error al conectar a la base de datos
-     * @throws IOException
-     * @throws FileNotFoundException
-     */
-
-
-	public Connection createDatabaseConnection() throws SQLException,
-            FileNotFoundException, IOException {
+	@Override
+	protected WrappedConnection createConnection() throws Exception {
         if (!driversRegistered ) {
             try {
                 Class c = Class.forName("oracle.jdbc.driver.OracleDriver");
@@ -338,52 +123,37 @@ public class ConnectionPool {
         Config config = Config.getConfig();
         // Connect to the database
         // You can put a database name after the @ sign in the connection URL.
-       	return DriverManager.getConnection(config.getDB(), config.getDbUser(),
-        	                config.getPassword().getPassword());
-    }
+       	return new WrappedConnection( 
+       			this,
+       			DriverManager.getConnection(
+       						config.getDB(), 
+       						config.getDbUser(),
+        	                config.getPassword().getPassword()) );
+	}
 
-    public synchronized String getStatus() {
-        StringBuffer result = new StringBuffer ();
-        int i = 0;
-        for (Enumeration elems = currentDB.elements() ; elems.hasMoreElements() ;) {
-            QueryConnectionInfo qci = (QueryConnectionInfo) elems.nextElement();
-            result.append("Connection " + Integer.toString(++i)
-                    + ": ");
-            if (qci!=null && qci.connection != null) {
-                result.append ("established");
-                if (qci.locks > 0) {
-                    result.append (" reserved "
-                            + (qci.thread !=null? "by "+qci.thread.getName():"")
-                            + " " + qci.locks
-                            + " times");
-                    if (qci.info != null)
-                        result.append(qci.info);
-                }
-                result = result.append("\n");
-            } else {
-                result = result.append ( "disconnected\n" );
-            }
-        }
-        // Afegim informació dels statements oberts
-        if (WrappedConnection.openStatements!=null) {
-        	int size = WrappedConnection.openStatements.size();
-        	result = result.append("Number of open statements: "+size+"\n");
-        	if (size!=0) {
-        		String openSQLs = WrappedConnection.getOpenWrappedPreparedStatementsSQL().toString();
-        		if (openSQLs!=null) openSQLs = openSQLs.replaceAll("#-#","\n"); //Afegim separador
-        		result = result.append("Statements: \n"+openSQLs+"\n\n");
-        	}
-        }            
-        result.append ("Free main connections: "+freeMainConnections.size());
-        return result.toString();
-    }
 
-    public int getNumberOfConnections() {
-        return currentDB.size() + freeMainConnections.size();
-    }
+	@Override
+	protected void closeConnection(WrappedConnection connection) throws Exception {
+		connection.realClose();
+	}
 
-    public int getNumberOfLockedConnections() {
-        return currentDB.size();
-    }
+	public Connection getPoolConnection() throws InternalErrorException, SQLException {
+		try {
+			return getConnection();
+		} catch (InternalErrorException e) {
+			throw (InternalErrorException) e;
+		} catch (SQLException e) {
+			throw (SQLException) e;
+		} catch (Exception e) {
+			throw new InternalErrorException("Error getting connection", e);
+		}
+	}
 
+	public void releaseConnection() {
+		returnConnection();
+	}
+
+	public void releaseConnection(Connection c) {
+		returnConnection();
+	}
 }

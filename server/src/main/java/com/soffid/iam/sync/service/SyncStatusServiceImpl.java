@@ -53,6 +53,7 @@ import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.cron.TaskScheduler;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.sync.engine.db.WrappedConnection;
 import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.GrantExtensibleObject;
@@ -65,6 +66,7 @@ import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
 import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.intf.GetObjectResults;
+import com.soffid.iam.sync.engine.pool.AbstractPool;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.utils.ConfigurationCache;
@@ -364,13 +366,13 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
     @Override
     protected String handleGetDBConnectionStatus() throws Exception {
         try {
-            ConnectionPool pool = ConnectionPool.getPool();
+            AbstractPool<WrappedConnection> pool = ConnectionPool.getPool();
             //return Messages.getString("SyncStatusServiceImpl.Using") + pool.getNumberOfLockedConnections() + Messages.getString("SyncStatusServiceImpl.De") //$NON-NLS-1$ //$NON-NLS-2$
               //      + pool.getNumberOfConnections() + Messages.getString("SyncStatusServiceImpl.Allocated") + pool.getPoolSize() + " max)"; //$NON-NLS-1$ //$NON-NLS-2$
             StringBuffer buffer = new StringBuffer();
             buffer.append(String.format(Messages.getString("SyncStatusServiceImpl.Using"), 
             				new Object [] {pool.getNumberOfLockedConnections(), pool.getNumberOfConnections(), 
-            				pool.getNumberOfConnections()}));
+            				pool.getMaxSize()}));
             return buffer.toString();
         } catch (Exception e) {
             return Messages.getString("SyncStatusServiceImpl.DataBasePoolFailed") + e.getMessage(); //$NON-NLS-1$
