@@ -1562,7 +1562,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			tasque.setPriority(new Long(newTask.getPriority()));
 	    			dao.update(tasque);
 	    
-	    			Collection<TaskLogEntity> daoEntities = tasque.getLogs();
+	    			Collection<TaskLogEntity> daoEntities = new LinkedList<>( tasque.getLogs() );
 	    			if (isDebug())
 	    				log.info("Task {} is pending", newTask.toString(), null);
 	    			if (newTask.getLogs() != null)
@@ -1571,12 +1571,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	        				if (tasklog != null)
 	        				{
 	                            boolean found = false;
-	                            for (TaskLogEntity logEntity : daoEntities) {
+	                            for (Iterator<TaskLogEntity> it = daoEntities.iterator(); it.hasNext();) {
+	                            	TaskLogEntity logEntity = it.next();
 	                                if (logEntity != null &&
 	                                		tasklog.getDispatcher() != null &&
 	                                		logEntity.getSystem().getId().equals(tasklog.getDispatcher().getSystem().getId())) {
 	                                    found = true;
 	                                    persistLog(tasque, tasklog, logEntity);
+	                                    it.remove();
 	                                    break;
 	                                }
 	                            }
@@ -1588,6 +1590,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	                            	log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
 	        				}
                         }
+	        			getTaskLogEntityDao().remove(daoEntities);
 	    			}
 	    		}
 			} catch (Exception e) {
