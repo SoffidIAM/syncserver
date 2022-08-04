@@ -498,6 +498,9 @@ public class ValueObjectMapper
 			rol.setCategory(toSingleString(object.getAttribute("category")));
 			String domain = toSingleString(object.getAttribute("domain"));
 			rol.setDomain(domain);
+			rol.setOwnedRoles(null);
+			rol.setOwnedRoles(null);
+			rol.setOwnerGroups(null);
 			Collection ownedRolesMap = (Collection) object.getAttribute("ownedRoles");
 			if (ownedRolesMap != null)
 			{
