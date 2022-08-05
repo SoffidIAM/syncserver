@@ -8,7 +8,6 @@ import java.sql.SQLException;
 import org.hibernate.engine.SessionImplementor;
 
 import com.soffid.iam.sync.engine.db.ConnectionPool;
-import com.soffid.iam.sync.engine.db.ConnectionPool.ThreadBound;
 import com.soffid.iam.sync.identity.IdentityGeneratorThread;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
