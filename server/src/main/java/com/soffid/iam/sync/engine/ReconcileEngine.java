@@ -1195,14 +1195,14 @@ public abstract class ReconcileEngine
 			if (systemRole.getOwnedRoles() != null && !
 					systemRole.getOwnedRoles().equals(soffidRole.getOwnedRoles()))
 			{
-				soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
+				soffidRole.setOwnedRoles(mergeOwnedRoles(soffidRole.getOwnedRoles(),systemRole.getOwnedRoles()));
 				anyChange = true;
 			}
 			
 			if (systemRole.getOwnerRoles() != null && !
 					systemRole.getOwnerRoles().equals(soffidRole.getOwnerRoles()))
 			{
-				soffidRole.setOwnerRoles(systemRole.getOwnerRoles());
+				soffidRole.setOwnerRoles(mergeOwnerRoles(soffidRole.getOwnerRoles(), systemRole.getOwnerRoles()));
 				anyChange = true;
 			}
 	
@@ -1268,6 +1268,28 @@ public abstract class ReconcileEngine
 			SoffidStackTrace.printStackTrace(e, log);
 		}
 		return soffidRole;
+	}
+
+	private Collection<RoleGrant> mergeOwnedRoles(Collection<RoleGrant> ownedRoles, Collection<RoleGrant> ownedRoles2) {
+		List<RoleGrant> l = new LinkedList<>();
+		l.addAll(ownedRoles2);
+		for (RoleGrant grant: ownedRoles) {
+			if (! grant.getSystem().equals(dispatcher.getName()))
+				l.add(grant);
+		}
+		return l;
+		
+	}
+
+	private Collection<RoleGrant> mergeOwnerRoles(Collection<RoleGrant> ownedRoles, Collection<RoleGrant> ownedRoles2) {
+		List<RoleGrant> l = new LinkedList<>();
+		l.addAll(ownedRoles2);
+		for (RoleGrant grant: ownedRoles) {
+			if (! grant.getOwnerSystem().equals(dispatcher.getName()))
+				l.add(grant);
+		}
+		return l;
+		
 	}
 
 	public abstract List<HostService> getServicesList() throws InternalErrorException, RemoteException;
