@@ -104,7 +104,7 @@ public class Engine extends Thread {
                 if (shutDownPending)
                     break;
 
-                if (enabled) {
+                if (config.isActiveServer()) {
                 	try {
                 		taskGenerator.updateClusterStatus();
                 	} catch (Exception e) {
