@@ -563,16 +563,29 @@ public class Configure {
 
 		DispatcherService dispatcherSvc = ServerServiceLocator.instance().getDispatcherService();
 		Collection<Server> servers = dispatcherSvc.findAllServers();
+		
 		Server server = null;
-		server = new Server();
-		server.setName(hostName);
-		server.setUrl("https://" + hostName + ":" + config.getPort() + "/");
-		server.setType(ServerType.MASTERSERVER);
-		server.setUseMasterDatabase(true);
-		server = dispatcherSvc.create(server);
-		TenantService tenantSvc = ServiceLocator.instance().getTenantService();
-		Tenant t = tenantSvc.getMasterTenant();
-		tenantSvc.addTenantServer(t, server.getName());
+		for (Server s2: servers) {
+			if (oldHostName != null && s2.getName().equals(oldHostName))
+			{
+				server = s2;
+			}
+		}
+		if (server == null) {
+			server = new Server();
+			server.setName(hostName);
+			server.setUrl("https://" + hostName + ":" + config.getPort() + "/");
+			server.setType(ServerType.MASTERSERVER);
+			server.setUseMasterDatabase(true);
+			server = dispatcherSvc.create(server);
+			TenantService tenantSvc = ServiceLocator.instance().getTenantService();
+			Tenant t = tenantSvc.getMasterTenant();
+			tenantSvc.addTenantServer(t, server.getName());
+		} else {
+			server.setName(hostName);
+			server.setUrl("https://" + hostName + ":" + config.getPort() + "/");
+			dispatcherSvc.update(server);
+		}
 		config.setHostName(hostName);
 		CertificateServer s = new CertificateServer();
 
