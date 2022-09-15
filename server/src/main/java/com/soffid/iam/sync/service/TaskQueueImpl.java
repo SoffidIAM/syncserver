@@ -940,7 +940,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 							if (isDebug())
 								log.info("Rejecting not served task {}", task.toString(), null);
 							task.reject();
-							pushTaskToPersist(task);
+							handlePushTaskToPersist(task);
 //							log.info("Removing task {} from queue", task, null);
 //							log.info("Tenant task = {}", task.getTenantId(), null);
 //							for ( Long t: currentTenants)
