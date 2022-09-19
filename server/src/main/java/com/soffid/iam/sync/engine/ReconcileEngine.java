@@ -58,6 +58,7 @@ import com.soffid.iam.sync.service.TaskGenerator;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
+import es.caib.seycon.ng.comu.TipusDomini;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
@@ -1066,7 +1067,13 @@ public abstract class ReconcileEngine
 	 */
 	protected RoleAccount grant (Account acc, RoleGrant grant, Role role) throws InternalErrorException
 	{
-		if (grant.getDomainValue() != null && role.getDomain() != null)
+		if (grant.getDomainValue() != null && role.getDomain() != null &&
+				!role.getDomain().equals(TipusDomini.GROUPS) &&
+				!role.getDomain().equals(TipusDomini.GRUPS_USUARI) &&
+				!role.getDomain().equals(TipusDomini.APLICACIONS) &&
+				!role.getDomain().equals(TipusDomini.APPLICATIONS) &&
+				!role.getDomain().equals(TipusDomini.MEMBERSHIPS) &&
+				!role.getDomain().equals(TipusDomini.GRUPS) )
 		{
 			// Verify domain value exists
 			DomainValue dv = rolDomainService.findApplicationDomainValueByDomainNameAndDomainApplicationNameAndValue(
