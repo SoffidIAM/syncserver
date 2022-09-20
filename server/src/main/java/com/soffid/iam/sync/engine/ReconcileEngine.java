@@ -1281,8 +1281,20 @@ public abstract class ReconcileEngine
 		List<RoleGrant> l = new LinkedList<>();
 		l.addAll(ownedRoles2);
 		for (RoleGrant grant: ownedRoles) {
-			if (! grant.getSystem().equals(dispatcher.getName()))
-				l.add(grant);
+			if (! grant.getSystem().equals(dispatcher.getName())) {
+				boolean found = false;
+				for (RoleGrant e: l) {
+					if (e.getRoleName().equals(grant.getRoleName()) &&
+							e.getSystem().equals(grant.getSystem()) &&
+							(e.getDomainValue() == null ? grant.getDomainValue() == null: e.getDomainValue().equals(grant.getDomainValue())))
+					{
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+					l.add(grant);
+			}
 		}
 		return l;
 		
@@ -1292,8 +1304,20 @@ public abstract class ReconcileEngine
 		List<RoleGrant> l = new LinkedList<>();
 		l.addAll(ownedRoles2);
 		for (RoleGrant grant: ownedRoles) {
-			if (! grant.getOwnerSystem().equals(dispatcher.getName()))
-				l.add(grant);
+			if (! grant.getOwnerSystem().equals(dispatcher.getName())) {
+				boolean found = false;
+				for (RoleGrant e: l) {
+					if (e.getRoleName().equals(grant.getRoleName()) &&
+							e.getSystem().equals(grant.getSystem()) &&
+							(e.getDomainValue() == null ? grant.getDomainValue() == null: e.getDomainValue().equals(grant.getDomainValue())))
+					{
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+					l.add(grant);
+			}
 		}
 		return l;
 		
