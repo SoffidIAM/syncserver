@@ -33,7 +33,6 @@ import com.soffid.iam.sync.engine.session.SessionManager;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonServiceBase;
 import com.soffid.iam.sync.service.ServerService;
-import com.soffid.iam.sync.service.impl.LogonServiceAdaptiveAuthentication;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
