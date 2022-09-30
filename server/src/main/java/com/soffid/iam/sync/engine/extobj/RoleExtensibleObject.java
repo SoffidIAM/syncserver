@@ -99,7 +99,7 @@ public class RoleExtensibleObject extends ExtensibleObject
     		}
     		else if ("domain".equals(attribute))
     		{
-    			return role.getDomain();
+    			obj = role.getDomain();
     		}
     		else if ("grantedAccountNames".equals(attribute) || "allGrantedAccountNames".equals(attribute))
     		{
