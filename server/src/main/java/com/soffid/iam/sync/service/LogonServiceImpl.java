@@ -33,6 +33,7 @@ import com.soffid.iam.sync.engine.session.SessionManager;
 import com.soffid.iam.sync.jetty.Invoker;
 import com.soffid.iam.sync.service.LogonServiceBase;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.sync.service.impl.LogonServiceAdaptiveAuthentication;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
@@ -46,6 +47,7 @@ import es.caib.seycon.util.Base64;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -268,6 +270,13 @@ public class LogonServiceImpl extends LogonServiceBase {
 //                    throw new InternalErrorException(String.format(Messages.getString("LogonServiceImpl.InvalidTokenMsg"), //$NON-NLS-1$
 //                    				challenge.getChallengeId()));
                 }
+            }
+            
+            // Check OTP
+            if (ch.getCardNumber() != null && !ch.getCardNumber().trim().isEmpty()) {
+            	if ( !ServiceLocator.instance().getOTPValidationService().validatePin(challenge, challenge.getValue())) {
+            		throw new InternalErrorException("Wrong PIN. Logon denied");
+            	}
             }
 
             Session sessio = null;
@@ -511,45 +520,20 @@ public class LogonServiceImpl extends LogonServiceBase {
    				append (" ("). //$NON-NLS-1$
     			append(ch.getHost().getIp()).
     			append(")"); //$NON-NLS-1$
+    	boolean fallback = true;
     	
-        // Verificar si el soporte de tarjetas es adecuado
-        switch (cardSupport) {
-        case Challenge.CARD_DISABLED:
-            // es.caib.seycon.ServerApplication.out.println ("Card Disabled");
-            if (needed) {
-                log.debug("CardRequired for user {}", user, clientIp); //$NON-NLS-1$
-                throw new LogonDeniedException(String.format(Messages.getString("LogonServiceImpl.CardRequieredMsg"), //$NON-NLS-1$
-                				hostDesc.toString()));
-            } 
-            break;
-        case Challenge.CARD_IFNEEDED:
-            // es.caib.seycon.ServerApplication.out.println ("Card If Needed");
-            if (!needed) {
-                ch.setCardNumber(""); //$NON-NLS-1$
-                ch.setCell(""); //$NON-NLS-1$
-            }
-            break;
-        case Challenge.CARD_IFABLE:
-            // es.caib.seycon.ServerApplication.out.println ("Card If Able");
-            if (needed && !able) {
-                log.debug("CardRequired for user {}", user, clientIp); //$NON-NLS-1$
-                throw new LogonDeniedException(String.format(Messages.getString("LogonServiceImpl.CardRequieredMsg"), //$NON-NLS-1$
-                				hostDesc.toString()));
-            }
-            break;
-        case Challenge.CARD_REQUIRED:
-            // es.caib.seycon.ServerApplication.out.println ("Card Required");
-            if (!able) {
-                log.debug("CardRequired for user {}", user, clientIp); //$NON-NLS-1$
-                throw new LogonDeniedException(String.format(Messages.getString("LogonServiceImpl.CardRequieredMsg"), //$NON-NLS-1$
-                				hostDesc.toString()));
-            }
-            break;
-        default:
-            throw new LogonDeniedException(
-				String.format(Messages.getString("LogonServiceImpl.InvalidCardSupportMsg"),  //$NON-NLS-1$
-					Integer.toString(cardSupport)));
-        }
+    	try {
+    		Class<?> h = Class.forName("com.soffid.iam.addons.federation.esso.OtpSelector");
+    		Boolean allowed = 
+    			(Boolean) h.getMethod("requestChallenge", Challenge.class)
+    				.invoke(h.newInstance(), ch);
+    		if (! allowed )
+    			throw new LogonDeniedException("Logon not allowed by adaptive authentication rules");
+    	} catch (ClassNotFoundException | NoClassDefFoundError | InstantiationException e) {
+    		// Ignore this error -> Federation module likely not to be enabled
+    	} catch (Exception e) {
+    		throw new InternalErrorException("Error processing authentication rules", e);
+		}
         return ch;
     }
 
