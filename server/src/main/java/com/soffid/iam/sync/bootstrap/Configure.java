@@ -1,15 +1,19 @@
 package com.soffid.iam.sync.bootstrap;
 
 import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.net.URL;
 import java.security.InvalidKeyException;
+import java.security.Key;
 import java.security.KeyManagementException;
+import java.security.KeyStore;
 import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
 import java.security.SignatureException;
 import java.security.UnrecoverableKeyException;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -31,6 +35,7 @@ import com.soffid.iam.service.ApplicationBootService;
 import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.TenantService;
 import com.soffid.iam.ssl.ConnectionFactory;
+import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
@@ -74,6 +79,10 @@ public class Configure {
 				parseMainParameters(args);
 			} else if ("-renewCertificates".equals(args[0])) {
 				parseRenewParameters(args);
+			} else if ("-exportCA".equals(args[0])) {
+				exportCA(args);
+			} else if ("-changekey".equals(args[0])) {
+				changekey(args);
 			} else {
 				parseSecondParameters(args);
 			}
@@ -89,6 +98,48 @@ public class Configure {
 		}
 		System.exit(1);
 
+	}
+
+	private static void exportCA(String args[]) throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InternalErrorException, UnrecoverableKeyException {
+		int i;
+		String out = null;
+		char[] pass = null;
+		String alias = "soffid-ca";
+		
+		for (i = 1; i < args.length; i++) {
+			if ("-out".equals(args[i]) && i < args.length - 1) 
+				out = args[++i];
+			else if ("-pass".equals(args[i]) && i < args.length - 1) 
+				pass = args[++i].toCharArray();
+			else if ("-alias".equals(args[i]) && i < args.length - 1) 
+				alias = args[++i];
+			else
+				throw new RuntimeException("Unknown parameter " + args[i]);
+		}
+		if (i < args.length)
+			throw new RuntimeException("Unknown parameter " + args[i]);
+		if (out == null)
+			throw new RuntimeException("Specify the output file");
+		if (pass == null)
+		{
+			pass = System.console().readPassword("Output passphrase: ");
+		}
+        KeyStore rootks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getRootKeyStoreFile());
+		Key key = rootks.getKey(SeyconKeyStore.ROOT_KEY, SeyconKeyStore.getKeyStorePassword().getPassword().toCharArray());
+		Certificate[] cert = rootks.getCertificateChain(SeyconKeyStore.ROOT_KEY);
+		
+		KeyStore ks = KeyStore.getInstance("pkcs12");
+		ks.load(null);
+		ks.setKeyEntry(alias, key, pass, cert);
+
+		log.info("Storing in PKCS12 file "+out);
+		ks.store(new FileOutputStream(out), pass);
+		
+	}
+
+	
+	private static void changekey(String args[]) throws Exception {
+		new CertificateServer().extendCertificates();
 	}
 
 	private static void parseSecondParameters(String[] args) throws IOException, InvalidKeyException,

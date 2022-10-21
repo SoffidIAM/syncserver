@@ -40,6 +40,7 @@ import org.bouncycastle.asn1.x509.GeneralNames;
 import org.bouncycastle.asn1.x509.X509Extensions;
 import org.bouncycastle.asn1.x509.X509Name;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
+import org.opensaml.xmlsec.signature.impl.X509CertificateBuilder;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Password;
@@ -177,7 +178,7 @@ public class CertificateServer {
         generator.setSubjectDN(name);
         generator.setPublicKey(certificateKey);
         Calendar c2 = Calendar.getInstance();
-        c2.add(Calendar.DAY_OF_MONTH, -1);
+        c2.add(Calendar.DAY_OF_MONTH, -5);
         generator.setNotBefore(c2.getTime());
         String algorithm = "SHA256WithRSA";
         generator.setSignatureAlgorithm(algorithm);
@@ -436,4 +437,49 @@ public class CertificateServer {
         log.info("DONE");
         
 	}
+
+	public void extendCertificates()  throws Exception
+	{
+		Config config = Config.getConfig();
+		Map<String, PublicKey> keys = new HashMap<String, PublicKey>();
+		Map<String, AgentManager> managers = new HashMap<String, AgentManager>();
+		// Generate new root ca
+		File froot = SeyconKeyStore.getRootKeyStoreFile();
+		if ( !froot.canRead()) {
+			log.warn("Only main syncserver can regenerate certificates. Add -force flag to promote this one as the main syncserver");
+			return;
+		}
+
+		System.out.println("Generating new root certificate into "+froot.getPath()+" ...");
+        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
+        SecureRandom random = new SecureRandom();
+        
+        keyGen.initialize(2048, random);
+    	KeyPair caRootPair = keyGen.generateKeyPair();
+    	X509Certificate rootCert = createCertificate("master", "RootCA", caRootPair.getPublic(), caRootPair.getPrivate(), null, true);
+    	rootks.setKeyEntry(SeyconKeyStore.ROOT_KEY, caRootPair.getPrivate(), password.getPassword()
+    			.toCharArray(), new X509Certificate[] { rootCert });
+
+    	SeyconKeyStore.saveKeyStore(rootks, froot);
+    	
+		System.out.println("Extending certificates");
+		// Generate new root ca
+		KeyPair pk = generateNewKey();
+       	PublicKey key = pk.getPublic();
+
+        log.info("Generating certificates");
+    	// Generate new agent certificates
+       	String tenant = "master";
+        	
+  		X509Certificate serverCert = createCertificate(tenant, Config.getConfig().getHostName(),  key, false);
+  		
+  		ks.setKeyEntry(SeyconKeyStore.MY_KEY, pk.getPrivate(), password.getPassword().toCharArray(), new X509Certificate[] { serverCert, rootCert } );
+  		ks.setCertificateEntry(SeyconKeyStore.ROOT_CERT, rootCert);
+        File ksFile = new File (config.getHomeDir(), "conf/keystore.jks");
+        System.out.println("Storing keystore "+ ksFile);
+        SeyconKeyStore.saveKeyStore(ks, ksFile);
+		System.out.println("Extended certificates");
+        
+	}
+
 }
