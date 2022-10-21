@@ -186,8 +186,6 @@ public class KubernetesConfig {
 				secret.put("type", "Opaque");
 				send("POST", new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets"), secret.toString());
 			}
-		} else {
-			log.info("Not a kubernetes environment. Storing in local files");
 		}
 	}
 }

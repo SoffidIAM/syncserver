@@ -9,6 +9,16 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.LinkOption;
+import java.nio.file.attribute.GroupPrincipal;
+import java.nio.file.attribute.PosixFileAttributeView;
+import java.nio.file.attribute.PosixFileAttributes;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.PosixFilePermissions;
+import java.nio.file.attribute.UserPrincipal;
+import java.nio.file.attribute.UserPrincipalLookupService;
 import java.rmi.RemoteException;
 import java.security.InvalidKeyException;
 import java.security.Key;
@@ -32,6 +42,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Date;
+import java.util.EnumSet;
 import java.util.Enumeration;
 
 import org.apache.commons.logging.LogFactory;
@@ -109,6 +120,7 @@ public class Configure {
 				parseSecondParameters(args);
 			}
 			log.info("Configuration successfully done.");
+			updatePermissions();
 			new KubernetesConfig().save();
 			System.exit(0);
 		} catch (CertificateEnrollDenied e) {
@@ -121,6 +133,30 @@ public class Configure {
 		}
 		System.exit(1);
 
+	}
+
+	private static void updatePermissions() throws FileNotFoundException, IOException {
+		if (File.separatorChar == '/') {
+			UserPrincipalLookupService lookupService = FileSystems.getDefault()
+	                .getUserPrincipalLookupService();
+				
+			GroupPrincipal group = null;
+			try {
+				group = lookupService.lookupPrincipalByGroupName("soffid");
+			} catch (IOException e1) { }
+			UserPrincipal user = null;
+			try {
+				user = lookupService.lookupPrincipalByName("soffid");
+			} catch (IOException e) {}
+			final File confDir = new File( Config.getConfig().getHomeDir(), "conf");
+			log.info("Setting permissions for configuration files "+confDir.toString());
+			for (File f: confDir.listFiles()) {
+				PosixFileAttributeView v = Files.getFileAttributeView(f.toPath(), PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+				if (user != null) v.setOwner(user);
+				if (group != null) v.setGroup(group);
+				v.setPermissions(EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+			}
+		}		
 	}
 
 	private static void configurationWizard() throws Exception {
