@@ -22,8 +22,8 @@ void displayErrorMessage(DWORD dw) {
 	if (pstr == NULL)
 		wprintf(L"Unknown error: %d\n",
 		dw);
-		else
-		wprintf (L"Unable to send message: %s\n",
+	else
+		wprintf (L"Unable to send message: %ls\n",
 				pstr);
 		LocalFree(pstr);
 	}
