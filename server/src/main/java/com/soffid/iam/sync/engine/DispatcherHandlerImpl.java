@@ -303,7 +303,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD)) {
-            return trusted && (implemented(agent, UserMgr.class) || implemented(agent, es.caib.seycon.ng.sync.intf.UserMgr.class)  );
+            return (implemented(agent, UserMgr.class) || implemented(agent, es.caib.seycon.ng.sync.intf.UserMgr.class)  );
 
         }
         // /////////////////////////////////////////////////////////////////////
@@ -978,18 +978,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	 */
 	private void validateAccountPassword (Object agent, TaskHandler t) throws RemoteException, InternalErrorException
 	{
-        if (!isTrusted() || t.isValidated() || t.isExpired() || t.isComplete())
+		log.info("Start validate account password ");
+        if (t.isValidated() || t.isExpired() || t.isComplete())
             return;
 
         com.soffid.iam.sync.intf.UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
         if (userMgr != null)
         {
        		if (userMgr.validateUserPassword(t.getTask().getUser(), t.getPassword())) {
+       			log.info("VALIDATED = true");
                 t.setValidated(true);
+                t.getTask().setStatus("F");
                 synchronized (t) {
                     t.notify();
                 }
-                cancelTask(t);
+            } else {
+       			log.info("VALIDATED = false");
             }
         }
         else
@@ -2645,9 +2649,17 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					{
 						processTask(agent, task);
 					}
+					else
+					{
+						log.info("Task does not apply on "+getSystem().getName());
+					}
 				} finally {
 					closeAgent(agent);
 				}
+			}
+			else
+			{
+				log.info("Task does not apply on "+getSystem().getName());
 			}
 		}
 		catch (InternalErrorException e)

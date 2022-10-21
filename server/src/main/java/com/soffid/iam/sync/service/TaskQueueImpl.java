@@ -294,6 +294,17 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			else
 				addAndNotifyDispatchers(newTask, entity);
 		}
+		else if (newTask.getTask().getTransaction()
+				.equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD))
+		{
+			DispatcherHandler d = getTaskGenerator().getDispatcher(newTask.getTask().getSystemName());
+			if (d != null && d.isConnected()) {
+				log.info("Starting validate password task {} @ {}", newTask.getTask().getUser(), newTask.getTask().getSystemName());
+				d.processOBTask(newTask);
+			}
+			newTask.getTask().setStatus("F");
+			return;
+		}
 		else if (newTask.getTask()
 					.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
 				newTask.getTask()
