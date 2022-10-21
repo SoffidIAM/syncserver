@@ -308,7 +308,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD)) {
-            return trusted && (implemented(agent, UserMgr.class) || implemented(agent, es.caib.seycon.ng.sync.intf.UserMgr.class)  );
+            return (implemented(agent, UserMgr.class) || implemented(agent, es.caib.seycon.ng.sync.intf.UserMgr.class)  );
 
         }
         // /////////////////////////////////////////////////////////////////////
@@ -1012,7 +1012,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	 */
 	private void validateAccountPassword (Object agent, TaskHandler t) throws RemoteException, InternalErrorException
 	{
-        if (!isTrusted() || t.isValidated() || t.isExpired() || t.isComplete())
+        if (t.isValidated() || t.isExpired() || t.isComplete())
             return;
 
         com.soffid.iam.sync.intf.UserMgr userMgr = InterfaceWrapper.getUserMgr(agent);
@@ -1020,10 +1020,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         {
        		if (userMgr.validateUserPassword(t.getTask().getUser(), t.getPassword())) {
                 t.setValidated(true);
+                t.getTask().setStatus("F");
                 synchronized (t) {
                     t.notify();
                 }
-                cancelTask(t);
             }
         }
         else

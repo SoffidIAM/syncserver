@@ -305,12 +305,39 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			else
 				addAndNotifyDispatchers(newTask, entity);
 		}
+		else if (newTask.getTask().getTransaction()
+				.equals(TaskHandler.VALIDATE_ACCOUNT_PASSWORD))
+		{
+			DispatcherHandler d = getTaskGenerator().getDispatcher(newTask.getTask().getSystemName());
+			if (d != null && d.isConnected()) {
+				log.info("Starting validate password task {} @ {}", newTask.getTask().getUser(), newTask.getTask().getSystemName());
+				d.processOBTask(newTask);
+			}
+			newTask.getTask().setStatus("F");
+			return;
+		}
+		else if (newTask.getTask()
+				.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD))
+		{
+			if (newTask.getPassword() != null)
+			{
+				DispatcherHandler dh = getTaskGenerator().getDispatcher(newTask.getTask().getSystemName());
+				if (dh != null && dh.isConnected()) {
+					try {
+						dh.processOBTask(newTask);
+						newTask.getTask().setStatus("F");
+					} catch (Exception e) {
+						log.warn("Error validating password", e);
+					}
+				}
+				newTask.cancel();
+				pushTaskToPersist(newTask);
+			}
+		}
 		else if (newTask.getTask()
 					.getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
 				newTask.getTask()
-					.getTransaction().equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD) ||
-				newTask.getTask()
-					.getTransaction().equals(TaskHandler.VALIDATE_PASSWORD))
+					.getTransaction().equals(TaskHandler.PROPAGATE_ACCOUNT_PASSWORD))
 		{
 			if (newTask.getPassword() != null)
 			{
