@@ -1,6 +1,8 @@
 package com.soffid.iam.sync.web.wsso;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -59,9 +61,9 @@ public class WebSessionServlet extends HttpServlet {
 		        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
 		        for (Secret secret : sss.getAllSecrets(usuari)) {
 		            result.append('|');
-		            result.append(secret.getName());
+		            result.append(encodeSecret(secret.getName()));
 		            result.append('|');
-		            result.append(secret.getValue().getPassword());
+		            result.append(encodeSecret(secret.getValue().getPassword()));
 
 		        }
 		        b = result.toString().getBytes("UTF-8");
@@ -77,4 +79,8 @@ public class WebSessionServlet extends HttpServlet {
 		}
 	}
 
+	private String encodeSecret(String secret)
+			throws UnsupportedEncodingException {
+		return secret.replace("\\", "\\\\").replace("|", "\\|"); 
+	}
 }

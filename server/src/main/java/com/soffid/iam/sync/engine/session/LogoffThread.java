@@ -103,7 +103,7 @@ public class LogoffThread extends Object implements Runnable {
                         }
                 	}
                 } catch (Exception e) {
-                    log.warn("Error checking session", e); //$NON-NLS-1$
+                	log.warn("Error checking session", e); //$NON-NLS-1$
                 }
             }
         }

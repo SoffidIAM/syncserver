@@ -2161,7 +2161,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 				if (principal != null)
 					break;
 			} catch (Exception e) {
-				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName());
+				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName(), e);
 			}
 		}
 		if (principal == null)
@@ -2183,7 +2183,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 						log.info("Cannot find account "+account+" @ "+dispatcherHandler.getSystem().getName()+" not found in Soffid database");
 				}
 			} catch (Exception e) {
-				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName());
+				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName(), e);
 			}
 		}
 		return null;
