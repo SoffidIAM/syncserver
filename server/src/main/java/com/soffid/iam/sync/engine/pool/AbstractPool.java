@@ -8,7 +8,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
-import org.jfree.util.Log;
 
 public abstract class AbstractPool<S> implements Runnable {
 	static LinkedList<WeakReference<AbstractPool<?>>> currentPools = new LinkedList<WeakReference<AbstractPool<?>>>();
@@ -60,6 +59,7 @@ public abstract class AbstractPool<S> implements Runnable {
 	{
 		theThread = new Thread(this);
 		theThread.setName(getClass()+" Pool Manager Thread");
+		theThread.setDaemon(true);
 		theThread.start();
 		currentPools.add(new WeakReference<AbstractPool<?>>(this));
 	}
@@ -227,7 +227,7 @@ public abstract class AbstractPool<S> implements Runnable {
 			closeConnection(element.getObject());
 		} catch (Exception e) 
 		{
-			Log.info("Error clossing pool element "+element.toString());
+			log.info("Error clossing pool element "+element.toString());
 		}
 	}
 	
