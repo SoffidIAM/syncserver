@@ -46,7 +46,6 @@ import es.caib.seycon.util.Base64;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -105,6 +104,20 @@ public class LogonServiceImpl extends LogonServiceBase {
         AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
         getAuditEntityDao().create(auditoriaEntity);
     }
+
+    private void auditLoginAction(String user, String action) throws Exception {
+
+    	Audit auditoria = new Audit();
+        auditoria.setAction(action); //$NON-NLS-1$
+        auditoria.setUser(user);
+        auditoria.setAuthor(null);
+        auditoria.setCalendar(Calendar.getInstance());
+        auditoria.setObject("LOGIN"); //$NON-NLS-1$
+
+        AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
+        getAuditEntityDao().create(auditoriaEntity);
+    }
+
 
     @Override
     protected void handleChangePassword(String user, String domain, String oldPassword,
@@ -168,6 +181,18 @@ public class LogonServiceImpl extends LogonServiceBase {
         {
 			if (debugPasswords())
 				log.info("PropagatePassword {} / {} Ignoring change as the password is accepted: "+hash(password), user, domain);
+        	Audit auditoria = new Audit();
+            auditoria.setAction("I"); //$NON-NLS-1$
+            auditoria.setAccount(r.getAccountEntity().getName());
+            if (r.getUserEntity() != null)
+            	auditoria.setUser(r.getUserEntity().getUserName());
+            auditoria.setDatabase(r.getAccountEntity().getSystem().getName());
+            auditoria.setAuthor(null);
+            auditoria.setCalendar(Calendar.getInstance());
+            auditoria.setObject("PROPAGATE_PASS"); //$NON-NLS-1$
+
+            AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
+            getAuditEntityDao().create(auditoriaEntity);
     		// Password is already known
     		return;
         }
@@ -176,6 +201,18 @@ public class LogonServiceImpl extends LogonServiceBase {
        	{
 			if (debugPasswords())
 				log.info("PropagatePassword {} / {} Ignoring change as the password is old: "+hash(password), user, domain);
+        	Audit auditoria = new Audit();
+            auditoria.setAction("O"); //$NON-NLS-1$
+            auditoria.setAccount(r.getAccountEntity().getName());
+            if (r.getUserEntity() != null)
+            	auditoria.setUser(r.getUserEntity().getUserName());
+            auditoria.setDatabase(r.getAccountEntity().getSystem().getName());
+            auditoria.setAuthor(null);
+            auditoria.setCalendar(Calendar.getInstance());
+            auditoria.setObject("PROPAGATE_PASS"); //$NON-NLS-1$
+
+            AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
+            getAuditEntityDao().create(auditoriaEntity);
        		// Password is an ancient one
        		return;
         }
@@ -183,8 +220,17 @@ public class LogonServiceImpl extends LogonServiceBase {
        	if (debugPasswords())
        		log.info("PropagatePassword {} / {} Creating sync server task", user, domain);
 
-       	if (r.getUserEntity() != null)
+       	Audit auditoria = new Audit();
+        auditoria.setAction("R"); //$NON-NLS-1$
+        auditoria.setAccount(r.getAccountEntity().getName());
+        auditoria.setDatabase(r.getAccountEntity().getSystem().getName());
+        auditoria.setAuthor(null);
+        auditoria.setCalendar(Calendar.getInstance());
+        auditoria.setObject("PROPAGATE_PASS"); //$NON-NLS-1$
+
+        if (r.getUserEntity() != null)
        	{
+        	auditoria.setUser(r.getUserEntity().getUserName());
             tasque.setUser(r.getUserEntity().getUserName());
             tasque.setPasswordsDomain(r.getDominiContrasenyaEntity().getName());
             tasque.setTransaction(TaskHandler.PROPAGATE_PASSWORD);
@@ -195,6 +241,8 @@ public class LogonServiceImpl extends LogonServiceBase {
             tasque.setUser(user);
             tasque.setSystemName(domain);
         }
+        AuditEntity auditoriaEntity = getAuditEntityDao().auditToEntity(auditoria);
+        getAuditEntityDao().create(auditoriaEntity);
         
         tasque.setPassword(new Password(password).toString());
         tasque.setTenant( getTenantEntityDao().load (Security.getCurrentTenantId()));
@@ -328,6 +376,7 @@ public class LogonServiceImpl extends LogonServiceBase {
     	try {
     		r = new Resolver(user, passwordDomain);
     	} catch (UnknownUserException e) {
+    		auditLoginAction(user, "U");
     		return PasswordValidation.PASSWORD_WRONG;
     	}
     	
