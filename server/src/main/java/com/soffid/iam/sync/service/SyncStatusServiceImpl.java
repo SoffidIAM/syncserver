@@ -498,6 +498,72 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		
 	}
 
+	@Override
+	public Password handleGetAccountSshKey (String user, Long accountId)
+			throws InternalErrorException
+	{
+		return handleGetAccountSshKey(user, accountId, AccountAccessLevelEnum.ACCESS_OWNER);
+	}
+	/* (non-Javadoc)
+	 * @see es.caib.seycon.ng.sync.servei.SyncStatusService#getAccountPassword(java.lang.String, es.caib.seycon.ng.comu.Account)
+	 */
+	@Override
+	public Password handleGetAccountSshKey (String user, Long accountId, AccountAccessLevelEnum level)
+					throws InternalErrorException
+	{
+		AccountService svc = getAccountService();
+		AccountEntityDao accountDao = getAccountEntityDao();
+		UserEntityDao usuariDao = getUserEntityDao();
+		
+		AccountEntity accEntity = accountDao.load(accountId);
+		Account account = accountDao.toAccount(accEntity);
+		if (account == null)
+			throw new SecurityException(String.format(Messages.getString("SyncStatusServiceImpl.AccountNotFound"), accountId)); //$NON-NLS-1$
+		
+		if (account.getType().equals(AccountType.USER))
+		{
+			boolean found = false;
+			for (UserAccountEntity ua : accEntity.getUsers()) {
+                if (ua.getUser().getUserName().equals(user)) found = true;
+            }
+			if (! found )
+				throw new SecurityException(Messages.getString("SyncStatusServiceImpl.NotAuthorized")); //$NON-NLS-1$
+		} 
+		else if (account.getType().equals(AccountType.PRIVILEGED))
+		{
+			boolean found = false;
+			boolean caducada = false;
+			boolean ownedByOther = false;
+			String otherOwner = null;
+			for (UserAccountEntity ua : accEntity.getUsers()) {
+                if (!ua.getUser().getUserName().equals(user) && ua.getUntilDate() != null && new Date().before(ua.getUntilDate())) {
+                    ownedByOther = true;
+                    otherOwner = ua.getUser().getUserName();
+                } else if (ua.getUser().getUserName().equals(user) && ua.getUntilDate() != null && new Date().before(ua.getUntilDate())) {
+                    found = true;
+                } else if (ua.getUser().getUserName().equals(user) && ua.getUntilDate() != null && new Date().after(ua.getUntilDate())) {
+                    found = true;
+                    caducada = true;
+                }
+            }
+			if (found && caducada)
+				throw new SecurityException(String.format(Messages.getString("SyncStatusServiceImpl.PasswordExpired"))); //$NON-NLS-1$
+			else if (! found && ownedByOther)
+				throw new SecurityException(String.format(Messages.getString("SyncStatusServiceImpl.ownedByOther"), otherOwner)); //$NON-NLS-1$
+			else if (! found)
+				throw new SecurityException(String.format(Messages.getString("SyncStatusServiceImpl.NotAuthorized"))); //$NON-NLS-1$
+		} 
+		else  
+		{
+			Collection<String> owners = svc.getAccountUsers(account, level);
+			if (! owners.contains(user))
+				throw new SecurityException(String.format(Messages.getString("SyncStatusServiceImpl.NotAuthorized"))); //$NON-NLS-1$
+		}
+
+		Password p = getSecretStoreService().getSshPrivateKey(accountId);
+       	return p;
+		
+	}
 	/* (non-Javadoc)
 	 * @see es.caib.seycon.ng.sync.servei.SyncStatusService#getMazingerRules(java.lang.String)
 	 */
@@ -934,4 +1000,15 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		return getServerService().invoke(dispatcher, verb, object, attributes);
 	}
 
+	@Override
+	protected void handleSetAccountSshPrivateKey(java.lang.String accountName, java.lang.String serverName, com.soffid.iam.api.Password privateKey) throws Exception {
+		AccountEntity account = getAccountEntityDao().findByNameAndSystem(accountName, serverName);
+		if ( account != null)
+		{
+			getSecretStoreService().setSshPrivateKey(account.getId(), privateKey);
+		} else {
+			throw new InternalErrorException ("Cannot find account "+accountName+" at "+serverName);
+		}
+	}
+	
 }
