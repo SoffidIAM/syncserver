@@ -55,7 +55,7 @@ fi
 cd $base/target/dist/opt/soffid/iam-sync
 cat $base/target/wix/head.wxs  >$base/target/wix/syncserver.wxs
 echo >$base/target/wix/feature.wxs
-dump . "" ROOT $base/target/dist/opt/soffid/iam-sync "$1">>$base/target/wix/syncserver.wxs
+dump . "" ROOT target/dist/opt/soffid/iam-sync "$1">>$base/target/wix/syncserver.wxs
 cat $base/target/wix/middle.wxs  >>$base/target/wix/syncserver.wxs
 cat $base/target/wix/feature.wxs  >>$base/target/wix/syncserver.wxs
 cat $base/target/wix/tail.wxs >>$base/target/wix/syncserver.wxs
