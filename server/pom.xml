@@ -609,9 +609,9 @@
 		    <scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.oracle</groupId>
-			<artifactId>ojdbc7</artifactId>
-			<version>12.1.0.2.0</version>
+			<groupId>com.oracle.ojdbc</groupId>
+			<artifactId>ojdbc10</artifactId>
+			<version>19.3.0.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
