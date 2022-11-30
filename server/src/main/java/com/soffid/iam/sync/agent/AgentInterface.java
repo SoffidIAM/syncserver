@@ -3,6 +3,10 @@
  */
 package com.soffid.iam.sync.agent;
 
+import java.rmi.RemoteException;
+
+import es.caib.seycon.ng.exception.InternalErrorException;
+
 /**
  * @author bubu
  *
@@ -24,5 +28,7 @@ public interface AgentInterface
 	void setDebug(boolean debug);
 	
 	void close();
+	
+	void checkConnectivity() throws InternalErrorException;
 
 }

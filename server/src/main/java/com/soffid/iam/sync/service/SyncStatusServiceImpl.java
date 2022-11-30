@@ -46,6 +46,7 @@ import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.SoffidApplication;
+import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
@@ -929,6 +930,11 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			handler.connect(true, false);
 		}
+		Object agent = handler.getRemoteAgent();
+		if (agent != null && agent instanceof AgentInterface) 
+			((AgentInterface)agent).checkConnectivity();
+		if (agent != null && agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface) 
+			((es.caib.seycon.ng.sync.agent.AgentInterface)agent).checkConnectivity();
 	}
 
 	@Override
