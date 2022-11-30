@@ -260,6 +260,16 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 			throw new InternalErrorException(String.format("Invalid account id %d", accountId));
 
 		StringBuffer b = new StringBuffer();
+
+		if (acc.getSecrets() != null && ! acc.getSecrets().trim().isEmpty()) {
+			for (String part: acc.getSecrets().split(","))
+			{
+				if (part.startsWith("ssh.")) {
+					if (b.length() > 0) b.append(",");
+					b.append(part);
+				}
+			}
+		}
 		
 		byte p [] = value.getPassword().getBytes("UTF-8");
 		for (Server server: getSecretConfigurationService().getAllServers())
@@ -550,6 +560,70 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		}
 		if (grup.getParent() != null)
 			addGrantedAccounts(grup.getParent(), accounts);
+	}
+
+	@Override
+	protected Password handleGetSshPrivateKey(long accountId) throws Exception {
+        Server server = getSecretConfigurationService().getCurrentServer();
+		AccountEntity acc = getAccountEntityDao().load(accountId);
+		if (acc == null)
+			return null;
+		String secrets = acc.getSecrets();
+		if (secrets == null)
+			return null;
+		String id = "ssh."+server.getId()+"=";
+		for (String secret: secrets.split(","))
+		{
+			if (secret.startsWith(id))
+			{
+				String value = secret.substring(id.length());
+				byte b[] = Base64.decode(value);
+				try {
+					b = decrypt(b);
+					return new Password(new String(b, "UTF-8"));
+				} catch (BadPaddingException e) {
+					// Ignore
+				} catch (RuntimeCryptoException e) {
+					// Ignore
+				}
+			}
+		}
+		return null;
+	}
+
+	@Override
+	protected void handleSetSshPrivateKey(long accountId, Password privateKey) throws Exception {
+		AccountEntity acc = getAccountEntityDao().load(accountId);
+		if (acc == null)
+			throw new InternalErrorException(String.format("Invalid account id %d", accountId));
+
+		StringBuffer b = new StringBuffer();
+
+		if (acc.getSecrets() != null && ! acc.getSecrets().trim().isEmpty()) {
+			for (String part: acc.getSecrets().split(","))
+			{
+				if (! part.startsWith("ssh.")) {
+					if (b.length() > 0) b.append(",");
+					b.append(part);
+				}
+			}
+		}
+		
+		byte p [] = privateKey.getPassword().getBytes("UTF-8");
+		for (Server server: getSecretConfigurationService().getAllServers())
+		{
+			if (b.length() > 0)
+				b.append(',');
+			b.append("ssh.")
+				.append(server.getId())
+				.append('=');
+			byte encoded[] = encrypt(server, p);
+			b.append (Base64.encodeBytes(encoded, Base64.DONT_BREAK_LINES));
+		}
+		for (int i=0; i < p.length; i++)
+			p[i] = '\0';
+		acc.setSecrets(b.toString());
+		getAccountEntityDao().update(acc, "x");
 	}
 }
 
