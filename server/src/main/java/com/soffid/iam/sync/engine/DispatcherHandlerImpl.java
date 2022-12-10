@@ -67,9 +67,11 @@ import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
+import com.soffid.iam.sync.engine.db.WrappedConnection;
 import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.intf.GetObjectResults;
 import com.soffid.iam.sync.engine.kerberos.KerberosManager;
+import com.soffid.iam.sync.engine.pool.AbstractPool;
 import com.soffid.iam.sync.intf.AccessControlMgr;
 import com.soffid.iam.sync.intf.AccessLogMgr;
 import com.soffid.iam.sync.intf.CustomObjectMgr;
@@ -321,7 +323,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.UPDATE_ROLE)) {
-        	if (! getName().equals(t.getTask().getDatabase()) &&
+        	if (!readOnly && ! getName().equals(t.getTask().getDatabase()) &&
         			mirroredAgent != null && mirroredAgent.equals(t.getTask().getSystemName()))
         		return false;
         	else
@@ -545,7 +547,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         		Security.ALL_PERMISSIONS
         	);
         try {
-        	ConnectionPool pool = ConnectionPool.getPool();
+        	AbstractPool<WrappedConnection> pool = ConnectionPool.getPool();
         	
             Thread currentThread = Thread.currentThread();
             
@@ -650,7 +652,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	private boolean runLoopNext()
 			throws InternalErrorException {
-    	ConnectionPool pool = ConnectionPool.getPool();
+    	AbstractPool<WrappedConnection> pool = ConnectionPool.getPool();
 		try {
 			startTask(false);
 			return processAndLogTask();

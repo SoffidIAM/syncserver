@@ -15,10 +15,12 @@ public class ConnectionProvider implements org.hibernate.connection.ConnectionPr
 
     public Connection getConnection() throws SQLException {
         try {
-            return ConnectionPool.getPool().getPoolConnection();
-        } catch (InternalErrorException e) {
+            return ConnectionPool.getPool().getConnection();
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
             throw new SQLException(e);
-        }
+		}
     }
 
     public void closeConnection(Connection conn) throws SQLException {

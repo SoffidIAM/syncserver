@@ -58,6 +58,7 @@ import com.soffid.iam.sync.service.TaskGenerator;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
+import es.caib.seycon.ng.comu.TipusDomini;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
@@ -903,11 +904,11 @@ public abstract class ReconcileEngine
 		// Now remove not present roles
 		for (RoleGrant grant: grants)
 		{
-			log.println("Removing grant "+ grant.getRoleName());
 			if (grant.getOwnerGroup() == null &&
 					grant.getOwnerRole() == null &&
 					grant.getId() != null)
 			{
+				log.println("Removing grant "+ grant.getRoleName());
 				unloadGrant(acc, grant);
 			}
 		}
@@ -1084,7 +1085,13 @@ public abstract class ReconcileEngine
 	 */
 	protected RoleAccount grant (Account acc, RoleGrant grant, Role role) throws InternalErrorException
 	{
-		if (grant.getDomainValue() != null && role.getDomain() != null)
+		if (grant.getDomainValue() != null && role.getDomain() != null &&
+				!role.getDomain().equals(TipusDomini.GROUPS) &&
+				!role.getDomain().equals(TipusDomini.GRUPS_USUARI) &&
+				!role.getDomain().equals(TipusDomini.APLICACIONS) &&
+				!role.getDomain().equals(TipusDomini.APPLICATIONS) &&
+				!role.getDomain().equals(TipusDomini.MEMBERSHIPS) &&
+				!role.getDomain().equals(TipusDomini.GRUPS) )
 		{
 			// Verify domain value exists
 			DomainValue dv = rolDomainService.findApplicationDomainValueByDomainNameAndDomainApplicationNameAndValue(
@@ -1213,14 +1220,14 @@ public abstract class ReconcileEngine
 			if (systemRole.getOwnedRoles() != null && !
 					systemRole.getOwnedRoles().equals(soffidRole.getOwnedRoles()))
 			{
-				soffidRole.setOwnedRoles(systemRole.getOwnedRoles());
+				soffidRole.setOwnedRoles(mergeOwnedRoles(soffidRole.getOwnedRoles(),systemRole.getOwnedRoles()));
 				anyChange = true;
 			}
 			
 			if (systemRole.getOwnerRoles() != null && !
 					systemRole.getOwnerRoles().equals(soffidRole.getOwnerRoles()))
 			{
-				soffidRole.setOwnerRoles(systemRole.getOwnerRoles());
+				soffidRole.setOwnerRoles(mergeOwnerRoles(soffidRole.getOwnerRoles(), systemRole.getOwnerRoles()));
 				anyChange = true;
 			}
 	
@@ -1286,6 +1293,52 @@ public abstract class ReconcileEngine
 			SoffidStackTrace.printStackTrace(e, log);
 		}
 		return soffidRole;
+	}
+
+	private Collection<RoleGrant> mergeOwnedRoles(Collection<RoleGrant> ownedRoles, Collection<RoleGrant> ownedRoles2) {
+		List<RoleGrant> l = new LinkedList<>();
+		l.addAll(ownedRoles2);
+		for (RoleGrant grant: ownedRoles) {
+			if (! grant.getSystem().equals(dispatcher.getName())) {
+				boolean found = false;
+				for (RoleGrant e: l) {
+					if (e.getRoleName().equals(grant.getRoleName()) &&
+							e.getSystem().equals(grant.getSystem()) &&
+							(e.getDomainValue() == null ? grant.getDomainValue() == null: e.getDomainValue().equals(grant.getDomainValue())))
+					{
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+					l.add(grant);
+			}
+		}
+		return l;
+		
+	}
+
+	private Collection<RoleGrant> mergeOwnerRoles(Collection<RoleGrant> ownedRoles, Collection<RoleGrant> ownedRoles2) {
+		List<RoleGrant> l = new LinkedList<>();
+		l.addAll(ownedRoles2);
+		for (RoleGrant grant: ownedRoles) {
+			if (! grant.getOwnerSystem().equals(dispatcher.getName())) {
+				boolean found = false;
+				for (RoleGrant e: l) {
+					if (e.getRoleName().equals(grant.getRoleName()) &&
+							e.getSystem().equals(grant.getSystem()) &&
+							(e.getDomainValue() == null ? grant.getDomainValue() == null: e.getDomainValue().equals(grant.getDomainValue())))
+					{
+						found = true;
+						break;
+					}
+				}
+				if (!found)
+					l.add(grant);
+			}
+		}
+		return l;
+		
 	}
 
 	public abstract List<HostService> getServicesList() throws InternalErrorException, RemoteException;

@@ -164,7 +164,7 @@ public class SessionManager extends Thread {
      * @return true si la sesión debe seguir viva
      * @throws InternalErrorException 
      */
-    public boolean check(Session sessio) throws InternalErrorException {
+    public Boolean check(Session sessio) throws InternalErrorException {
     	if (sessio.getType() == TipusSessio.PAM ||
     			sessio.getType() == TipusSessio.PAMRDP ||
     			sessio.getType() == TipusSessio.PAMSSH)
@@ -248,7 +248,7 @@ public class SessionManager extends Thread {
             if (maq == null)
             {
             	log.info("Cannot find host {}", sessio.getServerHostName(), null);
-            	return true;
+            	return false;
             }
             if (maq.getIp() == null) {
             	log.info("Host {} {} does not have a IP address", maq.getId(), maq.getName());

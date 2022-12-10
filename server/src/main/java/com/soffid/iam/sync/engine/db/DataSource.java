@@ -38,10 +38,12 @@ public class DataSource implements javax.sql.DataSource {
 
     public Connection getConnection() throws SQLException {
         try {
-            return ConnectionPool.getPool().getPoolConnection();
-        } catch (InternalErrorException e) {
+            return ConnectionPool.getPool().getConnection();
+        } catch (SQLException e) {
+            throw e;
+        } catch (Exception e) {
             throw new SQLException(e);
-        }
+		}
     }
 
     public Connection getConnection(String username, String password)
