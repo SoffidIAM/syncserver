@@ -423,7 +423,8 @@ public class SoffidApplication extends Object {
                 Config config;
 				try {
 					config = Config.getConfig();
-					jetty.getServer().stop();
+					if (jetty.getServer() != null)
+						jetty.getServer().stop();
 	                if (config.isServer()) {
 	                    shutdownPending = true;
 	                    Engine.getEngine().shutDown ();

@@ -23,7 +23,7 @@ void displayErrorMessage(DWORD dw) {
 		wprintf(L"Unknown error: %d\n",
 		dw);
 		else
-		wprintf (L"Unable to send message: %s\n",
+		wprintf (L"Unable to send message: %ls\n",
 				pstr);
 		LocalFree(pstr);
 	}

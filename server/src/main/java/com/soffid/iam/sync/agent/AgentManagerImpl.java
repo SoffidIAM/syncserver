@@ -91,7 +91,8 @@ public class AgentManagerImpl extends AgentManagerBase {
     	}
         try {
             final AgentInterface agent = performCreateAgent(system);
-            final String url = "/seycon/Agent/" + agent.hashCode();
+            String url = "/seycon/Agent/" + agent.hashCode();
+            final String url0 = url;
             SoffidApplication.getJetty().bind(url, agent, "server");
             Invoker invoker = Invoker.getInvoker();
             String serverName = null;
@@ -107,31 +108,39 @@ public class AgentManagerImpl extends AgentManagerBase {
             	agent.setDebug(true);
             }
    
-            final Runnable onClose = new Runnable ()
-            		{
-						public void run() {
-				            try {
-								SoffidApplication.getJetty().unbind(url);
-							} catch (IOException e) {
-							}
-						}
-            	
-            		};
             if (agent instanceof es.caib.seycon.ng.sync.agent.Agent)
             {
             	es.caib.seycon.ng.sync.agent.Agent v1Agent = (es.caib.seycon.ng.sync.agent.Agent) agent;
             	v1Agent.setServerName(serverName);
-            	v1Agent.setOnClose(onClose);
             	v1Agent.init();
-            	if (v1Agent.isSingleton())
+            	if (v1Agent.isSingleton()) {
             		singletons.put(system.getName(), v1Agent);
+            		url = "/seycon/Agent/" + system.getTenant()+"_"+system.getId();
+            	}
+            	else
+            	{
+	            	v1Agent.setOnClose(()->{
+	            		try {
+							SoffidApplication.getJetty().unbind(url0);
+						} catch (IOException e) {
+						}
+	        		});
+            	}
             } else {
             	com.soffid.iam.sync.agent.Agent v2Agent = (com.soffid.iam.sync.agent.Agent) agent;
             	v2Agent.setServerName(serverName);
-            	v2Agent.setOnClose(onClose);
             	v2Agent.init();
-            	if (v2Agent.isSingleton())
+            	if (v2Agent.isSingleton()) {
             		singletons.put(system.getName(), v2Agent);
+            		url = "/seycon/Agent/" + system.getTenant()+"_"+system.getId();
+            	} else {
+	            	v2Agent.setOnClose(()->{
+	            		try {
+							SoffidApplication.getJetty().unbind(url0);
+						} catch (IOException e) {
+						}
+	        		});
+            	}
             }
             if (debug)
             	agent.setDebug(true);

@@ -1440,6 +1440,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 		HashSet<String> keys = new HashSet<String>(grups.keySet());
 		GroupEntityDao grupDao = getGroupEntityDao();
 		for (GroupEntity grup : grups.values()) {
+			grup = grup.getParent();
 			while (grup != null && !keys.contains(grup.getName())) {
 				keys.add(grup.getName());
 				values.add(grupDao.toGroup(grup));

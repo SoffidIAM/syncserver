@@ -8,7 +8,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
-import org.jfree.util.Log;
 
 public abstract class AbstractPool<S> implements Runnable {
 	static LinkedList<WeakReference<AbstractPool<?>>> currentPools = new LinkedList<WeakReference<AbstractPool<?>>>();
@@ -20,6 +19,8 @@ public abstract class AbstractPool<S> implements Runnable {
 	
 	private boolean stop = false;
 	int minSize = 0;
+	int maxIdle = 99999;
+	int minIdle = 0;
 	int maxSize = 10;
 	int maxUnusedTime = 120; // 2 minutes
 	int maxUsedTime = 9200; // 2 hours
@@ -77,11 +78,17 @@ public abstract class AbstractPool<S> implements Runnable {
 	HashSet<PoolElement<S>> inUse = new HashSet<PoolElement<S>>();
 
 	public void run() {
+		try {
+			// Wait for one second
+			Thread.sleep(1000);
+		} catch (InterruptedException e1) {
+		} 
 		while ( ! stop )
 		{
 			try {
 				evictUnusedElements();
 				recoverLostElements ();
+				adjustIdle();
 				Thread.sleep(maxUnusedTime * 500);
 			} catch (Throwable e) {
 			}
@@ -133,6 +140,22 @@ public abstract class AbstractPool<S> implements Runnable {
 		}
 	}
 	
+	private synchronized void adjustIdle() {
+		while (freeList.size() < minIdle && freeList.size() + inUse.size() < maxSize || 
+				freeList.size() + inUse.size() < minSize) {
+			PoolElement<S> empty;
+			try {
+				empty = new PoolElement<S>(getConnection());
+				freeList.add(empty );
+			} catch (Exception e) {
+			}
+		}
+		while (freeList.size() > maxIdle && freeList.size() + inUse.size() > minSize) {
+			PoolElement<S> element = freeList.pollLast();
+			performCloseConnection(element);
+		}
+	}
+
 	public void stop ()
 	{
 		stop  = true;
@@ -227,7 +250,7 @@ public abstract class AbstractPool<S> implements Runnable {
 			closeConnection(element.getObject());
 		} catch (Exception e) 
 		{
-			Log.info("Error clossing pool element "+element.toString());
+			LogFactory.getLog(getClass()).info("Error clossing pool element "+element.toString());
 		}
 	}
 	
@@ -309,5 +332,35 @@ public abstract class AbstractPool<S> implements Runnable {
 		{
 			log.info("Connection bound with "+c.getLocks());
 		}
+	}
+
+
+	public int getMaxIdle() {
+		return maxIdle;
+	}
+
+
+	public void setMaxIdle(int maxIdle) {
+		this.maxIdle = maxIdle;
+	}
+
+
+	public int getMinIdle() {
+		return minIdle;
+	}
+
+
+	public void setMinIdle(int minIdle) {
+		this.minIdle = minIdle;
+	}
+
+
+	public int getNumberOfLockedConnections() {
+		return inUse.size();
+	}
+
+
+	public int getNumberOfConnections() {
+		return inUse.size()+freeList.size();
 	}
 }

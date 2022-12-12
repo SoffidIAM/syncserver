@@ -27,10 +27,13 @@ import java.util.concurrent.Executor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.soffid.iam.sync.engine.pool.AbstractPool;
+
 public class WrappedConnection implements Connection {
     Connection wrappedConnection;
     Thread threadBound;
 	private Logger log;
+	private AbstractPool<WrappedConnection> connectionPool;
 
     public Thread getThread() {
         return threadBound;
@@ -56,8 +59,9 @@ public class WrappedConnection implements Connection {
 
     public static List<WrappedPreparedStatement> openStatements;
 
-    public WrappedConnection(Connection wrappedConnection) {
+    public WrappedConnection(AbstractPool<WrappedConnection> connectionPool, Connection wrappedConnection) {
         super();
+        this.connectionPool = connectionPool;
         this.wrappedConnection = wrappedConnection;
         // Hacemos que esté sincronizada
         openStatements = Collections
@@ -362,7 +366,7 @@ public class WrappedConnection implements Connection {
     }
     
     public void close() throws SQLException {
-        ConnectionPool.getPool().releaseConnection();
+    	connectionPool.returnConnection();
     }
 
 	/* (non-Javadoc)
