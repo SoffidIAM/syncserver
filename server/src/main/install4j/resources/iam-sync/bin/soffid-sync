@@ -1,6 +1,6 @@
 #!/bin/bash
 dir=$(dirname $0)
-CP="$dir/bootstrap.jar:$dir/../lib/mariadb-java-client-1.8.0.jar:$dir/../lib/ojdbc7-12.1.0.2.0.jar:$dir/../lib/postgresql-42.2.5.jre7.jar:$dir/../lib/sqljdbc4-3.0.jar"
+CP="$dir/bootstrap.jar:$dir/../lib/mariadb-java-client-1.8.0.jar:$dir/../lib/ojdbc10-19.3.0.0.jar:$dir/../lib/postgresql-42.2.5.jre7.jar:$dir/../lib/sqljdbc4-3.0.jar"
 
 source $dir/env.sh
 

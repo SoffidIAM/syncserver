@@ -720,6 +720,7 @@ public abstract class ReconcileEngine
 		if (roles == null)
 			return;
 
+		// First, create new roles. later, update them
 		for (String roleName: roles)
 		{
 			if (roleName != null)
@@ -742,9 +743,26 @@ public abstract class ReconcileEngine
 					if (r != null)
 					{
 						r.setName(roleName);
+						r.setOwnedRoles(new LinkedList<>());
+						r.setOwnerRoles(new LinkedList<>());
+						r.setOwnerGroups(new LinkedList<>());
 						loadRole(r);
 					}
-				} else {
+				}
+			}
+		}
+		for (String roleName: roles)
+		{
+			if (roleName != null)
+			{
+				Role existingRole =  null;
+				try {
+					existingRole = serverService.getRoleInfo(roleName, dispatcher.getName());
+				} catch (UnknownRoleException e) {
+				}
+				// Do not try agais
+				if (existingRole != null)
+				{
 					Watchdog.instance().interruptMe(dispatcher.getLongTimeout());
 					Role r;
 					try
