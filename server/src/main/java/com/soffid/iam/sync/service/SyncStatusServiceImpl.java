@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.Serializable;
 import java.io.StringWriter;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
@@ -624,6 +625,8 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			} catch (Exception e) {
 				v = e;
 			}
+			if (v != null & ! ( v instanceof Serializable))
+				v = v.toString();
 			result.put(att, v);
 		}
 		return result;
