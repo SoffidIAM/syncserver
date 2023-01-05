@@ -96,11 +96,6 @@ public class Configure {
 		LogConfigurator.configureMinimalLogging();
 		Security.onSyncServer();
 
-		if (args.length == 0) {
-      usage();
-			System.exit(1);
-		}
-
 		try {
 			if (args.length == 0) {
 				configurationWizard();
@@ -330,6 +325,7 @@ public class Configure {
 			System.out.println("  -main [-force] -hostname .. [-port ...] -dbuser .. -dbpass .. -dburl ..");
 			System.out.println("  -hostname [-force] ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
 			System.out.println("  -remote  -hostname [-force] .. -server .. -tenant .. -user .. -pass ..");
+			System.out.println("  -configurl [configuration-url]");
 			System.out.println("  -exportCA -out [filename] [-alias [name]] [-pass [pass]]");
 			System.out.println("  -importCA -in [filename] [-alias [name]] [-pass [pass]]");
 			System.out.println("  -generateCert -out [filename] -hostname [name] [-pass [pass]]");
