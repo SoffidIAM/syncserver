@@ -228,9 +228,9 @@ public class KerberosManager {
 		writer.println("[libdefaults]");
 		writer.println("kdc_timeout=3000");
 		writer.println("max_retries=2");
-		writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
-		writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac");
-		writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc");
+		writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac aes256-cts-hmac-sha1-96");
+		writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac aes256-cts-hmac-sha1-96");
+		writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc aes256-cts-hmac-sha1-96");
 		writer.println("default_realm="+defaultRealm);
 		if (new KubernetesConfig().isKubernetes())
 			writer.println("udp_preference_limit=1");
