@@ -359,8 +359,11 @@ public class LogonServiceImpl extends LogonServiceBase {
         {
         	boolean checkTrusted = "true".equals(ConfigurationCache.getProperty("soffid.auth.trustedLogin"));
         	if (checkTrusted)
-        		v = getInternalPasswordService().checkPassword(r.getUserEntity(),
-        	                r.getDominiContrasenyaEntity(), new Password(password), true, true);
+            	if (r.getUserEntity() == null)
+            		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), true, true);
+            	else
+                	v = getInternalPasswordService().checkPassword(r.getUserEntity(),
+                        r.getDominiContrasenyaEntity(), new Password(password), true, true);
             if (v == PasswordValidation.PASSWORD_WRONG) {
             	f.fails ++;
             	f.lastTime = System.currentTimeMillis();
