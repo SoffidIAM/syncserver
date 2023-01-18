@@ -401,7 +401,19 @@
 									<arg value="-f" />
 									<arg value="target/docker/Dockerfile" />
 									<arg value="-t" />
+									<arg value="soffid/iam-sync:${pom.version}-k" />
+									<arg value="-t" />
+									<arg value="soffid/iam-sync:k" />
+									<arg value="." />
+								</exec>
+								<exec failonerror="true" executable="docker" dir="${project.basedir}">
+									<arg value="build" />
+									<arg value="-f" />
+									<arg value="target/docker/Dockerfile2" />
+									<arg value="-t" />
 									<arg value="soffid/iam-sync:${pom.version}" />
+									<arg value="-t" />
+									<arg value="soffid/iam-sync:latest" />
 									<arg value="." />
 								</exec>
 							</tasks>
@@ -418,6 +430,14 @@
 								<exec failonerror="true" executable="docker" dir="${project.basedir}">
 									<arg value="tag" />
 									<arg value="soffid/iam-sync:${pom.version}" />
+									<arg value="soffid/iam-sync:k" />
+								</exec>
+								<exec failonerror="true" executable="docker" dir="${project.basedir}">
+									<arg value="push" />
+									<arg value="soffid/iam-sync:${pom.version}-k" />
+								</exec>
+								<exec failonerror="true" executable="docker" dir="${project.basedir}">
+									<arg value="push" />
 									<arg value="soffid/iam-sync:latest" />
 								</exec>
 								<exec failonerror="true" executable="docker" dir="${project.basedir}">
