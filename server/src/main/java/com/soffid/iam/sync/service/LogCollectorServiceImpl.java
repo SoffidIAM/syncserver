@@ -12,6 +12,7 @@ import com.soffid.iam.model.ServiceEntity;
 import com.soffid.iam.model.ServiceEntityDao;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntity;
+import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
 import com.soffid.iam.sync.service.LogCollectorServiceBase;
 
 import es.caib.seycon.ng.comu.AccountType;
@@ -70,9 +71,11 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
     private HostEntity findMaquina(String server) throws InternalErrorException, UnknownHostException {
         HostEntityDao dao = getHostEntityDao();
         HostEntity maq = dao.findByName(server);
+        CriteriaSearchConfiguration single = new CriteriaSearchConfiguration();
+        single.setMaximumResultSize(1);
         if (maq == null)
         {
-        	for (HostEntity maq2: dao.findByIP(server))
+			for (HostEntity maq2: dao.findByIP(single , server))
         	{
         		maq = maq2;
         		break;
@@ -83,7 +86,7 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
         	try
 			{
 				InetAddress address = InetAddress.getByName(server);
-				for (HostEntity maq2: dao.findByIP(address.getHostAddress()))
+				for (HostEntity maq2: dao.findByIP(single, address.getHostAddress()))
 				{
 					maq = maq2;
 					break;
