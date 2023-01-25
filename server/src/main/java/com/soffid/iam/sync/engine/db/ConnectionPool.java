@@ -120,27 +120,15 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 			}
 			driversRegistered = true;
 		}
-		// Raise privileges to create connections during scripts evaluation
-		Object __r = (Object[]) java.security.AccessController.doPrivileged(new java.security.PrivilegedAction<Object>() {
-			public Object run() {
-				try {
-					Config config = Config.getConfig();
-					// Connect to the database
-					// You can put a database name after the @ sign in the connection URL.
-					return new WrappedConnection( 
-							ConnectionPool.this,
-							DriverManager.getConnection(
-									config.getDB(), 
-									config.getDbUser(),
-									config.getPassword().getPassword()) );
-				} catch (Exception e) {
-					return e;
-				}
-			}
-		});
-		if (__r instanceof Exception)
-			throw (Exception) __r;
-		return (WrappedConnection) __r;
+		Config config = Config.getConfig();
+		// Connect to the database
+		// You can put a database name after the @ sign in the connection URL.
+		return new WrappedConnection( 
+				ConnectionPool.this,
+				DriverManager.getConnection(
+						config.getDB(), 
+						config.getDbUser(),
+						config.getPassword().getPassword()) );
 	}
 
 
