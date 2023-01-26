@@ -27,6 +27,8 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.jar.JarFile;
 
+import org.json.JSONException;
+
 import com.soffid.iam.sync.bootstrap.impl.Config;
 import com.soffid.iam.sync.bootstrap.impl.ConfigurationManager;
 import com.soffid.iam.sync.bootstrap.impl.DupOutputStream;
@@ -80,8 +82,7 @@ public class SyncLoader extends Object {
         Config config = Config.getConfig();
 		try {
 			new KubernetesConfig().load();
-		} catch (KeyManagementException | UnrecoverableKeyException | KeyStoreException | NoSuchAlgorithmException
-				| CertificateException | IOException e1) {
+		} catch (Exception e1) {
 			new Logger("main").warn("Cannot fetch kubernetes configuration", e1);
 		}
 
@@ -155,10 +156,12 @@ public class SyncLoader extends Object {
      * @throws KeyStoreException 
      * @throws UnrecoverableKeyException 
      * @throws KeyManagementException 
+	 * @throws InterruptedException 
+	 * @throws JSONException 
      * @throws InternalErrorException 
 	 * 
 	 */
-	private void updateConfig () throws FileNotFoundException, IOException, SQLException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException
+	private void updateConfig () throws FileNotFoundException, IOException, SQLException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, JSONException, InterruptedException
 	{
 		Config config = Config.getConfig();
 		if (config.getDB() != null )

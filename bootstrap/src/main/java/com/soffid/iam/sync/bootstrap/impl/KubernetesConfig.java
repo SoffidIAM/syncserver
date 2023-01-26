@@ -17,6 +17,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.sql.SQLException;
 import java.util.Base64;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -33,7 +34,7 @@ public class KubernetesConfig {
 	private BaseHttpConnectionFactory connectionFactory;
 	private String namespace;
 
-	public void load () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
+	public void load () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, SQLException, InterruptedException {
 		Config config = Config.getConfig();
 		
 		if (System.getenv("KUBERNETES_SERVICE_HOST") != null &&
@@ -55,8 +56,16 @@ public class KubernetesConfig {
 				// Not found
 			}
 		}
+		
+		if (System.getenv("DB_CONFIGURATION_TABLE") != null && 
+				System.getenv("DB_URL") != null &&
+				System.getenv("DB_USER") != null &&
+				System.getenv("DB_PASSWORD") != null) {
+			new DatabaseConfig().loadFromDatabase();
+		}
 	}
 
+	
 	private void dump(Config config, String tag, String value) throws IOException {
 		File f = new File (config.getHomeDir(), "conf/"+tag);
 		FileOutputStream out = new FileOutputStream(f);
@@ -145,7 +154,7 @@ public class KubernetesConfig {
 		return out.toByteArray();
 	}
 
-	public void save () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, JSONException {
+	public void save () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, JSONException, InterruptedException, SQLException {
 		Config config = Config.getConfig();
 		
 		if (System.getenv("KUBERNETES_SERVICE_HOST") != null &&
@@ -180,5 +189,12 @@ public class KubernetesConfig {
 			}
 		} else {
 		}
+		if (System.getenv("DB_CONFIGURATION_TABLE") != null && 
+				System.getenv("DB_URL") != null &&
+				System.getenv("DB_USER") != null &&
+				System.getenv("DB_PASSWORD") != null) {
+			new DatabaseConfig().saveToDatabase();
+		}
+
 	}
 }
