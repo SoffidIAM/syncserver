@@ -152,9 +152,13 @@ public class Configure {
 			log.info("Setting permissions for configuration files "+confDir.toString());
 			for (File f: confDir.listFiles()) {
 				PosixFileAttributeView v = Files.getFileAttributeView(f.toPath(), PosixFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
-				if (user != null) v.setOwner(user);
-				if (group != null) v.setGroup(group);
-				v.setPermissions(EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+				try {
+					if (user != null) v.setOwner(user);
+					if (group != null) v.setGroup(group);
+				} catch (IOException e) {} // Ignore
+				try {
+					v.setPermissions(EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
+				} catch (IOException e) {} // Ignore
 			}
 		}		
 	}
