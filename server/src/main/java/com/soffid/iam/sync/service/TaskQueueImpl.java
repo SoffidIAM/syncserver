@@ -971,7 +971,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				log.info("Task {} FAILED", task.toString(), null);
 		}
 		long now = System.currentTimeMillis();
-
+		
+		if (task.isComplete()) {
+			pushTaskToPersist(task);
+			return; // Ignore already cancelled task
+		}
+		
 		// Afegir (si cal) nous task logs
 		while (task.getLogs().size() <= taskDispatcher.getInternalId())
 		{
