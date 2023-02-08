@@ -117,9 +117,10 @@ public class DatabaseConfig {
 			File dir = new File (Config.getConfig().getHomeDir(), "conf");
 			for (File f: dir.listFiles()) {
 				byte[] d = readBinaryFile(f.getPath());
-				qh.executeUpdate("INSERT INTO "+getTableName()+"(NAME, DATA) VALUES (?,?)", 
+				qh.executeUpdate("INSERT INTO "+getTableName()+"(NAME, ENCRYPTED, DATA) VALUES (?,?)", 
 						new Object[] {
 								f.getName(),
+								System.getenv("DB_CONFIGURATION_CRYPT") != null ? "1": "0",
 								d
 						});
 			}
