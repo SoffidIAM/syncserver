@@ -91,6 +91,8 @@ public class ExtensibleObjectFatory {
 			try {
 				user = server.getUserInfo(object1, getAgentName());
 				Account acc = server.getAccountInfo(object1, getAgentName());
+				if (acc == null) 
+					throw new UnknownUserException();
 				return new UserExtensibleObject(acc, user, server);
 			} catch (UnknownUserException e) {
 				ExtensibleObject eo = new ExtensibleObject();
