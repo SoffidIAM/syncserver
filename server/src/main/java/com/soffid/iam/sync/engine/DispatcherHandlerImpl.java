@@ -2918,6 +2918,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				
 	}
 
+	public String getPrincipalAccount (String principalName) throws Exception {
+		if (isConnected() && kerberosAgent != null)
+		{
+			KerberosAgent krbAgent = InterfaceWrapper.getKerberosAgent(kerberosAgent);
+			if (krbAgent != null)
+			{
+				return krbAgent.findPrincipalAccount(principalName);
+			}
+		}
+		return null;
+				
+	}
+
 	@Override
 	public void doReconcile(String account, PrintWriter out, boolean debug) throws Exception {
 		

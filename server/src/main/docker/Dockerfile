@@ -29,5 +29,4 @@ EXPOSE 760
 
 RUN setcap 'cap_net_bind_service=+ep' /usr/lib/jvm/java-11-openjdk-amd64/bin/java
 
-VOLUME  /opt/soffid/iam-sync/conf
 ENTRYPOINT /opt/soffid/iam-sync/start.sh

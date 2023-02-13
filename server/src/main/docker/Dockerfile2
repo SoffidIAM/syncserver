@@ -1,0 +1,3 @@
+FROM soffid/iam-sync:k
+
+VOLUME  /opt/soffid/iam-sync/conf

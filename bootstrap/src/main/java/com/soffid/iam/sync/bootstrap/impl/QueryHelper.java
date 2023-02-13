@@ -223,6 +223,10 @@ public class QueryHelper {
     		{
     			stmt.setTimestamp(num, (java.sql.Timestamp) param);
     		}
+    		else if (param instanceof byte[])
+    		{
+    			stmt.setBytes(num, (byte[]) param);
+    		}
     		else 
     		{
     			stmt.setString(num, param.toString());

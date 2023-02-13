@@ -384,7 +384,7 @@ public class QueryServiceImpl extends QueryServiceBase {
                     if (rset.getString(i) != null)
                     	s.append(rset.getString(i));
                 }
-           } while (rset.next());
+            }
             writer.write(s.toString());
             if (xml)
                 writer.write("</data>");
