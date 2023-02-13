@@ -1906,6 +1906,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private boolean supportsRename;
 	private String status;
 	private Object kerberosAgent;
+	private String kerberosDomain;
 
     /**
      * Recuperar los registros de acceso del agente remoto
@@ -2101,11 +2102,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
             	KerberosAgent krb = InterfaceWrapper.getKerberosAgent (agent);
             	if (krb != null) {
             		this.kerberosAgent = agent;
-                	String domain = krb.getRealmName();
+                	kerberosDomain = krb.getRealmName();
                 	KerberosManager m = new KerberosManager();
                 	try {
                     	log.info("Using server principal {} for realm {}", m.getServerPrincipal(getSystem()),
-                            	domain);
+                            	kerberosDomain);
                 	} catch (Exception e) {
                     	log.warn("Unable to create Kerberos principal", e);
                 	}
@@ -2904,15 +2905,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	@Override
 	public String parseKerberosToken(String domain, String serviceName, byte[] keytab, byte[] token) throws Exception {
-		if (isConnected() && kerberosAgent != null)
+		if (isConnected() && kerberosAgent != null && domain.equalsIgnoreCase(kerberosDomain) ) 
 		{
 			Object agent = connect( false, false );
 			KerberosAgent krbAgent = InterfaceWrapper.getKerberosAgent(agent);
 			if (krbAgent != null)
 			{
-				String krbDomain = krbAgent.getRealmName();
-				if (domain.equalsIgnoreCase(krbDomain))
-					return krbAgent.parseKerberosToken(serviceName, keytab, token);
+				return krbAgent.parseKerberosToken(serviceName, keytab, token);
 			}
 		}
 		return null;
