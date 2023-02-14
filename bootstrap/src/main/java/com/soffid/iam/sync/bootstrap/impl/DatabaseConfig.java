@@ -35,23 +35,24 @@ public class DatabaseConfig {
 							new QueryHelper(conn).execute("ALTER TABLE "+getTableName()+" ADD ENCRYPTED VARCHAR(1)");
 						}
 						InputStream in = rset.getBinaryStream("DATA");
-						if (encrypted) {
-							try {
-								in = new DecryptionInputStream(in, System.getenv("DB_CONFIGURATION_CRYPT"));
-							} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
-								throw new IOException(e);
+						if (in != null) {
+							if (encrypted) {
+								try {
+									in = new DecryptionInputStream(in, System.getenv("DB_CONFIGURATION_CRYPT"));
+								} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+									throw new IOException(e);
+								}
 							}
-						}
-						byte b[] = new byte [2048];
-						int read;
-						for (;;) {
-							read = in.read(b);
-							if (read <= 0)
-								break;
-							out.write (b,0, read);
-						}
-						out.close();
-	
+							byte b[] = new byte [2048];
+							int read;
+							for (;;) {
+								read = in.read(b);
+								if (read <= 0)
+									break;
+								out.write (b,0, read);
+							}
+							out.close();
+						}	
 	   				});
         } finally {
         	conn.close();
