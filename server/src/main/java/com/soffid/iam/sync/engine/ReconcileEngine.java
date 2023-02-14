@@ -141,7 +141,7 @@ public abstract class ReconcileEngine
 			loadServices();
 
 			if (errors > 0)
-				throw new InternalErrorException("Found "+errors+". Review log file");
+				throw new InternalErrorException("Found "+errors+" problems. Review log file");
 		} finally {
 			taskGenerator.finishVirtualSourceTransaction(virtualTransactionId);
 		}
