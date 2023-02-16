@@ -6,7 +6,10 @@ import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.file.FileSystems;
@@ -46,7 +49,9 @@ import java.util.EnumSet;
 import java.util.Enumeration;
 
 import org.apache.commons.logging.LogFactory;
+import org.json.JSONArray;
 import org.json.JSONException;
+import org.json.JSONTokener;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
@@ -91,11 +96,6 @@ public class Configure {
 		LogConfigurator.configureMinimalLogging();
 		Security.onSyncServer();
 
-		if (args.length == 0) {
-      usage();
-			System.exit(1);
-		}
-
 		try {
 			if (args.length == 0) {
 				configurationWizard();
@@ -104,7 +104,9 @@ public class Configure {
 				usage();
 				System.exit(1);
 			}
-			else if ("-main".equals(args[0])) {
+			else if ("-configurl".equals(args[0])) {
+				fetchConfiguration(args);
+			} else if ("-main".equals(args[0])) {
 				parseMainParameters(args);
 			} else if ("-renewCertificates".equals(args[0])) {
 				parseRenewParameters(args);
@@ -127,12 +129,49 @@ public class Configure {
 			System.err.println("Your certificate request has been denied.");
 		} catch (CertificateEnrollWaitingForAproval e) {
 			System.err.println("Your certificate is pending for administrator aproval.");
-		} catch (InternalErrorException e) {
+		} catch (Exception e) {
 			System.err.println("Internal error: " + e.toString());
 			e.printStackTrace();
 		}
 		System.exit(1);
 
+	}
+
+	private static void fetchConfiguration(String[] args) throws Exception {
+		URL url = new URL(args[1]);
+		HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+		InputStream in = conn.getInputStream();
+		JSONArray array = new JSONArray(new JSONTokener(in));
+		in.close();
+		
+		Console c = java.lang.System.console();
+		String hostName0 = InetAddress.getLocalHost().getHostName();
+		String hostName = hostName0;
+		array.put("-hostname");
+		if (c != null) {
+			boolean wrong;
+			do {
+				wrong = false;
+				hostName = c.readLine("This server host name [%s]: ", hostName0).trim().toLowerCase();
+				if (hostName == null || hostName.isEmpty()) hostName = hostName0;
+				try {
+					InetAddress addr = InetAddress.getByName(hostName);
+				} catch (Exception e) {
+					c.printf("The address %s is not valid", hostName);
+					wrong = true;
+				}
+			} while (wrong);
+		}
+		array.put(hostName);
+		
+		String args2[] = new String[array.length()];
+		for (int i = 0; i < array.length(); i++)
+			args2[i] = array.getString(i);
+		
+		if (args2[0].equals("-main"))
+			parseMainParameters(args2);
+		else
+			parseSecondParameters(args2);
 	}
 
 	private static void updatePermissions() throws FileNotFoundException, IOException {
@@ -288,6 +327,7 @@ public class Configure {
 			System.out.println("  -main [-force] -hostname .. [-port ...] -dbuser .. -dbpass .. -dburl ..");
 			System.out.println("  -hostname [-force] ..  [-port ...] -server .. -tenant .. -user .. -pass ..");
 			System.out.println("  -remote  -hostname [-force] .. -server .. -tenant .. -user .. -pass ..");
+			System.out.println("  -configurl [configuration-url]");
 			System.out.println("  -exportCA -out [filename] [-alias [name]] [-pass [pass]]");
 			System.out.println("  -importCA -in [filename] [-alias [name]] [-pass [pass]]");
 			System.out.println("  -generateCert -out [filename] -hostname [name] [-pass [pass]]");

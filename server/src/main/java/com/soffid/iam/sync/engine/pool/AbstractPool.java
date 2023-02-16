@@ -9,6 +9,8 @@ import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
 
+import com.soffid.iam.config.Config;
+
 public abstract class AbstractPool<S> implements Runnable {
 	static LinkedList<WeakReference<AbstractPool<?>>> currentPools = new LinkedList<WeakReference<AbstractPool<?>>>();
 
@@ -190,7 +192,20 @@ public abstract class AbstractPool<S> implements Runnable {
 		{
 			if (currentSize >= maxSize)
 				throw new Exception ("Cannot allocate connection. Reached limit: "+maxSize);
-			element = new PoolElement<S>(createConnection());
+			// Raise privileges to create connections during scripts evaluation
+			Object e = java.security.AccessController.doPrivileged(new java.security.PrivilegedAction<Object>() {
+				public Object run() {
+					try {
+						PoolElement<S> element = new PoolElement<S>(createConnection());
+						return element;
+					} catch (Exception e) {
+						return e;
+					}
+				}});
+			if (e != null && e instanceof Exception)
+				throw (Exception) e;
+			else
+				element = (PoolElement<S>) e;
 			element.setCreation(System.currentTimeMillis());
 			currentSize ++;
 		}

@@ -6,7 +6,7 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry excluding="**" kind="src" output="target/classes" path="target/resources">
+	<classpathentry kind="src" output="target/classes" path="target/resources">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
@@ -18,7 +18,7 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry excluding="**" kind="src" output="target/test-classes" path="src/test/resources">
+	<classpathentry kind="src" output="target/test-classes" path="src/test/resources">
 		<attributes>
 			<attribute name="test" value="true"/>
 			<attribute name="maven.pomderived" value="true"/>
@@ -30,14 +30,14 @@
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
-	<classpathentry excluding="**" kind="src" output="target/classes" path="src/main/docker">
+	<classpathentry kind="src" output="target/classes" path="src/main/docker">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>
 	</classpathentry>
 	<classpathentry combineaccessrules="false" kind="src" path="/common-3"/>
 	<classpathentry combineaccessrules="false" kind="src" path="/core-3"/>
-	<classpathentry excluding="**" kind="src" output="target/classes" path="src/main/deb">
+	<classpathentry kind="src" output="target/classes" path="src/main/deb">
 		<attributes>
 			<attribute name="maven.pomderived" value="true"/>
 		</attributes>

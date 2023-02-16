@@ -116,8 +116,8 @@ public class AccountExtensibleObject extends ExtensibleObject
     		}
     		else if ("allGrantedRoles".equals(attribute))
     		{
-    			Collection<RoleGrant> grants = serverService.getAccountRoles(account.getName(), account.getSystem());
     			List<GrantExtensibleObject> dadesList = new LinkedList<GrantExtensibleObject>();
+    			Collection<RoleGrant> grants = serverService.getAccountRoles(account.getName(), account.getSystem());
     			for (RoleGrant grant: grants)
     			{
     				dadesList.add ( new GrantExtensibleObject(grant, serverService));

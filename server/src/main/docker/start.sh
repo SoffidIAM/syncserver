@@ -123,8 +123,18 @@ function configureremote {
 	touch /opt/soffid/iam-sync/conf/configured 
 }
 
+# Configure auto
+function configureauto {
+    echo "Configuring as remote server"
+	/opt/soffid/iam-sync/bin/configure -configurl "$SOFFID_CONFIG"  && 
+	touch /opt/soffid/iam-sync/conf/configured 
+}
+
 function configure {
-	if [[ "$SOFFID_MAIN" == "yes" ]]
+	if [[ ! -z "$SOFFID_CONFIG" ]]
+	then
+	    configureauto
+	elif [[ "$SOFFID_MAIN" == "yes" ]]
 	then
 	    configuremain || (sleep 6000000 ; exit 1)
 	elif [[ "$SOFFID_MAIN" == "no" ]]

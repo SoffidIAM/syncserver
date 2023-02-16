@@ -5,6 +5,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
+import java.io.Serializable;
 import java.io.StringWriter;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
@@ -16,8 +17,10 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 import org.apache.commons.logging.LogFactory;
+import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AgentStatusInfo;
@@ -39,13 +42,19 @@ import com.soffid.iam.api.User;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AccountEntityDao;
+import com.soffid.iam.model.AccountPasswordEntity;
+import com.soffid.iam.model.PasswordDomainEntity;
+import com.soffid.iam.model.PasswordEntity;
+import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.UserAccountEntity;
+import com.soffid.iam.model.UserEntity;
 import com.soffid.iam.model.UserEntityDao;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.AccountService;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.SoffidApplication;
+import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.Engine;
@@ -623,6 +632,8 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			} catch (Exception e) {
 				v = e;
 			}
+			if (v != null & ! ( v instanceof Serializable))
+				v = v.toString();
 			result.put(att, v);
 		}
 		return result;
@@ -995,6 +1006,11 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		{
 			handler.connect(true, false);
 		}
+		Object agent = handler.getRemoteAgent();
+		if (agent != null && agent instanceof AgentInterface) 
+			((AgentInterface)agent).checkConnectivity();
+		if (agent != null && agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface) 
+			((es.caib.seycon.ng.sync.agent.AgentInterface)agent).checkConnectivity();
 	}
 
 	@Override
@@ -1012,5 +1028,64 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			throw new InternalErrorException ("Cannot find account "+accountName+" at "+serverName);
 		}
 	}
-	
+
+	public void handleResendAccountPassword(java.lang.Long accountId)
+			throws Exception {
+		AccountEntity account = getAccountEntityDao().load(accountId);
+		Password p = getSecretStoreService().getPassword(accountId);
+		if (p != null) {
+			boolean mustChange = false;
+			for (AccountPasswordEntity pass: account.getPasswords()) {
+				if (pass.getOrder().longValue() == 0)
+					mustChange = pass.getExpirationDate().before(new Date());
+			}
+			Task tasca = new Task();
+			tasca.setTransaction(TaskHandler.UPDATE_ACCOUNT_PASSWORD);
+			tasca.setUser(account.getName());
+			tasca.setSystemName(account.getSystem().getName());
+			tasca.setDatabase(account.getSystem().getName());
+			tasca.setPassword(p.toString());
+			tasca.setPasswordChange(mustChange ? "S" : "N"); //$NON-NLS-1$ //$NON-NLS-2$
+			tasca.setStatus("P"); //$NON-NLS-1$
+			TaskHandler th = new TaskHandler();
+			th.setTenant(Security.getCurrentTenantName());
+			th.setTenantId(Security.getCurrentTenantId());
+			th.setTask(tasca);
+			Map<String, Exception> m = getTaskQueue().processOBTask(th);
+			Exception ex = m.get(account.getSystem().getName());
+			if (ex != null)
+				throw ex;
+		}
+	}
+
+	public void handleResendUserPassword(String user, String passwordDomain)
+			throws es.caib.seycon.ng.exception.InternalErrorException {
+		UserEntity u = getUserEntityDao().findByUserName(user);
+		if (u == null)
+			return;
+		PasswordDomainEntity pd = getPasswordDomainEntityDao().findByName(passwordDomain);
+		if (pd == null)
+			return;
+		
+		Password password = getSecretStoreService().getSecret(getUserEntityDao().toUser(u), "dompass/"+pd.getId());
+		if (password == null)
+			throw new InternalErrorException("The password to send is unknown");
+		
+		boolean mustChange = false;
+		for (PasswordEntity pass: u.getPasswords()) {
+			if (pass.getOrder().longValue() == 0 && pass.getDomain() == pd)
+				mustChange = pass.getExpirationDate().before(new Date());
+		}
+
+		TaskEntity tasca = getTaskEntityDao().newTaskEntity();
+		tasca.setTransaction(TaskHandler.UPDATE_USER_PASSWORD);
+		tasca.setUser(user);
+		tasca.setPasswordsDomain(passwordDomain);
+		tasca.setPassword(password.toString());
+		tasca.setChangePassword(mustChange ? "S": "N");
+		tasca.setStatus("P"); //$NON-NLS-1$
+		tasca.setTenant( getTenantEntityDao().load( Security.getCurrentTenantId() ));
+		tasca.setServer( null );
+		getTaskEntityDao().create(tasca);
+	}
 }

@@ -2,6 +2,7 @@ package com.soffid.iam.sync.engine.db;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.security.Security;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
@@ -91,44 +92,43 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 
 	@Override
 	protected WrappedConnection createConnection() throws Exception {
-        if (!driversRegistered ) {
-            try {
-                Class c = Class.forName("oracle.jdbc.driver.OracleDriver");
-                DriverManager.registerDriver((java.sql.Driver) c.newInstance());
-            } catch (Exception e) {
-                log.info("Error registering driver: {}", e, null);
-            }
-            try {
-                Class c = Class.forName("com.mysql.jdbc.Driver");
-                DriverManager.registerDriver((java.sql.Driver) c.newInstance());
-            } catch (Exception e) {
-                log.info("Error registering driver: {}", e, null);
-            }
-            try{
-            	Class c = Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-            	log.info("Registering driver", c.getClass().getName(),null);
-            	DriverManager.registerDriver((java.sql.Driver) c.newInstance());
-            } catch (Exception e) {
-            	log.info("Error registering driver: {}", e, null);
-            }
-            try{
-            	Class c = Class.forName("org.postgresql.Driver");
-            	DriverManager.registerDriver((java.sql.Driver) c.newInstance());
-            } catch (Exception e) {
-            	log.info("Error registering driver: {}", e, null);
-            }
-            driversRegistered = true;
-        }
-
-        Config config = Config.getConfig();
-        // Connect to the database
-        // You can put a database name after the @ sign in the connection URL.
-       	return new WrappedConnection( 
-       			this,
-       			DriverManager.getConnection(
-       						config.getDB(), 
-       						config.getDbUser(),
-        	                config.getPassword().getPassword()) );
+		if (!driversRegistered ) {
+			try {
+				Class c = Class.forName("oracle.jdbc.driver.OracleDriver");
+				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
+			} catch (Exception e) {
+				log.info("Error registering driver: {}", e, null);
+			}
+			try {
+				Class c = Class.forName("com.mysql.jdbc.Driver");
+				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
+			} catch (Exception e) {
+				log.info("Error registering driver: {}", e, null);
+			}
+			try{
+				Class c = Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
+				log.info("Registering driver", c.getClass().getName(),null);
+				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
+			} catch (Exception e) {
+				log.info("Error registering driver: {}", e, null);
+			}
+			try{
+				Class c = Class.forName("org.postgresql.Driver");
+				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
+			} catch (Exception e) {
+				log.info("Error registering driver: {}", e, null);
+			}
+			driversRegistered = true;
+		}
+		Config config = Config.getConfig();
+		// Connect to the database
+		// You can put a database name after the @ sign in the connection URL.
+		return new WrappedConnection( 
+				ConnectionPool.this,
+				DriverManager.getConnection(
+						config.getDB(), 
+						config.getDbUser(),
+						config.getPassword().getPassword()) );
 	}
 
 

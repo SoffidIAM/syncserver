@@ -53,8 +53,8 @@ public class DatabaseConfig {
 									break;
 								out.write (b,0, read);
 							}
-							out.close();
 						}
+						out.close();
 	
 	   				});
         } finally {

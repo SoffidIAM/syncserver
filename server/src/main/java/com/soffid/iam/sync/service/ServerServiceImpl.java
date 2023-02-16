@@ -368,18 +368,22 @@ public class ServerServiceImpl extends ServerServiceBase {
 	@Override
 	protected Collection<Group> handleGetUserGroupsHierarchy(
 			String accountName, String dispatcherId) throws Exception {
-		HashMap<String, GroupEntity> grups = getUserGroupsMap(accountName,
-				dispatcherId);
 		LinkedList<Group> values = new LinkedList<Group>();
-		HashSet<String> keys = new HashSet<String>(grups.keySet());
-		GroupEntityDao grupDao = getGroupEntityDao();
-		for (GroupEntity grup : grups.values()) {
-			while (grup != null && !keys.contains(grup.getName())) {
-				keys.add(grup.getName());
-				values.add(grupDao.toGroup(grup));
-				grup = grup.getParent();
+		try {
+			HashMap<String, GroupEntity> grups = getUserGroupsMap(accountName,
+					dispatcherId);
+			HashSet<String> keys = new HashSet<String>(grups.keySet());
+			GroupEntityDao grupDao = getGroupEntityDao();
+			for (GroupEntity grup : grups.values()) {
+				while (grup != null && !keys.contains(grup.getName())) {
+					keys.add(grup.getName());
+					values.add(grupDao.toGroup(grup));
+					grup = grup.getParent();
+				}
+				;
 			}
-			;
+		} catch (UnknownUserException e) {
+			// Ignore
 		}
 
 		return values;

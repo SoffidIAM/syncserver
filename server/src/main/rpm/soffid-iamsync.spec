@@ -6,7 +6,7 @@ Summary: Soffid IAM Sync
 License: GPL
 Distribution: Soffid IAM
 Group: Administration/Network
-Requires: java
+Requires: java-11-openjdk
 
 %define _rpmdir target
 %define _rpmfilename %%{NAME}-%%{VERSION}-%%{RELEASE}.%%{ARCH}.rpm
@@ -28,6 +28,9 @@ chown -R soffid:soffid /opt/soffid/iam-sync
 echo "Execute /opt/soffid/iam-sync/bin/configure to configure Soffid Sync server"
 
 systemctl enable 'soffid-iamsync.service' || true 	
+
+setcap 'cap_net_bind_service=+ep' $(readlink -f $(which java)) || true
+
 systemctl start soffid-iamsync || true 
 
 %preun

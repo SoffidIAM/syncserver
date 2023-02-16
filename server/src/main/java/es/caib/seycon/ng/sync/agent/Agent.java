@@ -239,4 +239,6 @@ public abstract class Agent implements AgentInterface {
 	public List<String[]> getRoleChangesToApply (Rol role) throws RemoteException, InternalErrorException {
 		return null;
 	}
+
+	public void checkConnectivity() throws InternalErrorException {}
 }

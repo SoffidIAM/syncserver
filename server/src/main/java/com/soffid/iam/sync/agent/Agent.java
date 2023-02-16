@@ -224,4 +224,6 @@ public abstract class Agent implements AgentInterface {
 		return null;
 	}
 
+	public void checkConnectivity() throws InternalErrorException {}
+
 }

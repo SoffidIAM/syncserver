@@ -41,6 +41,7 @@ import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AuthorizationRole;
 import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.Server;
+import com.soffid.iam.api.ServerRegistrationToken;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.Tenant;
 import com.soffid.iam.api.TenantCriteria;
@@ -151,6 +152,8 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	}
     
 	private boolean isAllowedAutoRegister(String user, String domain) throws InternalErrorException {
+		if (user.isEmpty())
+			return true;
     	boolean allow = "direct".equals( ConfigurationCache.getProperty("soffid.server.register") );
     	if (!allow)
     		return false;
@@ -176,7 +179,11 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
         PasswordValidation vs;
         Config seyconConfig = Config.getConfig();
         LogonService logonService = getLogonService();
-        if (user.equals (seyconConfig.getDbUser()) && password.equals(seyconConfig.getPassword().getPassword()) && domain == null) {
+        if (user.isEmpty()) {
+        	ServerRegistrationToken t = getDispatcherService().consumeRegistrationToken(password);
+        	return PasswordValidation.PASSWORD_GOOD;
+        }
+        else if (user.equals (seyconConfig.getDbUser()) && password.equals(seyconConfig.getPassword().getPassword()) && domain == null) {
             vs = PasswordValidation.PASSWORD_GOOD;
         } else {
             vs = logonService.validatePassword(user, domain, password);
