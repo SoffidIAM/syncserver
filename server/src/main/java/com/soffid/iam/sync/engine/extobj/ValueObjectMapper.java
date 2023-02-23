@@ -14,7 +14,6 @@ import java.util.LinkedList;
 import java.util.Map;
 
 import org.apache.commons.logging.LogFactory;
-import org.jfree.util.Log;
 
 import com.soffid.iam.api.AbstractGroup;
 import com.soffid.iam.api.Account;
@@ -391,9 +390,9 @@ public class ValueObjectMapper
 			account.setOwnerUsers(parseList(object, "ownerUsers"));
 			account.setOwnerGroups(parseList(object, "ownerGroups"));
 			account.setOwnerRoles(parseList(object, "ownerRoles"));
-			//account.setGrantedUsers(parseList(object, "grantedUsers"));
-			//account.setGrantedGroups(parseList(object, "grantedGroups"));
-			//account.setGrantedRoles(parseList(object, "grantedRoles"));
+			account.setGrantedUsers(parseList(object, "grantedUsers"));
+			account.setGrantedGroups(parseList(object, "grantedGroups"));
+			account.setGrantedRoles(parseList(object, "grantedRoles"));
 			account.setManagerUsers(parseList(object, "managerUsers"));
 			account.setManagerGroups(parseList(object, "managerGroups"));
 			account.setManagerRoles(parseList(object, "managerRoles"));
