@@ -344,7 +344,6 @@ public class JettyServer implements PublisherInterface
         if (System.getProperty("soffid.tls.excludedCiphers") != null) {
         	sslContextFactory.setExcludeCipherSuites(System.getProperty("soffid.tls.excludedCiphers").split("[, ]+"));
         }
-    	
     	// The ConnectionFactory for TLS.
     	SslConnectionFactory tls = new SslConnectionFactory(sslContextFactory, http11.getProtocol());
     	ServerConnector connector;

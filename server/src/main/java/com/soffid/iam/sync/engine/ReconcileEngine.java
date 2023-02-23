@@ -141,7 +141,7 @@ public abstract class ReconcileEngine
 			loadServices();
 
 			if (errors > 0)
-				throw new InternalErrorException("Found "+errors+". Review log file");
+				throw new InternalErrorException("Found "+errors+" problems. Review log file");
 		} finally {
 			taskGenerator.finishVirtualSourceTransaction(virtualTransactionId);
 		}
@@ -1323,9 +1323,9 @@ public abstract class ReconcileEngine
 			if (! grant.getOwnerSystem().equals(dispatcher.getName())) {
 				boolean found = false;
 				for (RoleGrant e: l) {
-					if (e.getRoleName().equals(grant.getRoleName()) &&
-							e.getSystem().equals(grant.getSystem()) &&
-							(e.getDomainValue() == null ? grant.getDomainValue() == null: e.getDomainValue().equals(grant.getDomainValue())))
+					if (e.getOwnerRoleName().equals(grant.getOwnerRoleName()) &&
+							e.getOwnerSystem().equals(grant.getOwnerSystem()) &&
+							(e.getDomainValue() == null ? grant.getOwnerRolDomainValue() == null: e.getOwnerRolDomainValue().equals(grant.getOwnerRolDomainValue())))
 					{
 						found = true;
 						break;

@@ -17,6 +17,7 @@ import java.security.KeyStoreException;
 import java.security.NoSuchAlgorithmException;
 import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
+import java.sql.SQLException;
 import java.util.Base64;
 
 import javax.net.ssl.HttpsURLConnection;
@@ -27,6 +28,7 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.soffid.iam.config.Config;
+import com.soffid.iam.sync.bootstrap.impl.DatabaseConfig;
 
 public class KubernetesConfig {
 	private String host;
@@ -41,7 +43,7 @@ public class KubernetesConfig {
 	public void load () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
 		Config config = Config.getConfig();
 		
-		if (isKubernetes()) {
+		if (isKubernetesRest()) {
 			int i;
 			configure();
 			
@@ -59,12 +61,29 @@ public class KubernetesConfig {
 				// Not found
 			}
 		}
+		if (isKubernetesDatabase())
+			try {
+				new com.soffid.iam.sync.tools.DatabaseConfig().loadFromDatabase();
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
 	}
 
-	public boolean isKubernetes() {
+	public boolean isKubernetesDatabase() {
+		return System.getenv("DB_CONFIGURATION_TABLE") != null && 
+				System.getenv("DB_URL") != null &&
+				System.getenv("DB_USER") != null &&
+				System.getenv("DB_PASSWORD") != null;
+	}
+
+	public boolean isKubernetesRest() {
 		return System.getenv("KUBERNETES_SERVICE_HOST") != null &&
 				System.getenv("KUBERNETES_CONFIGURATION_SECRET") != null &&
 				new File("/var/run/secrets/kubernetes.io/serviceaccount/token").canRead();
+	}
+
+	public boolean isKubernetes() {
+		return isKubernetesRest() || isKubernetesDatabase();
 	}
 
 	private void dump(Config config, String tag, String value) throws IOException {
@@ -158,7 +177,7 @@ public class KubernetesConfig {
 	public void save () throws FileNotFoundException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, JSONException {
 		Config config = Config.getConfig();
 		
-		if (isKubernetes()) {
+		if (isKubernetesRest()) {
 			log.info("Storing configuration in kubernetes secret "+System.getenv("KUBERNETES_CONFIGURATION_SECRET"));
 			configure();
 			
@@ -187,5 +206,11 @@ public class KubernetesConfig {
 				send("POST", new URL("https://"+host+":"+port+"/api/v1/namespaces/"+namespace+"/secrets"), secret.toString());
 			}
 		}
+		if (isKubernetesDatabase())
+			try {
+				new com.soffid.iam.sync.tools.DatabaseConfig().saveToDatabase();
+			} catch (Exception e) {
+				throw new IOException(e);
+			}
 	}
 }

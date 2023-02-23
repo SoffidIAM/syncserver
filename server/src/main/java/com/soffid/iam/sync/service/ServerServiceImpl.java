@@ -111,6 +111,7 @@ import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.Plugin;
 import com.soffid.iam.sync.engine.DispatcherHandler;
+import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
 import com.soffid.iam.sync.engine.LogWriter;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
@@ -2261,13 +2262,34 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 	@Override
 	protected Account handleParseKerberosToken(String domain, String serviceName, byte keytab[], byte token[]) throws Exception {
+		String principal = null;
 		for ( DispatcherHandler dispatcherHandler: getTaskGenerator().getDispatchers())
 		{
 			try {
-				String account = dispatcherHandler.parseKerberosToken (domain, serviceName, keytab, token);
+				principal = dispatcherHandler.parseKerberosToken (domain, serviceName, keytab, token);
+				if (principal != null)
+					break;
+			} catch (Exception e) {
+				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName(), e);
+			}
+		}
+		if (principal == null)
+			return null;
+
+		log.info("Principal name = "+principal+". Translating to account");
+		for ( DispatcherHandler dispatcherHandler: getTaskGenerator().getDispatchers())
+		{
+			try {
+				String account = ((DispatcherHandlerImpl) dispatcherHandler).getPrincipalAccount(principal);
 				if (account != null)
 				{
-					return handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
+					log.info("System : "+dispatcherHandler.getSystem().getName());
+					log.info("Account: "+account);
+					Account acc = handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
+					if (acc != null)
+						return acc;
+					else
+						log.info("Cannot find account "+account+" @ "+dispatcherHandler.getSystem().getName()+" not found in Soffid database");
 				}
 			} catch (Exception e) {
 				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName(), e);

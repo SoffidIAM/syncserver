@@ -156,4 +156,9 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	public void releaseConnection(Connection c) {
 		returnConnection();
 	}
+
+	@Override
+	protected boolean isConnectionValid(WrappedConnection connection) throws Exception {
+		return connection.isValid(1000);
+	}
 }

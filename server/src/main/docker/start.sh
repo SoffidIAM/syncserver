@@ -167,7 +167,7 @@ function loadconfig {
 	  java=java
 	fi
 	
-	$java -cp "/opt/soffid/iam-sync/bin/bootstrap.jar" com.soffid.iam.sync.bootstrap.KubernetesLoader
+	$java -cp "/opt/soffid/iam-sync/bin/bootstrap.jar:/opt/soffid/iam-sync/lib/mariadb-java-client-1.8.0.jar:/opt/soffid/iam-sync/lib/ojdbc10-19.3.0.0.jar:/opt/soffid/iam-sync/lib/postgresql-42.2.5.jre7.jar:/opt/soffid/iam-sync/lib/sqljdbc4-3.0.jar" com.soffid.iam.sync.bootstrap.KubernetesLoader
 }
 
 loadconfig
@@ -189,6 +189,6 @@ then
 	     keytool -import -keystore /opt/soffid/iam-sync/conf/cacerts -storepass changeit -noprompt -alias $(basename $trustedcert) -file "$trustedcert" -trustcacerts
 	   fi
 	done
-	$java -cp "/opt/soffid/iam-sync/bin/bootstrap.jar" com.soffid.iam.sync.bootstrap.KubernetesSaver
+	$java -cp "/opt/soffid/iam-sync/bin/bootstrap.jar:/opt/soffid/iam-sync/lib/mariadb-java-client-1.8.0.jar:/opt/soffid/iam-sync/lib/ojdbc10-19.3.0.0.jar:/opt/soffid/iam-sync/lib/postgresql-42.2.5.jre7.jar:/opt/soffid/iam-sync/lib/sqljdbc4-3.0.jar" com.soffid.iam.sync.bootstrap.KubernetesSaver
 fi
 exec /opt/soffid/iam-sync/bin/soffid-sync

@@ -194,8 +194,10 @@ public class Configure {
 				try {
 					if (user != null) v.setOwner(user);
 					if (group != null) v.setGroup(group);
+				} catch (IOException e) {} // Ignore
+				try {
 					v.setPermissions(EnumSet.of(PosixFilePermission.OWNER_READ, PosixFilePermission.OWNER_WRITE));
-				} catch (IOException e) { /* Ignore */ } 
+				} catch (IOException e) {} // Ignore
 			}
 		}		
 	}

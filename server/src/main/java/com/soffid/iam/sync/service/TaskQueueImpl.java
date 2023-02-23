@@ -549,7 +549,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 
 		populateTaskLog(newTask, tasqueEntity);
-		log.info("Added task {}", newTask.toString(), null);
+		if (isDebug())
+			log.info("Added task {}", newTask.toString(), null);
 
 		// Register new tasks
 		currentTasks.put(hash, newTask);
@@ -643,7 +644,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			th.setTenantId(Security.getCurrentTenantId());
 			th.setTenant(Security.getCurrentTenantName());
 			th.cancel();
-			log.info("Cancelling remote task {}", th.toString(), null);
+			if (isDebug())
+				log.info("Cancelling remote task {}", th.toString(), null);
 			pushTaskToPersist(th);
 			RemoteServiceLocator rsl = new RemoteServiceLocator();
 			try
@@ -664,7 +666,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (url != null) {
 					rsl.setServer(url);
 					ServerService server = rsl.getServerService();
-					log.info("Cancelling remote task {}", task.getId(), null);
+					if (isDebug())
+						log.info("Cancelling remote task {}", task.getId(), null);
 					server.cancelTask(task.getId(), task.getHash());					
 				}
 			}
@@ -988,12 +991,19 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					DispatcherHandler taskDispatcher, boolean bOK, String sReason,
 					Throwable t) throws Exception
 	{
-		if (bOK)
-			log.info("Task {} finished OK", task.toString(), null);
-		else
-			log.info("Task {} FAILED", task.toString(), null);
+		if (isDebug()) {
+			if (bOK)
+				log.info("Task {} finished OK", task.toString(), null);
+			else
+				log.info("Task {} FAILED", task.toString(), null);
+		}
 		long now = System.currentTimeMillis();
-
+		
+		if (task.isComplete()) {
+			pushTaskToPersist(task);
+			return; // Ignore already cancelled task
+		}
+		
 		// Afegir (si cal) nous task logs
 		while (task.getLogs().size() <= taskDispatcher.getInternalId())
 		{
@@ -1153,56 +1163,21 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		if (t == null)
 			return null;
-
 		
-		ByteArrayOutputStream out = new ByteArrayOutputStream();
-		PrintStream ps = new PrintStream(out);
-		SoffidStackTrace.printStackTrace(t, ps);
-		ps.close();
-		String s = out.toString();
-		if (s.length() > 2000)
+		String s = SoffidStackTrace.getStackTrace(t);
+		if (s.length() > 2000) {
+			log.warn("Extremely large exception", t);
 			s = s.substring(0, 1990) + "... (more)";
-		
+		}
 		return s; 
 
-	}
-
-	private void printStackTraceAsCauseSeycon (Throwable th, PrintWriter s,
-					StackTraceElement[] causedTrace)
-	{
-		// assert Thread.holdsLock(s);
-		if (th == null)
-			return;
-
-		// Compute number of frames in common between this and caused
-		StackTraceElement[] trace = th.getStackTrace();
-		int m = trace.length - 1, n = causedTrace.length - 1;
-		while (m >= 0 && n >= 0 && trace[m].equals(causedTrace[n]))
-		{
-			m--;
-			n--;
-		}
-		int framesInCommon = trace.length - 1 - m;
-
-		s.println("Caused by: " + th);
-		for (int i = 0; i <= m; i++)
-		{
-			if (trace[i].getClassName().startsWith(STACK_TRACE_FILTER))
-				s.println("\tat " + trace[i]);
-		}
-		if (framesInCommon != 0)
-			s.println("\t... " + framesInCommon + " more");
-
-		// Recurse if we have a cause
-		Throwable ourCause = th.getCause();
-		if (ourCause != null)
-			printStackTraceAsCauseSeycon(ourCause, s, trace);
 	}
 
 	@Override
 	protected void handleCancelTask (long taskId, String hash) throws Exception
 	{
-		log.info("Cancelling task {}", taskId, null);
+		if (isDebug())
+			log.info("Cancelling task {}", taskId, null);
 		TaskEntity taskEntity = getTaskEntityDao().load(taskId);
 		Hashtable<String, TaskHandler> ct = globalCurrentTasks.get(Security.getCurrentTenantId());
 		if (ct != null)
@@ -1214,7 +1189,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			{
 				if (task.getTask().getId().longValue() == taskId)
 				{
-					log.info("Cancelled task {}:{}", taskId, task.toString());
+					if (isDebug())
+						log.info("Cancelled task {}:{}", taskId, task.toString());
 					task.cancel();
 					if (taskEntity != null) pushTaskToPersist(task);
 					ct.remove(hash);
@@ -1326,7 +1302,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    				try {
 	    					dispatcher.processOBTask(task);
 	    				} catch (Exception e) {
-	    					log.warn("Error processing task" , e);
+	    					if (isDebug())
+	    						log.warn("Error processing task" , e);
 	    					if (task.getTask().getSystemName() == null)
 	    						m.put(dispatcherName, dispatcher.getConnectException());
 	    					else
@@ -1621,9 +1598,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			}
 	    		}
 			} catch (Exception e) {
-				log.warn("Error persisting task", e);
-				if (isDebug())
-					log.info("Error persisting task {}", newTask.toString(), null);
+				log.warn("Error persisting task "+newTask.toString(), e);
 	    		newTask.setChanged(true);
 	    		synchronized (tasksToPersist) {
 	    			tasksToPersist.addFirst(newTask);
