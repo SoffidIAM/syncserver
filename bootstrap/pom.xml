@@ -106,7 +106,7 @@
 	<pluginRepositories>
 		<pluginRepository>
 			<id>soffid-open</id>
-			<url>http://www.soffid.com/maven</url>
+			<url>https://download.soffid.com/maven</url>
 		</pluginRepository>
 	</pluginRepositories>
 	<repositories>
