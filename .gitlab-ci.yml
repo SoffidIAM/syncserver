@@ -90,8 +90,7 @@ maven_release:
     - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
     - mvn -f pom.xml  release:perform $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS -Dgoals=install -DskipTests=true -Darguments="$MAVEN_CERT_OPTS -Dmaven.javadoc.skip=true -Dmaven.test.skip=true"
   rules:
-    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-      when: manual
+    - when: manual
 
 release:
   stage: release
