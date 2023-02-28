@@ -96,7 +96,7 @@ public class AgentManagerImpl extends AgentManagerBase {
             SoffidApplication.getJetty().bind(url, agent, "server");
             Invoker invoker = Invoker.getInvoker();
             String serverName = null;
-            if (invoker != null) {
+            if (invoker != null && ! Config.getConfig().getRole().equals("remote")) {
 	            serverName = Invoker.getInvoker().getUser();
 	            if (serverName.indexOf('\\') > 0)
 	            	serverName = serverName.substring(serverName.indexOf('\\')+1);

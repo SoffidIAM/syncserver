@@ -41,17 +41,17 @@
   <pluginRepositories>
     <pluginRepository>
       <id>soffid-open</id>
-      <url>http://www.soffid.com/maven</url>
+			<url>https://download.soffid.com/maven</url>
     </pluginRepository>
   </pluginRepositories>
   <repositories>
     <repository>
       <id>central</id>
-      <url>http://repo1.maven.org/maven2</url>
+      <url>https://repo1.maven.org/maven2</url>
     </repository>
     <repository>
       <id>soffid-open</id>
-      <url>http://www.soffid.com/maven</url>
+			<url>https://download.soffid.com/maven</url>
     </repository>
     <repository>
       <id>jboss</id>

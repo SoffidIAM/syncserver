@@ -8,9 +8,10 @@ package com.soffid.iam.sync;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.remote.RemoteServiceLocator;
+import com.soffid.iam.remote.RemoteServiceLocatorProxy;
 
 /**
  * Locates and provides all available application services.
@@ -34,6 +35,8 @@ public class ServerServiceLocator
         if (baseServiceLocator == null) {
             baseServiceLocator = com.soffid.iam.ServiceLocator.instance();
             baseServiceLocator.init("localBeanRefFactory.xml", "beanRefFactory");
+            RemoteServiceLocator.serviceLocatorProxy = (String name) -> { return baseServiceLocator.getService(name); };
+            es.caib.seycon.ng.remote.RemoteServiceLocator.serviceLocatorProxy = (String name) -> { return baseServiceLocator.getService(name); };
         }
         return baseServiceLocator;
     }

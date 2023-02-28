@@ -1649,10 +1649,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
    		if (instances.isEmpty())
    			return true;
    		ServerInstanceEntity instance = instances.iterator().next();
-   		if (instance.getName().equals(hostName))
-   			log.info("Lowest workload server: {} ***", instance.getName(), null);
-   		else
-			log.info("Lowest workload server: {}", instance.getName(), null);
    		return instance.getName().equals(hostName);
 	}
 
