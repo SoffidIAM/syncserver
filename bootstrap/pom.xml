@@ -4,7 +4,7 @@
   <parent>
     <artifactId>root</artifactId>
     <groupId>com.soffid.iam.sync</groupId>
-    <version>3.4.4-SNAPSHOT</version>
+    <version>3.4.4</version>
   </parent>
 	<artifactId>bootstrap</artifactId>
 	<packaging>jar</packaging>
@@ -15,7 +15,7 @@
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
-		<tag>HEAD</tag>
+		<tag>version-3.4.4</tag>
 	</scm>
 	<licenses>
 		<license>
