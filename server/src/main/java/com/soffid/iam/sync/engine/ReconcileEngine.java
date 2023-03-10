@@ -55,6 +55,7 @@ import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
+import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.comu.SoffidObjectTrigger;
@@ -1296,6 +1297,9 @@ public abstract class ReconcileEngine
 	}
 
 	private Collection<RoleGrant> mergeOwnedRoles(Collection<RoleGrant> ownedRoles, Collection<RoleGrant> ownedRoles2) {
+		if (ConfigurationCache.getProperty("soffid.reconcile.all.roles").contains(dispatcher.getName()))
+			return ownedRoles2;
+		
 		List<RoleGrant> l = new LinkedList<>();
 		l.addAll(ownedRoles2);
 		for (RoleGrant grant: ownedRoles) {
@@ -1319,6 +1323,9 @@ public abstract class ReconcileEngine
 	}
 
 	private Collection<RoleGrant> mergeOwnerRoles(Collection<RoleGrant> ownedRoles, Collection<RoleGrant> ownedRoles2) {
+		if (ConfigurationCache.getProperty("soffid.reconcile.all.roles").contains(dispatcher.getName()))
+			return ownedRoles2;
+
 		List<RoleGrant> l = new LinkedList<>();
 		l.addAll(ownedRoles2);
 		for (RoleGrant grant: ownedRoles) {
