@@ -243,14 +243,12 @@
 									</file>
 									<type>rpm</type>
 								</artifact>
-<!--
 								<artifact>
 									<file>
 										target/wix/syncserver.msi
 									</file>
 									<type>msi</type>
 								</artifact>
--->
 								<artifact>
 									<file>
 										target/soffid-iamsync-${project.version}.deb
@@ -352,7 +350,6 @@
 							<goal>run</goal>
 						</goals>
 					</execution>
-<!--
 					<execution>
 						<id>build-msi</id>
 						<phase>package</phase>
@@ -367,7 +364,6 @@
 							<goal>run</goal>
 						</goals>
 					</execution>
--->
 					<execution>
 						<id>build-rpm</id>
 						<phase>package</phase>
