@@ -159,6 +159,6 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 
 	@Override
 	protected boolean isConnectionValid(WrappedConnection connection) throws Exception {
-		return connection.isValid(1000);
+		return connection.isValid(3);
 	}
 }
