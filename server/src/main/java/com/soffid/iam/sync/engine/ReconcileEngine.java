@@ -1240,6 +1240,7 @@ public abstract class ReconcileEngine
 			}
 	
 			if (systemRole.getDescription() != null && 
+					!systemRole.getDescription().trim().isEmpty() &&
 					!systemRole.getDescription().equals(soffidRole.getDescription()))
 			{
 				soffidRole.setDescription(systemRole.getDescription());
