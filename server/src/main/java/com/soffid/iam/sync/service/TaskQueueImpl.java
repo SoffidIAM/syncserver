@@ -59,6 +59,7 @@ import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.DispatcherHandler;
+import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.TaskHandlerLog;
 import com.soffid.iam.sync.engine.intf.DebugTaskResults;
@@ -254,7 +255,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			{
 				InternalPasswordService ps = getInternalPasswordService();
 				AccountEntityDao accDao = getAccountEntityDao();
-				AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getSystemName());
+				AccountEntity account = accDao.findByNameAndSystem(newTask.getTask().getUser(), newTask.getTask().getDatabase());
 				if (account == null)
 				{
 					newTask.cancel();
@@ -594,7 +595,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 						dispatchers.size());
 		for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();)
 		{
-			DispatcherHandler d = it.next();
+			DispatcherHandlerImpl d = (DispatcherHandlerImpl) it.next();
 			TaskHandlerLog log = new TaskHandlerLog();
 			log.setDispatcher(d);
 			log.setFirst(0);
@@ -602,7 +603,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (targetDispatcher == null)
 				log.setComplete(false);
 			else
-				log.setComplete( ! targetDispatcher.equals(d.getSystem().getName()));				
+				log.setComplete( ! targetDispatcher.equals(d.getSystem().getName()) &&
+						! d.isBroadcastTask(newTask));				
 			log.setNumber(0);
 			while (logs.size() < d.getInternalId())
 				logs.add(null);
@@ -1258,10 +1260,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			{
 				InternalPasswordService ps = getInternalPasswordService();
 				AccountEntityDao accDao = getAccountEntityDao();
-				AccountEntity account = accDao.findByNameAndSystem(task.getTask().getUser(), task.getTask().getSystemName());
+				AccountEntity account = accDao.findByNameAndSystem(task.getTask().getUser(), task.getTask().getDatabase());
 				if (account == null)
 				{
-					log.info("Cannot find account {} {}", task.getTask().getUser(), task.getTask().getSystemName());
+					log.info("Cannot find account {} {}", task.getTask().getUser(), task.getTask().getDatabase());
 					return m;
 				}
 

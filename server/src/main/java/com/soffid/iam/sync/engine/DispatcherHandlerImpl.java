@@ -232,12 +232,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         boolean trusted = isTrusted();
         boolean readOnly = getSystem().isReadOnly();
         // Verificar el nom del dipatcher
+        log.info("Applies "+t.toString()+" mirroredAgents = "+mirroredAgent+" rolesBroadcast = "+ this.rolesBroadcast);
         if (t.getTask().getSystemName() != null &&
         		( mirroredAgent != null && 
-        				!mirroredAgent.equals(t.getTask().getSystemName()) &&
-        				! getSystem().getName().equals(t.getTask().getSystemName()))) {
+        				! mirroredAgent.equals(t.getTask().getSystemName()) &&
+        				! getSystem().getName().equals(t.getTask().getSystemName()) &&
+        				! isBroadcastTask(t))) {
             return false;
-
             // Verificar el domini de contrasenyes
         } else if (t.getTask().getPasswordDomain() != null
                 && !t.getTask().getPasswordDomain()
@@ -323,9 +324,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
         // /////////////////////////////////////////////////////////////////////
         else if (trans.equals(TaskHandler.UPDATE_ROLE)) {
-        	if (!readOnly && ! getName().equals(t.getTask().getDatabase()) &&
-        			mirroredAgent != null && mirroredAgent.equals(t.getTask().getSystemName()))
+        	if (readOnly ||
+        			! rolesBroadcast &&
+        			! getName().equals(t.getTask().getDatabase()) &&
+        			mirroredAgent != null && ! mirroredAgent.equals(t.getTask().getDatabase())) {
         		return false;
+        	}
         	else
         		return !readOnly && (implemented(agent, es.caib.seycon.ng.sync.intf.RoleMgr.class) ||
             		implemented(agent, com.soffid.iam.sync.intf.RoleMgr.class));
@@ -403,7 +407,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         }
     }
 
-    private boolean isTrusted() {
+	public boolean isBroadcastTask(TaskHandler t) {
+		return rolesBroadcast && t.getTask().equals(TaskHandler.UPDATE_ROLE);
+	}
+
+	private boolean isTrusted() {
         return getSystem().getTrusted() != null && getSystem().getTrusted().booleanValue();
     }
 
@@ -1281,7 +1289,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         String bd = t.getTask().getDatabase();
         if (bd == null)
         	bd = t.getTask().getSystemName();
-        if (bd.equals( mirroredAgent ))
+        if (bd.equals( mirroredAgent ) || rolesBroadcast)
         {
 	        try {
 	            Role rolInfo = server.getRoleInfo(rol, bd);
@@ -1907,6 +1915,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private String status;
 	private Object kerberosAgent;
 	private String kerberosDomain;
+	private boolean rolesBroadcast;
 
     /**
      * Recuperar los registros de acceso del agente remoto
@@ -2116,6 +2125,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	            	mirroredAgent = ((AgentMirror) agent).getAgentToMirror();
 	            if (mirroredAgent == null)
 	            	mirroredAgent = getSystem().getName();
+	            if (mirroredAgent.equals("*")) {
+	            	rolesBroadcast = true;
+	            	mirroredAgent = getSystem().getName();
+	            } 
+	            else 
+	            	rolesBroadcast = false;
         	}
         	return agent;
 
@@ -2938,11 +2953,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		if ( ! taskInProgress (account))
 		{
 			Object agent = connect(false, false);
-			es.caib.seycon.ng.sync.agent.AgentInterface agentV1 = 
-					agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface ?
-							(es.caib.seycon.ng.sync.agent.AgentInterface) agent:
-							null;
-			AgentInterface agentV2 = agent instanceof AgentInterface ? (AgentInterface) agent : null;
+			es.caib.seycon.ng.sync.agent.AgentInterface agentV1 = null;
+			AgentInterface agentV2 = null; 
+			if (agent instanceof es.caib.seycon.ng.sync.agent.AgentInterface)
+				agentV1 = (es.caib.seycon.ng.sync.agent.AgentInterface) agent;
+			else if (agent instanceof AgentInterface)
+				agentV2 = (AgentInterface) agent;
 			if (debug) {
 				if (agentV2 != null)
 				{
@@ -2969,19 +2985,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				else {
 					out.println ("This agent does not support account reconciliation");
 				}
+				if (debug)
+				{
+					if (agentV1 != null)
+					{
+						out.println ( agentV1.endCaptureLog());
+					}
+					if (agentV2 != null)
+					{
+						out.println ( agentV2.endCaptureLog());
+					}
+				}
 			} finally {
 				closeAgent(agent);
-			}
-			if (debug)
-			{
-				if (agentV1 != null)
-				{
-					out.println ( agentV1.endCaptureLog());
-				}
-				if (agentV2 != null)
-				{
-					out.println ( agentV2.endCaptureLog());
-				}
 			}
 		}
 		else

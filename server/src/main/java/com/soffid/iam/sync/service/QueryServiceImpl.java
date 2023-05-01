@@ -168,7 +168,7 @@ public class QueryServiceImpl extends QueryServiceBase {
                 stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, "
                         + "MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC " 
                 		+ "FROM SC_MAQUIN, SC_XARXES "
-                        + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_NOM=? AND MAX_TEN_ID=? ");
+                        + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_NOM=? AND MAQ_TEN_ID=? ");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("host") // ÀLIES del host
@@ -178,6 +178,25 @@ public class QueryServiceImpl extends QueryServiceBase {
                         + "WHERE XAR_ID=MAQ_IDXAR AND MAL_MAQID=MAQ_ID AND MAQ_NOM=? AND MAQ_TEN_ID=? ");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
+            } else if (v.elementAt(0).equals("host") // ÀLIES del host
+                    && v.size() == 3 && v.elementAt(1).equals("attribute")) {
+                stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC \n"
+                		+ "FROM SC_MAQUIN, SC_XARXES, SC_TIPDAD, SC_HOSATT \n"
+                		+ "WHERE XAR_ID=MAQ_IDXAR AND MAQ_TEN_ID=?\n"
+                		+ "AND TDA_CODI=? AND TDA_ID=HAT_TDA_ID AND \n"
+                		+ "HAT_MAQ_ID=MAQ_ID ");
+                stmt.setLong  (1, Security.getCurrentTenantId());
+                stmt.setString(2, (String) v.elementAt(2));
+            } else if (v.elementAt(0).equals("host") // IPs del host
+                    && v.size() == 3) {
+                stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC \n"
+                		+ "FROM SC_MAQUIN, SC_XARXES, SC_TIPDAD, SC_HOSATT \n"
+                		+ "WHERE XAR_ID=MAQ_IDXAR AND MAQ_NOM=? AND MAQ_TEN_ID=?\n"
+                		+ "AND TDA_CODI=? AND TDA_ID=HAT_TDA_ID AND \n"
+                		+ "HAT_MAQ_ID=MAQ_ID ");
+                stmt.setString(1, (String) v.elementAt(1));
+                stmt.setLong  (2, Security.getCurrentTenantId());
+                stmt.setString(3, (String) v.elementAt(2));
             } else if (v.elementAt(0).equals("host") && v.size() == 3
                     && v.elementAt(2).equals("printers")) {
                 stmt = conn
