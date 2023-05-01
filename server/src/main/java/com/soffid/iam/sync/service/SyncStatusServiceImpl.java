@@ -959,6 +959,7 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		}
 		else
 		{
+			log.info("Reconcile account "+accountName+"@"+system);
 			StringWriter w = new StringWriter();
 			PrintWriter out = new PrintWriter(w);
 			try {
@@ -966,11 +967,14 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 				out.flush();
 				r.setStatus("Success");
 				r.setLog(w.toString());
+				log.info("Reconcile account "+accountName+"@"+system+"\n"+w.toString());
 			} catch (Exception e) {
+				log.info("ERROR Reconcile account "+accountName+"@"+system, e);
 				out.flush();
 				r.setStatus("Error");
 				r.setLog(w.toString()+"\n"+
 						SoffidStackTrace.getStackTrace(e));
+				log.info("ERROR Reconcile account "+accountName+"@"+system+"\n"+w.toString(), e);
 			}
 		}
 		

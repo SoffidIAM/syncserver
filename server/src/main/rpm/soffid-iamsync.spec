@@ -29,7 +29,7 @@ echo "Execute /opt/soffid/iam-sync/bin/configure to configure Soffid Sync server
 
 systemctl enable 'soffid-iamsync.service' || true 	
 
-setcap 'cap_net_bind_service=+ep' $(readlink -f $(which java)) || true
+# setcap 'cap_net_bind_service=+ep' $(readlink -f $(which java)) || true
 
 systemctl start soffid-iamsync || true 
 
