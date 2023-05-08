@@ -978,22 +978,34 @@ public class InterfaceWrapper {
 				}
 
 				public ExtensibleObject getNativeObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
-					es.caib.seycon.ng.sync.intf.ExtensibleObject o = agent.getNativeObject(
+					es.caib.seycon.ng.sync.intf.ExtensibleObject o = es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject( agent.getNativeObject(
 							es.caib.seycon.ng.comu.SoffidObjectType.fromString(type.getValue()), 
-							object1, object2);
+							object1, object2));
 					return ExtensibleObject.toExtensibleObject(o);
 				}
 
 				public ExtensibleObject getSoffidObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
-					es.caib.seycon.ng.sync.intf.ExtensibleObject o = agent.getSoffidObject(
+					es.caib.seycon.ng.sync.intf.ExtensibleObject o = es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject( agent.getSoffidObject(
 							es.caib.seycon.ng.comu.SoffidObjectType.fromString(type.getValue()), 
-							object1, object2);
+							object1, object2));
 					return ExtensibleObject.toExtensibleObject(o);
 				}
 
 				public Collection<Map<String, Object>> invoke(String verb, String command, Map<String, Object> params)
 						throws RemoteException, InternalErrorException {
 					return agent.invoke(verb, command, params);
+				}
+
+				@Override
+				public void updateExtensibleObject(ExtensibleObject obj)
+						throws RemoteException, InternalErrorException {
+					agent.updateExtensibleObject(  obj);
+				}
+
+				@Override
+				public void removeExtensibleObject(ExtensibleObject obj)
+						throws RemoteException, InternalErrorException {
+					agent.removeExtensibleObject(  obj);
 				}
 
 			};

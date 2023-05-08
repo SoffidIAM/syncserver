@@ -3,6 +3,7 @@ package com.soffid.iam.sync.engine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.soffid.iam.bpm.index.IndexerThread;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cron.TaskScheduler;
@@ -59,6 +60,9 @@ public class Engine extends Thread {
         log = LoggerFactory.getLogger("Engine");
         
         new UpdateTaskStatusThread().start();
+		new IndexerThread().start();
+
+
         try {
             int i;
             setStatus("Initializing");

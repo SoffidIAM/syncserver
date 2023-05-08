@@ -28,11 +28,14 @@ import org.slf4j.LoggerFactory;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.CrudHandler;
 import com.soffid.iam.api.CustomObject;
+import com.soffid.iam.api.ExtensibleObjectRegister;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.MailList;
+import com.soffid.iam.api.PagedResult;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.PasswordPolicy;
@@ -61,6 +64,8 @@ import com.soffid.iam.reconcile.service.ReconcileService;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.service.AccountService;
+import com.soffid.iam.service.AdditionalDataService;
+import com.soffid.iam.service.CrudRegistryService;
 import com.soffid.iam.service.InternalPasswordService;
 import com.soffid.iam.service.UserDomainService;
 import com.soffid.iam.sync.ServerServiceLocator;
@@ -77,9 +82,11 @@ import com.soffid.iam.sync.intf.AccessLogMgr;
 import com.soffid.iam.sync.intf.CustomObjectMgr;
 import com.soffid.iam.sync.intf.CustomTaskMgr;
 import com.soffid.iam.sync.intf.ExtensibleObject;
+import com.soffid.iam.sync.intf.ExtensibleObjectMapping;
 import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.intf.GroupMgr;
 import com.soffid.iam.sync.intf.HostMgr;
+import com.soffid.iam.sync.intf.IndexMgr;
 import com.soffid.iam.sync.intf.KerberosAgent;
 import com.soffid.iam.sync.intf.LogEntry;
 import com.soffid.iam.sync.intf.MailAliasMgr;
@@ -155,6 +162,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private String mirroredAgent;
 	private SyncServerStatsService statsService = ServiceLocator.instance().getSyncServerStatsService();
 	private boolean debugEnabled;
+	private AdditionalDataService additionalDataService;
+	private CrudRegistryService crudRegistryService;
 	
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
@@ -194,7 +203,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         auditoriaDao = (AuditEntityDao) ServerServiceLocator.instance().getService("auditEntityDao");
         tenantDao = (TenantEntityDao) ServerServiceLocator.instance().getService("tenantEntityDao");
         reconcileService = ServerServiceLocator.instance().getReconcileService();
-        
+        additionalDataService = ServerServiceLocator.instance().getAdditionalDataService();
+        crudRegistryService = ServerServiceLocator.instance().getCrudRegistryService();
         active = true;
     }
 
@@ -401,6 +411,22 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		else if (trans.equals(TaskHandler.UPDATE_ACESS_CONTROL))
 		{
 			return implemented(agent, AccessControlMgr.class) || implemented(agent, es.caib.seycon.ng.sync.intf.AccessControlMgr.class);
+		}
+		else if (trans.equals(TaskHandler.INDEX_OBJECT))
+		{
+			return implemented(agent, IndexMgr.class);
+		}
+		else if (trans.equals(TaskHandler.UPDATE_EXT_OBJECT))
+		{
+			if (implemented(agent, ExtensibleObjectMgr.class)) {
+				for (ExtensibleObjectMapping ob: attributeTranslatorV2.getObjects()) {
+					if (ob.getSoffidObject() == SoffidObjectType.OBJECT_CUSTOM &&
+							ob.getSoffidCustomObject() != null &&
+							ob.getSoffidCustomObject().equals(t.getTask().getCustomObjectType()))
+						return true;
+				}
+			}
+			return false;
         } else {
             return implemented(agent, es.caib.seycon.ng.sync.intf.CustomTaskMgr.class) ||
             		implemented(agent,CustomTaskMgr.class);
@@ -983,6 +1009,14 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			else if (trans.equals(TaskHandler.UPDATE_SERVICE_PASSWORD))
 			{
 				updateServicePassword(agent, t);
+			}
+			else if (trans.equals(TaskHandler.UPDATE_EXT_OBJECT))
+			{
+				updateExtensibleObject(agent, t);
+			}
+			else if (trans.equals(TaskHandler.INDEX_OBJECT))
+			{
+				indexObject(agent, t);
 	        } else {
 	        	processCustomTask(agent, t);
 	        }
@@ -990,6 +1024,40 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         	UserGrantsCache.clearGrantsCache();
         }
     }
+
+	private void updateExtensibleObject(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+		if (agent instanceof ExtensibleObjectMgr && t.getTask().getCustomObjectType() != null) {
+			ExtensibleObjectRegister r = additionalDataService.findExtensibleObjectRegister(t.getTask().getCustomObjectName());
+			if (r == null) {
+				throw new InternalErrorException("Cannot find handler for object class "+t.getTask().getCustomObjectType());
+			}
+			ExtensibleObjectMgr mgr = (ExtensibleObjectMgr) agent;
+			for (ExtensibleObjectMapping mapping: attributeTranslatorV2.getObjects()) {
+				if (mapping.getSoffidObject() == SoffidObjectType.OBJECT_CUSTOM &&
+						t.getTask().getCustomObjectType().equals(mapping.getSoffidCustomObject())) {
+					ExtensibleObject eo;
+					try {
+						eo = (ExtensibleObject) Class
+								.forName(r.getClassName())
+								.getConstructor(Long.class, String.class)
+								.newInstance(t.getTask().getPrimaryKeyValue(),
+										t.getTask().getCustomObjectName());
+					} catch (Exception e) {
+						throw new InternalErrorException("Error creatinge extensible object", e);
+					}
+					mgr.updateExtensibleObject(eo);
+					break;
+				}
+			}
+		}
+	}
+
+	private void indexObject(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+		if (agent instanceof IndexMgr) {
+			IndexMgr mgr = (IndexMgr) agent;
+			mgr.index(t.getTask().getCustomObjectType(), t.getTask().getPrimaryKeyValue());
+		}
+	}
 
 	private void updateServicePassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
 		if (agent instanceof ServiceMgr) {

@@ -117,7 +117,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                 				new Parameter("serverInstance", InetAddress.getLocalHost().getHostName()),
                 				new Parameter("lastId", lastId),
                 				new Parameter("true", true)});
-            } else if (isMainServer() && taskQueue.isBestServer()) {
+            } else if (isActiveServer() && taskQueue.isBestServer()) {
 	            tasks = getTaskEntityDao().query("select distinct tasca "
 	            		+ "from com.soffid.iam.model.TaskEntity as tasca "
 	            		+ "left join tasca.tenant as tenant "
@@ -146,7 +146,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             				new Parameter("server", config.getHostName()),
             				new Parameter("true", true),
             				new Parameter("lastId", lastId)});
-        } else if (isMainServer()) {
+        } else if (isActiveServer()) {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
@@ -539,7 +539,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 		}
 	}
 	
-	public boolean isMainServer() throws InternalErrorException, FileNotFoundException, IOException {
+	public boolean isActiveServer() throws InternalErrorException, FileNotFoundException, IOException {
 		String hostName = Config.getConfig().getHostName();
 		ConfigurationService svc = getConfigurationService();
 		Configuration cfg = svc.findParameterByNameAndNetworkName("soffid.syncserver.main", null);
@@ -554,6 +554,21 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 		for (ServerInstanceEntity si: getServerInstanceEntityDao().findExpired(new Date(java.lang.System.currentTimeMillis() - 60_000))) {
 			getServerInstanceEntityDao().remove(si);
 		}
+	}
+
+	@Override
+	protected boolean handleIsMainServer() throws Exception {
+		if (! handleIsEnabled() ) return false;
+		
+		String[] l = Config.getConfig().getSeyconServerHostList();
+		if ( l.length <= 1 || ! isActiveServer() ) {
+	        if ( new KubernetesConfig().isKubernetes()) 
+	        	return getTaskQueue().isBestServer();
+	        else
+	        	return true;
+		}
+		else
+			return false;
 	}
 
 }
