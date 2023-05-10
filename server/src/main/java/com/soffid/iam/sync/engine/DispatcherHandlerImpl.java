@@ -699,7 +699,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		if (reconfigure) {
 			if (getCurrentAgent() != null)
 			{
-				log.info ("Disconnecting agent in order to apply new configuration");
+//				log.info ("Disconnecting agent in order to apply new configuration");
 				closeAgent(getCurrentAgent());
 			}
 		    clearCurrentAgent();

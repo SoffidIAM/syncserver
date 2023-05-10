@@ -145,7 +145,7 @@
 								${project.build.directory}/dist/opt/soffid/iam-sync/lib
 							</outputDirectory>
 							<includeGroupIds>
-								com.oracle,org.mariadb.jdbc,org.postgresql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
+								com.oracle.database.jdbc,org.mariadb.jdbc,org.postgresql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
 								org.hibernate,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
 								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
 								jakarta.xml.bind,org.bouncycastle,					
@@ -340,6 +340,7 @@
 								<delete file="${basedir}/target/deb/opt/soffid/iam-sync/bin/SyncServer.x86.exe" />
 								<exec executable="fakeroot" failonerror="true">
 									<arg value="dpkg-deb" />
+									<arg value="-Zxz" />
 									<arg value="-b" />
 									<arg value="${basedir}/target/deb" />
 									<arg value="target/soffid-iamsync-${project.version}.deb" />
@@ -629,9 +630,9 @@
 		    <scope>provided</scope>
 		</dependency>
 		<dependency>
-			<groupId>com.oracle.ojdbc</groupId>
+			<groupId>com.oracle.database.jdbc</groupId>
 			<artifactId>ojdbc10</artifactId>
-			<version>19.3.0.0</version>
+			<version>19.18.0.0</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
