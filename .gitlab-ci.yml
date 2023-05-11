@@ -81,7 +81,7 @@ maven_release:
     - 'git remote add gitlab "ssh://git@gitlab.internal.soffid.com:2224/${CI_PROJECT_PATH}.git"' 
     - git config --global user.email "$GITLAB_USER_EMAIL"
     - git config --global user.name "$GITLAB_USER_NAME"
-    - git pull gitlab "$CI_COMMIT_PATH" --no-edit
+    - git pull gitlab "$CI_COMMIT_BRANCH" --no-edit
     - mvn -f pom.xml release:prepare $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS --batch-mode -DtagNameFormat='version-@{project.version}' -DpreparationGoals='install'
     - git remote -v
     - git push gitlab "$CI_COMMIT_BRANCH"
