@@ -5,11 +5,11 @@
   <artifactId>root</artifactId>
   <packaging>pom</packaging>
   <name>Synchronization module</name>
-	<version>3.4.7</version>
+	<version>3.4.8-SNAPSHOT</version>
   <url>http://forge.dev.lab</url>
   <scm>
         <connection>scm:git:ssh://git@github.com/SoffidIAM/syncserver.git</connection>
-        <tag>version-3.4.7</tag>
+        <tag>HEAD</tag>
   </scm>
   <modules>
     <module>bootstrap</module>
