@@ -44,6 +44,7 @@ import com.soffid.iam.api.UserAccount;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.AccountEntityDao;
+import com.soffid.iam.model.Parameter;
 import com.soffid.iam.model.PasswordDomainEntity;
 import com.soffid.iam.model.PasswordDomainEntityDao;
 import com.soffid.iam.model.ServerEntity;
@@ -158,7 +159,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	}
 
 	private void addTask(TaskHandler newTask, TaskEntity entity)
-			throws InternalErrorException, UnknownGroupException, UnknownRoleException, NoSuchAlgorithmException, UnsupportedEncodingException {
+			throws Exception {
 		TaskGenerator tg = getTaskGenerator();
 		if (entity == null ||
 			newTask.getTask().getServer() == null && !tg.isEnabled() ||
@@ -356,9 +357,17 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			getAccountService()
 				.generateUserAccounts(newTask.getTask().getUser());
-			addAndNotifyDispatchers(newTask, entity);
+			if (!autoCloseUserTask(newTask, entity))
+				addAndNotifyDispatchers(newTask, entity);
 		}
-		
+		else if (newTask.getTask().getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD) ||
+				newTask.getTask().getTransaction().equals(TaskHandler.PROPAGATE_PASSWORD) ||
+				newTask.getTask().getTransaction().equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD) ||
+				newTask.getTask().getTransaction().equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD_SINCRONO))
+		{
+			if (!autoCloseUserTask(newTask, entity))
+				addAndNotifyDispatchers(newTask, entity);
+		}
 		else if (newTask.getTask().getTransaction()
 			.equals(TaskHandler.NOTIFY_PASSWORD_CHANGE))
 		{
@@ -372,6 +381,63 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			addAndNotifyDispatchers(newTask, entity);
 		}
+	}
+
+	private boolean autoCloseUserTask(TaskHandler newTask, TaskEntity entity) throws Exception {
+		UserEntity userEntity = getUserEntityDao().findByUserName(newTask.getTask().getUser());
+		if (userEntity == null) {
+			getTaskLogEntityDao().remove(entity.getLogs());
+			getTaskEntityDao().remove(entity);
+			return true;
+		}
+		if (! entity.getLogs().isEmpty())
+			populateTaskLog(newTask, entity);
+		
+		newTask.setUser(getUserEntityDao().toUser(userEntity));
+        newTask.setGrants(getServerService().getUserRoles(newTask.getUser().getId(), null));
+        
+        List l = getSystemEntityDao().query("select s.name from "
+        		+ "com.soffid.iam.model.UserAccountEntity ua "
+        		+ "left join ua.account as acc "
+        		+ "left join acc.system as s "
+        		+ "where ua.user.id = :id",
+        		new Parameter[] { new Parameter("id", newTask.getUser().getId())});
+        
+        boolean any = true;
+
+        newTask.setLogs(new LinkedList<>());
+        for (DispatcherHandler td: getTaskGenerator().getDispatchers()) {
+			DispatcherHandlerImpl impl = (DispatcherHandlerImpl) td;
+			String mirror = impl.getMirroredAgent();
+			if ( td.isConnected() && ( ! l.contains(mirror) || !impl.applies(newTask)) ) {
+				// Afegir (si cal) nous task logs
+				while (newTask.getLogs().size() <= td.getInternalId())
+					newTask.getLogs().add(null);
+				TaskHandlerLog thl = newTask.getLog(td.getInternalId()); 
+				if (thl == null)  {
+					thl = new TaskHandlerLog();
+					newTask.getLogs().set(td.getInternalId(), thl);
+					thl.setNumber(0);
+					thl.setDispatcher(td);
+					thl.setFirst(System.currentTimeMillis());
+					thl.setLast(System.currentTimeMillis());
+					thl.setNext(System.currentTimeMillis());
+				}
+				if (!thl.isComplete()) {
+					thl.setComplete(true);
+					handlePushTaskToPersist(newTask);
+				}
+			} else {
+				any = true;
+			}
+		}
+
+        if (! any) {
+			getTaskLogEntityDao().remove(entity.getLogs());
+        	getTaskEntityDao().remove(entity);
+        	return true;
+        }
+		return false;
 	}
 
 	private void notifySSOUsers(AccountEntity account) throws InternalErrorException {
@@ -549,7 +615,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			}
 		}
 
-		populateTaskLog(newTask, tasqueEntity);
+		if (newTask.getLogs() == null)
+			populateTaskLog(newTask, tasqueEntity);
 		if (isDebug())
 			log.info("Added task {}", newTask.toString(), null);
 
@@ -811,7 +878,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			    			iterator.remove();
 			    			tasksToNotify.add(task);
 						}
-						else if (tl.getNext() < System.currentTimeMillis())
+						else if (tl == null || tl.getNext() < System.currentTimeMillis())
 						{
 							if (priorities.debug)
 								log.info("Task to process: {}", task.toString(), null);
@@ -1018,8 +1085,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			thl = new TaskHandlerLog();
 			thl.setNumber(0);
+			thl.setNext(0);
 			thl.setFirst(now);
 			thl.setComplete(false);
+			thl.setDispatcher(taskDispatcher);
 			task.getLogs().set(taskDispatcher.getInternalId(), thl);
 		}
 		
@@ -1480,7 +1549,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			}
 		}
 		if (entity.getExecutionsNumber() == null ||
-				entity.getExecutionsNumber() != thl.getNext()) {
+				entity.getExecutionsNumber() != thl.getNumber()) {
 			entity.setExecutionsNumber(new Long(thl.getNumber()));
 			entity.setNextExecution(thl.getNext());
 			entity.setCompleted(thl.isComplete() ? "S" : "N");

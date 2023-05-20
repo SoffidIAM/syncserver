@@ -3073,5 +3073,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			closeAgent(agent);
 		}
 	}
+	
+	public String getMirroredAgent() {
+		return mirroredAgent == null ? getSystem().getName(): mirroredAgent;
+	}
 
 }

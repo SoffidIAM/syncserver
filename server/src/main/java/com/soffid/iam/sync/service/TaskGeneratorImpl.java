@@ -117,7 +117,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                 				new Parameter("serverInstance", InetAddress.getLocalHost().getHostName()),
                 				new Parameter("lastId", lastId),
                 				new Parameter("true", true)});
-            } else if (isMainServer() && taskQueue.isBestServer()) {
+            } else if (handleIsMainServer() && taskQueue.isBestServer()) {
 	            tasks = getTaskEntityDao().query("select distinct tasca "
 	            		+ "from com.soffid.iam.model.TaskEntity as tasca "
 	            		+ "left join tasca.tenant as tenant "
@@ -146,7 +146,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             				new Parameter("server", config.getHostName()),
             				new Parameter("true", true),
             				new Parameter("lastId", lastId)});
-        } else if (isMainServer()) {
+        } else if (handleIsMainServer()) {
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
@@ -539,7 +539,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 		}
 	}
 	
-	public boolean isMainServer() throws InternalErrorException, FileNotFoundException, IOException {
+	public boolean handleIsMainServer() throws InternalErrorException, FileNotFoundException, IOException {
 		String hostName = Config.getConfig().getHostName();
 		ConfigurationService svc = getConfigurationService();
 		Configuration cfg = svc.findParameterByNameAndNetworkName("soffid.syncserver.main", null);
