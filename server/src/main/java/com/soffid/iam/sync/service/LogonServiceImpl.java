@@ -399,11 +399,7 @@ public class LogonServiceImpl extends LogonServiceBase {
     	}
     	
     	PasswordValidation v;
-    	if (r.getUserEntity() == null)
-    		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), false, true);
-    	else
-        	v = getInternalPasswordService().checkPassword(r.getUserEntity(),
-                r.getDominiContrasenyaEntity(), new Password(password), false, true);
+   		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), false, true);
         if (v == PasswordValidation.PASSWORD_WRONG)
         {
         	boolean checkTrusted = "true".equals(ConfigurationCache.getProperty("soffid.auth.trustedLogin"));
