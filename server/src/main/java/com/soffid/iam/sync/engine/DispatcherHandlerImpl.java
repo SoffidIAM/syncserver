@@ -242,7 +242,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         boolean trusted = isTrusted();
         boolean readOnly = getSystem().isReadOnly();
         // Verificar el nom del dipatcher
-        log.info("Applies "+t.toString()+" mirroredAgents = "+mirroredAgent+" rolesBroadcast = "+ this.rolesBroadcast);
+//        log.info("Applies "+t.toString()+" mirroredAgents = "+mirroredAgent+" rolesBroadcast = "+ this.rolesBroadcast);
         if (t.getTask().getSystemName() != null &&
         		( mirroredAgent != null && 
         				! mirroredAgent.equals(t.getTask().getSystemName()) &&
@@ -3140,6 +3140,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		} finally {
 			closeAgent(agent);
 		}
+	}
+	
+	public String getMirroredAgent() {
+		return mirroredAgent == null ? getSystem().getName(): mirroredAgent;
 	}
 
 }

@@ -42,8 +42,8 @@ function configuremain {
     
     echo "Configuring as main server"
 	/opt/soffid/iam-sync/bin/configure -main -hostname "$SOFFID_HOSTNAME" -port "$SOFFID_PORT" -dbuser "${DB_USER:-$MARIADB_USER}" -dbpass "${DB_PASSWORD:-$MARIADB_PASS}" -dburl "$DB_URL" && 
-	touch /opt/soffid/iam-sync/conf/configured &&
-	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
+	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties &&
+	touch /opt/soffid/iam-sync/conf/configured
 	
 }
 
@@ -84,8 +84,8 @@ function configureproxy {
     
     echo "Configuring as secondary or proxy server"
 	/opt/soffid/iam-sync/bin/configure -hostname "$SOFFID_HOSTNAME" -port "$SOFFID_PORT" -user "$SOFFID_USER" -pass "$SOFFID_PASS" -server "$SOFFID_SERVER" -tenant "$SOFFID_TENANT"  && 
-	touch /opt/soffid/iam-sync/conf/configured &&
-	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties
+	echo "broadcast_listen=true" >>/opt/soffid/iam-sync/conf/seycon.properties &&
+	touch /opt/soffid/iam-sync/conf/configured
 }
 
 # Configure remote server
