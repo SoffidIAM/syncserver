@@ -358,19 +358,6 @@ public class LogonServiceImpl extends LogonServiceBase {
     @Override
     protected PasswordValidation handleValidatePassword(String user, String passwordDomain,
             String password) throws Exception {
-    	long maxFails = 5; // 5 fails
-    	long maxTime = 300_000; // 5 minutes 
-    	long unlockTime = 900_000; // 15 minutes
-    	try {
-    		maxFails = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.attempts"));
-    	} catch (Exception e) {}
-    	try {
-    		maxTime = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.period"))*1000;
-    	} catch (Exception e) {}
-    	try {
-    		unlockTime = Long.parseLong(ConfigurationCache.getProperty("soffid.lock.unlock"))*1000;
-    	} catch (Exception e) {}
-
     	log.info("Validating password for {} / {}", user, passwordDomain);
     	Resolver r;
     	try {
@@ -378,24 +365,6 @@ public class LogonServiceImpl extends LogonServiceBase {
     	} catch (UnknownUserException e) {
     		auditLoginAction(user, "U");
     		return PasswordValidation.PASSWORD_WRONG;
-    	}
-    	
-    	String failKey = r.getAccountEntity().getName()+" @ "+r.getAccountEntity().getSystem().getId();
-		UserFails f = fails.get(failKey);
-    	if (f == null) {
-    		f = new UserFails();
-    		f.fails = 0;
-    		f.lastTime = 0;
-    	} else if (f.lastTime + unlockTime < System.currentTimeMillis() &&
-    			f.lastTime + maxTime < System.currentTimeMillis()) {
-    		f.fails = 0;
-    		f.lastTime = 0;
-    		fails.remove(failKey);
-    	}
-    	
-    	if (f.fails >= maxFails) {
-    		f.lastTime = System.currentTimeMillis();
-        	log.warn("Rejecting login for {} / {}. User is LOCKED until "+dateFormat.format(new Date(System.currentTimeMillis()+unlockTime)), user, passwordDomain);
     	}
     	
     	PasswordValidation v;
@@ -410,9 +379,6 @@ public class LogonServiceImpl extends LogonServiceBase {
                 	v = getInternalPasswordService().checkPassword(r.getUserEntity(),
                         r.getDominiContrasenyaEntity(), new Password(password), true, true);
             if (v == PasswordValidation.PASSWORD_WRONG) {
-            	f.fails ++;
-            	f.lastTime = System.currentTimeMillis();
-            	fails.put(failKey, f);
             	log.warn("Wrong login attempt by {} / {}", user, passwordDomain);
             }
             else
