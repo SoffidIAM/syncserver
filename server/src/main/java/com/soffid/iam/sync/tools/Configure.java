@@ -72,6 +72,7 @@ import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
 import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
+import com.soffid.iam.sync.service.impl.SecretKeyGenerator;
 import com.soffid.iam.utils.Security;
 import com.soffid.tools.db.persistence.XmlReader;
 import com.soffid.tools.db.schema.Column;
@@ -88,6 +89,7 @@ import es.caib.seycon.ng.exception.CertificateEnrollDenied;
 import es.caib.seycon.ng.exception.CertificateEnrollWaitingForAproval;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownUserException;
+import es.caib.seycon.util.Base64;
 
 public class Configure {
 	static org.apache.commons.logging.Log log = LogFactory.getLog(Configure.class);
@@ -111,7 +113,7 @@ public class Configure {
 			} else if ("-renewCertificates".equals(args[0])) {
 				parseRenewParameters(args);
 			} else if ("-reencodeSecrets".equals(args[0])) {
-				reencodeSecrets();
+				reencodeSecrets(args);
 			} else if ("-exportCA".equals(args[0])) {
 				exportCA(args);
 			} else if ("-importCA".equals(args[0])) {
@@ -331,7 +333,7 @@ public class Configure {
 			System.out.println("  -exportCA -out [filename] [-alias [name]] [-pass [pass]]");
 			System.out.println("  -importCA -in [filename] [-alias [name]] [-pass [pass]]");
 			System.out.println("  -generateCert -out [filename] -hostname [name] [-pass [pass]]");
-			System.out.println("  -reencodeSecrets");
+			System.out.println("  -reencodeSecrets [-newkey]");
 			System.out.println("  -renewCertificates [-force]");
 	}
 
@@ -768,7 +770,7 @@ public class Configure {
 		}
 	}	
 	
-	public static void reencodeSecrets() throws InternalErrorException {
+	public static void reencodeSecrets(String[] args) throws InternalErrorException, InvalidKeyException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, FileNotFoundException, NoSuchAlgorithmException, CertificateException, IllegalStateException, SignatureException, IOException {
 		final SecretStoreService secretStoreService = ServerServiceLocator.instance().getSecretStoreService();
 		final Collection<User> usuaris = secretStoreService.getUsersWithSecrets();
 		final Collection<Account> accounts = secretStoreService.getAccountsWithPassword();
@@ -776,6 +778,11 @@ public class Configure {
 
 		int processed = 0;
 
+		PrivateKey pk = ServerServiceLocator.instance().getSecretConfigurationService().getPrivateKey();
+		
+		if (args.length > 1 && args[1].equals("-newkey"))
+			new SecretKeyGenerator().generate();
+		
 		for (User usuari : usuaris) {
 			log.info("["+(100 * processed / max ) + "%] Reencoding secrets for user " + usuari.getUserName());
 			try {
@@ -792,6 +799,9 @@ public class Configure {
 				Password p = secretStoreService.getPassword(acc.getId());
 				if (p != null)
 					secretStoreService.setPassword(acc.getId(), p);
+				Password k = secretStoreService.getSshPrivateKey(acc.getId());
+				if (k != null)
+					secretStoreService.setSshPrivateKey(acc.getId(), k);
 			} catch (InternalErrorException e) {
 				log.warn("Error reencoding secrets", e);
 			}
