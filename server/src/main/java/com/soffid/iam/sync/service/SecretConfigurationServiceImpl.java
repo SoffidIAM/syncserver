@@ -8,6 +8,7 @@ import com.soffid.iam.model.ServerInstanceEntity;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.SecretConfigurationServiceBase;
+import com.soffid.iam.sync.service.impl.SecretKeyGenerator;
 import com.soffid.iam.sync.tools.KubernetesConfig;
 
 import es.caib.seycon.ng.comu.ServerType;
@@ -34,6 +35,7 @@ import java.security.cert.Certificate;
 import java.security.cert.CertificateEncodingException;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.InvalidKeySpecException;
 import java.security.spec.X509EncodedKeySpec;
 import java.sql.PreparedStatement;
@@ -45,6 +47,8 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.Random;
 import java.util.Vector;
+
+import javax.crypto.Cipher;
 
 import org.bouncycastle.asn1.x509.X509Name;
 import org.bouncycastle.x509.X509V3CertificateGenerator;
@@ -163,41 +167,21 @@ public class SecretConfigurationServiceImpl extends
             if (privateKey == null) {
                 log.info("Generating secret key", null, null);
                 // Generate key pair
-                KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-                SecureRandom r = SecureRandom.getInstance("SHA1PRNG");
-                keyGen.initialize(2048, r);
-                KeyPair pair = keyGen.genKeyPair();
-                
+                KeyPair pair = new SecretKeyGenerator().generate();
                 privateKey = pair.getPrivate();
-                
-                // Generate public certificate
-                PublicKey publickey = pair.getPublic();
-                X509V3CertificateGenerator generator = new X509V3CertificateGenerator();
-                generator.setSubjectDN(new X509Name("CN=" + config.getHostName()
-                        + ", O=SEYCON-SECRET"));
-                generator.setIssuerDN(new X509Name("CN=" + config.getHostName()
-                        + ", O=SEYCON-SECRET"));
-                generator.setSerialNumber(BigInteger.ONE);
-                generator.setPublicKey(publickey);
-                generator.setSignatureAlgorithm("SHA1withRSA");
-                Date now = new Date ();
-                Date start = new Date (now.getTime()-24*60*60*1000);  // Desde ayer
-                Date end = new Date (now.getTime()+10*365*24*60*60*1000);  // Por diez años
-                generator.setNotAfter(end);
-                generator.setNotBefore(start);
-                X509Certificate cert = generator.generate(privateKey);
-                
-                // Store key
-                ks.setKeyEntry("secretsKey", privateKey, password.getPassword().toCharArray(),
-                        new Certificate[] { cert });
-                SeyconKeyStore.saveKeyStore(ks, f);
-                new KubernetesConfig().save();
             }
             Certificate certs [] = ks.getCertificateChain("secretsKey");
             if (certs != null && certs.length > 0) {
                 publicKey = certs[0].getPublicKey();
             }
             
+            int bits = 0;
+    		if (privateKey instanceof RSAPrivateKey) 
+    			bits = ((RSAPrivateKey) privateKey).getModulus().bitLength();
+
+    		if (bits <= 2048) {
+    			log.warn("Warning. The encryption key is too weak. Please, generate a new one executing 'configure -reencodeSecrets'", null, null);
+    		}
             updateServerEntity();
             
 //            changeAuthToken();

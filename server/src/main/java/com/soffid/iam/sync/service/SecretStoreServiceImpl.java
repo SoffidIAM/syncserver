@@ -37,6 +37,11 @@ import java.net.URLEncoder;
 import java.nio.charset.Charset;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.security.NoSuchProviderException;
+import java.security.PrivateKey;
+import java.security.PublicKey;
+import java.security.interfaces.RSAPrivateKey;
+import java.security.interfaces.RSAPublicKey;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashMap;
@@ -85,8 +90,18 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	private byte[] decrypt(byte[] b) throws NoSuchAlgorithmException,
 			NoSuchPaddingException, InvalidKeyException,
 			InternalErrorException, IllegalBlockSizeException,
-			BadPaddingException, IOException {
-		Cipher c = Cipher.getInstance("RSA/NONE/PKCS1Padding");
+			BadPaddingException, IOException, NoSuchProviderException {
+		
+		int bits = 0;
+		PrivateKey pk = getSecretConfigurationService().getPrivateKey();
+		if (pk instanceof RSAPrivateKey) 
+			bits = ((RSAPrivateKey) pk).getModulus().bitLength();
+		
+		Cipher c;
+		if (bits > 2048)
+			c = Cipher.getInstance("RSA/None/OAEPWithSHA256AndMGF1Padding", "BC");
+		else
+			c = Cipher.getInstance("RSA/NONE/PKCS1Padding");
 		c.init(Cipher.DECRYPT_MODE, getSecretConfigurationService().getPrivateKey());
 		int bs = c.getBlockSize();
 		ByteArrayOutputStream bout = new ByteArrayOutputStream();
@@ -139,7 +154,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 
     private void storeSecrets(User user, List<Secret> secrets) throws NoSuchAlgorithmException,
             NoSuchPaddingException, InvalidKeyException, IOException, IllegalBlockSizeException,
-            BadPaddingException, InternalErrorException {
+            BadPaddingException, InternalErrorException, NoSuchProviderException {
         Secret s;
         
         UserEntity userEntity = getUserEntityDao().load(user.getId());
@@ -175,8 +190,17 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	private byte[] encrypt(Server server, byte[] b)
 			throws NoSuchAlgorithmException, NoSuchPaddingException,
 			InvalidKeyException, IllegalBlockSizeException,
-			BadPaddingException, IOException {
-		Cipher c = Cipher.getInstance("RSA/NONE/PKCS1Padding");
+			BadPaddingException, IOException, NoSuchProviderException {
+		int bits = 0;
+		PublicKey pk = server.getPublicKey();
+		if (pk instanceof RSAPublicKey) 
+			bits = ((RSAPublicKey) pk).getModulus().bitLength();
+
+		Cipher c;
+		if (bits > 2048)
+			c = Cipher.getInstance("RSA/None/OAEPWithSHA256AndMGF1Padding", "BC");
+		else
+			c = Cipher.getInstance("RSA/NONE/PKCS1Padding");
 		c.init(Cipher.ENCRYPT_MODE, server.getPublicKey());
 		int bs = c.getBlockSize();
 		ByteArrayOutputStream bout = new ByteArrayOutputStream();
@@ -190,7 +214,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 
     @Override
     protected void handleReencode(User user) throws Exception {
-        storeSecrets(user, getSecrets(user));
+         storeSecrets(user, getSecrets(user));
     }
 
     private byte[] encode(List<Secret> secrets) throws IOException, NoSuchAlgorithmException,
