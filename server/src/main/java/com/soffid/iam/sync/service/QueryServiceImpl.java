@@ -178,7 +178,7 @@ public class QueryServiceImpl extends QueryServiceBase {
                         + "WHERE XAR_ID=MAQ_IDXAR AND MAL_MAQID=MAQ_ID AND MAQ_NOM=? AND MAQ_TEN_ID=? ");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
-            } else if (v.elementAt(0).equals("host") // ÀLIES del host
+            } else if (v.elementAt(0).equals("host") // Cerca de hosts per attribute
                     && v.size() == 3 && v.elementAt(1).equals("attribute")) {
                 stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC \n"
                 		+ "FROM SC_MAQUIN, SC_XARXES, SC_TIPDAD, SC_HOSATT \n"
@@ -187,16 +187,6 @@ public class QueryServiceImpl extends QueryServiceBase {
                 		+ "HAT_MAQ_ID=MAQ_ID ");
                 stmt.setLong  (1, Security.getCurrentTenantId());
                 stmt.setString(2, (String) v.elementAt(2));
-            } else if (v.elementAt(0).equals("host") // IPs del host
-                    && v.size() == 3) {
-                stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC \n"
-                		+ "FROM SC_MAQUIN, SC_XARXES, SC_TIPDAD, SC_HOSATT \n"
-                		+ "WHERE XAR_ID=MAQ_IDXAR AND MAQ_NOM=? AND MAQ_TEN_ID=?\n"
-                		+ "AND TDA_CODI=? AND TDA_ID=HAT_TDA_ID AND \n"
-                		+ "HAT_MAQ_ID=MAQ_ID ");
-                stmt.setString(1, (String) v.elementAt(1));
-                stmt.setLong  (2, Security.getCurrentTenantId());
-                stmt.setString(3, (String) v.elementAt(2));
             } else if (v.elementAt(0).equals("host") && v.size() == 3
                     && v.elementAt(2).equals("printers")) {
                 stmt = conn
@@ -229,6 +219,16 @@ public class QueryServiceImpl extends QueryServiceBase {
                         + "FROM SC_MAQUIN, SC_XARXES, SC_MAQUINALIAS "
                         + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_ADRIP IS NOT NULL AND MAQ_ID=MAL_MAQID AND MAQ_TEN_ID=?");
                 stmt.setLong(1, Security.getCurrentTenantId());
+            } else if (v.elementAt(0).equals("host") // IPs del host
+            		&& v.size() == 3) {
+            	stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC, HAT_VALOR \n"
+            			+ "FROM SC_MAQUIN, SC_XARXES, SC_TIPDAD, SC_HOSATT \n"
+            			+ "WHERE XAR_ID=MAQ_IDXAR AND MAQ_NOM=? AND MAQ_TEN_ID=?\n"
+            			+ "AND TDA_CODI=? AND TDA_ID=HAT_TDA_ID AND \n"
+            			+ "HAT_MAQ_ID=MAQ_ID ");
+            	stmt.setString(1, (String) v.elementAt(1));
+            	stmt.setLong  (2, Security.getCurrentTenantId());
+            	stmt.setString(3, (String) v.elementAt(2));
             } else if (v.elementAt(0).equals("maildomains") && v.size() == 1) {
                 stmt = conn.prepareStatement("SELECT DCO_CODI, DCO_DESCRI FROM SC_DOMCOR WHERE DCO_TEN_ID=? ");
                 stmt.setLong(1, Security.getCurrentTenantId());
@@ -405,10 +405,10 @@ public class QueryServiceImpl extends QueryServiceBase {
                 }
             }
             writer.write(s.toString());
-            if (xml)
-                writer.write("</data>");
-            writer.flush();
         }
+        if (xml)
+        	writer.write("</data>");
+        writer.flush();
     }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
