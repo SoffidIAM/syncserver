@@ -408,7 +408,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	public boolean isBroadcastTask(TaskHandler t) {
-		return rolesBroadcast && t.getTask().equals(TaskHandler.UPDATE_ROLE);
+		return rolesBroadcast && t.getTask().getTransaction().equals(TaskHandler.UPDATE_ROLE);
 	}
 
 	private boolean isTrusted() {
