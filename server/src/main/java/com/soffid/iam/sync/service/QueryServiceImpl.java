@@ -20,6 +20,7 @@ import org.hibernate.SessionFactory;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.model.CustomDialect;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.jetty.Invoker;
@@ -35,10 +36,11 @@ public class QueryServiceImpl extends QueryServiceBase {
         SessionFactory sf = (SessionFactory) ServerServiceLocator.instance().getService(
                 "sessionFactory");
         Session sessio = sf.getCurrentSession();
-
+        
         Connection conn = ConnectionPool.getPool().getPoolConnection();
         PreparedStatement stmt = null;
         try {
+        	String AS = isOracle() ? "": "AS";
             java.util.Vector<String> v = new Vector<String>(4);
             java.util.StringTokenizer st = new java.util.StringTokenizer(path, "/");
             while (st.hasMoreElements()) {
@@ -50,9 +52,9 @@ public class QueryServiceImpl extends QueryServiceBase {
                                 + "M1.MAQ_NOM MAQUSU_NOM, M2.MAQ_NOM MAQCOR_NOM, M3.MAQ_NOM MAQPRO_NOM, USU_ACTIU "
                                 + "FROM SC_GRUPS, SC_USUARI "
                                 + "LEFT OUTER JOIN SC_DOMCOR ON DCO_ID=USU_IDDCO "
-                                + "LEFT OUTER JOIN SC_MAQUIN AS M1 ON USU_IDMAQ = M1.MAQ_ID "
-                                + "LEFT OUTER JOIN SC_MAQUIN AS M2 ON USU_IDMACO = M2.MAQ_ID "
-                                + "LEFT OUTER JOIN SC_MAQUIN AS M3 ON  USU_IDMAPR=M3.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN "+AS+" M1 ON USU_IDMAQ = M1.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN "+AS+" M2 ON USU_IDMACO = M2.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN "+AS+" M3 ON  USU_IDMAPR=M3.MAQ_ID "
                                 + "WHERE USU_IDGRU = GRU_ID AND USU_CODI = ? AND USU_TEN_ID = ?");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
@@ -62,9 +64,9 @@ public class QueryServiceImpl extends QueryServiceBase {
                                 + "M1.MAQ_NOM MAQUSU_NOM, M2.MAQ_NOM MAQCOR_NOM, M3.MAQ_NOM MAQPRO_NOM, USU_ACTIU "
                                 + "FROM SC_GRUPS, SC_USUARI "
                                 + "LEFT OUTER JOIN SC_DOMCOR ON DCO_ID=USU_IDDCO "
-                                + "LEFT OUTER JOIN SC_MAQUIN AS M1 ON USU_IDMAQ = M1.MAQ_ID "
-                                + "LEFT OUTER JOIN SC_MAQUIN AS M2 ON USU_IDMACO = M2.MAQ_ID "
-                                + "LEFT OUTER JOIN SC_MAQUIN AS M3 ON  USU_IDMAPR=M3.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN "+AS+" M1 ON USU_IDMAQ = M1.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN "+AS+" M2 ON USU_IDMACO = M2.MAQ_ID "
+                                + "LEFT OUTER JOIN SC_MAQUIN "+AS+" M3 ON  USU_IDMAPR=M3.MAQ_ID "
                                 + "WHERE USU_IDGRU = GRU_ID AND USU_CODI = ? AND USU_TEN_ID=?");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
@@ -355,7 +357,13 @@ public class QueryServiceImpl extends QueryServiceBase {
         }
     }
 
-    public final void processStatement(final PreparedStatement stmt, final Writer writer,
+    Boolean oracle = null;
+    private boolean isOracle() {
+    	return CustomDialect.isOracle();
+
+	}
+
+	public final void processStatement(final PreparedStatement stmt, final Writer writer,
             String format) throws SQLException, InternalErrorException, IOException {
         boolean xml = "text/xml".equals(format);
         @SuppressWarnings("unchecked")
