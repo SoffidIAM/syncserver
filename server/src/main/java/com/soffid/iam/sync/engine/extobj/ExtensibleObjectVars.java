@@ -56,7 +56,8 @@ public class ExtensibleObjectVars implements Map<String,Object>
 			return true;
 		if ("dispatcherService".equals(key))
 			return true;
-		return object.containsKey(key);
+		return true;
+//		return object.containsKey(key);
 	}
 
 	@Override
