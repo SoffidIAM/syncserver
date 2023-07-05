@@ -1027,7 +1027,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	private void updateExtensibleObject(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
 		if (agent instanceof ExtensibleObjectMgr && t.getTask().getCustomObjectType() != null) {
-			ExtensibleObjectRegister r = additionalDataService.findExtensibleObjectRegister(t.getTask().getCustomObjectName());
+			ExtensibleObjectRegister r = additionalDataService.findExtensibleObjectRegister(t.getTask().getCustomObjectType());
 			if (r == null) {
 				throw new InternalErrorException("Cannot find handler for object class "+t.getTask().getCustomObjectType());
 			}
@@ -1036,12 +1036,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				if (mapping.getSoffidObject() == SoffidObjectType.OBJECT_CUSTOM &&
 						t.getTask().getCustomObjectType().equals(mapping.getSoffidCustomObject())) {
 					ExtensibleObject eo;
-					try {
+					try {	
 						eo = (ExtensibleObject) Class
 								.forName(r.getClassName())
 								.getConstructor(Long.class, String.class)
 								.newInstance(t.getTask().getPrimaryKeyValue(),
 										t.getTask().getCustomObjectName());
+						eo.setObjectType(mapping.getSoffidCustomObject());
 					} catch (Exception e) {
 						throw new InternalErrorException("Error creatinge extensible object", e);
 					}
