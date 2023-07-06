@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.engine;
 
+import java.lang.reflect.Method;
 import java.rmi.RemoteException;
 import java.security.cert.X509Certificate;
 import java.sql.SQLException;
@@ -83,6 +84,7 @@ import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource;
 import es.caib.seycon.ng.sync.intf.AuthoritativeIdentitySource2;
 import es.caib.seycon.ng.sync.intf.ExtensibleObjectMapping;
 import es.caib.seycon.ng.sync.intf.UserMgr;
+import oracle.net.aso.m;
 
 public class InterfaceWrapper {
 	
@@ -978,17 +980,25 @@ public class InterfaceWrapper {
 				}
 
 				public ExtensibleObject getNativeObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
-					es.caib.seycon.ng.sync.intf.ExtensibleObject o = es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject( agent.getNativeObject(
+					Class<?> cl = agent.getClass();
+					while (cl != null) {
+						java.lang.System.out.println(cl.getName());
+						for (Method m: cl.getMethods()) {
+							java.lang.System.out.println(m.toString());
+						}
+						cl = cl.getSuperclass();
+					}
+					ExtensibleObject o = es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject( agent.getNativeObject(
 							es.caib.seycon.ng.comu.SoffidObjectType.fromString(type.getValue()), 
 							object1, object2));
-					return ExtensibleObject.toExtensibleObject(o);
+					return o;
 				}
 
 				public ExtensibleObject getSoffidObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
-					es.caib.seycon.ng.sync.intf.ExtensibleObject o = es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject( agent.getSoffidObject(
+					ExtensibleObject o = es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject( agent.getSoffidObject(
 							es.caib.seycon.ng.comu.SoffidObjectType.fromString(type.getValue()), 
 							object1, object2));
-					return ExtensibleObject.toExtensibleObject(o);
+					return o;
 				}
 
 				public Collection<Map<String, Object>> invoke(String verb, String command, Map<String, Object> params)

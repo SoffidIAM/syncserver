@@ -38,6 +38,7 @@ import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Host;
+import com.soffid.iam.api.Issue;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Network;
 import com.soffid.iam.api.Password;
@@ -2393,6 +2394,11 @@ public class ServerServiceImpl extends ServerServiceBase {
 			getDispatcherService().addCertificate(getServerEntityDao().toServer(server), cert);
 		}
 	}
+	
+	protected Issue handleRegisterIssue(Issue e) throws Exception {
+		return getIssueService().createInternalIssue(e);
+	}
+
 
 }
 
