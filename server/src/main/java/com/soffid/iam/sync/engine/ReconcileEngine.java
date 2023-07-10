@@ -29,6 +29,7 @@ import com.soffid.iam.api.DomainValue;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.HostService;
+import com.soffid.iam.api.Issue;
 import com.soffid.iam.api.PasswordPolicy;
 import com.soffid.iam.api.ReconcileTrigger;
 import com.soffid.iam.api.Role;
@@ -650,6 +651,12 @@ public abstract class ReconcileEngine
 			SoffidStackTrace.printStackTrace(e, log);
 		}
 		
+		Issue i = new Issue();
+		i.setAccount(acc.getName()+"@"+acc.getDescription());
+		i.setSystem(acc.getSystem());
+		i.setType("account-granted");
+		ServiceLocator.instance().getIssueService().createInternalIssue(i);
+
 		if (ok)
 			reconcileRoles (acc);
 
@@ -951,6 +958,11 @@ public abstract class ReconcileEngine
 					log.append (" [").append (grant.getDomainValue()).append("]");
 				log.append (" from ").append(acc.getName()).append('\n');
 				appService.delete(ra);
+				if (!postDeleteGrant.isEmpty())
+				{
+					GrantExtensibleObject eo = new GrantExtensibleObject(grant, serverService);
+					executeTriggers(postDeleteGrant, eo, null);
+				}
 			}
 		} catch (Exception e) {
 			errors ++;
@@ -1008,6 +1020,11 @@ public abstract class ReconcileEngine
 						log.append (" to ").append(acc.getName()).append('\n');
 						grant (acc, existingGrant, role2);
 						grants.add(existingGrant);
+						if (!postInsertGrant.isEmpty())
+						{
+							GrantExtensibleObject eo = new GrantExtensibleObject(existingGrant, serverService);
+							executeTriggers(postInsertGrant, null, eo);
+						}
 					}
 				} else {
 					log.print("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());
@@ -1119,7 +1136,15 @@ public abstract class ReconcileEngine
 		ra.getDomainValue().setValue(grant.getDomainValue());
 		ra.getDomainValue().setExternalCodeDomain(grant.getDomainValue());
 		
-		return appService.create(ra);
+		ra = appService.create(ra);
+		Issue i = new Issue();
+		i.setAccount(acc.getName()+"@"+acc.getDescription());
+		i.setRoleAccount(ra);
+		i.setSystem(acc.getSystem());
+		i.setType("permissions-granted");
+		ServiceLocator.instance().getIssueService().createInternalIssue(i);
+
+		return ra;
 	}
 
 	/**

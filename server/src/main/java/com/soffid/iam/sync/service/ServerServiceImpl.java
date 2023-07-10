@@ -2400,6 +2400,11 @@ public class ServerServiceImpl extends ServerServiceBase {
 	}
 
 
+	@Override
+	protected Issue handleRegisterIssue(Issue e) throws Exception {
+		return getIssueService().createInternalIssue(e);
+	}
+
 }
 
 class TriggerCache {
