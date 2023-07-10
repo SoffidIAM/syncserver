@@ -19,6 +19,7 @@ import com.soffid.iam.api.Group;
 import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.HostService;
+import com.soffid.iam.api.Issue;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Network;
 import com.soffid.iam.api.PasswordDomain;
@@ -940,6 +941,10 @@ public class InterfaceWrapper {
 				@Override
 				public void addCertificate(X509Certificate cert) throws InternalErrorException {
 					agent.addCertificate(cert);
+				}
+				@Override
+				public Issue registerIssue(Issue e) throws InternalErrorException {
+					return agent.registerIssue(e);
 				}
 			};
 	}
