@@ -18,6 +18,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 
+import com.soffid.iam.api.Issue;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.ScheduledTaskHandler;
 import com.soffid.iam.config.Config;
@@ -150,6 +151,18 @@ public class TaskScheduler
 									SoffidStackTrace.printStackTrace(e, actualOut);
 								}
 								log.info("Finished task " + task.getName()+" with error:", e);
+								if (e instanceof Exception) {
+									Issue i = new Issue();
+									i.setType("failed-job");
+									i.setHash(task.getId().toString());
+									i.setJobName(task.getName());
+									i.setException(SoffidStackTrace.generateShortDescription((Exception)e));
+									try {
+										ServiceLocator.instance().getIssueService().createInternalIssue(i);
+									} catch (InternalErrorException e1) {
+										log.warn("Error recording issue", e1);
+									}
+								}
 							}
 						} finally {
 							if (!ignore) {

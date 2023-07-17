@@ -985,14 +985,6 @@ public class InterfaceWrapper {
 				}
 
 				public ExtensibleObject getNativeObject(SoffidObjectType type, String object1, String object2) throws RemoteException, InternalErrorException {
-					Class<?> cl = agent.getClass();
-					while (cl != null) {
-						java.lang.System.out.println(cl.getName());
-						for (Method m: cl.getMethods()) {
-							java.lang.System.out.println(m.toString());
-						}
-						cl = cl.getSuperclass();
-					}
 					ExtensibleObject o = es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject( agent.getNativeObject(
 							es.caib.seycon.ng.comu.SoffidObjectType.fromString(type.getValue()), 
 							object1, object2));

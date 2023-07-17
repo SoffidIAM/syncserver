@@ -5,6 +5,7 @@ import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Audit;
 import com.soffid.iam.api.Challenge;
 import com.soffid.iam.api.Host;
+import com.soffid.iam.api.Issue;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordStatus;
 import com.soffid.iam.api.PasswordValidation;

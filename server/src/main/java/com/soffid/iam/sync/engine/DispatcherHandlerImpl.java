@@ -3,9 +3,11 @@ package com.soffid.iam.sync.engine;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.InvocationTargetException;
+import java.nio.charset.StandardCharsets;
 import java.rmi.NotBoundException;
 import java.rmi.RemoteException;
 import java.security.InvalidKeyException;
+import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.security.SignatureException;
 import java.sql.SQLException;
@@ -34,6 +36,7 @@ import com.soffid.iam.api.ExtensibleObjectRegister;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.HostService;
+import com.soffid.iam.api.Issue;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.PagedResult;
 import com.soffid.iam.api.Password;
@@ -67,6 +70,7 @@ import com.soffid.iam.service.AccountService;
 import com.soffid.iam.service.AdditionalDataService;
 import com.soffid.iam.service.CrudRegistryService;
 import com.soffid.iam.service.InternalPasswordService;
+import com.soffid.iam.service.IssueService;
 import com.soffid.iam.service.UserDomainService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.AgentInterface;
@@ -119,6 +123,7 @@ import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 import es.caib.seycon.ng.sync.intf.AgentMirror;
+import es.caib.seycon.util.Base64;
 
 public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable {
     private static JbpmConfiguration jbpmConfig;
@@ -722,14 +727,32 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		        if (e instanceof Exception)
 		        	connectException = (Exception) e;
 		        else
-		        	connectException = new InternalErrorException("Unexepcted error", e);
+		        	connectException = new InternalErrorException("Unexpected error", e);
 		        log.warn("Error connecting {}: {} ", getSystem().getName(), e.toString());
+		        generateIssue(e);
 		    }
 		}
 
         boolean ok = true;
         setStatus("Getting Task");
 
+	}
+
+	HashSet<String> errorHashes = new HashSet<>();
+	
+	private void generateIssue(Throwable t) throws InternalErrorException {
+		final IssueService issueService = ServiceLocator.instance().getIssueService();
+		if (issueService
+				.findIssuesByJsonQuery("system eq '"+
+						getSystem().getName().replace("\\", "\\\\").replace("\"", "\\\"").replace("\'", "\\\'")
+						+"' and type eq 'disconnected-system' and (status eq 'N' or status eq 'A')", null, 1)
+				.getResources().isEmpty()) {
+			Issue issue = new Issue();
+			issue.setException(SoffidStackTrace.generateEndUserDescription((Exception) t));
+			issue.setSystem(system.getName());
+			issue.setType("disconnected-system");
+			issueService.createInternalIssue(issue);
+		}
 	}
 
 	private void closeAgent(Object agent) {

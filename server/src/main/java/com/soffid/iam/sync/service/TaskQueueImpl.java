@@ -8,6 +8,7 @@ import java.io.PrintWriter;
 import java.io.UnsupportedEncodingException;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.Timestamp;
@@ -17,12 +18,16 @@ import java.util.Collection;
 import java.util.ConcurrentModificationException;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+
+import javax.ejb.EJBException;
+
 import java.util.Set;
 
 import org.mortbay.log.Log;
@@ -35,7 +40,9 @@ import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.Issue;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordValidation;
 import com.soffid.iam.api.Task;
@@ -58,6 +65,7 @@ import com.soffid.iam.model.UserEntity;
 import com.soffid.iam.model.UserEntityDao;
 import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.service.InternalPasswordService;
+import com.soffid.iam.service.IssueService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
@@ -72,6 +80,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
 import es.caib.seycon.ng.exception.UnknownGroupException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
+import es.caib.seycon.util.Base64;
 
 public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAware
 {
@@ -1055,6 +1064,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
+	
 	@Override
 	protected void handleNotifyTaskStatus (TaskHandler task,
 					DispatcherHandler taskDispatcher, boolean bOK, String sReason,
@@ -1078,7 +1088,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			task.getLogs().add(null);
 		}
-
+		
 		// Actualitzar el tasklog
 		TaskHandlerLog thl = task.getLogs().get(taskDispatcher.getInternalId());
 		if (thl == null)
@@ -1104,7 +1114,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		thl.setStackTrace(dumpStrackTrace(t));
 		thl.setNumber(thl.getNumber() + 1);
 		thl.setLast(now);
-		
+		if (!bOK && t != null) {
+			registerException(taskDispatcher.getSystem(), t);
+		}
 		long elapsed;
 		if (thl.getFirst() > 0)
 			elapsed = thl.getLast() - thl.getFirst();
@@ -1227,6 +1239,61 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			pushTaskToPersist(task);
 		}
 	}
+
+	HashSet<String> errorHashes = new HashSet<>();
+	
+	private void registerException(com.soffid.iam.api.System system, Throwable t) throws InternalErrorException, NoSuchAlgorithmException {
+		Throwable cause = t;
+		do {
+			cause = getCause(t);
+			if (cause != null) t = cause;
+			else break;
+		} while (true);
+		if (t instanceof Exception) {
+			StackTraceElement[] stack = t.getStackTrace();
+			if (stack != null && stack.length > 0) {
+				int i = 0;
+				while (i < stack.length - 1 && stack[i].getLineNumber() < 0)
+					i++;
+				String line = Security.getCurrentTenantName()+"\\"+system.getName()
+					+ " "
+					+ stack[i].getClassName()+" "
+					+ stack[i].getFileName() + ":"
+					+ stack[i].getLineNumber();
+				final MessageDigest digestInstance = MessageDigest.getInstance("SHA-1");
+				final byte[] binaryHash = digestInstance.digest(line.getBytes(StandardCharsets.UTF_8));
+				String hash = Base64.encodeBytes(binaryHash);
+				if (!errorHashes.contains(hash) ) {
+					errorHashes.add(hash);
+					final IssueService issueService = ServiceLocator.instance().getIssueService();
+					if (issueService
+							.findIssuesByJsonQuery("hash eq '"+hash+"' and type eq 'integration-errors'", null, 1).getResources().isEmpty()) {
+						Issue issue = new Issue();
+						issue.setException(SoffidStackTrace.generateEndUserDescription((Exception) t));
+						issue.setSystem(system.getName());
+						issue.setType("integration-errors");
+						issueService.createInternalIssue(issue);
+					}
+				}
+			}
+		}
+	}
+
+    private Throwable getCause( Throwable th)
+    {
+    	Throwable cause = null;
+    	if (th instanceof EJBException)
+    	{
+    		cause = ((EJBException) th).getCausedByException();
+    	}
+    	if (cause == null)
+    		cause = th.getCause();
+    	if (cause == th)
+    		return null;
+    	else
+    		return cause;
+    }
+
 
 	private static final String STACK_TRACE_FILTER = "es.caib.seycon";
 
