@@ -1263,18 +1263,13 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				final MessageDigest digestInstance = MessageDigest.getInstance("SHA-1");
 				final byte[] binaryHash = digestInstance.digest(line.getBytes(StandardCharsets.UTF_8));
 				String hash = Base64.encodeBytes(binaryHash);
-				if (!errorHashes.contains(hash) ) {
-					errorHashes.add(hash);
-					final IssueService issueService = ServiceLocator.instance().getIssueService();
-					if (issueService
-							.findIssuesByJsonQuery("hash eq '"+hash+"' and type eq 'integration-errors'", null, 1).getResources().isEmpty()) {
-						Issue issue = new Issue();
-						issue.setException(SoffidStackTrace.generateEndUserDescription((Exception) t));
-						issue.setSystem(system.getName());
-						issue.setType("integration-errors");
-						issueService.createInternalIssue(issue);
-					}
-				}
+				final IssueService issueService = ServiceLocator.instance().getIssueService();
+				Issue issue = new Issue();
+				issue.setException(SoffidStackTrace.generateEndUserDescription((Exception) t));
+				issue.setSystem(system.getName());
+				issue.setType("integration-errors");
+				issue.setHash(hash);
+				issueService.createInternalIssue(issue);
 			}
 		}
 	}

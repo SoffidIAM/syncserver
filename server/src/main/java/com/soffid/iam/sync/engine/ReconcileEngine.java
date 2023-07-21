@@ -651,15 +651,15 @@ public abstract class ReconcileEngine
 			SoffidStackTrace.printStackTrace(e, log);
 		}
 		
-		Issue i = new Issue();
-		i.setAccount(acc.getName()+"@"+acc.getDescription());
-		i.setSystem(acc.getSystem());
-		i.setType("account-granted");
-		ServiceLocator.instance().getIssueService().createInternalIssue(i);
+		if (ok) {
+			Issue i = new Issue();
+			i.setAccount(acc.getName()+"@"+acc.getDescription());
+			i.setSystem(acc.getSystem());
+			i.setType("account-granted");
+			ServiceLocator.instance().getIssueService().createInternalIssue(i);
 
-		if (ok)
 			reconcileRoles (acc);
-
+		}
 	}
 
 	private List<ReconcileTrigger> findTriggers (SoffidObjectType type, SoffidObjectTrigger trigger)
