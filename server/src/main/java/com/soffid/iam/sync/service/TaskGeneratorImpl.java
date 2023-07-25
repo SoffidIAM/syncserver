@@ -136,6 +136,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         		tasks = new LinkedList<>();
         }
         else if (firstRun) {
+        	log.info("First run since "+lastId+" for "+config.getHostName());
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
@@ -147,6 +148,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             				new Parameter("true", true),
             				new Parameter("lastId", lastId)});
         } else if (handleIsMainServer()) {
+        	log.info("Main server for "+config.getHostName());
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
@@ -160,6 +162,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             				new Parameter("true", true)},
             		csc);
         } else {
+        	log.info("Secondary server for "+config.getHostName());
             tasks = getTaskEntityDao().query("select distinct tasca "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "

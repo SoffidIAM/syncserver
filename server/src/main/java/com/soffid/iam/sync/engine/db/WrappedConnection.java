@@ -293,8 +293,31 @@ public class WrappedConnection implements Connection {
         return wrappedConnection.createSQLXML();
     }
 
+    Boolean valid = null;
     public boolean isValid(int timeout) throws SQLException {
-        return wrappedConnection.isValid(timeout);
+    	Object o  = new Object();
+    	if (wrappedConnection.getMetaData().getDatabaseProductName().toLowerCase().contains("oracle")) {
+    		valid = null;
+    		synchronized (o) {
+    			new Thread ( () -> {
+    				try {
+    					valid = wrappedConnection.isValid(timeout);
+    				} catch (SQLException e) {
+    					valid = false;
+    				}
+    				synchronized (o) {
+    					o.notifyAll();
+    				}
+    			}).start();
+    			try {
+    				o.wait(timeout);
+    			} catch (InterruptedException e) {
+    			}
+    			return Boolean.TRUE.equals(valid);
+    		}
+    	} else {
+    		return wrappedConnection.isValid(timeout);
+    	}
     }
 
     public void setClientInfo(String name, String value)
