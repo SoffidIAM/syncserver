@@ -439,7 +439,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	public boolean isBroadcastTask(TaskHandler t) {
-		return rolesBroadcast && t.getTask().equals(TaskHandler.UPDATE_ROLE);
+		return rolesBroadcast && t.getTask().getTransaction().equals(TaskHandler.UPDATE_ROLE);
 	}
 
 	private boolean isTrusted() {
@@ -2995,6 +2995,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			dispatcherStatus = DispatcherStatus.WAIT;
 			break;
 		}
+		setStatus("Waiting for shared thread");
 		return done;
 	}
 	
@@ -3168,6 +3169,10 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	
 	public String getMirroredAgent() {
 		return mirroredAgent == null ? getSystem().getName(): mirroredAgent;
+	}
+
+	public String getStatus() {
+		return status;
 	}
 
 }

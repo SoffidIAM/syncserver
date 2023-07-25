@@ -163,7 +163,7 @@ public abstract class AbstractPool<S> implements Runnable {
 		stop  = true;
 	}
 
-	public synchronized S getConnection () throws Exception
+	public S getConnection () throws Exception
 	{
 		PoolElement<S> c = current.get();
 		if (c != null && c.getBoundThread() == Thread.currentThread() && c.getLocks() > 0)
@@ -173,9 +173,14 @@ public abstract class AbstractPool<S> implements Runnable {
 		}
 			
 		PoolElement<S> element = null;
-		while (!freeList.isEmpty())
-		{
-			PoolElement<S> e = freeList.pop();
+		
+		while (true) {
+			PoolElement<S> e = null;
+			synchronized (this) {
+				if (!freeList.isEmpty())
+					e = freeList.pop();
+			}
+			if (e == null) break;
 			try {
 				if ( isConnectionValid(e.getObject()))
 				{
@@ -190,8 +195,11 @@ public abstract class AbstractPool<S> implements Runnable {
 		}
 		if (element == null)
 		{
-			if (currentSize >= maxSize)
-				throw new Exception ("Cannot allocate connection. Reached limit: "+maxSize);
+			synchronized(this) {
+				if (currentSize >= maxSize)
+					throw new Exception ("Cannot allocate connection. Reached limit: "+maxSize);
+				currentSize ++;
+			}
 			// Raise privileges to create connections during scripts evaluation
 			Object e = java.security.AccessController.doPrivileged(new java.security.PrivilegedAction<Object>() {
 				public Object run() {
@@ -202,22 +210,24 @@ public abstract class AbstractPool<S> implements Runnable {
 						return e;
 					}
 				}});
-			if (e != null && e instanceof Exception)
+			if (e != null && e instanceof Exception) {
+				synchronized(this) {currentSize --;}
 				throw (Exception) e;
+			}
 			else
 				element = (PoolElement<S>) e;
 			element.setCreation(System.currentTimeMillis());
-			currentSize ++;
 		}
 
 		element.setBoundThread(Thread.currentThread());
 		element.setLastUse(System.currentTimeMillis());
 		element.setStackTrace(Thread.currentThread().getStackTrace());
 		element.setLocks(1);
-		
-		inUse.add(element);
-		current.set(element);
-		
+
+		synchronized(this) {
+			inUse.add(element);
+			current.set(element);
+		}
 		return element.getObject();
 	}
 

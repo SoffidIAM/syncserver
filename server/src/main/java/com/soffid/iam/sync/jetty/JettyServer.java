@@ -53,6 +53,7 @@ import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.sync.web.admin.DiagnosticServlet;
 import com.soffid.iam.sync.web.admin.GatewayDiagnosticServlet;
 import com.soffid.iam.sync.web.admin.PlainLogServlet;
+import com.soffid.iam.sync.web.admin.ProfileServlet;
 import com.soffid.iam.sync.web.admin.QueryServlet;
 import com.soffid.iam.sync.web.admin.ResetServlet;
 import com.soffid.iam.sync.web.admin.StatusServlet;
@@ -587,6 +588,7 @@ public class JettyServer implements PublisherInterface
     public void bindDiagnostics() {
         bindAdministrationServlet("/diag", null, DiagnosticServlet.class);
         bindAdministrationServlet("/log", null, PlainLogServlet.class);
+        bindAdministrationServlet("/profile", null, ProfileServlet.class);
     }
 
 

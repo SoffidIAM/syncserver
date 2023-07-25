@@ -88,12 +88,12 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	/**
 	 * Priorized tasks for any tenant
 	 */
-	Hashtable<Long,PrioritiesList> globalTaskList;
+	public static Hashtable<Long,PrioritiesList> globalTaskList;
 	/**
 	 * Current tasks for any tenant, indexed by task hash.
 	 * It's used to detect duplicated tasks
 	 */
-	Map<Long, Hashtable<String, TaskHandler>> globalCurrentTasks;
+	public static Map<Long, Hashtable<String, TaskHandler>> globalCurrentTasks;
 
 	String hostname;
 	private final Logger log = Log.getLogger("TaskQueue");
@@ -169,6 +169,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	private void addTask(TaskHandler newTask, TaskEntity entity)
 			throws Exception {
+		log.info("Add task {}", newTask.toString(), null);
 		TaskGenerator tg = getTaskGenerator();
 		if (entity == null ||
 			newTask.getTask().getServer() == null && !tg.isEnabled() ||
@@ -713,7 +714,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
 		
-		if (task != null && 				task.getServer() != null && 
+		if (task != null && task.getServer() != null && 
 				(!task.getServer().equals(hostname)) ||
             	 task.getServer().equals(hostname) && instanceName != null && !instanceName.equals(task.getServerInstance()))
         {
@@ -764,7 +765,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	@Override
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
     protected TaskHandler handleAddTask(TaskEntity newTask) throws Exception {
-		
 		if (newTask.getId() == null)
 		{
 			newTask.setServer(hostname);
@@ -1824,12 +1824,4 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			getServerInstanceEntityDao().update(si);
 		}
 	}
-}
-
-class TasksQueue extends LinkedList<TaskHandler> {
-	
-}
-
-class PrioritiesList extends ArrayList<TasksQueue>{
-	boolean debug;
 }
