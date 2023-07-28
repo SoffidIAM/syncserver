@@ -1589,8 +1589,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (thl.getLast() == 0) return; // Still not done task
 				
 			if (thl.isComplete() && getTaskGenerator().getDispatchers().size() > 500 &&
-					thl.getLast() < System.currentTimeMillis() - 300_000)
-				return; // Do not store succesful logs
+					tasqueEntity.getDate().getTime() > System.currentTimeMillis() - 300_000)
+				return; // Do not store initial successful logs
 			
 			entity = getTaskLogEntityDao().newTaskLogEntity();
 			entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
@@ -1602,8 +1602,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			entity = getTaskLogEntityDao().load(thl.getId().longValue());
 			if (entity == null) {
 				if (thl.isComplete() && getTaskGenerator().getDispatchers().size() > 500 &&
-						thl.getLast() < System.currentTimeMillis() - 300_000)
-					return; // Do not store succesful logs
+						tasqueEntity.getDate().getTime() > System.currentTimeMillis() - 300_000)
+					return; // Do not store initial succesful logs
 				entity = getTaskLogEntityDao().newTaskLogEntity();
 				entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
 				entity.setTask(tasqueEntity);

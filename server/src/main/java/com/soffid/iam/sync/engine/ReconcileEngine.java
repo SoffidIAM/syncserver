@@ -653,9 +653,9 @@ public abstract class ReconcileEngine
 		
 		if (ok) {
 			Issue i = new Issue();
-			i.setAccount(acc.getName()+"@"+acc.getDescription());
+			i.setAccount(acc.getName()+"@"+acc.getSystem());
 			i.setSystem(acc.getSystem());
-			i.setType("account-granted");
+			i.setType("account-created");
 			ServiceLocator.instance().getIssueService().createInternalIssue(i);
 
 			reconcileRoles (acc);

@@ -83,7 +83,7 @@ public class ProfileServlet extends HttpServlet {
 							writer.append("  Task ").append(th.toString()).append("");
 							TaskHandlerLog log = th.getLog(dh.getInternalId());
 							if (log != null)
-								writer.append(" "+log.isComplete()+" "+log.getReason().replace("\n", "\n     "));
+								writer.append(" "+log.isComplete()+" "+(log.getReason() == null? "": log.getReason()).replace("\n", "\n     "));
 							writer.append("\n");
 						}
 					}
