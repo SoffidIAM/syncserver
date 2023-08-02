@@ -49,9 +49,9 @@ public class DeltaChangesManager {
 	static java.text.SimpleDateFormat dateFormat = new SimpleDateFormat("dd-MM-yyyy HH:mm:ss");
 	private Logger log;
 	private boolean checkSystem;
-	private SoffidAgent agent;
+	private DummyAgent agent;
 	
-	public DeltaChangesManager(Logger log2, SoffidAgent agent) {
+	public DeltaChangesManager(Logger log2, DummyAgent agent) {
 		log = log2;
 		this.agent = agent;
 	}
