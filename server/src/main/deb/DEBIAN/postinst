@@ -44,7 +44,7 @@ if [ "$1" = "configure" ] || [ "$1" = "abort-upgrade" ] || [ "$1" = "abort-decon
 	# This will only remove masks created by d-s-h on package removal.
 	systemctl enable 'soffid-iamsync.service' || true 	
 	
-	setcap 'cap_net_bind_service=+ep' $(readlink -f $(which java)) || true
+	setcap 'cap_net_bind_service=+ep' $(readlink -f $(which java)) 2>/dev/null || true
 
 	systemctl start soffid-iamsync || true 
 else

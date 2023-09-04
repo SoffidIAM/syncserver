@@ -426,7 +426,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 		else if (trans.equals(TaskHandler.UPDATE_EXT_OBJECT))
 		{
-			if (implemented(agent, ExtensibleObjectMgr.class)) {
+			if (implemented(agent, ExtensibleObjectMgr.class) ||
+					implemented(agent, es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr.class)) {
 				for (ExtensibleObjectMapping ob: attributeTranslatorV2.getObjects()) {
 					if (ob.getSoffidObject() == SoffidObjectType.OBJECT_CUSTOM &&
 							ob.getSoffidCustomObject() != null &&

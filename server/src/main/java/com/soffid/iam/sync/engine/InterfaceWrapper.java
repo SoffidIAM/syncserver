@@ -1004,15 +1004,17 @@ public class InterfaceWrapper {
 				}
 
 				@Override
-				public void updateExtensibleObject(ExtensibleObject obj)
-						throws RemoteException, InternalErrorException {
-					agent.updateExtensibleObject(  obj);
-				}
-
-				@Override
 				public void removeExtensibleObject(ExtensibleObject obj)
 						throws RemoteException, InternalErrorException {
-					agent.removeExtensibleObject(  obj);
+					agent.removeExtensibleObject(  es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject(obj) );
+				}
+				
+				
+				@Override
+				public void updateExtensibleObject(ExtensibleObject obj)
+						throws RemoteException, InternalErrorException {
+					agent.updateExtensibleObject( 
+							es.caib.seycon.ng.sync.intf.ExtensibleObject.toExtensibleObject(obj));
 				}
 
 			};

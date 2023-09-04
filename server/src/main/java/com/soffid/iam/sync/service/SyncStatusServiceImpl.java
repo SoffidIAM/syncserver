@@ -7,6 +7,7 @@ import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.io.Serializable;
 import java.io.StringWriter;
+import java.lang.reflect.InvocationTargetException;
 import java.security.KeyStore;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import com.soffid.iam.api.Account;
 import com.soffid.iam.api.AgentStatusInfo;
 import com.soffid.iam.api.Configuration;
 import com.soffid.iam.api.CustomObject;
+import com.soffid.iam.api.ExtensibleObjectRegister;
 import com.soffid.iam.api.Group;
 import com.soffid.iam.api.GroupUser;
 import com.soffid.iam.api.MailList;
@@ -80,6 +82,7 @@ import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
 import com.soffid.iam.utils.ConfigurationCache;
 
+import es.caib.seycon.ng.ServiceLocator;
 import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -640,7 +643,7 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	}
 
 	private ExtensibleObject generateSourceObject(String dispatcher, SoffidObjectType type,
-			String object1, String object2) throws InternalErrorException {
+			String object1, String object2) throws InternalErrorException, InstantiationException, IllegalAccessException, IllegalArgumentException, InvocationTargetException, NoSuchMethodException, SecurityException, ClassNotFoundException {
 		ExtensibleObject source = null;
 		if (type.equals(SoffidObjectType.OBJECT_ACCOUNT))
 		{
@@ -788,8 +791,19 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_CUSTOM))
 		{
-			CustomObject co = getServerService().getCustomObject(object1, object2);
-			source = new CustomExtensibleObject(co, getServerService());
+			ExtensibleObjectRegister r = com.soffid.iam.ServiceLocator.instance()
+					.getAdditionalDataService()
+					.findExtensibleObjectRegister(object1);
+			if (r == null) {
+	 			CustomObject co = getServerService().getCustomObject(object1, object2);
+				source = new CustomExtensibleObject(co, getServerService());
+			} else {
+				source = (ExtensibleObject) Class
+						.forName(r.getClassName())
+						.getConstructor(Long.class, String.class)
+						.newInstance(Long.parseLong(object2), object1);
+				source.setObjectType(object1);
+			}
 		} else {
 			source = new ExtensibleObject();
 		}
@@ -870,9 +884,18 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		}
 		else if (type.equals(SoffidObjectType.OBJECT_CUSTOM))
 		{
-			tasca.setTransaction(TaskHandler.UPDATE_OBJECT);
-			tasca.setCustomObjectName(object2);
-			tasca.setCustomObjectType(object1);
+			ExtensibleObjectRegister r = com.soffid.iam.ServiceLocator.instance()
+					.getAdditionalDataService()
+					.findExtensibleObjectRegister(object1);
+			if (r == null) {
+				tasca.setTransaction(TaskHandler.UPDATE_OBJECT);
+				tasca.setCustomObjectName(object2);
+				tasca.setCustomObjectType(object1);
+			} else {
+				tasca.setTransaction(TaskHandler.UPDATE_EXT_OBJECT);
+				tasca.setPrimaryKeyValue(Long.parseLong(object2));
+				tasca.setCustomObjectType(object1);
+			}
 		}
 
 		return th;
