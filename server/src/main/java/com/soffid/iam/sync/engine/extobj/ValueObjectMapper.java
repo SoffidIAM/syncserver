@@ -11,6 +11,7 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.logging.LogFactory;
@@ -390,9 +391,9 @@ public class ValueObjectMapper
 			account.setOwnerUsers(parseList(object, "ownerUsers"));
 			account.setOwnerGroups(parseList(object, "ownerGroups"));
 			account.setOwnerRoles(parseList(object, "ownerRoles"));
-			account.setGrantedUsers(parseList(object, "grantedUsers"));
-			account.setGrantedGroups(parseList(object, "grantedGroups"));
-			account.setGrantedRoles(parseList(object, "grantedRoles"));
+			account.setGrantedUsers(parseStringList(object, "granteeUsers", "grantedUsers"));
+			account.setGrantedGroups(parseStringList(object, "granteeGroups", "grantedGroups"));
+			account.setGrantedRoles(parseStringList(object, "granteeRoles", "grantedRoles"));
 			account.setManagerUsers(parseList(object, "managerUsers"));
 			account.setManagerGroups(parseList(object, "managerGroups"));
 			account.setManagerRoles(parseList(object, "managerRoles"));
@@ -411,6 +412,22 @@ public class ValueObjectMapper
 		return account;
 	}
 
+	private Collection parseStringList(ExtensibleObject object, String tag, String tag2) {
+		Object value = object.get(tag);
+		if (value == null && tag2 != null)
+			value = object.get(tag2);
+		if (value != null && value instanceof Collection) {
+			List l = new LinkedList();
+			for (Object o: (Collection) value) {
+				if (o != null && o instanceof String)
+					l.add(o);
+			}
+			return l;
+		}
+		else
+			return null;
+	}
+
 	private Collection parseList(ExtensibleObject object, String tag) {
 		Object value = object.get(tag);
 		if (value != null && value instanceof Collection)
@@ -418,6 +435,7 @@ public class ValueObjectMapper
 		else
 			return null;
 	}
+
 	public Group parseGroup (ExtensibleObject object) throws InternalErrorException
 	{
 		Group grup = null;

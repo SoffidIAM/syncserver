@@ -529,7 +529,7 @@ public abstract class ReconcileEngine
 			}
 		} catch (Exception e) {
 			errors ++;
-			log.println("Error updating account "+acc2.toString());
+			log.println("Error updating account "+acc.toString());
 			SoffidStackTrace.printStackTrace(e, log);
 		}
 
@@ -652,12 +652,6 @@ public abstract class ReconcileEngine
 		}
 		
 		if (ok) {
-			Issue i = new Issue();
-			i.setAccount(acc.getName()+"@"+acc.getSystem());
-			i.setSystem(acc.getSystem());
-			i.setType("account-created");
-			ServiceLocator.instance().getIssueService().createInternalIssue(i);
-
 			reconcileRoles (acc);
 		}
 	}

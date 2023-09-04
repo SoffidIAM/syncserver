@@ -37,6 +37,7 @@ import com.soffid.iam.api.Group;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.HostService;
 import com.soffid.iam.api.Issue;
+import com.soffid.iam.api.IssueUser;
 import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.PagedResult;
 import com.soffid.iam.api.Password;
@@ -169,6 +170,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	private boolean debugEnabled;
 	private AdditionalDataService additionalDataService;
 	private CrudRegistryService crudRegistryService;
+	private IssueService issueService;
 	
 	public PasswordDomain getPasswordDomain() throws InternalErrorException
 	{
@@ -210,6 +212,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         reconcileService = ServerServiceLocator.instance().getReconcileService();
         additionalDataService = ServerServiceLocator.instance().getAdditionalDataService();
         crudRegistryService = ServerServiceLocator.instance().getCrudRegistryService();
+        issueService = ServiceLocator.instance().getIssueService();
         active = true;
     }
 
@@ -741,7 +744,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	HashSet<String> errorHashes = new HashSet<>();
 	
 	private void generateIssue(Throwable t) throws InternalErrorException {
-		final IssueService issueService = ServiceLocator.instance().getIssueService();
 		if (issueService
 				.findIssuesByJsonQuery("system eq '"+
 						getSystem().getName().replace("\\", "\\\\").replace("\"", "\\\"").replace("\'", "\\\'")
@@ -1049,12 +1051,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	private void updateExtensibleObject(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
-		if (agent instanceof ExtensibleObjectMgr && t.getTask().getCustomObjectType() != null) {
+		ExtensibleObjectMgr mgr = InterfaceWrapper.getExtensibleObjectMgr(agent);
+		if (mgr != null && t.getTask().getCustomObjectType() != null) {
 			ExtensibleObjectRegister r = additionalDataService.findExtensibleObjectRegister(t.getTask().getCustomObjectType());
 			if (r == null) {
 				throw new InternalErrorException("Cannot find handler for object class "+t.getTask().getCustomObjectType());
 			}
-			ExtensibleObjectMgr mgr = (ExtensibleObjectMgr) agent;
 			for (ExtensibleObjectMapping mapping: attributeTranslatorV2.getObjects()) {
 				if (mapping.getSoffidObject() == SoffidObjectType.OBJECT_CUSTOM &&
 						t.getTask().getCustomObjectType().equals(mapping.getSoffidCustomObject())) {
@@ -1667,13 +1669,23 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		            auditoria.setDb(getSystem().getName());
 		            auditoria.setAccount(acc.getName());
 		            auditoriaDao.create(auditoria);
-
+		            
 					internalPasswordService.storePassword(ua.getUser(), getSystem().getPasswordsDomain(), 
 									t.getPassword().getPassword(), false);
 					secretStoreService.putSecret(
 									getTaskUser(t),
 									"dompass/" + getPasswordDomain().getId(), 
 									t.getPassword());
+					
+					Issue i = new Issue();
+					i.setType("password-changed");
+					i.setAccount(acc.getName()+"@"+acc.getDescription());
+					i.setSystem(acc.getSystem());
+					List<IssueUser> users = new LinkedList<>();
+					IssueUser iu = new IssueUser();
+					iu.setUserName(((UserAccount) acc).getUser());
+					i.setUsers(users );
+					issueService.createInternalIssue(i);
 	        	}
 	        	else
 	        	{

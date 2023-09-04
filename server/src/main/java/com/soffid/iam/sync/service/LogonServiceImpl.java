@@ -325,6 +325,7 @@ public class LogonServiceImpl extends LogonServiceBase {
             	if ( !ServiceLocator.instance().getOTPValidationService().validatePin(challenge, challenge.getValue())) {
             		throw new InternalErrorException("Wrong PIN. Logon denied");
             	}
+            	ch.setCardNumber(""); // No OTP is required
             }
 
             Session sessio = null;

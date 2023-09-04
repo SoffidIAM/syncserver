@@ -2,6 +2,7 @@ package com.soffid.iam.sync.engine.cron;
 
 import java.io.PrintWriter;
 import java.net.InetAddress;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
 import java.util.Iterator;
@@ -15,6 +16,8 @@ import com.soffid.iam.api.Account;
 import com.soffid.iam.api.DataType;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.HostPort;
+import com.soffid.iam.api.Issue;
+import com.soffid.iam.api.IssueHost;
 import com.soffid.iam.api.MetadataScope;
 import com.soffid.iam.api.Network;
 import com.soffid.iam.api.PagedResult;
@@ -49,6 +52,7 @@ import es.caib.seycon.ng.comu.TypeEnumeration;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.BadPasswordException;
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.SoffidStackTrace;
 
 public class NetworkDiscovery implements TaskHandler
 {
@@ -153,6 +157,14 @@ public class NetworkDiscovery implements TaskHandler
 			host.setOs(event.getOs() == null  ? "ALT": event.getOs());
 			host = networkService.create(host);
 			out.println("Registered host "+host.getName());
+			Issue issue = new Issue();
+			issue.setType("discovered-host");
+			IssueHost ih = new IssueHost();
+			ih.setHostId(host.getId());
+			ih.setHostName(host.getName());
+			ih.setHostIp(host.getIp());
+			issue.setHosts(Arrays.asList(ih));
+			ServiceLocator.instance().getIssueService().createInternalIssue(issue);
 		}
 		else
 		{
@@ -221,6 +233,17 @@ public class NetworkDiscovery implements TaskHandler
 						registerUser(account, password, system);
 					}
 				}
+
+				Issue issue = new Issue();
+				issue.setType("discovered-system");
+				issue.setSystem(system.getName());
+				IssueHost ih = new IssueHost();
+				ih.setHostId(host.getId());
+				ih.setHostName(host.getName());
+				ih.setHostIp(host.getIp());
+				issue.setHosts(Arrays.asList(ih));
+				ServiceLocator.instance().getIssueService().createInternalIssue(issue);
+
 				return newSystem;
 			} catch (Exception e) {
 				out.println("Failed to probe  "+host.getName()+": "+e.toString());
