@@ -1730,6 +1730,13 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	        			getTaskLogEntityDao().remove(daoEntities);
 	    			}
 	    		}
+			} catch (ConcurrentModificationException e) {
+				log.info("Error persisting task "+newTask.toString()+" while is being processed", null, null);
+	    		newTask.setChanged(true);
+	    		synchronized (tasksToPersist) {
+	    			tasksToPersist.addFirst(newTask);
+				}
+				throw e;
 			} catch (Exception e) {
 				log.warn("Error persisting task "+newTask.toString(), e);
 	    		newTask.setChanged(true);
