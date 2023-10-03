@@ -215,7 +215,7 @@ public class SecretConfigurationServiceImpl extends
             server.setName(config.getHostName());
             server.setPk(publicKey.getEncoded());
             getServerEntityDao().create(server); 
-        } else {
+        } else if (publicKey != null){
             server.setPk(publicKey.getEncoded());
             getServerEntityDao().update(server);
         }
