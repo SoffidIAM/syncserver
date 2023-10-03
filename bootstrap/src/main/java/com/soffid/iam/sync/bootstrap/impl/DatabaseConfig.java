@@ -29,8 +29,12 @@ public class DatabaseConfig {
 	   					File f = new File (Config.getConfig().getHomeDir(), "conf/"+name);
 	   					FileOutputStream out = new FileOutputStream(f);
 						boolean encrypted = false;
+						boolean cbc = false;
 						try {
-							encrypted = "1".equals(rset.getString("ENCRYPTED"));
+							if ("1".equals(rset.getString("ENCRYPTED")))
+								encrypted = true;
+							if ("2".equals(rset.getString("ENCRYPTED")))
+								encrypted = cbc = true;
 						} catch (SQLException ee) { //Column is missing
 							new QueryHelper(conn).execute("ALTER TABLE "+getTableName()+" ADD ENCRYPTED VARCHAR(1)");
 						}
@@ -38,8 +42,8 @@ public class DatabaseConfig {
 						if (in != null) {
 							if (encrypted) {
 								try {
-									in = new DecryptionInputStream(in, System.getenv("DB_CONFIGURATION_CRYPT"));
-								} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+									in = new DecryptionInputStream(in, System.getenv("DB_CONFIGURATION_CRYPT"), cbc);
+								} catch (Exception e) {
 									throw new IOException(e);
 								}
 							}
@@ -136,8 +140,8 @@ public class DatabaseConfig {
 		InputStream r = new FileInputStream(path);
 		if (System.getenv("DB_CONFIGURATION_CRYPT") != null) {
 			try {
-				r = new DecryptionInputStream(r, System.getenv("DB_CONFIGURATION_CRYPT"));
-			} catch (InvalidKeyException | NoSuchAlgorithmException | NoSuchPaddingException e) {
+				r = new EncryptionInputStream(r, System.getenv("DB_CONFIGURATION_CRYPT"));
+			} catch (Exception e) {
 				throw new IOException(e);
 			}
 		}

@@ -4,15 +4,18 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.Key;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.util.Arrays;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.Cipher;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 public class DecryptionInputStream extends InputStream {
@@ -24,17 +27,29 @@ public class DecryptionInputStream extends InputStream {
 	private Cipher cipher;
 	boolean eof = false;
 	
-	public DecryptionInputStream ( InputStream in, String seed) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException {
+	public DecryptionInputStream ( InputStream in, String seed, boolean cbc) throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException, InvalidAlgorithmParameterException {
 		this.in = in;
 		MessageDigest d = MessageDigest.getInstance("SHA-256");
 		byte[] key = d.digest(seed.getBytes(StandardCharsets.UTF_8));
-		Key secretKey = new SecretKeySpec(key, "AES");
-		cipher = Cipher.getInstance("AES");
-        cipher.init(Cipher.DECRYPT_MODE, secretKey);
+		if (cbc) {
+			byte[] k0 = Arrays.copyOfRange(key, 0, 16);
+			byte[] k1 = Arrays.copyOfRange(key, 16, 32);
+			Key secretKey = new SecretKeySpec(k0, "AES");
+			cipher = Cipher.getInstance("AES/CBC/PKCS5PADDING");
+	        cipher.init(getMode(), secretKey, new IvParameterSpec(k1));
+		} else {
+			Key secretKey = new SecretKeySpec(key, "AES");
+			cipher = Cipher.getInstance("AES");
+	        cipher.init(getMode(), secretKey);
+		}
         blockSize = cipher.getBlockSize();
         if (blockSize <= 0) blockSize = 2048;
         buffer = null;
         offset = bufferSize = 0;
+	}
+
+	protected int getMode() {
+		return Cipher.DECRYPT_MODE;
 	}
 
     public void close() throws IOException {
