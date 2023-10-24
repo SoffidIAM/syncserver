@@ -228,9 +228,12 @@ public class KerberosManager {
 		writer.println("[libdefaults]");
 		writer.println("kdc_timeout=3000");
 		writer.println("max_retries=2");
-		writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac aes256-cts-hmac-sha1-96");
-		writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac aes256-cts-hmac-sha1-96");
-		writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc aes256-cts-hmac-sha1-96");
+		writer.println("default_tkt_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac arcfour-hmac aes256-cts-hmac-sha1-96 rc4-hmac-md5");
+		writer.println("default_tgs_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac arcfour-hmac  aes256-cts-hmac-sha1-96 rc4-hmac-md5");
+		writer.println("permitted_enctypes=aes-128-cts aes-128-cts-hmac-sha1-96 rc4-hmac des3-cbc-sha1 des-cbc-md5 des-cbc-crc aes256-cts-hmac-sha1-96 arcfour-hmac rc4-hmac-md5");
+		writer.println("allow_weak_crypto = true");
+		writer.println("allow_rc4 = true");
+		writer.println("default_realm="+defaultRealm);
 		writer.println("default_realm="+defaultRealm);
 		if (new KubernetesConfig().isKubernetes())
 			writer.println("udp_preference_limit=1");
