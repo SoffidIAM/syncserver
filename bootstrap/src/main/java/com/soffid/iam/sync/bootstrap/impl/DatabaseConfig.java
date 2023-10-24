@@ -31,32 +31,36 @@ public class DatabaseConfig {
 						boolean encrypted = false;
 						boolean cbc = false;
 						try {
-							if ("1".equals(rset.getString("ENCRYPTED")))
-								encrypted = true;
-							if ("2".equals(rset.getString("ENCRYPTED")))
-								encrypted = cbc = true;
-						} catch (SQLException ee) { //Column is missing
-							new QueryHelper(conn).execute("ALTER TABLE "+getTableName()+" ADD ENCRYPTED VARCHAR(1)");
-						}
-						InputStream in = rset.getBinaryStream("DATA");
-						if (in != null) {
-							if (encrypted) {
-								try {
-									in = new DecryptionInputStream(in, System.getenv("DB_CONFIGURATION_CRYPT"), cbc);
-								} catch (Exception e) {
-									throw new IOException(e);
+							try {
+								if ("1".equals(rset.getString("ENCRYPTED")))
+									encrypted = true;
+								if ("2".equals(rset.getString("ENCRYPTED")))
+									encrypted = cbc = true;
+							} catch (SQLException ee) { //Column is missing
+								new QueryHelper(conn).execute("ALTER TABLE "+getTableName()+" ADD ENCRYPTED VARCHAR(1)");
+							}
+							InputStream in = rset.getBinaryStream("DATA");
+							if (in != null) {
+								if (encrypted) {
+									try {
+										in = new DecryptionInputStream(in, System.getenv("DB_CONFIGURATION_CRYPT"), cbc);
+									} catch (Exception e) {
+										throw new IOException(e);
+									}
 								}
-							}
-							byte b[] = new byte [2048];
-							int read;
-							for (;;) {
-								read = in.read(b);
-								if (read <= 0)
-									break;
-								out.write (b,0, read);
-							}
+								byte b[] = new byte [2048];
+								int read;
+								for (;;) {
+									read = in.read(b);
+									if (read <= 0)
+										break;
+									out.write (b,0, read);
+								}
+							}	
 							out.close();
-						}	
+						} catch (IOException e) {
+							throw new IOException("Error reading "+name, e);
+						}
 	   				});
         } finally {
         	conn.close();
@@ -123,7 +127,7 @@ public class DatabaseConfig {
 				qh.executeUpdate("INSERT INTO "+getTableName()+"(NAME, ENCRYPTED, DATA) VALUES (?,?,?)", 
 						new Object[] {
 								f.getName(),
-								System.getenv("DB_CONFIGURATION_CRYPT") != null ? "1": "0",
+								System.getenv("DB_CONFIGURATION_CRYPT") != null ? "2": "0",
 								d
 						});
 			}

@@ -68,11 +68,7 @@ public class DecryptionInputStream extends InputStream {
 				try {
 					if (read < 0) {
 						eof = true;
-//						try {
 						buffer = cipher.doFinal() ;
-//						} catch (BadPaddingException e) {
-//							return -1;
-//						}
 						if (buffer == null || buffer.length == 0)
 							return -1;
 					} else {
