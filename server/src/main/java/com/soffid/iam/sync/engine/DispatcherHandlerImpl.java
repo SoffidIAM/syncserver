@@ -794,6 +794,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	private boolean processAndLogTask () throws InternalErrorException
 	{
+		try {
+			Boolean b = (Boolean) getSystem().getClass().getMethod("isPause").invoke(getSystem());
+			if (Boolean.TRUE.equals(b)) {
+				return false; // System is paused
+			}
+		} catch (Exception e) {}
 		String reason = "";
 		boolean ok = false;
 		TaskHandler currentTask = taskqueue.getPendingTask(this);
@@ -1252,13 +1258,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
        	if (acc.getType().equals (AccountType.IGNORED) ||
        		isUnmanagedType(acc.getPasswordPolicy())) 
        	{
-       		if ( getSystem().getName().equals(ConfigurationCache.getProperty("AutoSSOSystem"))) {
-	            Password p;
-	            p = getTaskPassword(t);
-        		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), p,
-       				 "S".equals((t.getTask().getPasswordChange())),
-       				 t.getTask().getExpirationDate() == null ? null: t.getTask().getExpirationDate().getTime());
-       		}
+            Password p;
+            p = getTaskPassword(t);
+    		secretStoreService.setPasswordAndUpdateAccount(acc.getId(), p,
+   				 "S".equals((t.getTask().getPasswordChange())),
+   				 t.getTask().getExpirationDate() == null ? null: t.getTask().getExpirationDate().getTime());
        	}
        	else
        	{
