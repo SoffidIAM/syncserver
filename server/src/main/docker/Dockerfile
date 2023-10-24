@@ -1,4 +1,4 @@
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y openjdk-11-jre-headless
 
