@@ -12,7 +12,7 @@
 	<properties>
 		<maven.compile.source>11</maven.compile.source>
 		<maven.compile.target>11</maven.compile.target>
-		<iam.version>3.5.1</iam.version>
+		<iam.version>3.5.6-SNAPSHOT</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
