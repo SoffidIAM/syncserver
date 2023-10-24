@@ -2,6 +2,7 @@ package com.soffid.iam.sync.service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.PrintWriter;
@@ -77,6 +78,7 @@ import com.soffid.iam.sync.engine.extobj.RoleExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
 import com.soffid.iam.sync.engine.intf.DebugTaskResults;
 import com.soffid.iam.sync.engine.intf.GetObjectResults;
+import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.engine.pool.AbstractPool;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
@@ -123,6 +125,9 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 	                        agent.setStatusMessage(taskDispatcher.getConnectException().toString());
 	                        agent.setStackTrace(new String(out.toByteArray()));
 	                    }
+	                } else if (isSystemPaused(taskDispatcher.getSystem())) {
+	                    agent.setStatus(Messages.getString("SyncStatusServiceImpl.Paused")); //$NON-NLS-1$
+	                    agent.setStatusMessage(null);
 	                } else {
 	                    agent.setStatus(Messages.getString("SyncStatusServiceImpl.Connected")); //$NON-NLS-1$
 	                    agent.setStatusMessage(null);
@@ -150,7 +155,17 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
     	}
     }
 
-    @Override
+    private boolean isSystemPaused(System system) {
+		try {
+			Boolean b = (Boolean) system.getClass().getMethod("isPause").invoke(system);
+			if (Boolean.TRUE.equals(b)) {
+				return true; // System is paused
+			}
+		} catch (Exception e) {}
+		return false;
+	}
+
+	@Override
     protected SyncServerInfo handleGetSyncServerStatus(String tenant) throws Exception {
     	Security.nestedLogin(tenant, Security.getCurrentAccount(), Security.ALL_PERMISSIONS);
     	try
@@ -1115,4 +1130,14 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		tasca.setServer( null );
 		getTaskEntityDao().create(tasca);
 	}
+	
+	@Override
+	public Map<String,String> handleFindActiveDirectoryDomains() throws InternalErrorException {
+		try {
+			return new KerberosManager().getDomainsToSystemMap();
+		} catch (InternalErrorException | IOException e) {
+			throw new InternalErrorException("Error guessing active directory domains", e);
+		}
+	}
+
 }
