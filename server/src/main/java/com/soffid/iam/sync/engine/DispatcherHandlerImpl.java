@@ -1592,7 +1592,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     }
 
 	private void invoke(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
-		JSONObject message = new JSONObject(t.getTask().getMessage());
+		JSONObject message = new JSONObject(t.getTask().getParameters());
         ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
         if (objectMgr == null)
 			throw new InternalErrorException("Feature not supported by "+getName());
