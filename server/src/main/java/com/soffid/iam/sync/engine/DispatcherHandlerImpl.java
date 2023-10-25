@@ -25,6 +25,7 @@ import java.util.Map;
 import org.jbpm.JbpmConfiguration;
 import org.jbpm.JbpmContext;
 import org.jbpm.graph.exe.ProcessInstance;
+import org.json.JSONObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -436,11 +437,15 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				}
 			}
 			return false;
-        } else {
-            return implemented(agent, es.caib.seycon.ng.sync.intf.CustomTaskMgr.class) ||
-            		implemented(agent,CustomTaskMgr.class);
-        }
-    }
+		}
+		else if (trans.equals(TaskHandler.ASYNC_INVOKE))
+		{
+			return implemented(agent, ExtensibleObjectMgr.class) || implemented(agent, es.caib.seycon.ng.sync.intf.ExtensibleObjectMgr.class);
+	    } else {
+	        return implemented(agent, es.caib.seycon.ng.sync.intf.CustomTaskMgr.class) ||
+	            implemented(agent,CustomTaskMgr.class);
+	    }
+	}
 
 	public boolean isBroadcastTask(TaskHandler t) {
 		return rolesBroadcast && t.getTask().getTransaction().equals(TaskHandler.UPDATE_ROLE);
@@ -1049,9 +1054,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			else if (trans.equals(TaskHandler.INDEX_OBJECT))
 			{
 				indexObject(agent, t);
-	        } else {
-	        	processCustomTask(agent, t);
-	        }
+      }
+			else if (trans.equals(TaskHandler.ASYNC_INVOKE))
+			{
+				invoke(agent, t);
+      } else {
+        processCustomTask(agent, t);
+      }
         } finally {
         	UserGrantsCache.clearGrantsCache();
         }
@@ -1581,6 +1590,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
         return r;
     }
+
+	private void invoke(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+		JSONObject message = new JSONObject(t.getTask().getMessage());
+        ExtensibleObjectMgr objectMgr = InterfaceWrapper.getExtensibleObjectMgr (agent);
+        if (objectMgr == null)
+			throw new InternalErrorException("Feature not supported by "+getName());
+        try {
+        	objectMgr.invoke (t.getTask().getCustomTaskName(),
+				t.getTask().getCustomObjectName(),
+				message.toMap());
+		} catch (InternalErrorException e) {
+			throw new InternalErrorException("Error processing message "+message.toString(), e);
+		}
+	}
 
 	private void createFolder(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
         SharedFolderMgr sharedFolderMgr = InterfaceWrapper.getSharedFolderMgr ( agent );
