@@ -137,40 +137,47 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         }
         else if (firstRun) {
         	log.info("First run since "+lastId+" for "+config.getHostName());
-            tasks = getTaskEntityDao().query("select distinct tasca "
-            		+ "from com.soffid.iam.model.TaskEntity as tasca "
+            tasks = getTaskEntityDao().query("select distinct task "
+            		+ "from com.soffid.iam.model.TaskEntity as task "
+            		+ "where task.id in ("
+            		+ "select distinct tasca.id from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
             		+ "where tasca.server = :server and tasca.id > :lastId and "
-            		+ "tenant.enabled=:true "
-            		+ "order by tasca.id", 
+            		+ "tenant.enabled=:true) "
+            		+ "order by task.id", 
             		new Parameter[]{
             				new Parameter("server", config.getHostName()),
             				new Parameter("true", true),
             				new Parameter("lastId", lastId)});
         } else if (handleIsMainServer()) {
-            tasks = getTaskEntityDao().query("select distinct tasca "
+            tasks = getTaskEntityDao().query("select distinct task "
+            		+ "from com.soffid.iam.model.TaskEntity as task "
+            		+ "where task.id in ("
+            		+ "select tasca.id "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
             		+ "left join tenant.servers as servers "
             		+ "left join servers.tenantServer as server "
             		+ "where (tasca.server is null or tasca.server=:server) and server.name=:server "
-            		+ "and tasca.status='P'  AND tasca.hash is null and tenant.enabled=:true "
-            		+ "order by tasca.priority, tasca.id",
+            		+ "and tasca.status='P'  AND tasca.hash is null and tenant.enabled=:true )"
+            		+ "order by task.priority, task.id",
             		new Parameter[]{
             				new Parameter("server", config.getHostName()),
             				new Parameter("true", true)},
             		csc);
         } else {
         	log.info("Secondary server for "+config.getHostName());
-            tasks = getTaskEntityDao().query("select distinct tasca "
+            tasks = getTaskEntityDao().query("select distinct task "
+            		+ "from com.soffid.iam.model.TaskEntity as task "
+            		+ "where task.id in (select tasca.id "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
             		+ "left join tasca.tenant as tenant "
             		+ "left join tenant.servers as servers "
             		+ "left join servers.tenantServer as server "
             		+ "where tasca.server=:server and server.name=:server "
             		+ "and   tasca.status='P' and tasca.hash is null "
-            		+ "and   tenant.enabled=:true "
-            		+ "order by tasca.priority, tasca.id",
+            		+ "and   tenant.enabled=:true) "
+            		+ "order by task.priority, task.id",
             		new Parameter[]{
             				new Parameter("server", config.getHostName()),
             				new Parameter("true", true)},
