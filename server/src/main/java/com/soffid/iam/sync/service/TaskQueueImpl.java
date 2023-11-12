@@ -89,6 +89,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	 * Priorized tasks for any tenant
 	 */
 	public static Hashtable<Long,PrioritiesList> globalTaskList;
+	public static PrioritiesList pamTaskList;
 	/**
 	 * Current tasks for any tenant, indexed by task hash.
 	 * It's used to detect duplicated tasks
@@ -129,6 +130,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	{
 		globalCurrentTasks = new Hashtable<Long, Hashtable<String, TaskHandler>>();
 		globalTaskList = new Hashtable<Long, PrioritiesList>();
+		pamTaskList = new PrioritiesList();
+		for (int i = 0; i < MAX_PRIORITY; i++)
+			pamTaskList.add(new TasksQueue());
 		String hn = null;
 		try
 		{
@@ -192,7 +196,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					if (isDebug())
 						log.info("Cancelling task {}", newTask.toString(), null);
 					newTask.cancel();
-					pushTaskToPersist(newTask);
+					handlePushTaskToPersist(newTask);
 					return;
 				}
 				PasswordDomainEntityDao dcDao = getPasswordDomainEntityDao();
@@ -200,7 +204,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (dc == null)
 				{
 					newTask.cancel();
-					pushTaskToPersist(newTask);
+					handlePushTaskToPersist(newTask);
 					return; // Ignorar
 				}
 
@@ -211,7 +215,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			else
 			{
 				newTask.cancel();
-				pushTaskToPersist(newTask);
+				handlePushTaskToPersist(newTask);
 			}
 		}
 		else if (newTask.getTask().getTransaction()
@@ -225,7 +229,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (usuari == null) // Ignorar
 				{
 					newTask.cancel();
-					pushTaskToPersist(newTask);
+					handlePushTaskToPersist(newTask);
 					return;
 				}
 				
@@ -234,7 +238,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (dc == null)
 				{
 					newTask.cancel();
-					pushTaskToPersist(newTask);
+					handlePushTaskToPersist(newTask);
 					return; // Ignorar
 				}
 
@@ -250,13 +254,13 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				else
 				{
 					newTask.cancel();
-					pushTaskToPersist(newTask);
+					handlePushTaskToPersist(newTask);
 				}
 			}
 			else
 			{
 				newTask.cancel();
-				pushTaskToPersist(newTask);
+				handlePushTaskToPersist(newTask);
 			}
 		}
 		else if (newTask.getTask().getTransaction()
@@ -270,7 +274,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (account == null)
 				{
 					newTask.cancel();
-					pushTaskToPersist(newTask);
+					handlePushTaskToPersist(newTask);
 					return;
 				}
 
@@ -292,7 +296,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				else
 				{
 					newTask.cancel();
-					pushTaskToPersist(newTask);
+					handlePushTaskToPersist(newTask);
 					
 					storeAccountPassword(newTask, account);
 				}
@@ -300,7 +304,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			else
 			{
 				newTask.cancel();
-				pushTaskToPersist(newTask);
+				handlePushTaskToPersist(newTask);
 			}
 		}
 		else if (newTask.getTask().getTransaction()
@@ -312,7 +316,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (dispatcher == null || ! dispatcher.isActive()) 
 			{
 				newTask.cancel();
-				pushTaskToPersist(newTask);
+				handlePushTaskToPersist(newTask);
 			}
 			else
 				addAndNotifyDispatchers(newTask, entity);
@@ -343,7 +347,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					}
 				}
 				newTask.cancel();
-				pushTaskToPersist(newTask);
+				handlePushTaskToPersist(newTask);
 			}
 		}
 		else if (newTask.getTask()
@@ -359,7 +363,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			else
 			{
 				newTask.cancel();
-				pushTaskToPersist(newTask);
+				handlePushTaskToPersist(newTask);
 			}
 		}
 		else if (newTask.getTask()
@@ -382,7 +386,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			.equals(TaskHandler.NOTIFY_PASSWORD_CHANGE))
 		{
 			newTask.cancel();
-			pushTaskToPersist(newTask);
+			handlePushTaskToPersist(newTask);
 			notifyChangePassword(entity);
 			
 			return;
@@ -579,7 +583,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		}
 	}
 
-	private synchronized void addAndNotifyDispatchers(TaskHandler newTask, TaskEntity tasqueEntity) throws InternalErrorException {
+	private synchronized void addAndNotifyDispatchers(TaskHandler newTask, TaskEntity tasqueEntity) throws Exception {
 		Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 		String hash = tasqueEntity.getHash();
 		// Eliminar tareas similares
@@ -596,7 +600,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				if (isDebug())
 					log.info("Cancelling old task {}", oldTask.toString(), null);
 				oldTask.cancel();
-				pushTaskToPersist(oldTask);
+				handlePushTaskToPersist(oldTask);
 			}
 			// Cancel remote tasks
 			TaskEntityDao dao = getTaskEntityDao();
@@ -621,7 +625,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			if (oldTask != null && !oldTask.getTask().getId().equals(newTask.getTask().getId()))
 			{
 				oldTask.cancel();
-				pushTaskToPersist(oldTask);
+				handlePushTaskToPersist(oldTask);
 			}
 		}
 
@@ -632,37 +636,62 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 		// Register new tasks
 		currentTasks.put(hash, newTask);
-		for ( DispatcherHandler dispatcherHandler : getTaskGenerator().getDispatchers())
+		boolean pam = false;
+		String systemName = tasqueEntity.getSystemName() == null ? tasqueEntity.getDb() : tasqueEntity.getSystemName();
+		if (systemName != null) {
+			DispatcherHandler d = getTaskGenerator().getDispatcher(systemName);
+			if (d != null) {
+				com.soffid.iam.api.System sys = d.getSystem();
+				pam = "PAM".equals(sys.getUsage()); 
+			}
+		}
+		if (pam) 
 		{
-			if (! dispatcherHandler.isComplete(newTask))
+			newTask.setPamTask(pam);
+			int priority = newTask.getPriority();
+			if (priority >= MAX_PRIORITY)
+				priority = MAX_PRIORITY - 1;
+			TasksQueue queue = pamTaskList.get(newTask.getPriority());
+			synchronized (queue)
 			{
-				PrioritiesList priorities = getPrioritiesList (dispatcherHandler);
-				int priority = newTask.getPriority();
-				if (priority >= MAX_PRIORITY)
-					priority = MAX_PRIORITY - 1;
-				TasksQueue queue = priorities.get(priority);
-				synchronized (queue)
+				queue.addLast( newTask );
+			}
+		}
+		else
+		{
+			for ( DispatcherHandler dispatcherHandler : getTaskGenerator().getDispatchers())
+			{
+				if (! dispatcherHandler.isComplete(newTask))
 				{
-					queue.addLast( newTask );
+					PrioritiesList priorities = getPrioritiesList (dispatcherHandler);
+					int priority = newTask.getPriority();
+					if (priority >= MAX_PRIORITY)
+						priority = MAX_PRIORITY - 1;
+					TasksQueue queue = priorities.get(priority);
+					synchronized (queue)
+					{
+						queue.addLast( newTask );
+					}
 				}
 			}
 		}
 	}
 
 	private PrioritiesList getPrioritiesList(DispatcherHandler dispatcherHandler) {
-		PrioritiesList p = globalTaskList.get(dispatcherHandler.getSystem().getId());
+		Hashtable<Long, PrioritiesList> src = globalTaskList;
+		PrioritiesList p = src.get(dispatcherHandler.getSystem().getId());
 		if (p == null)
 		{
 			p = new PrioritiesList();
 			p.debug = "true".equals(ConfigurationCache.getProperty("soffid.debug.tasks"));
 			for (int i = 0; i < MAX_PRIORITY; i++)
 				p.add(new TasksQueue());
-			globalTaskList.put(dispatcherHandler.getSystem().getId(), p);
+			src.put(dispatcherHandler.getSystem().getId(), p);
 		}
 		return p;
 	}
 
-	private void populateTaskLog(TaskHandler newTask, TaskEntity tasque) throws InternalErrorException {
+	private void populateTaskLog(TaskHandler newTask, TaskEntity tasque) throws Exception {
 		// Instanciar los logs
 		String targetDispatcher = tasque.getSystemName();
 		if (targetDispatcher != null && targetDispatcher.trim().isEmpty())
@@ -709,10 +738,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
         }
 		newTask.setLogs(logs);
 		if (targetDispatcher != null)
-			pushTaskToPersist(newTask);
+			handlePushTaskToPersist(newTask);
 	}
 
-	private void cancelRemoteTask(TaskEntity task) throws InternalErrorException {
+	private void cancelRemoteTask(TaskEntity task) throws Exception {
 		
 		if (task != null && task.getServer() != null && 
 				(!task.getServer().equals(hostname)) ||
@@ -725,7 +754,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			th.cancel();
 			if (isDebug())
 				log.info("Cancelling remote task {}", th.toString(), null);
-			pushTaskToPersist(th);
+			handlePushTaskToPersist(th);
 			RemoteServiceLocator rsl = new RemoteServiceLocator();
 			try
 			{
@@ -834,6 +863,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	protected TaskHandler handleGetPendingTask (DispatcherHandler taskDispatcher)
 					throws Exception
 	{
+		if (taskDispatcher == DispatcherHandlerImpl.DUMMY_PAM_DISPATCHER)
+			return getPendingPamTask(taskDispatcher);
+		else
+			return getPendingIamTask(taskDispatcher);
+
+	}
+
+	protected TaskHandler getPendingIamTask(DispatcherHandler taskDispatcher) throws Exception, InternalErrorException {
 		int internalId = taskDispatcher.getInternalId();
 		TaskHandler task;
 
@@ -907,7 +944,56 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			notifyUnmanagedTasks(taskDispatcher, tasksToNotify);
 		}
 		return null;
+	}
 
+	protected TaskHandler getPendingPamTask(DispatcherHandler taskDispatcher) throws Exception, InternalErrorException {
+		TaskHandler task;
+		LinkedList<TaskHandler> tasksToRemove = new LinkedList<TaskHandler>();
+		PrioritiesList priorities = pamTaskList;
+		try {
+			for ( int priority = 0; priority < priorities.size(); priority++)
+			{
+				TasksQueue priorityQueue = priorities.get(priority);
+				synchronized (priorityQueue)
+				{
+					if (priorities.debug)
+						log.info("Getting tasks for priority {}", priority, null);
+					Iterator<TaskHandler> iterator = priorityQueue.iterator();
+					while (iterator.hasNext())
+					{
+						task = iterator.next();
+						TaskHandlerLog tl = task.getPamLog();
+		    			if (task.isExpired())
+			    		{
+							if (priorities.debug)
+								log.info("Exprired task task {}", task.toString(), null);
+		    				iterator.remove();
+			    			tasksToRemove.add(task);
+			    		}
+			    		else if (task.isComplete())
+			    		{
+							if (priorities.debug)
+								log.info("Completed task {}", task.toString(), null);
+							iterator.remove();
+			    			tasksToRemove.add(task);
+			    		}
+						else if (tl == null || tl.getNext() < System.currentTimeMillis())
+						{
+							if (priorities.debug)
+								log.info("Task to process: {}", task.toString(), null);
+			    			iterator.remove();
+							return task;
+						}
+	    			} 
+	    		}
+			}
+		} catch (Exception e) {
+			log.warn("Error getting tasks", e);
+			throw e;
+		} finally {
+			removeTaskList(tasksToRemove);
+		}
+		return null;
 	}
 
 	@Override
@@ -941,7 +1027,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			}
 		
 			taskToRemove.cancel();
-			pushTaskToPersist(taskToRemove);
+			handlePushTaskToPersist(taskToRemove);
 		}
 	}
 
@@ -1004,7 +1090,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 							log.info("Cancelling expired task {}", task.toString(), null);
 						task.cancel();
 						iterator.remove();
-						pushTaskToPersist(task);
+						handlePushTaskToPersist(task);
 						synchronized (task)
 						{
 							task.notify();
@@ -1041,7 +1127,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 							if (isDebug())
 								log.info("Cancelling finished task {}", task.toString(), null);
 							task.cancel();
-							pushTaskToPersist(task);
+							handlePushTaskToPersist(task);
 							iterator.remove();
 						} else if ( ! currentTenants.contains(  task.getTenantId() ) )
 						{
@@ -1079,35 +1165,220 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		long now = System.currentTimeMillis();
 		
 		if (task.isComplete()) {
-			pushTaskToPersist(task);
+			handlePushTaskToPersist(task);
 			return; // Ignore already cancelled task
 		}
 		
-		// Afegir (si cal) nous task logs
-		while (task.getLogs().size() <= taskDispatcher.getInternalId())
-		{
-			task.getLogs().add(null);
+		if (task.isPamTask()) {
+			TaskHandlerLog thl = task.getPamLog();
+			if (thl == null)
+			{
+				thl = newTaskHandlerLog(taskDispatcher, now);
+				task.setPamLog(thl);
+			}
+			if (thl.isComplete())
+			{
+				// This task was already notified;
+				return;
+			}
+			updateTaskHandlerLog(taskDispatcher, thl, bOK, sReason, t, now);
+			if (bOK)
+			{
+				Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
+	
+				if (isDebug())
+					log.info("Cancelling fiinshed task {}", task.toString(), null);
+	
+				task.cancel();
+				handlePushTaskToPersist(task);
+				currentTasks.remove(task.getHash());
+				// Confirmar la propagación de contraseñas
+				String transaction = task.getTask().getTransaction();
+				if (transaction.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD)
+								|| transaction.equals(TaskHandler.UPDATE_USER_PASSWORD))
+				{
+					UserEntity usuari = getUserEntityDao().findByUserName(task.getTask().getUser());
+					PasswordDomainEntity passDomain = getPasswordDomainEntityDao().findByName(task.getTask().getPasswordDomain());
+					if (usuari != null && passDomain != null)
+						getInternalPasswordService().confirmPassword(usuari, passDomain,
+										task.getPassword());
+				}
+	
+				synchronized (task)
+				{
+					task.notify();
+				}
+				// //////////////// TASK EXPIRED
+			}
+			else if (task.getTimeout() != null && task.getTimeout().before(new Date()))
+			{
+				Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
+	
+				handlePushTaskToPersist(task);
+				currentTasks.remove(task.getHash());
+				synchronized (task)
+				{
+					task.notify();
+				}
+			}
+			else
+			{
+				int nextPriority = task.getPriority() + thl.getNumber();
+				if (nextPriority >= MAX_PRIORITY)
+					nextPriority = MAX_PRIORITY - 1;
+				TasksQueue queue = pamTaskList.get(nextPriority);
+				synchronized (queue)
+				{
+					queue.addLast(task);
+				}
+				handlePushTaskToPersist(task);
+			}
+		} else {
+			// Afegir (si cal) nous task logs
+			while (task.getLogs().size() <= taskDispatcher.getInternalId())
+			{
+				task.getLogs().add(null);
+			}
+			
+			// Actualitzar el tasklog
+			TaskHandlerLog thl = task.getLogs().get(taskDispatcher.getInternalId());
+			if (thl == null)
+			{
+				thl = newTaskHandlerLog(taskDispatcher, now);
+				task.getLogs().set(taskDispatcher.getInternalId(), thl);
+			}
+			
+			if (thl.isComplete())
+			{
+				// This task was already notified;
+				return;
+			}
+			
+			updateTaskHandlerLog(taskDispatcher, thl, bOK, sReason, t, now);
+	
+			if ( ! bOK )
+			{
+				int nextPriority = task.getPriority() + thl.getNumber();
+				if (nextPriority >= MAX_PRIORITY)
+					nextPriority = MAX_PRIORITY - 1;
+				PrioritiesList prioQueue = getPrioritiesList(taskDispatcher);
+				TasksQueue queue = prioQueue.get(nextPriority);
+				synchronized (queue)
+				{
+	//				log.info("Returning task {} to the queue", task.toString(), null);
+					queue.addLast(task);
+				}
+			}
+			// Verificar si ha de cancellar la tasca
+			boolean allOk = true;
+			StringBuffer message = new StringBuffer();
+			String status = "P";
+	//		log.info("Notify task status {} {}", task.toString(), bOK);
+			synchronized (task)
+			{
+				for (DispatcherHandler dh : getTaskGenerator().getDispatchers())
+				{
+					if ((dh != null) && dh.isActive())
+					{
+						if ((task.getTask().getSystemName() == null) ||
+								task.getTask().getSystemName()
+									.equals(dh.getSystem().getName()))
+						{
+	//						log.info("Dispatcher {} ", dh.getSystem().getName(), null);
+							if (task.getLogs().size() <= dh.getInternalId())
+							{
+	//							log.info("No log present ", null, null);
+								allOk = false;
+							}
+							else
+							{
+								TaskHandlerLog tasklog = task.getLogs().get(dh.getInternalId());
+								if (tasklog == null)
+								{
+	//								log.info("Log is empty ", null, null);
+									allOk = false;
+								}
+								else if (!tasklog.isComplete())
+								{
+	//								log.info("Log is not finished ", null, null);
+									allOk = false;
+									if (tasklog.getNumber() >= 3)
+										status = "E";
+									if ((tasklog.getReason() != null) &&
+											tasklog.getReason().length() > 0)
+									{
+										message.append(tasklog.getDispatcher()
+														.getSystem().getName());
+										message.append(": ");
+										message.append(tasklog.getReason());
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+			// //////////////// TASK COMPLETE
+			if (allOk)
+			{
+				Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
+	
+				if (isDebug())
+					log.info("Cancelling fiinshed task {}", task.toString(), null);
+	
+				task.cancel();
+				handlePushTaskToPersist(task);
+				currentTasks.remove(task.getHash());
+				// Confirmar la propagación de contraseñas
+				String transaction = task.getTask().getTransaction();
+				if (transaction.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD)
+								|| transaction.equals(TaskHandler.UPDATE_USER_PASSWORD))
+				{
+					UserEntity usuari = getUserEntityDao().findByUserName(task.getTask().getUser());
+					PasswordDomainEntity passDomain = getPasswordDomainEntityDao().findByName(task.getTask().getPasswordDomain());
+					if (usuari != null && passDomain != null)
+						getInternalPasswordService().confirmPassword(usuari, passDomain,
+										task.getPassword());
+				}
+	
+				synchronized (task)
+				{
+					task.notify();
+				}
+				// //////////////// TASK EXPIRED
+			}
+			else if (task.getTimeout() != null && task.getTimeout().before(new Date()))
+			{
+				Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
+	
+				handlePushTaskToPersist(task);
+				currentTasks.remove(task.getHash());
+				synchronized (task)
+				{
+					task.notify();
+				}
+				// //////////////// TAK PENDING
+			}
+			else
+			{
+				handlePushTaskToPersist(task);
+			}
 		}
-		
-		// Actualitzar el tasklog
-		TaskHandlerLog thl = task.getLogs().get(taskDispatcher.getInternalId());
-		if (thl == null)
-		{
-			thl = new TaskHandlerLog();
-			thl.setNumber(0);
-			thl.setNext(0);
-			thl.setFirst(now);
-			thl.setComplete(false);
-			thl.setDispatcher(taskDispatcher);
-			task.getLogs().set(taskDispatcher.getInternalId(), thl);
-		}
-		
-		if (thl.isComplete())
-		{
-			// This task was already notified;
-			return;
-		}
-		
+	}
+
+	protected TaskHandlerLog newTaskHandlerLog(DispatcherHandler taskDispatcher, long now) {
+		TaskHandlerLog thl;
+		thl = new TaskHandlerLog();
+		thl.setNumber(0);
+		thl.setNext(0);
+		thl.setFirst(now);
+		thl.setComplete(false);
+		thl.setDispatcher(taskDispatcher);
+		return thl;
+	}
+
+	protected void updateTaskHandlerLog(DispatcherHandler taskDispatcher, TaskHandlerLog thl, boolean bOK,
+			String sReason, Throwable t, long now) throws InternalErrorException, NoSuchAlgorithmException {
 		thl.setDispatcher(taskDispatcher);
 		thl.setComplete(bOK);
 		thl.setReason(sReason);
@@ -1130,114 +1401,6 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		if (elapsed > 1000 * 60 * 60 * 8)
 			elapsed = 1000 * 60 * 60 * 8; // Máximo 8 horas
 		thl.setNext(thl.getLast() + elapsed);
-
-		if ( ! bOK )
-		{
-			int nextPriority = task.getPriority() + thl.getNumber();
-			if (nextPriority >= MAX_PRIORITY)
-				nextPriority = MAX_PRIORITY - 1;
-			PrioritiesList prioQueue = getPrioritiesList(taskDispatcher);
-			TasksQueue queue = prioQueue.get(nextPriority);
-			synchronized (queue)
-			{
-//				log.info("Returning task {} to the queue", task.toString(), null);
-				queue.addLast(task);
-			}
-		}
-		// Verificar si ha de cancellar la tasca
-		boolean allOk = true;
-		StringBuffer message = new StringBuffer();
-		String status = "P";
-//		log.info("Notify task status {} {}", task.toString(), bOK);
-		synchronized (task)
-		{
-			for (DispatcherHandler dh : getTaskGenerator().getDispatchers())
-			{
-				if ((dh != null) && dh.isActive())
-				{
-					if ((task.getTask().getSystemName() == null) ||
-							task.getTask().getSystemName()
-								.equals(dh.getSystem().getName()))
-					{
-//						log.info("Dispatcher {} ", dh.getSystem().getName(), null);
-						if (task.getLogs().size() <= dh.getInternalId())
-						{
-//							log.info("No log present ", null, null);
-							allOk = false;
-						}
-						else
-						{
-							TaskHandlerLog tasklog = task.getLogs().get(dh.getInternalId());
-							if (tasklog == null)
-							{
-//								log.info("Log is empty ", null, null);
-								allOk = false;
-							}
-							else if (!tasklog.isComplete())
-							{
-//								log.info("Log is not finished ", null, null);
-								allOk = false;
-								if (tasklog.getNumber() >= 3)
-									status = "E";
-								if ((tasklog.getReason() != null) &&
-										tasklog.getReason().length() > 0)
-								{
-									message.append(tasklog.getDispatcher()
-													.getSystem().getName());
-									message.append(": ");
-									message.append(tasklog.getReason());
-								}
-							}
-						}
-					}
-				}
-			}
-		}
-		// //////////////// TASK COMPLETE
-		if (allOk)
-		{
-			Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
-
-			if (isDebug())
-				log.info("Cancelling fiinshed task {}", task.toString(), null);
-
-			task.cancel();
-			pushTaskToPersist(task);
-			currentTasks.remove(task.getHash());
-			// Confirmar la propagación de contraseñas
-			String transaction = task.getTask().getTransaction();
-			if (transaction.equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD)
-							|| transaction.equals(TaskHandler.UPDATE_USER_PASSWORD))
-			{
-				UserEntity usuari = getUserEntityDao().findByUserName(task.getTask().getUser());
-				PasswordDomainEntity passDomain = getPasswordDomainEntityDao().findByName(task.getTask().getPasswordDomain());
-				if (usuari != null && passDomain != null)
-					getInternalPasswordService().confirmPassword(usuari, passDomain,
-									task.getPassword());
-			}
-
-			synchronized (task)
-			{
-				task.notify();
-			}
-			// //////////////// TASK EXPIRED
-		}
-		else if (task.getTimeout() != null && task.getTimeout().before(new Date()))
-		{
-			Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
-
-			pushTaskToPersist(task);
-			currentTasks.remove(task.getHash());
-			synchronized (task)
-			{
-				task.notify();
-			}
-			// //////////////// TAK PENDING
-		}
-		else
-		{
-			pushTaskToPersist(task);
-		}
 	}
 
 	HashSet<String> errorHashes = new HashSet<>();
@@ -1325,7 +1488,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					if (isDebug())
 						log.info("Cancelled task {}:{}", taskId, task.toString());
 					task.cancel();
-					if (taskEntity != null) pushTaskToPersist(task);
+					if (taskEntity != null) handlePushTaskToPersist(task);
 					ct.remove(hash);
 				}
 			}
@@ -1699,35 +1862,43 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	    			tasque.setPriority(new Long(newTask.getPriority()));
 	    			dao.update(tasque);
 	    
-	    			Collection<TaskLogEntity> daoEntities = new LinkedList<>( tasque.getLogs() );
 	    			if (isDebug())
 	    				log.info("Task {} is pending", newTask.toString(), null);
-	    			if (newTask.getLogs() != null)
-	    			{
-	        			for (TaskHandlerLog tasklog : newTask.getLogs()) {
-	        				if (tasklog != null)
-	        				{
-	                            boolean found = false;
-	                            for (Iterator<TaskLogEntity> it = daoEntities.iterator(); it.hasNext();) {
-	                            	TaskLogEntity logEntity = it.next();
-	                                if (logEntity != null &&
-	                                		tasklog.getDispatcher() != null &&
-	                                		logEntity.getSystem().getId().equals(tasklog.getDispatcher().getSystem().getId())) {
-	                                    found = true;
-	                                    persistLog(tasque, tasklog, logEntity);
-	                                    it.remove();
-	                                    break;
-	                                }
-	                            }
-	                            if (!found) {
-	                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
-	                                persistLog(tasque, tasklog, logEntity);
-	                            }
-	                            if (isDebug())
-	                            	log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
-	        				}
-                        }
-	        			getTaskLogEntityDao().remove(daoEntities);
+	    			if (newTask.isPamTask()) {
+	    				TaskHandlerLog tl = newTask.getPamLog();
+	    				if (tl != null) {
+                            TaskLogEntity logEntity = tlDao.newTaskLogEntity();
+                            persistLog(tasque, tl, logEntity);
+	    				}
+	    			} else {
+		    			Collection<TaskLogEntity> daoEntities = new LinkedList<>( tasque.getLogs() );
+		    			if (newTask.getLogs() != null)
+		    			{
+		        			for (TaskHandlerLog tasklog : newTask.getLogs()) {
+		        				if (tasklog != null)
+		        				{
+		                            boolean found = false;
+		                            for (Iterator<TaskLogEntity> it = daoEntities.iterator(); it.hasNext();) {
+		                            	TaskLogEntity logEntity = it.next();
+		                                if (logEntity != null &&
+		                                		tasklog.getDispatcher() != null &&
+		                                		logEntity.getSystem().getId().equals(tasklog.getDispatcher().getSystem().getId())) {
+		                                    found = true;
+		                                    persistLog(tasque, tasklog, logEntity);
+		                                    it.remove();
+		                                    break;
+		                                }
+		                            }
+		                            if (!found) {
+		                                TaskLogEntity logEntity = tlDao.newTaskLogEntity();
+		                                persistLog(tasque, tasklog, logEntity);
+		                            }
+		                            if (isDebug())
+		                            	log.info(">> {}: {}", tasklog.getDispatcher().getSystem().getName(), tasklog.isComplete() ? "DONE": "PENDING");
+		        				}
+	                        }
+		        			getTaskLogEntityDao().remove(daoEntities);
+		    			}
 	    			}
 	    		}
 			} catch (ConcurrentModificationException e) {

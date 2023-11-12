@@ -28,7 +28,6 @@ import org.json.JSONException;
 import org.json.JSONObject;
 
 import com.soffid.iam.config.Config;
-import com.soffid.iam.sync.bootstrap.impl.DatabaseConfig;
 
 public class KubernetesConfig {
 	private String host;

@@ -129,6 +129,7 @@ import es.caib.seycon.util.Base64;
 
 public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable {
     private static JbpmConfiguration jbpmConfig;
+    public static DispatcherHandler DUMMY_PAM_DISPATCHER = new DispatcherHandlerImpl();
 	Logger log = LoggerFactory.getLogger(DispatcherHandler.class);
     boolean active = true;
     private boolean reconfigure = false;
@@ -2862,6 +2863,61 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		}
 	}
 
+	public void processPamTask (TaskHandler currentTask) throws InternalErrorException
+	{
+		boolean ok = false;
+		String reason = null;
+		Throwable throwable = null;
+		try
+		{
+			runLoopStart();
+			if (applies(null, currentTask) && getCurrentAgent() != null)
+			{
+				if (applies(getCurrentAgent(), currentTask))
+				{
+					try {
+						processTask(getCurrentAgent(), currentTask);
+						ok = true;
+						statsService.register("tasks-success", getName(), 1);
+						if (debugEnabled)
+							log.debug("Task {} DONE", currentTask.toString(), null);
+					} catch (RemoteException e) {
+						handleRMIError(e);
+						ok = false;
+						reason = "Cannot connect to " + getSystem().getUrl();
+						throwable = e;
+						// abort = true ;
+					} catch (Throwable e) {
+						if (debugEnabled)
+							log.info("Failed {} ", currentTask.toString(), null);
+						statsService.register("tasks-error", getName(), 1);
+						if ("local".equals(system.getUrl()))
+						{
+							// log.warn("Error interno", e);
+						} else {
+							String error = SoffidStackTrace.getStackTrace(e)
+									.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
+							// log.warn("Error interno: "+error);
+						}
+						ok = false;
+						Throwable e2 = e;
+						while (e2.getCause() != null && e2.getCause() != e2)
+						{
+							e2 = e2.getCause();
+						}
+						if (e2.getClass() == InternalErrorException.class)
+							reason = e2.getMessage();
+						else
+							reason = e2.toString();
+						throwable = e;
+					}
+				}
+			}
+		} finally {
+			taskqueue.notifyTaskStatus(currentTask, this, ok, reason, throwable);
+		}
+	}
+
 	@Override
 	public DebugTaskResults debugTask (TaskHandler task) throws InternalErrorException
 	{
@@ -3214,5 +3270,5 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	public String getStatus() {
 		return status;
 	}
-
+	
 }

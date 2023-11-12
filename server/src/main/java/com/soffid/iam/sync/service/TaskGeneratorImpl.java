@@ -290,6 +290,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                         it.remove();
                         DispatcherHandlerImpl current = dispatchers.get(oldHandler.getInternalId());
                         System newDispatcher = getSystemEntityDao().toSystem(dispatcherEntity);
+                        if ("PAM".equals(newDispatcher.getUsage()))
+                        	newDispatcher.setSharedDispatcher(true);
                         checkNulls(newDispatcher);
                         System oldDispatcher = current.getSystem();
                         if (oldDispatcher.getTimeStamp() == null && newDispatcher.getTimeStamp() != null ||

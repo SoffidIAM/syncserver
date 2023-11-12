@@ -9,11 +9,13 @@ package com.soffid.iam.sync;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.sql.Blob;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.Properties;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.config.Config;
@@ -41,6 +43,8 @@ public class ServerApplication extends SoffidApplication {
     private static ServerService server;
 
     public static void configure () throws FileNotFoundException, IOException, InternalErrorException, SQLException {
+        checkConsoleVersion();
+        
         Config config = Config.getConfig();
         
         setCacheParams();
@@ -148,7 +152,42 @@ public class ServerApplication extends SoffidApplication {
         
     }
     
-    private static void setKerberosProperties() throws FileNotFoundException, IOException {
+    static String minimumVersion = "3.5.10";
+    private static void checkConsoleVersion() {
+    	try {
+	    	InputStream in = ClassLoader.getSystemResourceAsStream("META-INF/maven/com.soffid.iam.console/iam-core/pom.properties");
+	    	if (in != null) {
+	    		Properties props = new Properties();
+	    		props.load(in);
+	    		String version = props.getProperty("version");
+	    		if (version != null) {
+	    			String split[] = version.split("[.-]+");
+	    			String split2[] = minimumVersion.split("[.-]+");
+	    			boolean ok = true;
+	    			for (int i = 0; i < split2.length; i++) {
+	    				int compare = compareVersion (split[i], split2[i]);
+	    				if (compare > 0) break;
+	    				if (compare < 0) {
+	    					log.warn("FATAL ERROR: Minimum supported console version is "+minimumVersion+". Found "+version);
+	    					System.exit(1);
+	    				}
+	    			}
+	    		}
+	    	}
+    	} catch (IOException e) {}
+	}
+
+	private static int compareVersion(String string, String string2) {
+		try {
+			int i = Integer.parseInt(string);
+			int j = Integer.parseInt(string2);
+			return i - j;
+		} catch (NumberFormatException e) {
+			return -1;
+		}
+	}
+
+	private static void setKerberosProperties() throws FileNotFoundException, IOException {
     	if (System.getProperty("java.security.krb5.conf") == null)
     	{
     		String krb5File = Config.getConfig().getHomeDir() + "/conf/krb5.conf";
