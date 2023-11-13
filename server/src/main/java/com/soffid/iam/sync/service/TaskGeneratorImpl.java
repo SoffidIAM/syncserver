@@ -106,26 +106,28 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         log.info("Looking for new tasks to schedule");
         if ( new KubernetesConfig().isKubernetes()) {
             if (firstRun) {
-                tasks = getTaskEntityDao().query("select distinct tasca "
+                tasks = getTaskEntityDao().query("select task from com.soffid.iam.model.TaskEntity where id in ("
+                    + "select  tasca.id "
                 		+ "from com.soffid.iam.model.TaskEntity as tasca "
                 		+ "left join tasca.tenant as tenant "
                 		+ "where tasca.server = :server and tasca.serverInstance=:serverInstance and "
-                		+ "tenant.enabled=:true and tasca.id > :lastId "
-                		+ "order by tasca.id", 
+                		+ "tenant.enabled=:true and tasca.id > :lastId) "
+                		+ "order by id", 
                 		new Parameter[]{
                 				new Parameter("server", config.getHostName()),
                 				new Parameter("serverInstance", InetAddress.getLocalHost().getHostName()),
                 				new Parameter("lastId", lastId),
                 				new Parameter("true", true)});
             } else if (isActiveServer() && taskQueue.isBestServer()) {
-	            tasks = getTaskEntityDao().query("select distinct tasca "
+	            tasks = getTaskEntityDao().query("select task from com.soffid.iam.model.TaskEntity where id in "
+                  + "(select tasca.id "
 	            		+ "from com.soffid.iam.model.TaskEntity as tasca "
 	            		+ "left join tasca.tenant as tenant "
 	            		+ "left join tenant.servers as servers "
 	            		+ "left join servers.tenantServer as server "
 	            		+ "where (tasca.server is null or tasca.server=:server and tasca.serverInstance is null) "
 	            		+ "and   server.name=:server "
-	            		+ "and   tenant.enabled=:true "
+	            		+ "and   tenant.enabled=:true) "
 	            		+ "order by tasca.priority, tasca.id",
 	            		new Parameter[]{
 	            				new Parameter("server", config.getHostName()),
@@ -137,7 +139,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         }
         else if (firstRun) {
         	log.info("First run since "+lastId+" for "+config.getHostName());
-            tasks = getTaskEntityDao().query("select distinct task "
+            tasks = getTaskEntityDao().query("select task "
             		+ "from com.soffid.iam.model.TaskEntity as task "
             		+ "where task.id in ("
             		+ "select distinct tasca.id from com.soffid.iam.model.TaskEntity as tasca "
@@ -150,7 +152,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             				new Parameter("true", true),
             				new Parameter("lastId", lastId)});
         } else if (handleIsMainServer()) {
-            tasks = getTaskEntityDao().query("select distinct task "
+            tasks = getTaskEntityDao().query("select task "
             		+ "from com.soffid.iam.model.TaskEntity as task "
             		+ "where task.id in ("
             		+ "select tasca.id "
@@ -167,7 +169,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             		csc);
         } else {
         	log.info("Secondary server for "+config.getHostName());
-            tasks = getTaskEntityDao().query("select distinct task "
+            tasks = getTaskEntityDao().query("select task "
             		+ "from com.soffid.iam.model.TaskEntity as task "
             		+ "where task.id in (select tasca.id "
             		+ "from com.soffid.iam.model.TaskEntity as tasca "
