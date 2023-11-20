@@ -438,7 +438,8 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 			for (AccountAttributeEntity data: account.getAttributes())
 			{
 				Object v = data.getObjectValue();
-				String name = data.getMetadata().getName();
+				String name = data.getSystemMetadata() == null ? data.getMetadata().getName() :
+					data.getSystemMetadata().getName();
 				if (name.startsWith("SSO:") &&  v != null && v.toString().length() > 0)
 				{
 					if (name.equals("SSO:URL")) foundUrl = true;

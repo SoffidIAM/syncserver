@@ -58,7 +58,8 @@ public class ChangeSecretServlet extends HttpServlet {
 	private AccountService accountSvc;
 	private SessionService ss;
 	private UserService usuariService;
-
+	String accountName;
+	
 	public ChangeSecretServlet ()
 	{
 		accountSvc = ServiceLocator.instance().getAccountService();
@@ -91,7 +92,7 @@ public class ChangeSecretServlet extends HttpServlet {
         
         User usuari;
 		try {
-			log.info("Received secret from {}", user, null);
+			// log.info("Received secret from {}", user, null);
 			usuari = usuariService.findUserByUserName(user);
 			if (usuari == null)
 				throw new UnknownUserException(user);
@@ -167,7 +168,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	        SecretStoreService sss = ServerServiceLocator.instance().getSecretStoreService();
 	        if (secret != null)
 	        {
-//				log.info("Storing secret {} for user {}", secret, usuari.getUserName());
+//  				log.info("Storing secret {} for user {}", secret, usuari.getUserName());
 	        	sss.putSecret(usuari, secret, new Password(value));
 	        }
 	        else if (account == null || account.trim().length() == 0)
@@ -371,17 +372,16 @@ public class ChangeSecretServlet extends HttpServlet {
 			acc.setVaultFolder(vf.getName());
 			acc.setVaultFolderId(vf.getId());
 		}
-			
 		return ServiceLocator.instance().getAccountService().createAccount(acc);
 	}
 
 	private boolean canCreateAccount(User usuari, 
 			String system) throws InternalErrorException {
 		String authSystem = ConfigurationCache.getProperty("AutoSSOSystem"); //$NON-NLS-1$
-		if (authSystem != null && authSystem.equals(system))
+		if (authSystem == null || authSystem.equals(system))
 		{
 			System soffid = ServiceLocator.instance().getDispatcherService().findSoffidDispatcher();
-			log.info("Searching for user acounts {} at {}", usuari.getUserName(), soffid.getName());
+//			log.info("Searching for user acounts {} at {}", usuari.getUserName(), soffid.getName());
 			for (UserAccount account: accountSvc.findUsersAccounts(usuari.getUserName(), soffid.getName()))
 			{
 				Collection<AuthorizationRole> auts = ServiceLocator
