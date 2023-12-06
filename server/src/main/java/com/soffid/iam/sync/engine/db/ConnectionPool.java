@@ -41,6 +41,9 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	            if (System.getenv("DBPOOL_MAX_IDLE") != null) {
 	            	thePool.setMaxIdle(Integer.parseInt(System.getenv("DBPOOL_MAX_IDLE")));
 	            }
+	            if (System.getenv("DBPOOL_MAX_IDLE_TIME") != null) {
+	            	thePool.setMaxUnusedTime(Integer.parseInt(System.getenv("DBPOOL_MAX_IDLE_TIME")));
+	            }
 	            if (System.getenv("DBPOOL_MAX") != null) {
 	            	thePool.setMaxSize(Integer.parseInt(System.getenv("DBPOOL_MAX")));
 	            } else {
