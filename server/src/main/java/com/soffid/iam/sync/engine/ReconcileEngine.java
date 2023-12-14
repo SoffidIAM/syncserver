@@ -1315,7 +1315,8 @@ public abstract class ReconcileEngine
 	}
 
 	private Collection<RoleGrant> mergeOwnedRoles(Collection<RoleGrant> ownedRoles, Collection<RoleGrant> ownedRoles2) {
-		if (ConfigurationCache.getProperty("soffid.reconcile.all.roles").contains(dispatcher.getName()))
+		if (ConfigurationCache.getProperty("soffid.reconcile.all.roles") != null &&
+			ConfigurationCache.getProperty("soffid.reconcile.all.roles").contains(dispatcher.getName()))
 			return ownedRoles2;
 		
 		List<RoleGrant> l = new LinkedList<>();
