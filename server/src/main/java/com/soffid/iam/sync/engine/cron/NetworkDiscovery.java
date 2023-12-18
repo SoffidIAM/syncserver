@@ -342,6 +342,10 @@ public class NetworkDiscovery implements TaskHandler
 						i = d.indexOf(",");
 						if (i > 0)
 							domainName = d.substring(0, i);
+						if (domainName.endsWith("0."))
+							domainName = domainName.substring(0, domainName.length()-2);
+						if (domainName.endsWith("."))
+							domainName = domainName.substring(0, domainName.length()-1);
 					}
 				}
 				if (port.getPort().equals("445/tcp")) {
