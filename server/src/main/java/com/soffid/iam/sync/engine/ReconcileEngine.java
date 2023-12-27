@@ -1021,10 +1021,10 @@ public abstract class ReconcileEngine
 						}
 					}
 				} else {
-					log.print("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());
+					log.println("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());
 				}
 			} else {
-				log.print("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());
+				log.println("Warning: Cannot find role to reconcile: "+existingGrant.getRoleName());
 			}
 		} catch (Exception e) {
 			errors ++;

@@ -34,6 +34,7 @@ import com.soffid.iam.service.NetworkDiscoveryService;
 import com.soffid.iam.service.NetworkService;
 import com.soffid.iam.service.TaskHandler;
 import com.soffid.iam.service.UserDomainService;
+import com.soffid.iam.sync.agent.AgentInterface;
 import com.soffid.iam.sync.agent.discovery.NetworkDiscoveryAgent;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
@@ -225,7 +226,12 @@ public class NetworkDiscovery implements TaskHandler
 						taskGenerator.updateAgents();
 						DispatcherHandler dh = taskGenerator.getDispatcher(system.getName());
 						try {
-							new ReconcileEngine2 (dh.getSystem(), agent, InterfaceWrapper.getServiceMgr(obj),  out).reconcile();
+							obj = dh.connect(false, false);
+							new ReconcileEngine2 (dh.getSystem(), InterfaceWrapper.getReconcileMgr2(obj), InterfaceWrapper.getServiceMgr(obj),  out).reconcile();
+							if (obj instanceof AgentInterface)
+								((AgentInterface) obj).close();
+							else if (obj instanceof es.caib.seycon.ng.sync.agent.AgentInterface)
+								((es.caib.seycon.ng.sync.agent.AgentInterface) obj).close();
 						} catch (Exception e) {
 							out.println("Warning: Error reconciling system "+dh.getSystem().getName());
 							e.printStackTrace(out);
