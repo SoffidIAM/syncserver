@@ -1347,7 +1347,19 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     		try {
 	            MailList llista = server.getMailList(t.getTask().getAlias(), t.getTask()
 	                    .getMailDomain());
-	            aliasMgr.updateListAlias(llista);
+	            if (llista == null) {
+	            	llista = new MailList();
+	            	llista.setName(t.getTask().getAlias());
+	            	llista.setDomainCode(t.getTask().getMailDomain());
+	            	llista.setExplodedUsersList(new LinkedList<>());
+	            	llista.setExternalList(new LinkedList<>());
+	            	llista.setGroupMembers(new LinkedList<>());
+	            	llista.setRoleMembers(new LinkedList<>());
+	            	llista.setUsersList(new LinkedList<>());
+	            	llista.setLists(new LinkedList<>());
+	            	llista.setListsBelong("");
+	            }
+            	aliasMgr.updateListAlias(llista);
 	        } catch (UnknownMailListException e) {
 	            aliasMgr.removeListAlias(t.getTask().getAlias()+"@"+t.getTask().getMailDomain());
         	}
