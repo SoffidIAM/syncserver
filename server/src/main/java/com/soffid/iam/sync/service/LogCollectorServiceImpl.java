@@ -27,9 +27,11 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
+import org.jfree.util.Log;
 
 public class LogCollectorServiceImpl extends LogCollectorServiceBase {
-
+	org.apache.commons.logging.Log log = LogFactory.getLog(getClass());
+	
     @Override
     protected Date handleGetLastLogEntryDate(String dispatcher) throws Exception {
         AccessLogEntityDao dao = getAccessLogEntityDao();
@@ -54,8 +56,10 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
         AccountEntityDao dao = getAccountEntityDao();
         
         AccountEntity acc = dao.findByNameAndSystem(codi, dispatcher);
-        if (acc == null)
-            throw new UnknownUserException(String.format("Unknown user %s on domain %s", codi, dispatcher));
+        if (acc == null) {
+            log.info(String.format("Unknown user %s on domain %s", codi, dispatcher));
+        	return null;
+        }
         else if (acc.getType().equals(AccountType.USER))
         {
         	for (UserAccountEntity uac: acc.getUsers())
@@ -130,10 +134,13 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
             rac.setProtocol(findServei(protocol));
             rac.setAccessType("L");
             rac.setUser(findUser(user, dispatcher));
-            assignHost(rac, host, server);
-            assignClientHost(rac, client);
-            
-            getAccessLogEntityDao().create(rac);
+            if (rac.getUser() != null) {
+            	assignHost(rac, host, server);
+            	assignClientHost(rac, client);
+            	
+            	getAccessLogEntityDao().create(rac);
+
+            }
         }
     }
 
@@ -195,10 +202,12 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
                 rac.setProtocol(findServei(protocol));
                 rac.setAccessType("D");
                 rac.setUser(findUser(user, dispatcher));
-                assignHost(rac, host, server);
-                assignClientHost(rac, client);
-                
-                getAccessLogEntityDao().create(rac);
+                if (rac.getUser() != null) {
+	                assignHost(rac, host, server);
+	                assignClientHost(rac, client);
+	                
+	                getAccessLogEntityDao().create(rac);
+                }
             } catch (UnknownUserException e) {
             	LogFactory.getLog(getClass()).warn ( String.format("Unknown user %s loading logs: %s", user, e.getMessage()));
             }
@@ -224,10 +233,12 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
             rac.setProtocol(findServei(protocol));
             rac.setAccessType("L");
             rac.setUser(findUser(user, dispatcher));
-            assignHost(rac, host, server);
-            assignClientHost(rac, client);
-            
-            getAccessLogEntityDao().create(rac);
+            if (rac.getUser() != null) {
+	            assignHost(rac, host, server);
+	            assignClientHost(rac, client);
+	            
+	            getAccessLogEntityDao().create(rac);
+            }
         } else {
             for (Iterator<AccessLogEntity> it = result.iterator(); it.hasNext(); ) {
                 AccessLogEntity rac = it.next();
