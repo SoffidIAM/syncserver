@@ -92,7 +92,8 @@ public class SoffidAgent extends DummyAgent implements IndexMgr, UserMgr, Extens
 
 	@Override
 	public void updateListAlias(MailList list) throws InternalErrorException {
-		index(MailList.class.getName(), list.getId());
+		if (list != null && list.getId() != null)
+			index(MailList.class.getName(), list.getId());
 	}
 
 	@Override
