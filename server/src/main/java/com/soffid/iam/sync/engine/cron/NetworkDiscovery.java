@@ -40,6 +40,7 @@ import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
 import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.ReconcileEngine2;
+import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.intf.NetworkDiscoveryInterface;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
 import com.soffid.iam.sync.intf.ServiceMgr;
@@ -372,7 +373,11 @@ public class NetworkDiscovery implements TaskHandler
 				shortName = i > 0 ? domainName.substring(0, i): domainName;
 			}
 			
-			s.setName("AD "+domainName.toLowerCase());
+			String name = new KerberosManager().getDomainsToSystemMap().get(domainName);
+			if (name == null)
+				s.setName("AD "+domainName.toLowerCase());
+			else
+				s.setName(name);
 			s.setClassName("com.soffid.iam.sync.agent2.CustomizableActiveDirectoryAgent");
 			s.setParam0(host.getIp());
 			try {
