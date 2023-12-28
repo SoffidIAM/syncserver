@@ -389,7 +389,6 @@ public class KerberosManager {
 
     public Map<String,String> getDomainsToSystemMap() throws InternalErrorException {
     	Map<String,String> result = new HashMap<>();
-		String dn = ConfigurationCache.getProperty("soffid.kerberos.agent");
         Collection<DispatcherHandler> dispatchers = taskGenerator.getDispatchers();
         for (Iterator<DispatcherHandler> it = dispatchers.iterator(); it.hasNext();) {
             DispatcherHandler handler = it.next();
