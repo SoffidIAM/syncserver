@@ -106,7 +106,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         log.info("Looking for new tasks to schedule");
         if ( new KubernetesConfig().isKubernetes()) {
             if (firstRun) {
-                tasks = getTaskEntityDao().query("select task from com.soffid.iam.model.TaskEntity where id in ("
+                tasks = getTaskEntityDao().query("select task from com.soffid.iam.model.TaskEntity as task where id in ("
                     + "select  tasca.id "
                 		+ "from com.soffid.iam.model.TaskEntity as tasca "
                 		+ "left join tasca.tenant as tenant "
@@ -119,7 +119,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                 				new Parameter("lastId", lastId),
                 				new Parameter("true", true)});
             } else if (isActiveServer() && taskQueue.isBestServer()) {
-	            tasks = getTaskEntityDao().query("select task from com.soffid.iam.model.TaskEntity where id in "
+	            tasks = getTaskEntityDao().query("select task from com.soffid.iam.model.TaskEntity as task where id in "
                   + "(select tasca.id "
 	            		+ "from com.soffid.iam.model.TaskEntity as tasca "
 	            		+ "left join tasca.tenant as tenant "
