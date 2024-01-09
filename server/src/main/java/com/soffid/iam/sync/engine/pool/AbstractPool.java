@@ -28,6 +28,8 @@ public abstract class AbstractPool<S> implements Runnable {
 	int maxUsedTime = 9200; // 2 hours
 	int currentSize = 0;
 
+	public void debug(String msg) { 
+	}
 
 	public int getMinSize() {
 		return minSize;
@@ -119,8 +121,10 @@ public abstract class AbstractPool<S> implements Runnable {
 	private synchronized void returnToPool(PoolElement<S> e) {
 		if (inUse.remove(e))
 		{
-			if (e.isExpired())
+			if (e.isExpired()) {
+				debug("Removing expired connection "+e.getObject().toString());
 				performCloseConnection(e);
+			}
 			else
 				freeList.push(e);
 		}
@@ -136,6 +140,7 @@ public abstract class AbstractPool<S> implements Runnable {
 			PoolElement<S> element = it.next();
 			if (element.getLastUse() < lastAcceptable && currentSize > minSize)
 			{
+				debug("Removing connection "+element.getObject().toString()+". Pool size("+currentSize+") > Minimumu size ("+minSize+")");
 				it.remove();
 				performCloseConnection(element);
 			}
@@ -147,13 +152,15 @@ public abstract class AbstractPool<S> implements Runnable {
 				freeList.size() + inUse.size() < minSize) {
 			PoolElement<S> empty;
 			try {
-				empty = new PoolElement<S>(getConnection());
+				empty = allocateConnection();
+				debug("Created idle connection "+empty.getObject().toString()+". Free size("+freeList.size()+") < Minimum idle ("+minIdle+") or Minimum size ("+minSize+")");
 				freeList.add(empty );
 			} catch (Exception e) {
 			}
 		}
 		while (freeList.size() > maxIdle && freeList.size() + inUse.size() > minSize) {
 			PoolElement<S> element = freeList.pollLast();
+			debug("Closed idle connection "+element.getObject().toString()+". Free size("+freeList.size()+") > Maximum idle ("+maxIdle+")");
 			performCloseConnection(element);
 		}
 	}
@@ -187,36 +194,18 @@ public abstract class AbstractPool<S> implements Runnable {
 					element = e ;
 					break;
 				}
-				else
+				else {
+					debug("Closing invalid connection "+e.getObject().toString());
 					performCloseConnection(e);
+				}
 			} catch (Exception ex) {
+				debug("Closing invalid connection "+e.getObject().toString());
 				performCloseConnection(e);
 			}
 		}
 		if (element == null)
 		{
-			synchronized(this) {
-				if (currentSize >= maxSize)
-					throw new Exception ("Cannot allocate connection. Reached limit: "+maxSize);
-				currentSize ++;
-			}
-			// Raise privileges to create connections during scripts evaluation
-			Object e = java.security.AccessController.doPrivileged(new java.security.PrivilegedAction<Object>() {
-				public Object run() {
-					try {
-						PoolElement<S> element = new PoolElement<S>(createConnection());
-						return element;
-					} catch (Exception e) {
-						return e;
-					}
-				}});
-			if (e != null && e instanceof Exception) {
-				synchronized(this) {currentSize --;}
-				throw (Exception) e;
-			}
-			else
-				element = (PoolElement<S>) e;
-			element.setCreation(System.currentTimeMillis());
+			element = allocateConnection();
 		}
 
 		element.setBoundThread(Thread.currentThread());
@@ -229,6 +218,34 @@ public abstract class AbstractPool<S> implements Runnable {
 			current.set(element);
 		}
 		return element.getObject();
+	}
+
+	protected PoolElement<S> allocateConnection() throws Exception {
+		PoolElement<S> element = null;
+		synchronized(this) {
+			if (currentSize >= maxSize)
+				throw new Exception ("Cannot allocate connection. Reached limit: "+maxSize);
+			currentSize ++;
+		}
+		// Raise privileges to create connections during scripts evaluation
+		Object e = java.security.AccessController.doPrivileged(new java.security.PrivilegedAction<Object>() {
+			public Object run() {
+				try {
+					PoolElement<S> element = new PoolElement<S>(createConnection());
+					debug("Created new connection "+element.getObject().toString());
+					return element;
+				} catch (Exception e) {
+					return e;
+				}
+			}});
+		if (e != null && e instanceof Exception) {
+			synchronized(this) {currentSize --;}
+			throw (Exception) e;
+		}
+		else
+			element = (PoolElement<S>) e;
+		element.setCreation(System.currentTimeMillis());
+		return element;
 	}
 
 	
@@ -262,6 +279,7 @@ public abstract class AbstractPool<S> implements Runnable {
 
 		for (PoolElement<S> element: freeList)
 		{
+			debug("Closing connection "+element.getObject().toString()+" due to reconfiguration");
 			performCloseConnection(element);
 		}
 		freeList.clear();

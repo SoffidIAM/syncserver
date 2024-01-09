@@ -24,6 +24,7 @@ import es.caib.seycon.ng.sync.servei.TaskGenerator;
 
 public class ConnectionPool extends AbstractPool<WrappedConnection> {
     private static ConnectionPool thePool = null;
+	private static boolean debug;
     Logger log = Log.getLogger("DB-ConnectionPool");
 	private boolean driversRegistered = false;
     
@@ -49,6 +50,7 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	            if (System.getenv("DBPOOL_INITIAL") != null) {
 	            	thePool.setMinSize(Integer.parseInt(System.getenv("DBPOOL_INITIAL")));
 	            }
+	            debug = "true".equals(System.getenv("DBPOOL_DEBUG"));
 			}
 			catch (IOException e)
 			{
@@ -161,4 +163,11 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	protected boolean isConnectionValid(WrappedConnection connection) throws Exception {
 		return connection.isValid(3);
 	}
+	
+	public void debug(String msg) {
+		if (debug) {
+			log.info(msg, null, null);
+		}
+	}
+
 }
