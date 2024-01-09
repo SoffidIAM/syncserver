@@ -49,6 +49,8 @@ public class UpdateTaskStatusThread extends Thread
 	        			Security.nestedLogoff();
 	        			
 	        		}
+        		} else {
+   					Thread.sleep(2000);
         		}
         	} catch (Throwable e)
         	{
