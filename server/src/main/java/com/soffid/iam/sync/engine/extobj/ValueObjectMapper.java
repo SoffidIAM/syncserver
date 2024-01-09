@@ -194,7 +194,6 @@ public class ValueObjectMapper
 					else if ("createdOn".equals(attribute)) usuari.setCreatedDate(toCalendar(value));
 					else if ("modifiedOn".equals(attribute)) usuari.setModifiedDate(toCalendar(value));
 					else if ("mailDomain".equals(attribute)) usuari.setMailDomain(toString(value));
-					else if ("emailAddress".equals(attribute)) usuari.setEmailAddress(toString(value));
 					else if ("fullName".equals(attribute)) usuari.setFullName(toString(value));
 					else if ("id".equals(attribute)) usuari.setId(toLong(value));
 					else if ("multiSession".equals(attribute)) usuari.setMultiSession(toBoolean(value));
@@ -204,6 +203,7 @@ public class ValueObjectMapper
 					else if ("lastName2".equals(attribute)) usuari.setMiddleName(toString(value));
 					else if ("middleName".equals(attribute)) usuari.setMiddleName(toString(value));
 					else if ("mailServer".equals(attribute)) usuari.setMailServer(toString(value));
+					else if ("emailAddress".equals(attribute)) usuari.setEmailAddress(toString(value));
 					else if ("homeServer".equals(attribute)) usuari.setHomeServer(toString(value));
 					else if ("profileServer".equals(attribute)) usuari.setProfileServer(toString(value));
 					else if ("userType".equals(attribute)) usuari.setUserType(toString(value));

@@ -12,6 +12,7 @@ import java.util.EmptyStackException;
 import java.util.Enumeration;
 import java.util.Hashtable;
 import java.util.Stack;
+import java.util.logging.Level;
 
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
@@ -24,16 +25,18 @@ import es.caib.seycon.ng.sync.servei.TaskGenerator;
 
 public class ConnectionPool extends AbstractPool<WrappedConnection> {
     private static ConnectionPool thePool = null;
-	private static boolean debug;
-    Logger log = Log.getLogger("DB-ConnectionPool");
+    static java.util.logging.Logger log = java.util.logging.Logger.getLogger("DB-ConnectionPool");
 	private boolean driversRegistered = false;
-    
+	static boolean debug = false;
 	long lastEmptyTime = 0;
 	
 	public static ConnectionPool getPool() {
         if (thePool == null) {
+        	debug = "true".equals(System.getenv("DBPOOL_DEBUG"));
         	try
 			{
+        		if (debug)
+        			log.info("Starting connection pool");
 				Config config = Config.getConfig();
 	            thePool = new ConnectionPool();
 	            if (System.getenv("DBPOOL_MIN_IDLE") != null) {
@@ -41,6 +44,9 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	            }
 	            if (System.getenv("DBPOOL_MAX_IDLE") != null) {
 	            	thePool.setMaxIdle(Integer.parseInt(System.getenv("DBPOOL_MAX_IDLE")));
+	            }
+	            if (System.getenv("DBPOOL_MAX_IDLE_TIME") != null) {
+	            	thePool.setMaxUnusedTime(Integer.parseInt(System.getenv("DBPOOL_MAX_IDLE_TIME")));
 	            }
 	            if (System.getenv("DBPOOL_MAX") != null) {
 	            	thePool.setMaxSize(Integer.parseInt(System.getenv("DBPOOL_MAX")));
@@ -99,43 +105,49 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 				Class c = Class.forName("oracle.jdbc.driver.OracleDriver");
 				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
 			} catch (Exception e) {
-				log.info("Error registering driver: {}", e, null);
+				log.log(Level.WARNING, "Error registering driver: " + e.getMessage(), e);
 			}
 			try {
 				Class c = Class.forName("com.mysql.jdbc.Driver");
 				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
 			} catch (Exception e) {
-				log.info("Error registering driver: {}", e, null);
+//				log.log(Level.WARNING, "Error registering driver: " + e.getMessage(), e);
 			}
 			try{
 				Class c = Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
-				log.info("Registering driver", c.getClass().getName(),null);
 				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
 			} catch (Exception e) {
-				log.info("Error registering driver: {}", e, null);
+				log.log(Level.WARNING, "Error registering driver: " + e.getMessage(), e);
 			}
 			try{
 				Class c = Class.forName("org.postgresql.Driver");
 				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
 			} catch (Exception e) {
-				log.info("Error registering driver: {}", e, null);
+				log.log(Level.WARNING, "Error registering driver: " + e.getMessage(), e);
 			}
 			driversRegistered = true;
 		}
 		Config config = Config.getConfig();
 		// Connect to the database
 		// You can put a database name after the @ sign in the connection URL.
-		return new WrappedConnection( 
+		if (debug)
+			log.fine("Connecting to "+config.getDB());
+		WrappedConnection c = new WrappedConnection( 
 				ConnectionPool.this,
 				DriverManager.getConnection(
 						config.getDB(), 
 						config.getDbUser(),
 						config.getPassword().getPassword()) );
+		if (debug)
+			log.fine("Connected "+c.hashCode());
+		return c;
 	}
 
 
 	@Override
 	protected void closeConnection(WrappedConnection connection) throws Exception {
+		if (debug)
+			log.fine("Closing "+connection.hashCode());
 		connection.realClose();
 	}
 
@@ -161,12 +173,27 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 
 	@Override
 	protected boolean isConnectionValid(WrappedConnection connection) throws Exception {
-		return connection.isValid(3);
+		if (debug)
+			log.fine("Checking "+connection.hashCode());
+		try {
+			boolean valid = connection.isValid(3);
+			if (debug) {
+				if (valid)
+					log.fine("Connection "+connection.hashCode()+" is valid");
+				else
+					log.fine("Connection "+connection.hashCode()+" is NOT valid");
+			}
+			return valid;
+		} catch (Exception e) {
+			if (debug)
+				log.fine("Connection "+connection.hashCode()+" is ERROR");
+			throw e;
+		}
 	}
 	
 	public void debug(String msg) {
 		if (debug) {
-			log.info(msg, null, null);
+			log.info(msg);
 		}
 	}
 

@@ -128,7 +128,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 	            		+ "where (tasca.server is null or tasca.server=:server and tasca.serverInstance is null) "
 	            		+ "and   server.name=:server "
 	            		+ "and   tenant.enabled=:true) "
-	            		+ "order by tasca.priority, tasca.id",
+	            		+ "order by priority, id",
 	            		new Parameter[]{
 	            				new Parameter("server", config.getHostName()),
 	            				new Parameter("true", true)},
