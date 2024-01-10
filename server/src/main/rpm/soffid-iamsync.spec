@@ -1,7 +1,7 @@
 Buildroot: /home/gbuades/soffid/console/install/target/soffid-iamsync
 Name: soffid-iamsync
 Version: ${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}
-Release: 1
+Release: 5
 Summary: Soffid IAM Sync
 License: GPL
 Distribution: Soffid IAM
@@ -45,3 +45,4 @@ systemctl disable 'soffid-iamsync.service' || true
 
 
 %files
+%config(noreplace) "/opt/soffid/iam-sync/bin/env.sh"
