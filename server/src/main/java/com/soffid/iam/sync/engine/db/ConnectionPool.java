@@ -29,6 +29,7 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	private boolean driversRegistered = false;
 	static boolean debug = false;
 	long lastEmptyTime = 0;
+	private boolean oracle;
 	
 	public static ConnectionPool getPool() {
         if (thePool == null) {
@@ -56,7 +57,7 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	            if (System.getenv("DBPOOL_INITIAL") != null) {
 	            	thePool.setMinSize(Integer.parseInt(System.getenv("DBPOOL_INITIAL")));
 	            }
-	            debug = "true".equals(System.getenv("DBPOOL_DEBUG"));
+	            thePool.oracle = config.getDB().startsWith("jdbc:oracle:");
 			}
 			catch (IOException e)
 			{
@@ -176,14 +177,26 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 		if (debug)
 			log.fine("Checking "+connection.hashCode());
 		try {
-			boolean valid = connection.isValid(3);
-			if (debug) {
-				if (valid)
-					log.fine("Connection "+connection.hashCode()+" is valid");
-				else
-					log.fine("Connection "+connection.hashCode()+" is NOT valid");
+			if (oracle) {
+				try {
+					Statement stmt = connection.createStatement();
+					stmt.executeQuery("SELECT 1 FROM DUAL").close();
+					stmt.close();
+					return true;
+				} catch (SQLException e) {
+					log.fine("Connection "+connection.hashCode()+" is NOT valid "+e.getMessage());
+					return false;
+				}
+			} else {
+				boolean valid = connection.isValid(3);
+				if (debug) {
+					if (valid)
+						log.fine("Connection "+connection.hashCode()+" is valid");
+					else
+						log.fine("Connection "+connection.hashCode()+" is NOT valid");
+				}
+				return valid;
 			}
-			return valid;
 		} catch (Exception e) {
 			if (debug)
 				log.fine("Connection "+connection.hashCode()+" is ERROR");

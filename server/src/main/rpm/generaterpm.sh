@@ -26,7 +26,7 @@ function dumpFiles {
    local f=""
    for f in *
    do
-     if  [ -f "$f" ]
+     if  [[ -f "$f" && ! "$f" == *env.sh ]]
      then
        echo "\"$2/$f\""
      fi
