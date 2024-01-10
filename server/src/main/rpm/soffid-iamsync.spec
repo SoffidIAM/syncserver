@@ -1,7 +1,7 @@
 Buildroot: /home/gbuades/soffid/console/install/target/soffid-iamsync
 Name: soffid-iamsync
 Version: ${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}
-Release: 5
+Release: 1
 Summary: Soffid IAM Sync
 License: GPL
 Distribution: Soffid IAM
