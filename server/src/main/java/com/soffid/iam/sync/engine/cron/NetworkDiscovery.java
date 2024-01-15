@@ -2,12 +2,15 @@ package com.soffid.iam.sync.engine.cron;
 
 import java.io.PrintWriter;
 import java.net.InetAddress;
+import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 
 import org.jfree.util.Log;
 
@@ -41,6 +44,7 @@ import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
 import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.ReconcileEngine2;
 import com.soffid.iam.sync.engine.kerberos.KerberosManager;
+import com.soffid.iam.sync.intf.ExtensibleObjectMgr;
 import com.soffid.iam.sync.intf.NetworkDiscoveryInterface;
 import com.soffid.iam.sync.intf.ReconcileMgr2;
 import com.soffid.iam.sync.intf.ServiceMgr;
@@ -55,6 +59,7 @@ import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.BadPasswordException;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.SoffidStackTrace;
+import oracle.net.aso.l;
 
 public class NetworkDiscovery implements TaskHandler
 {
@@ -147,42 +152,11 @@ public class NetworkDiscovery implements TaskHandler
 	}
 
 	private void processHostEvent(HostDiscoveryEvent event) throws InternalErrorException {
-		Host host = networkService.findHostByIp(event.getIp());
-		if (host == null)
-		{
-			host = new Host();
-			host.setName(event.getName());
-			host.setIp(event.getIp());
-			host.setDescription("Discovered host "+event.getName());
-			host.setLastSeen(Calendar.getInstance());
-			host.setNetworkCode(network.getName());
-			host.setOs(event.getOs() == null  ? "ALT": event.getOs());
-			host = networkService.create(host);
-			out.println("Registered host "+host.getName());
-			Issue issue = new Issue();
-			issue.setType("discovered-host");
-			IssueHost ih = new IssueHost();
-			ih.setHostId(host.getId());
-			ih.setHostName(host.getName());
-			ih.setHostIp(host.getIp());
-			issue.setHosts(Arrays.asList(ih));
-			ServiceLocator.instance().getIssueService().createInternalIssue(issue);
-		}
-		else
-		{
-			if (event.getOs() != null && "ALT".equals(host.getOs())) {
-				host.setOs(event.getOs());
-				networkService.update(host);
-			}
-		}
+		Host host = getHost(event);
+
 		discoveryService.registerHostPorts(host, event.getPorts());
 		out.println("Registered open ports for host "+host.getName());
 		if ( discoveryService.findHostSystems(host).isEmpty()) {
-			if (containsPort(event.getPorts(), "22/tcp")) {
-				createSystem(host, "Linux", event.getPorts());
-				host.setOs("LIN");
-				networkService.update(host);
-			} 
 			if (containsPort(event.getPorts(), "389/tcp", "Active Directory")) { // Kerberos
 				createSystem(host, "AD", event.getPorts());
 				host.setOs("NTS");
@@ -193,7 +167,189 @@ public class NetworkDiscovery implements TaskHandler
 				host.setOs("NTS");
 				networkService.update(host);
 			} 
+			if (containsPort(event.getPorts(), "22/tcp")) {
+				createSystem(host, "Linux", event.getPorts());
+				host.setOs("LIN");
+				networkService.update(host);
+			} 
 		}
+	}
+
+	private Host getHost(HostDiscoveryEvent event) throws InternalErrorException {
+		String hostName = getHostName(event);
+		if (hostName != null) {
+			Host h = networkService.findHostByName(hostName);
+			if (h == null) {
+				removeIpAddressFromOtherHosts(event);
+				return registerNewHost(event, hostName);
+			}
+			else if (h.getIp() != null && h.getIp().equals(event.getIp()) ||
+				h.getHostAlias() != null && h.getHostAlias().contains(event.getIp())) // Same name and address 
+			{
+				return h;
+			}
+			else
+			{
+				removeIpAddressFromOtherHosts(event);
+				if (h.getIp() == null)
+					h.setIp(event.getIp());
+				else
+					h.getHostAlias().add(event.getIp());
+				networkService.update(h);
+				return h;
+			}
+		} else {
+			Host h = networkService.findHostByIp(event.getIp());
+			if (h == null) {
+				return registerNewHost(event, event.getName());
+			}
+			else
+			{
+				return h;
+			}
+		}
+	}
+
+	protected Host registerNewHost(HostDiscoveryEvent event, String hostName) throws InternalErrorException {
+		Host h;
+		h = new Host();
+		h.setName(hostName);
+		h.setIp(event.getIp());
+		h.setDescription("Discovered host "+event.getName());
+		h.setLastSeen(Calendar.getInstance());
+		h.setNetworkCode(network.getName());
+		h.setOs(event.getOs() == null  ? "ALT": event.getOs());
+		h = networkService.create(h);
+		out.println("Registered host "+h.getName());
+		Issue issue = new Issue();
+		issue.setType("discovered-host");
+		IssueHost ih = new IssueHost();
+		ih.setHostId(h.getId());
+		ih.setHostName(h.getName());
+		ih.setHostIp(h.getIp());
+		issue.setHosts(Arrays.asList(ih));
+		ServiceLocator.instance().getIssueService().createInternalIssue(issue);
+		return h;
+	}
+
+	protected void removeIpAddressFromOtherHosts(HostDiscoveryEvent event) throws InternalErrorException {
+		// Remove IP address from other hosts
+		for (Host oldHost2: networkService.findHostByTextAndJsonQuery(null, "hostAlias eq '"+event.getIp()+"' or "
+				+ "hostIP eq '"+event.getIp()+"'", null, null).getResources()) {
+			// Remove IP
+			oldHost2.getHostAlias().remove(event.getIp());
+			if (event.getIp().equals( oldHost2.getIp()))
+				oldHost2.setIp(null);
+			// Disable system if it has no other IP address
+			if (oldHost2.getIp() == null && oldHost2.getHostAlias().isEmpty()) {
+				for (System system: discoveryService.findHostSystems(oldHost2)) {
+					system.setUrl(null);
+					dispatcherService.update(system);
+				}
+			}
+			networkService.update(oldHost2);
+		}
+	}
+
+	private String getHostName(HostDiscoveryEvent event) {
+		for (int i = 0; i < discoveryAccounts.size(); i++) {
+			Account account = discoveryAccounts.get(i);
+			Password password = passwords.get(i);
+			try {
+				if (containsPort(event.getPorts(), "22/tcp")) {
+					String host = getLinuxHostName(event.getIp(), account.getLoginName(), password);
+					if (host != null)
+						return host;
+				}
+				if (containsPort(event.getPorts(), "445/tcp") ) {
+					String host = getWindowsHostName(event.getIp(), account.getLoginName(), password);
+					if (host != null)
+						return host;
+				} 
+			} catch (Exception e) {
+				
+			}
+		}
+		return null;
+	}
+
+	private String getLinuxHostName(String ip, String loginName, Password password) throws Exception {
+		System s = new System();
+		s.setManualAccountCreation(true);
+		s.setReadOnly(true);
+		s.setDescription(ip);
+		s.setName(ip);
+		s.setFullReconciliation(false);
+		s.setSharedDispatcher(true);
+		s.setTrusted(false);
+		UserDomain ud = userDomainService.findUserDomainByName("DEFAULT");
+		if (ud == null)
+			ud  = userDomainService.findAllUserDomain().iterator().next();
+		s.setUsersDomain(ud.getName());
+		PasswordDomain pd = userDomainService.findPasswordDomainByName("DEFAULT");
+		if (pd == null)
+			pd = userDomainService.findAllPasswordDomain().iterator().next();
+		s.setPasswordsDomain(pd.getName());
+		s.setClassName("com.soffid.iam.sync.agent.SimpleSSHAgent");
+		s.setParam0(loginName);
+		s.setParam2(password.toString());
+		s.setParam3(ip);
+		s.setParam4("true"); // only passwords
+		s.setParam6("UTF-8");
+		s.setParam7("false"); // debug
+		s.setId(0L);
+		DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
+		s.setUrl(systemUrl);
+		handler.setSystem(s);
+		Object obj = handler.connect(true, false);
+		ExtensibleObjectMgr eo = InterfaceWrapper.getExtensibleObjectMgr(obj);
+		if (eo != null) {
+			for (Map<String, Object> l: eo.invoke("invoke", "hostname", new HashMap<>())) {
+				String hn = (String) l.get("result");
+				if (hn != null)
+					return hn.replace("\n", "").toLowerCase().trim();
+			}
+		}
+		return null;
+	}
+
+	private String getWindowsHostName(String ip, String loginName, Password password) throws Exception {
+		System s = new System();
+		s.setManualAccountCreation(true);
+		s.setReadOnly(true);
+		s.setDescription(ip);
+		s.setName(ip);
+		s.setFullReconciliation(false);
+		s.setSharedDispatcher(true);
+		s.setTrusted(false);
+		UserDomain ud = userDomainService.findUserDomainByName("DEFAULT");
+		if (ud == null)
+			ud  = userDomainService.findAllUserDomain().iterator().next();
+		s.setUsersDomain(ud.getName());
+		PasswordDomain pd = userDomainService.findPasswordDomainByName("DEFAULT");
+		if (pd == null)
+			pd = userDomainService.findAllPasswordDomain().iterator().next();
+		s.setPasswordsDomain(pd.getName());
+		s.setClassName("com.soffid.iam.sync.agent.SimpleWindowsAgent");
+		s.setParam0(loginName);
+		s.setParam2(password.toString());
+		s.setParam3(ip);
+		s.setParam4("true"); // only passwords
+		s.setParam7("false"); // debug
+		s.setId(0L);
+		DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
+		s.setUrl(systemUrl);
+		handler.setSystem(s);
+		Object obj = handler.connect(true, false);
+		ExtensibleObjectMgr eo = InterfaceWrapper.getExtensibleObjectMgr(obj);
+		if (eo != null) {
+			for (Map<String, Object> l: eo.invoke("hostname", "hostname", new HashMap<>())) {
+				String hn = (String) l.get("result");
+				if (hn != null)
+					return hn;
+			}
+		}
+		return null;
 	}
 
 	public boolean createSystem(Host host, String type, List<HostPort> ports) {

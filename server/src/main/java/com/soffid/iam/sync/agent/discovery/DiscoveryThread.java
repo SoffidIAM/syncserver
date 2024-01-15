@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.apache.commons.beanutils.PropertyUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
@@ -27,6 +28,7 @@ public class DiscoveryThread extends Thread {
 	List<Account> accounts;
 	ServerService serverService;
 	Throwable error = null;
+	List<String> ranges = null;
 	List<ProcessTracker> tracker = new LinkedList<ProcessTracker>();
 	List<DiscoveryEvent> events = new LinkedList<>();
 	Log log = LogFactory.getLog(getClass());
@@ -38,6 +40,12 @@ public class DiscoveryThread extends Thread {
 			InetAddress addr = InetAddress.getByName(network.getIp());
 			InetAddress mask = InetAddress.getByName(network.getMask());
 			
+			try {
+				ranges = (List<String>) PropertyUtils.getProperty(network, "discoveryRanges");
+			} catch (Exception e) {
+				// Ignore. Probably older console version
+			}
+			
 			byte[] netBytes = addr.getAddress();
 			byte[] maskBytes = mask.getAddress();
 			byte[] last = lastAddress(netBytes, maskBytes);
@@ -46,7 +54,8 @@ public class DiscoveryThread extends Thread {
 			
 			while (true) {
 				while (tracker.size() < 20 && isLess(next,last)) {
-					createProcess(next);
+					if (isInRanges (next))
+						createProcess(next);
 					increase(next);;
 				}
 				if (tracker.isEmpty()) break;
@@ -54,6 +63,86 @@ public class DiscoveryThread extends Thread {
 			}
 		} catch (Throwable th) {
 			error = th;
+		}
+	}
+
+	private boolean isInRanges(byte[] next) {
+		if (ranges == null || ranges.isEmpty())
+			return true;
+		for (String range: ranges) {
+			if (range.contains( "-" )) {
+				boolean matches = compareRange(next, range);
+				if (matches) return true;
+			}
+			else if (range.contains("/")) {
+				boolean matches = compareSubNet(next, range);
+				if (matches) return true;
+			}
+			else {
+				byte[] b = parse(range, next);
+				boolean matches = compareRange(next, b, b);
+				if (matches) return true;
+			}
+		}
+		return false;
+	}
+
+	static final int masks [] = {0x00, 0x80, 0xc0, 0xe0, 0xf0, 0xf8, 0xfc, 0xfe, 0xff};  
+
+	private boolean compareSubNet(byte[] next, String range) {
+		String[] split = range.split(" */ *");
+		byte[] from = parse(split[0], next);
+		byte[] until = new byte[from.length];
+		int bits = Integer.parseInt(split[1]);
+		for (int i = 0; i < from.length; i++) {
+			if (bits >= 8) {
+				until[i] = from[i];
+				bits -= 8;
+			}
+			else if (bits == 0) {
+				until[i] = -1;
+			}
+			else 
+			{
+				int mask = masks[bits];
+				int tail = mask ^ 255;
+				until[i] = (byte) (from[i] & mask | tail) ;
+				bits = 0;
+			}
+		}
+		return compareRange(next, from, until);
+	}
+
+	protected boolean compareRange(byte[] next, String range) {
+		String[] split = range.split(" *- *");
+		byte[]from = parse(split[0], next);
+		byte[]until = parse(split[1], next);
+		return compareRange(next, from, until);
+	}
+
+	protected boolean compareRange(byte[] next, byte[] from, byte[] until) {
+		for (int i = 0; i < next.length; i++) {
+			if (i <= from.length && unsigned(from[i]) > unsigned(next[i])) {
+				return false;
+			}
+			if (i <= until.length && unsigned(until[i]) < unsigned(next[i])) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private int unsigned(byte b) {
+		return (((int) b) + 256) % 256;
+	}
+
+	private byte[] parse(String string, byte[] next) {
+		if (string.trim().isEmpty()) 
+			return next;
+		try {
+			return InetAddress.getByName(string).getAddress();
+		} catch (UnknownHostException e) {
+			return next;
 		}
 	}
 
