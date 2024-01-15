@@ -192,7 +192,11 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
             TaskEntity tasca = it.next();
             if ( activeTenants.contains( tasca.getTenant().getId()))
             {
-	            taskQueue.addTask(tasca);
+            	try {
+            		taskQueue.addTask(tasca);
+            	} catch (Exception e) {
+            		log.warn("Error loading task "+tasca.getHash()+": "+ e.toString());
+            	}
 	            flushAndClearSession();
 	            if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
 	                runtime.gc();
