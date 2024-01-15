@@ -13,6 +13,7 @@ import com.soffid.iam.model.AccountAccessEntity;
 import com.soffid.iam.model.AccountAttributeEntity;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.GroupEntity;
+import com.soffid.iam.model.Parameter;
 import com.soffid.iam.model.PasswordDomainEntity;
 import com.soffid.iam.model.RoleEntity;
 import com.soffid.iam.model.RoleEntityDao;
@@ -20,6 +21,7 @@ import com.soffid.iam.model.SecretEntity;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntity;
 import com.soffid.iam.model.UserGroupEntity;
+import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
 import com.soffid.iam.sync.service.SecretStoreServiceBase;
 import com.soffid.iam.utils.ConfigurationCache;
 
@@ -58,8 +60,11 @@ import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
 
 import org.bouncycastle.crypto.RuntimeCryptoException;
+import org.hibernate.Session;
+import org.hibernate.SessionFactory;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
+import org.springframework.orm.hibernate3.SessionFactoryUtils;
 
 public class SecretStoreServiceImpl extends SecretStoreServiceBase {
     Logger log = Log.getLogger("SecretStore");
@@ -256,10 +261,32 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
     }
 
     protected Collection<User> handleGetUsersWithSecrets() {
-        List<UserEntity> usuaris = getUserEntityDao().query(
-        		"select distinct usuari from com.soffid.iam.model.UserEntity as usuari "
-        		+ "join usuari.secrets as secret", null);
-        return getUserEntityDao().toUserList(usuaris);
+		SessionFactory sessionFactory;
+		sessionFactory = (SessionFactory) ServiceLocator.instance().getService("sessionFactory");
+		Session session = sessionFactory.getCurrentSession();
+		
+		LinkedList<User> l = new LinkedList<User>();
+    	int i = 0;
+		CriteriaSearchConfiguration criteria = new CriteriaSearchConfiguration();
+		do {
+			log.info("Loading batch {}",  i,  null);
+			criteria.setFirstResult(i);
+			criteria.setMaximumResultSize(10000);
+			final List<UserEntity> users = getUserEntityDao().query(
+					"select distinct usuari from com.soffid.iam.model.UserEntity as usuari "
+							+ "join usuari.secrets as secret", null, criteria );
+			if (users.isEmpty())
+				break;
+			for (UserEntity usuari: users) {
+				User u = new User();
+				u.setId(usuari.getId());
+				u.setUserName(usuari.getUserName());
+				i++;
+			}
+			session.flush();
+			session.clear();
+		} while (true);
+        return l;
     }
 
 	@Override
@@ -343,11 +370,35 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 	@Override
 	protected Collection<Account> handleGetAccountsWithPassword()
 			throws Exception {
-        List<AccountEntity> accounts = getAccountEntityDao().query(
-                "select distinct account " +
-                "from com.soffid.iam.model.AccountEntity as account "
-                        + "where account.secrets is not null", null);
-        return getAccountEntityDao().toAccountList(accounts);
+		SessionFactory sessionFactory;
+		sessionFactory = (SessionFactory) ServiceLocator.instance().getService("sessionFactory");
+		
+		Session session = SessionFactoryUtils.getSession(sessionFactory, false) ;
+
+		LinkedList<Account> l = new LinkedList<Account>();
+    	int i = 0;
+		CriteriaSearchConfiguration criteria = new CriteriaSearchConfiguration();
+		do {
+			log.info("Loading account batch {}",  i,  null);
+			criteria.setFirstResult(i);
+			criteria.setMaximumResultSize(10000);
+			List<AccountEntity> accounts = getAccountEntityDao().query(
+					"select distinct account " +
+							"from com.soffid.iam.model.AccountEntity as account "
+							+ "where account.secrets is not null", null, criteria);
+			if (accounts.isEmpty())
+				break;
+			for (AccountEntity account: accounts) {
+				Account u = new Account();
+				u.setId(account.getId());
+				u.setName(account.getName());
+				u.setSystem(account.getSystem().getName());
+				i++;
+			}
+			session.flush();
+			session.clear();
+		} while (true);
+        return l;
 	}
 
 	/* (non-Javadoc)
