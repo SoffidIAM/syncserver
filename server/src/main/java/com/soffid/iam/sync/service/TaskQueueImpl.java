@@ -606,7 +606,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			TaskEntityDao dao = getTaskEntityDao();
 			for (Iterator<TaskEntity> it = dao.findByHash(hash).iterator(); it.hasNext(); ) {
                 TaskEntity remoteTask = it.next();
-                cancelRemoteTask(remoteTask);
+    			if (remoteTask != null && !remoteTask.getId().equals(newTask.getTask().getId()))
+    				cancelRemoteTask(remoteTask);
             }
 			newTask.getTask().setStatus("P");
 			newTask.getTask().setServer(hostname);
