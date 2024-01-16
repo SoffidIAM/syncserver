@@ -281,6 +281,11 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 				User u = new User();
 				u.setId(usuari.getId());
 				u.setUserName(usuari.getUserName());
+				u.setPrimaryGroup("-");
+				u.setFirstName("-");
+				u.setLastName("-");
+				u.setUserType("-");
+				l.add(u);
 				i++;
 			}
 			session.flush();
@@ -393,6 +398,9 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 				u.setId(account.getId());
 				u.setName(account.getName());
 				u.setSystem(account.getSystem().getName());
+				u.setType(account.getType());
+				u.setPasswordPolicy("-");
+				l.add(u);
 				i++;
 			}
 			session.flush();

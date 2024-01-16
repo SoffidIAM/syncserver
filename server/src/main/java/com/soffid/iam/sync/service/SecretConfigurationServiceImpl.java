@@ -180,7 +180,7 @@ public class SecretConfigurationServiceImpl extends
     			bits = ((RSAPrivateKey) privateKey).getModulus().bitLength();
 
     		if (bits <= 2048) {
-    			log.warn("Warning. The encryption key is too weak. Please, generate a new one executing 'configure -reencodeSecrets'", null, null);
+    			log.warn("Warning. The encryption key is too weak. Please, generate a new one executing 'configure -reencodeSecrets' -newkey", null, null);
     		}
             updateServerEntity();
             
