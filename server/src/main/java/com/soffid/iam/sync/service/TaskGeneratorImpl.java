@@ -578,7 +578,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 		if (! handleIsEnabled() ) return false;
 		
 		String[] l = Config.getConfig().getSeyconServerHostList();
-		if ( l.length <= 1 || ! isActiveServer() ) {
+		if ( l.length <= 1 || isActiveServer() ) {
 	        if ( new KubernetesConfig().isKubernetes()) 
 	        	return getTaskQueue().isBestServer();
 	        else
