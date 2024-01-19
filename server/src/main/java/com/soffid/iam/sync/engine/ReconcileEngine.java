@@ -652,6 +652,11 @@ public abstract class ReconcileEngine
 		}
 		
 		if (ok) {
+			Issue i = new Issue();
+			i.setAccount(acc.getName()+"@"+acc.getDescription());
+			i.setSystem(acc.getSystem());
+			i.setType("account-created");
+			ServiceLocator.instance().getIssueService().createInternalIssue(i);
 			reconcileRoles (acc);
 		}
 	}
