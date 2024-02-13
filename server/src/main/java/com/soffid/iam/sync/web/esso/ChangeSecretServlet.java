@@ -276,7 +276,7 @@ public class ChangeSecretServlet extends HttpServlet {
 	           					md.setUserVisibility(AttributeVisibilityEnum.EDITABLE);
 	           					md.setOperatorVisibility(AttributeVisibilityEnum.EDITABLE);
 	           					md.setCode(actualAttribute);
-	           					md.setValidationExpression("false");
+	           					md.setVisibilityExpression("false");
 	           					if (ssoAttribute.equals("Server"))
 	           					{
 	           						md.setLabel("Server");
