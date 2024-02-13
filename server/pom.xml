@@ -239,7 +239,7 @@
 							<artifacts>
 								<artifact>
 									<file>
-										target/soffid-iamsync-${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}-1.noarch.rpm
+										target/soffid-iamsync-${parsedVersion.majorVersion}.${parsedVersion.minorVersion}.${parsedVersion.incrementalVersion}-5.noarch.rpm
 									</file>
 									<type>rpm</type>
 								</artifact>
