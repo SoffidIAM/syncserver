@@ -469,6 +469,7 @@ public class NetworkDiscovery implements TaskHandler
 		s.setFullReconciliation(true);
 		s.setSharedDispatcher(true);
 		s.setTrusted(false);
+		s.setUsage("PAM");
 		UserDomain ud = userDomainService.findUserDomainByName("DEFAULT");
 		if (ud == null)
 			ud  = userDomainService.findAllUserDomain().iterator().next();
