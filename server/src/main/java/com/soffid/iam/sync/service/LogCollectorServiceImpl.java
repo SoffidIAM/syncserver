@@ -163,7 +163,12 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
 
 	private void assignClientHost(AccessLogEntity rac, String client) throws InternalErrorException, UnknownHostException {
 		if (client != null && client.length() > 0) {
-			HostEntity host = findMaquina(client);
+	    	String clientIp = null;
+	    	if (client != null && client.contains(" ")) {
+	    		clientIp = client.substring(client.indexOf(" ")+1);
+	    		client = client.substring(0, client.indexOf(" "));
+	    	}
+	    	HostEntity host = findMaquina(client);
 			if (host == null) {
 				rac.setClient(null);
 				rac.setClientHostName(client);
@@ -173,8 +178,12 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
 			}
         	try
         	{
-           		InetAddress addr = InetAddress.getByName(rac.getClientHostName());
-           		rac.setClientAddress(addr.getHostAddress());
+        		if (clientIp != null)
+        			rac.setClientAddress(clientIp);
+        		else {
+        			InetAddress addr = InetAddress.getByName(rac.getClientHostName());
+        			rac.setClientAddress(addr.getHostAddress());
+        		}
         	} catch (Exception e )
         	{
         	}
