@@ -4,7 +4,7 @@
   <parent>
     <artifactId>root</artifactId>
     <groupId>com.soffid.iam.sync</groupId>
-    <version>3.5.10-SNAPSHOT</version>
+    <version>3.5.11-SNAPSHOT</version>
   </parent>
 	<artifactId>bootstrap</artifactId>
 	<packaging>jar</packaging>
