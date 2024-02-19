@@ -27,6 +27,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import org.apache.commons.logging.LogFactory;
+import org.apache.http.conn.util.InetAddressUtils;
 import org.jfree.util.Log;
 
 public class LogCollectorServiceImpl extends LogCollectorServiceBase {
@@ -175,9 +176,13 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
 			} else {
 				rac.setClient(findMaquina(client));
 				rac.setClientHostName(rac.getClient().getName());
+				rac.setClientAddress(host.getHostIP());
 			}
         	try
         	{
+        		if (InetAddressUtils.isIPv4Address(client) ||
+        				InetAddressUtils.isIPv6Address(client))
+        			rac.setClientAddress(client);
         		if (clientIp != null)
         			rac.setClientAddress(clientIp);
         		else {
