@@ -20,6 +20,10 @@ import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
+import com.soffid.iam.sync.SystemOutMultiplexer;
+import com.soffid.iam.sync.engine.InterfaceWrapper;
+import com.soffid.iam.sync.engine.extobj.AccountExtensibleObject;
+import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ExtensibleObjectFatory;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
@@ -160,6 +164,7 @@ public abstract class Agent implements AgentInterface {
 	}
 	
 	public String endCaptureLog () {
+		SystemOutMultiplexer.detachLogger();
 		String r = null;
 		if ( log instanceof CaptureLogger)
 		{
