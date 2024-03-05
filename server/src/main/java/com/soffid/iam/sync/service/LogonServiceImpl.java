@@ -561,6 +561,8 @@ public class LogonServiceImpl extends LogonServiceBase {
         HostEntity m = null;
 
         m = dao.findBySerialNumber(maquina);
+        if (m != null && Boolean.TRUE.equals(m.getDeleted()))
+        	m = null;
         if (m == null) {
 	        String ip = null;
 	        byte[] binaryAddress = null;
