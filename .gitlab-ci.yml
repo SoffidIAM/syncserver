@@ -47,10 +47,9 @@ maven_install:
     - 'echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
     - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
     - mkdir "$HOME/.docker"
-    - cp "$DOCKER_CLIENT_KEY" /tmp/docker-certs/client/key.pem
-    - cp "$DOCKER_CLIENT_CERT" /tmp/docker-certs/client/cert.pem
-    - DOCKER_TLS_CERTDIR=/tmp/docker-certs
-    - export DOCKER_TLS_CERTDIR
+    - cp "$DOCKER_CLIENT_KEY" $HOME/.docker/key.pem
+    - cp "$DOCKER_CLIENT_CERT" $HOME/.docker/cert.pem
+    - cp "$DOCKER_CLIENT_CA" $HOME/.docker/ca.pem
     - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
     - mvn -f pom.xml install $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS
 #  only:
