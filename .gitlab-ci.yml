@@ -37,6 +37,8 @@ verify:
 maven_install:
   stage: compile
   script:
+    - echo "$DOCKER_CLIENT_CERT"
+    - echo "$DOCKER_CLIENT_KEY"
     - 'which ssh-agent'
     - 'eval $(ssh-agent -s)'
     - chmod 600 "$GITLAB_SSH_KEY"  "$GITHUB_SSH_KEY"
