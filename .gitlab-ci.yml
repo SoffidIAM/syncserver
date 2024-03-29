@@ -62,11 +62,10 @@ maven_deploy:
     - 'which ssh-agent'
     - 'eval $(ssh-agent -s)'
     - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
-    - cp "$DOCKER_CLIENT_KEY" /tmp/docker-certs/client/key.pem
-    - cp "$DOCKER_CLIENT_CERT" /tmp/docker-certs/client/cert.pem
-    - DOCKER_TLS_CERTDIR=/tmp/docker-certs
-    - export DOCKER_TLS_CERTDIR
     - mkdir "$HOME/.docker"
+    - cp "$DOCKER_CLIENT_KEY" $HOME/.docker/key.pem
+    - cp "$DOCKER_CLIENT_CERT" $HOME/.docker/cert.pem
+    - cp "$DOCKER_CLIENT_CA" $HOME/.docker/ca.pem
     - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
     - mvn -f pom.xml deploy $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS  -Darguments="$MAVEN_CERT_OPTS"
   rules:
@@ -82,10 +81,6 @@ maven_release:
     - mkdir -p ~/.ssh
     - 'echo -e "Host *\n\tStrictHostKeyChecking no\n\n" > ~/.ssh/config'
     - 'base64 -d $KEYSTORE >/tmp/keystore.p12'
-    - cp "$DOCKER_CLIENT_KEY" /tmp/docker-certs/client/key.pem
-    - cp "$DOCKER_CLIENT_CERT" /tmp/docker-certs/client/cert.pem
-    - DOCKER_TLS_CERTDIR=/tmp/docker-certs
-    - export DOCKER_TLS_CERTDIR
     - rm -rf ../clone
     - mvn -f pom.xml scm:checkout -DscmVersion="$CI_COMMIT_BRANCH" -DscmVersionType=branch -DcheckoutDirectory=$PWD/../clone
     - cd ../clone
@@ -93,6 +88,10 @@ maven_release:
     - git pull gitlab "$CI_COMMIT_PATH" --no-edit
     - git config --global user.email "$GITLAB_USER_EMAIL"
     - git config --global user.name "$GITLAB_USER_NAME"
+    - cp "$DOCKER_CLIENT_KEY" $HOME/.docker/key.pem
+    - cp "$DOCKER_CLIENT_CERT" $HOME/.docker/cert.pem
+    - cp "$DOCKER_CLIENT_CA" $HOME/.docker/ca.pem
+    - cp $DOCKER_CONFIG_JSON "$HOME/.docker/config.json"
     - mvn -f pom.xml release:prepare $MAVEN_CLI_OPTS -s $DEPLOYER_SETTINGS --batch-mode -DtagNameFormat='version-@{project.version}' -DpreparationGoals='install'
     - git remote -v
     - git push gitlab "$CI_COMMIT_BRANCH"
