@@ -27,6 +27,7 @@ import org.mortbay.log.Logger;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Host;
+import com.soffid.iam.api.Network;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.Session;
 import com.soffid.iam.api.User;
@@ -259,7 +260,11 @@ public class SessionManager extends Thread {
         	String defaultNetwork = ConfigurationCache.getProperty("soffid.network.internet"); //$NON-NLS-1$
             if ( defaultNetwork != null && defaultNetwork.equals( maq.getNetworkCode()))
             	return false; // Internet connection
-
+            Network network = xarxaService.findNetworkByIpAddress(maq.getIp());
+            if (network.getIp().equals("0.0.0.0") ||
+            	network.getId().equals("0:0:0:0:0:0:0:0"))
+            	return false; // Internet connection
+            
         	log.info("Connecting to {} {}",maq.getIp(), sessio.getPort().intValue());
         	try {
         		s = new Socket(maq.getIp(), sessio.getPort().intValue());
