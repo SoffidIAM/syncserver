@@ -375,6 +375,8 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 	            DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
 	            int id = dispatchers.size();
 	            System dis = getSystemEntityDao().toSystem(entity);
+                if ("PAM".equals(dis.getUsage()))
+                	dis.setSharedDispatcher(true);
 	            checkNulls(dis);
 	            handler.setSystem(dis);
 	            handler.setInternalId(id);

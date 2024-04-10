@@ -38,9 +38,9 @@ public class SharedThreadPool implements Runnable {
 			handlers = new LinkedList<DispatcherHandler>();
 			for (DispatcherHandler d: dispatchers)
 			{
-				if (d.getSystem().getSharedDispatcher() != null &&
-						d.getSystem().getSharedDispatcher().booleanValue() &&
-						!"PAM".equals(d.getSystem().getUsage()))
+				if ((d.getSystem().getSharedDispatcher() != null &&
+						d.getSystem().getSharedDispatcher().booleanValue() ) ||
+						"PAM".equals(d.getSystem().getUsage()))
 				{
 					handlers.add(d);
 				}
