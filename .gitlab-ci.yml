@@ -76,6 +76,7 @@ maven_release:
     - git pull gitlab "$CI_COMMIT_PATH" --no-edit
     - git config --global user.email "$GITLAB_USER_EMAIL"
     - git config --global user.name "$GITLAB_USER_NAME"
+    - mkdir $HOME/.docker
     - cp "$DOCKER_CLIENT_KEY" $HOME/.docker/key.pem
     - cp "$DOCKER_CLIENT_CERT" $HOME/.docker/cert.pem
     - cp "$DOCKER_CLIENT_CA" $HOME/.docker/ca.pem
