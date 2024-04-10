@@ -84,7 +84,7 @@ public class SoffidSslContextFactory extends org.eclipse.jetty.util.ssl.SslConte
         }
         if (trustedCerts.contains(certs[0]))
         	return;
-        LOG.warn("Unable to validate certificate chain", certs[0].getSubjectX500Principal().getName());
+        LOG.warn("Unable to validate certificate chain "+certs[0].getSubjectX500Principal().getName());
         trustedCerts = new CertificateServer().loadTrustedCertificates();
         // Try again
         if (trustedCerts.contains(certs[0]))
