@@ -149,7 +149,9 @@
 								org.hibernate,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
 								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
 								jakarta.xml.bind,org.bouncycastle,					
-								org.json,org.w3c,org.apache.cxf
+								org.json,org.w3c,org.apache.cxf,
+								org.apache.neethi,
+								org.apache.httpcomponents
 							</includeGroupIds>
 							<excludeArtifactIds>
 								iam-tomee,iam-common,dbtools,signaturaapi,
@@ -833,7 +835,32 @@
 		<dependency>
 			<groupId>org.apache.cxf</groupId>
 			<artifactId>cxf-rt-rs-client</artifactId>
-			<version>3.1.10</version>
+		    <version>3.4.10</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.apache.cxf</groupId>
+		    <artifactId>cxf-rt-transports-http-hc</artifactId>
+		    <version>3.4.10</version>
+		</dependency>
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <version>4.4.16</version>
+			<artifactId>httpcore-nio</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <version>4.5.13</version>
+			<artifactId>httpclient</artifactId>
+		</dependency>
+		<dependency>
+		    <groupId>org.apache.httpcomponents</groupId>
+		    <version>4.1.4</version>
+			<artifactId>httpasyncclient</artifactId>
+		</dependency>
+		<dependency>
+	        <groupId>org.apache.cxf</groupId>
+	        <artifactId>cxf-rt-frontend-jaxws</artifactId>
+		    <version>3.4.10</version>
 		</dependency>
 		<dependency>
 			<groupId>jakarta.xml.bind</groupId>
