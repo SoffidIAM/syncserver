@@ -863,6 +863,12 @@
 		    <version>3.4.10</version>
 		</dependency>
 		<dependency>
+	   		<groupId>org.ow2.asm</groupId>
+	   		<artifactId>asm</artifactId>
+	   		<scope>provided</scope>
+	   		<version>9.4</version>
+		</dependency>
+		<dependency>
 			<groupId>jakarta.xml.bind</groupId>
 			<artifactId>jakarta.xml.bind-api</artifactId>
 			<version>2.3.2</version>
