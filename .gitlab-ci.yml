@@ -22,17 +22,6 @@ cache:
     - .m2/repository
     - .m2/tags.json
 
-# For merge requests do not `deploy` but only run `verify`.
-# See https://maven.apache.org/guides/introduction/introduction-to-the-lifecycle.html
-verify: 
-  stage: verify
-  script:
-    - 'base64 -d $KEYSTORE_JKS >/tmp/keystore.p12'
-    - 'mvn $MAVEN_CLI_OPTS verify'
-  except:
-    variables:
-      - $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
-
 
 maven_install:
   stage: compile
