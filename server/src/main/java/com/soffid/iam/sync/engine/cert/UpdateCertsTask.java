@@ -42,7 +42,7 @@ public class UpdateCertsTask implements Runnable {
 				long oneDay = 24 * 60 * 60 * 1000;
 				if (cert.getNotAfter().getTime() < now + oneDay * 45) {
 					X509Certificate newCert = (X509Certificate) ks.getCertificate(SeyconKeyStore.NEXT_CERT);
-					if (newCert == null) {
+					if (newCert == null || newCert.getNotAfter().before(new Date()) ) {
 						log.info("Current date:             "+new Date().toGMTString());
 						log.info("Current certificate date: "+cert.getNotAfter().toGMTString());
 						log.info("Generating new certificate");

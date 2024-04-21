@@ -30,10 +30,13 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.Vector;
 
 import org.apache.commons.logging.LogFactory;
 import org.bouncycastle.asn1.ASN1ObjectIdentifier;
+import org.bouncycastle.asn1.x500.RDN;
+import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.RFC4519Style;
 import org.bouncycastle.asn1.x509.BasicConstraints;
 import org.bouncycastle.asn1.x509.GeneralName;
@@ -381,95 +384,44 @@ public class CertificateServer {
 	public void regenerateCertificates(boolean force)  throws Exception
 	{
 		Config config = Config.getConfig();
-		Map<String, PublicKey> keys = new HashMap<String, PublicKey>();
-		Map<String, AgentManager> managers = new HashMap<String, AgentManager>();
-		// Generate new root ca
-		File f = SeyconKeyStore.getRootKeyStoreFile();
-		if ( !f.canRead())
-		{
-			if (force)
-			{
-				log.warn("Generating certificate on server "+config.getHostName()+". Now this is the main syncserver");
-			}
-			else
-			{
-				log.warn("Only main syncserver can regenerate certificates. Add -force flag to promote this one as the main syncserver");
-				return;
-			}
-		}
-		File oldFile = new File (f.getPath()+"-"+new Date().toString());
-		File newFile = new File (f.getPath()+".new");
 
-		log.info("Storing root certificate copy into "+oldFile.getPath());
-        SeyconKeyStore.saveKeyStore(rootks, oldFile);
-
-		log.info("Generating new root certificate into "+newFile.getPath()+" ...");
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA", "BC");
-        SecureRandom random = new SecureRandom();
-        
-        keyGen.initialize(2048, random);
-    	KeyPair caRootPair = keyGen.generateKeyPair();
-    	X509Certificate rootCert = createCertificate("master", "RootCA", caRootPair.getPublic(), caRootPair.getPrivate(), null, true);
-    	rootks.setKeyEntry(SeyconKeyStore.ROOT_KEY, caRootPair.getPrivate(), password.getPassword()
-    			.toCharArray(), new X509Certificate[] { rootCert });
-
-        SeyconKeyStore.saveKeyStore(rootks, newFile);
-    	
-    	// Generate new agent keys
-        DispatcherService dispatcherService = ServiceLocator.instance().getDispatcherService();
-		for ( Server server: dispatcherService.findAllServers())
-        {
-        	log.info("Generating key for "+server.getUrl());
-        	RemoteServiceLocator rsl = new RemoteServiceLocator(server.getUrl());
-        	AgentManager agentManager = rsl.getAgentManager();
-        	PublicKey key = agentManager.generateNewKey();
-        	keys.put(server.getUrl(), key);
-        	managers.put(server.getUrl(), agentManager);
+		new KubernetesConfig().load();
+		KeyStore ks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getKeyStoreFile());
+		Password password = SeyconKeyStore.getKeyStorePassword();
+		X509Certificate cert = (X509Certificate) ks.getCertificate(SeyconKeyStore.MY_KEY);
+		log.info("Current date:             "+new Date().toGMTString());
+		log.info("Current certificate date: "+cert.getNotAfter().toGMTString());
+		log.info("Generating new certificate");
+        KeyPair pair = generateNewKey();
+        PublicKey publicKey = pair.getPublic();
+        PrivateKey privateKey = pair.getPrivate();
+        X509Certificate newCert = createSelfSignedCertificate(getCertificateOU(cert), config.getHostName(),
+        		publicKey, privateKey);
+        if (config.isServer()) {
+        	Security.nestedLogin(config.getHostName(), Security.ALL_PERMISSIONS);
+            ServiceLocator.instance().getServerService().addCertificate(newCert);
         }
+        else
+        	new RemoteServiceLocator().getServerService().addCertificate(newCert);
 
-        log.info("Generating certificates");
-    	// Generate new agent certificates
-        for ( Server server: dispatcherService.findAllServers())
-        {
-        	log.info("Generating certificate for "+server.getUrl());
-        	
-        	String tenants[] = dispatcherService.getServerTenants(server);
-        	PublicKey key = keys.get(server.getUrl());
-        	
-        	String tenant = tenants != null && tenants.length == 1? tenants[0]: Security.getMasterTenantName();
-        	
-       		X509Certificate serverCert = createCertificate(tenant, server.getName(),  key, caRootPair.getPrivate(), rootCert, false);
-        	
-        	AgentManager agentManager = managers.get(server.getUrl());
-        	
-        	boolean success = false;
-        	int retries = 0;
-        	do {
-        		try {
-        			agentManager.storeNewCertificate(serverCert, rootCert);
-        			success = true;
-        		} catch (Exception e) {
-        			if (retries > 10)
-        			{
-        				log.warn("Unable to install certificate for server "+ server.getUrl(), e);
-        				break;
-        			}
-        			else
-        			{
-        				log.warn("Error trying to install certificate in server "+server.getUrl()+": " +e.toString() );
-        				log.warn("Retrying in 15 seconds...");
-        				Thread.sleep(15000);
-        			}
-        		}
-        	} while (! success);
-        }
-        
-        log.info("All sync servers recertified. Commiting new certificate authority");
-        
-        SeyconKeyStore.saveKeyStore(rootks, f);
-        
+        ks.setKeyEntry(SeyconKeyStore.MY_KEY, privateKey, password.getPassword().toCharArray(), new X509Certificate[] {newCert});
+        SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
+    	new KubernetesConfig().save();
+
         log.info("DONE");
         
+	}
+
+	private String getCertificateOU (X509Certificate cert) {
+		X500Name name = new X500Name (cert.getSubjectX500Principal().getName());
+		String domain = Security.getMasterTenantName();
+		for ( RDN rdn: name.getRDNs())
+		{
+			if (rdn.getFirst() != null &&
+					rdn.getFirst().getType().equals( RFC4519Style.ou))
+				domain = rdn.getFirst().getValue().toString();
+		}
+		return domain;
 	}
 	
 	public List<X509Certificate> loadTrustedCertificates() throws InternalErrorException, IOException, KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException {
