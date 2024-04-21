@@ -82,18 +82,15 @@ public class Engine extends Thread {
             if (config.isActiveServer())
                 taskGenerator.setEnabled(true);
             
-   			loadMainDbTasks(config);
+            taskScheduler.init();
 
-			boolean firstSchedulerLoop = true;
+            loadMainDbTasks(config);
+
             while (!shutDownPending) {
                 setStatus("Reconfiguring");
                 enabled = config.isActiveServer() && config.isMainServer();
                 try {
-					if (firstSchedulerLoop)
-                       taskScheduler.init();
-					else
-                       taskScheduler.reconfigure();
-					firstSchedulerLoop = false;
+                    taskScheduler.reconfigure();
                 } catch (Throwable t) {
                     log.warn("Error scheduling tasks", t);
                 }
