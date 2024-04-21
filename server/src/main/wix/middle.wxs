@@ -7,12 +7,12 @@
 	                <RegistryValue Root="HKLM" Key="Software\Microsoft\Windows\CurrentVersion\Run" 
 	                	Name="SoffidIAMSync" 
 	                	Type="string" 
-	                	Value='"[ProgramFiles64Folder]\Soffid\IAM-Console\bin\Tomee.exe" //MS//Soffid-iamsync' 
+	                	Value='"[ProgramFiles64Folder]\Soffid\IAM-Sync\bin\SyncServer.exe" //MS//Soffid-iamsync' 
 	                	KeyPath="yes"/>
 			        <Shortcut Id="ApplicationStartMenuShortcut" 
 			                  Name="Soffid 3 IAM Sync systray monitor"
 			                  Description="Open Soffid 3 IAM Sync systray monitor"
-			                  Target="[#ROOT.bin.TomEE.exe]"
+			                  Target="[#ROOT.bin.SyncServer.exe]"
 			                  Arguments='//MS//Soffid-iamsync'/>
 		    </Component>
 		 </Directory>
