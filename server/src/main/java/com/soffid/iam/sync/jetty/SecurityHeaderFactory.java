@@ -16,7 +16,7 @@ public class SecurityHeaderFactory implements HeadersFactory {
 		{
 			try {
 				connection.setRequestProperty("Soffid-Tenant", Security.getCurrentTenantName());
-			} catch (InternalErrorException e) {
+			} catch (Exception e) {
 				throw new RuntimeException(e);
 			}
 		}

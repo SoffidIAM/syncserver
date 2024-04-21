@@ -47,6 +47,7 @@ import com.soffid.iam.sync.engine.db.ConnectionPool;
 import com.soffid.iam.sync.service.TaskGeneratorBase;
 import com.soffid.iam.sync.service.TaskQueue;
 import com.soffid.iam.sync.tools.KubernetesConfig;
+import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
@@ -68,7 +69,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
     private Object logCollectorLock;
     private String logCollector;
 	private long memoryLimit;
-	
+	private int loaderThreads = 0;
 	SharedThreadPool threadPool = new SharedThreadPool();
 
     public TaskGeneratorImpl() throws FileNotFoundException, IOException, InternalErrorException {
@@ -188,15 +189,13 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
         int i = 0;
         flushAndClearSession();
         long lastUpdate = java.lang.System.currentTimeMillis();
+        int numThreads = getLoaderThreads();
+        Thread[] threads = new Thread[numThreads];
         for (Iterator<TaskEntity> it = tasks.iterator(); active && it.hasNext(); ) {
             TaskEntity tasca = it.next();
             if ( activeTenants.contains( tasca.getTenant().getId()))
             {
-            	try {
-            		taskQueue.addTask(tasca);
-            	} catch (Exception e) {
-            		log.warn("Error loading task "+tasca.getHash()+": "+ e.toString());
-            	}
+            	addTask(threads, taskQueue, tasca);
 	            flushAndClearSession();
 	            if (runtime.totalMemory() - runtime.freeMemory() > memoryLimit && !firstRun) {
 	                runtime.gc();
@@ -215,13 +214,97 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
                 getSyncServerService().updatePendingTasks();
             }
         }
+        waitForThreads(threads);
         getSyncServerService().updatePendingTasks();
         taskQueue.updateServerInstanceTasks();
         if (tasks.isEmpty())
         	firstRun = false;
     }
 
-    @Override
+	private void waitForThreads(Thread[] threads) {
+		if (threads.length > 1) {
+			boolean done;
+			do {
+				done = true;
+				synchronized(threads) {
+					for (int i = 0; i < threads.length; i++) {
+						if (threads[i] != null && threads[i].isAlive()) {
+							done = false;
+							break;
+						}
+					}
+					if (!done) {
+						try {
+							threads.wait(5000);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+					}
+				}
+			} while (!done);
+		}
+	}
+
+	private int getLoaderThreads() {
+		try {
+			final String threads = ConfigurationCache.getMasterProperty("soffid.sync.engine.threads");
+			if (threads == null || threads.isEmpty()) {
+				int th = dispatchers.size() / 50;
+				if (th > Runtime.getRuntime().availableProcessors() * 2)
+					th = Runtime.getRuntime().availableProcessors() * 2;
+				if (th < 1) 
+					th = 1;
+				return th;
+			}
+			return Integer.parseInt(threads);
+		} catch (Exception e) {
+			return 1;
+		}
+	}
+
+	protected void addTask(Thread[] threads, TaskQueue taskQueue, TaskEntity tasca) {
+		if (threads.length == 1) {
+    		try {
+    			taskQueue.addTask(tasca);
+    		} catch (Exception e) {
+    			log.warn("Error loading task "+tasca.getHash()+": "+ e.toString());
+    		}
+
+		}
+		else
+		{
+			synchronized (threads) {
+				while (true) {
+					for (int i = 0; i < threads.length; i++) {
+						if (threads[i] == null || ! threads[i].isAlive()) {
+					    	Thread t = new Thread(() -> {
+					    		try {
+					    			taskQueue.addTask(tasca);
+					    		} catch (Exception e) {
+					    			log.warn("Error loading task "+tasca.getHash()+": "+ e.toString());
+					    		} finally {
+						    		synchronized (threads) {
+						    			threads.notify();
+						    		}
+					    		}
+					    	}, "Engine."+i);
+					    	threads[i] = t;
+					    	t.start();
+							return;
+						}
+					}
+					try {
+						threads.wait(5000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
+					}
+				}
+			}
+		}
+	}
+
+
+	@Override
     protected boolean handleCanGetLog(DispatcherHandler td) throws Exception {
         boolean result;
         if (!logCollectorEnabled)

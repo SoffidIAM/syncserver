@@ -369,8 +369,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		else if (newTask.getTask()
 					.getTransaction().equals(TaskHandler.UPDATE_USER) )
 		{
-			getAccountService()
-				.generateUserAccounts(newTask.getTask().getUser());
+			if (entity.getHash() == null) {
+				getAccountService()
+					.generateUserAccounts(newTask.getTask().getUser());
+			}
 			if (!autoCloseUserTask(newTask, entity))
 				addAndNotifyDispatchers(newTask, entity);
 		}
