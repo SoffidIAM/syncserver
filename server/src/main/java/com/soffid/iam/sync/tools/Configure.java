@@ -561,14 +561,12 @@ public class Configure {
 		Security.onSyncServer();
 		int i;
 		boolean force = false;
-		for (i = 1; i < args.length - 1; i++) {
+		for (i = 1; i < args.length; i++) {
 			if ("-force".equals(args[i]))
 				force = true;
 			else
 				throw new RuntimeException("Unknown parameter " + args[i]);
 		}
-		if (i < args.length)
-			throw new RuntimeException("Unknown parameter " + args[i]);
 
 		CertificateServer cs = new CertificateServer();
 		cs.regenerateCertificates(force);
