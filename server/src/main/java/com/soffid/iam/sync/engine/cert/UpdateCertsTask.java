@@ -71,6 +71,7 @@ public class UpdateCertsTask implements Runnable {
 		            restartOn = Long.valueOf(cert.getNotAfter().getTime() - oneDay - 5 * 60 * 1000);
 				}
 				if (restartOn != null && now > restartOn) {
+					new KubernetesConfig().save();
 					log.info("Restarting to apply new certificate");
 					System.exit(1);
 				}
