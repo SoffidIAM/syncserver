@@ -69,6 +69,7 @@ public class UpdateCertsTask implements Runnable {
 		            ks.setKeyEntry(SeyconKeyStore.MY_KEY, privateKey, password.getPassword().toCharArray(), new X509Certificate[] {newCert});
 		            SeyconKeyStore.saveKeyStore(ks, SeyconKeyStore.getKeyStoreFile());
 		            restartOn = Long.valueOf(cert.getNotAfter().getTime() - oneDay - 5 * 60 * 1000);
+					new KubernetesConfig().save();
 				}
 				if (restartOn != null && now > restartOn) {
 					new KubernetesConfig().save();
