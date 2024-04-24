@@ -263,7 +263,7 @@ public class TaskGeneratorImpl extends TaskGeneratorBase implements ApplicationC
 	}
 
 	protected void addTask(Thread[] threads, TaskQueue taskQueue, TaskEntity tasca) {
-		if (threads.length == 1) {
+		if (threads.length <= 1) {
     		try {
     			taskQueue.addTask(tasca);
     		} catch (Exception e) {
