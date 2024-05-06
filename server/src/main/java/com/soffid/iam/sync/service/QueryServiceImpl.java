@@ -103,8 +103,10 @@ public class QueryServiceImpl extends QueryServiceBase {
                     && v.elementAt(2).equals("roles")) {
                 stmt = conn.prepareStatement("SELECT ROL_NOM, ROL_DESCRI, APL_CODI, APL_NOM, "
                         + "ROL_DEFECT, ROL_CONTRA "
-                        + "FROM SC_APLICA, SC_ROLES, SC_ROLUSU, SC_USUARI "
-                        + "WHERE APL_ID=ROL_IDAPL AND RLU_IDUSU = USU_ID AND USU_CODI=? AND "
+                        + "FROM SC_APLICA, SC_ROLES, SC_ROLUSU, SC_ACCOUN, SC_USUACC, SC_USUARI "
+                        + "WHERE APL_ID=ROL_IDAPL AND RLU_ACC_ID = ACC_ID AND UAC_ACC_ID=ACC_ID AND "
+                        + "UAC_USU_ID = USU_ID AND UAC_UNTIL IS NULL AND "
+                        + "RLU_ENABLE=1 AND USU_CODI=? AND "
                         + "ROL_ID=RLU_IDROL AND USU_TEN_ID=? " 
                         + "ORDER BY ROL_NOM");
                 stmt.setString(1, (String) v.elementAt(1));
@@ -113,8 +115,10 @@ public class QueryServiceImpl extends QueryServiceBase {
                     && v.elementAt(2).equals("rolesv2")) {
                 stmt = conn.prepareStatement("SELECT ROL_NOM, ROL_DESCRI, APL_CODI, APL_NOM, "
                         + "ROL_DEFECT, ROL_CONTRA, DIS_CODI "
-                        + "FROM SC_APLICA, SC_ROLES, SC_ROLUSU, SC_USUARI, SC_DISPAT  "
-                        + "WHERE APL_ID=ROL_IDAPL AND RLU_IDUSU = USU_ID AND USU_CODI=? AND "
+                        + "FROM SC_APLICA, SC_ROLES, SC_ROLUSU, SC_ACCOUN, SC_USUACC, SC_USUARI, SC_DISPAT  "
+                        + "WHERE APL_ID=ROL_IDAPL AND RLU_ACC_ID = ACC_ID AND UAC_ACC_ID=ACC_ID AND "
+                        + "UAC_USU_ID = USU_ID AND UAC_UNTIL IS NULL AND "
+                        + "RLU_ENABLE=1 AND USU_CODI=? AND "
                         + "ROL_ID=RLU_IDROL AND DIS_ID=ROL_IDDISPAT AND USU_TEN_ID=? "
                         + "ORDER BY ROL_NOM");
                 stmt.setString(1, (String) v.elementAt(1));
