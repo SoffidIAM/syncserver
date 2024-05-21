@@ -2341,8 +2341,20 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
     public KerberosAgent getKerberosAgent() {
     	if (kerberosAgent == null)
     		return null;
-    	else
+    	else {
+    		try {
+    			KerberosAgent k = InterfaceWrapper.getKerberosAgent (kerberosAgent);
+    			if (k != null) {
+    				k.getRealmName();
+    			}
+    		} catch (Exception e) {
+    			try {
+					connect(true, false);
+				} catch (Exception e1) {
+				}
+    		}
     		return InterfaceWrapper.getKerberosAgent (kerberosAgent);
+    	}
     }
 
     public Date getCertificateNotValidAfter() {
