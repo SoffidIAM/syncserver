@@ -1,7 +1,9 @@
 package com.soffid.iam.sync.engine.cron;
 
+import java.io.IOException;
 import java.io.PrintWriter;
 import java.net.InetAddress;
+import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -28,6 +30,7 @@ import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordDomain;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.UserDomain;
+import com.soffid.iam.remote.RemoteServiceLocator;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.Server;
 import com.soffid.iam.service.AccountService;
@@ -51,9 +54,11 @@ import com.soffid.iam.sync.intf.ServiceMgr;
 import com.soffid.iam.sync.intf.discovery.DiscoveryEvent;
 import com.soffid.iam.sync.intf.discovery.HostDiscoveryEvent;
 import com.soffid.iam.sync.intf.discovery.SystemDiscoveryEvent;
+import com.soffid.iam.sync.service.SecretStoreService;
 import com.soffid.iam.sync.service.ServerService;
 import com.soffid.iam.sync.service.TaskGenerator;
 
+import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
 import es.caib.seycon.ng.comu.TypeEnumeration;
 import es.caib.seycon.ng.exception.AccountAlreadyExistsException;
 import es.caib.seycon.ng.exception.BadPasswordException;
@@ -77,6 +82,7 @@ public class NetworkDiscovery implements TaskHandler
 	private Network network;
 	private List<Account> discoveryAccounts;
 	private List<Password> passwords;
+	private List<Password> sshKeys;
 	private String systemUrl;
 	
 	@Override
@@ -99,17 +105,22 @@ public class NetworkDiscovery implements TaskHandler
 		}
 	}
 
-	private void doDiscovery(NetworkDiscoveryInterface agent) throws InterruptedException, InternalErrorException {
+	private void doDiscovery(NetworkDiscoveryInterface agent) throws InterruptedException, InternalErrorException, IOException {
 		agent.startDiscovery(network, new LinkedList<>());
 		discoveryAccounts = discoveryService.findNetworkAccount(network);
 		passwords = new LinkedList<>();
+		sshKeys = new LinkedList<>();
+		SecretStoreService accService = ServiceLocator.instance().getSecretStoreService();
 		for (Iterator<Account> it = discoveryAccounts.iterator(); it.hasNext();) {
 			Account acc = it.next();
 			Password p = serverService.getAccountPassword(acc.getName(), acc.getSystem());
-			if (p == null)
+			Password sshKey = accService.getSshPrivateKey(acc.getId());
+			if (p == null && sshKey == null)
 				it.remove();
-			else 
+			else {
 				passwords.add(p);
+				sshKeys.add(sshKey);
+			}
 		}
 		boolean exit;
 		do {
@@ -255,13 +266,14 @@ public class NetworkDiscovery implements TaskHandler
 		for (int i = 0; i < discoveryAccounts.size(); i++) {
 			Account account = discoveryAccounts.get(i);
 			Password password = passwords.get(i);
+			Password sshKey = sshKeys.get(i);
 			try {
 				if (containsPort(event.getPorts(), "22/tcp")) {
-					String host = getLinuxHostName(event.getIp(), account.getLoginName(), password);
+					String host = getLinuxHostName(event.getIp(), account.getLoginName(), password, sshKey);
 					if (host != null)
 						return host;
 				}
-				if (containsPort(event.getPorts(), "445/tcp") ) {
+				if (containsPort(event.getPorts(), "445/tcp") && password != null) {
 					String host = getWindowsHostName(event.getIp(), account.getLoginName(), password);
 					if (host != null)
 						return host;
@@ -273,7 +285,7 @@ public class NetworkDiscovery implements TaskHandler
 		return null;
 	}
 
-	private String getLinuxHostName(String ip, String loginName, Password password) throws Exception {
+	private String getLinuxHostName(String ip, String loginName, Password password, Password sshKey) throws Exception {
 		System s = new System();
 		s.setManualAccountCreation(true);
 		s.setReadOnly(true);
@@ -292,11 +304,15 @@ public class NetworkDiscovery implements TaskHandler
 		s.setPasswordsDomain(pd.getName());
 		s.setClassName("com.soffid.iam.sync.agent.SimpleSSHAgent");
 		s.setParam0(loginName);
-		s.setParam2(password.toString());
+		if (password != null)
+			s.setParam2(password.toString());
 		s.setParam3(ip);
 		s.setParam4("true"); // only passwords
 		s.setParam6("UTF-8");
 		s.setParam7("false"); // debug
+		if (sshKey != null)
+			s.setBlobParam(("sshKey="+URLEncoder.encode(sshKey.getPassword(), "UTF-8"))
+					.getBytes("UTF-8"));
 		s.setId(0L);
 		DispatcherHandlerImpl handler = new DispatcherHandlerImpl();
 		s.setUrl(systemUrl);
@@ -359,7 +375,9 @@ public class NetworkDiscovery implements TaskHandler
 			try {
 				Account account = discoveryAccounts.get(i);
 				Password password = passwords.get(i);
-				System system = createSystemCandidate(host, type, ports, account.getLoginName(), password);
+				Password sshKey = sshKeys.get(i);
+				System system = createSystemCandidate(host, type, ports, account.getLoginName(), 
+						password, sshKey);
 				System old = dispatcherService.findDispatcherByName(system.getName());
 				if (old != null) {
 					discoveryService.registerHostSystem(host, old);
@@ -459,7 +477,8 @@ public class NetworkDiscovery implements TaskHandler
 		return task;
 	}
 
-	protected System createSystemCandidate(Host host, String type, List<HostPort> ports, String userName, Password password)
+	protected System createSystemCandidate(Host host, String type, List<HostPort> ports, 
+			String userName, Password password, Password sshKey)
 			throws Exception {
 		System s = new System();
 		s.setManualAccountCreation(true);
@@ -481,11 +500,15 @@ public class NetworkDiscovery implements TaskHandler
 		if (type.equalsIgnoreCase("linux")) {
 			s.setClassName("com.soffid.iam.sync.agent.SimpleSSHAgent");
 			s.setParam0(userName);
-			s.setParam2(password.toString());
+			if (password != null)
+				s.setParam2(password.toString());
 			s.setParam3(host.getIp());
 			s.setParam4("true"); // only passwords
 			s.setParam6("UTF-8");
 			s.setParam7("false"); // debug
+			if (sshKey != null)
+				s.setBlobParam(("sshKey="+URLEncoder.encode(sshKey.getPassword(), "UTF-8"))
+						.getBytes("UTF-8"));
 			return s;
 		} else if (type.equalsIgnoreCase("windows")) {
 			s.setClassName("com.soffid.iam.sync.agent.SimpleWindowsAgent");

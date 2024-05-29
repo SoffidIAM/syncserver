@@ -22,6 +22,7 @@ import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntity;
 import com.soffid.iam.model.UserGroupEntity;
 import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
+import com.soffid.iam.service.impl.SshKeyGenerator;
 import com.soffid.iam.sync.service.SecretStoreServiceBase;
 import com.soffid.iam.utils.ConfigurationCache;
 
@@ -669,6 +670,9 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 
 	@Override
 	protected void handleSetSshPrivateKey(long accountId, Password privateKey) throws Exception {
+		SshKeyGenerator g = new SshKeyGenerator();
+		g.loadKey(privateKey.getPassword());
+
 		AccountEntity acc = getAccountEntityDao().load(accountId);
 		if (acc == null)
 			throw new InternalErrorException(String.format("Invalid account id %d", accountId));
@@ -699,6 +703,7 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		for (int i=0; i < p.length; i++)
 			p[i] = '\0';
 		acc.setSecrets(b.toString());
+		acc.setSshPublicKey(g.getPublicKeyString(acc.getLoginName()+"@"+acc.getSystem())); //$NON-NLS-1$
 		getAccountEntityDao().update(acc, "x");
 	}
 }
