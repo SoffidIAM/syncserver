@@ -1,7 +1,0 @@
-LIBRARY eris-ad-filter
-
-EXPORTS
-	InitializeChangeNotify=InitializeChangeNotify@0
-	PasswordChangeNotify=PasswordChangeNotify@12
-	PasswordFilter=PasswordFilter@16
-	
