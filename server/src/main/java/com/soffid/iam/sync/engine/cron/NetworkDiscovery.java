@@ -502,6 +502,8 @@ public class NetworkDiscovery implements TaskHandler
 			s.setParam0(userName);
 			if (password != null)
 				s.setParam2(password.toString());
+			else
+				s.setParam2(new Password("").toString());
 			s.setParam3(host.getIp());
 			s.setParam4("true"); // only passwords
 			s.setParam6("UTF-8");
