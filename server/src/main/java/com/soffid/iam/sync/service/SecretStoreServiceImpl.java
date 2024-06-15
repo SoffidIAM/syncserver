@@ -2,6 +2,7 @@ package com.soffid.iam.sync.service;
 
 import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Account;
+import com.soffid.iam.api.CredentialTypeEnum;
 import com.soffid.iam.api.Password;
 import com.soffid.iam.api.PasswordPolicy;
 import com.soffid.iam.api.RoleGrant;
@@ -670,8 +671,6 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 
 	@Override
 	protected void handleSetSshPrivateKey(long accountId, Password privateKey) throws Exception {
-		SshKeyGenerator g = new SshKeyGenerator();
-		g.loadKey(privateKey.getPassword());
 
 		AccountEntity acc = getAccountEntityDao().load(accountId);
 		if (acc == null)
@@ -703,7 +702,11 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		for (int i=0; i < p.length; i++)
 			p[i] = '\0';
 		acc.setSecrets(b.toString());
-		acc.setSshPublicKey(g.getPublicKeyString(acc.getLoginName()+"@"+acc.getSystem())); //$NON-NLS-1$
+		if (acc.getCredentialType() == CredentialTypeEnum.CT_SSHKEY) {
+			SshKeyGenerator g = new SshKeyGenerator();
+			g.loadKey(privateKey.getPassword());
+			acc.setSshPublicKey(g.getPublicKeyString(acc.getLoginName()+"@"+acc.getSystem())); //$NON-NLS-1$
+		}
 		getAccountEntityDao().update(acc, "x");
 	}
 }
