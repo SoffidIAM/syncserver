@@ -1,37 +1,5 @@
 package com.soffid.iam.sync.service;
 
-import com.soffid.iam.ServiceLocator;
-import com.soffid.iam.api.Account;
-import com.soffid.iam.api.CredentialTypeEnum;
-import com.soffid.iam.api.Password;
-import com.soffid.iam.api.PasswordPolicy;
-import com.soffid.iam.api.RoleGrant;
-import com.soffid.iam.api.Server;
-import com.soffid.iam.api.User;
-import com.soffid.iam.api.UserAccount;
-import com.soffid.iam.api.sso.Secret;
-import com.soffid.iam.model.AccountAccessEntity;
-import com.soffid.iam.model.AccountAttributeEntity;
-import com.soffid.iam.model.AccountEntity;
-import com.soffid.iam.model.GroupEntity;
-import com.soffid.iam.model.Parameter;
-import com.soffid.iam.model.PasswordDomainEntity;
-import com.soffid.iam.model.RoleEntity;
-import com.soffid.iam.model.RoleEntityDao;
-import com.soffid.iam.model.SecretEntity;
-import com.soffid.iam.model.UserAccountEntity;
-import com.soffid.iam.model.UserEntity;
-import com.soffid.iam.model.UserGroupEntity;
-import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
-import com.soffid.iam.service.impl.SshKeyGenerator;
-import com.soffid.iam.sync.service.SecretStoreServiceBase;
-import com.soffid.iam.utils.ConfigurationCache;
-
-import es.caib.seycon.ng.comu.AccountAccessLevelEnum;
-import es.caib.seycon.ng.comu.AccountType;
-import es.caib.seycon.ng.exception.InternalErrorException;
-import es.caib.seycon.util.Base64;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -53,7 +21,6 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 import javax.crypto.BadPaddingException;
@@ -67,6 +34,33 @@ import org.hibernate.SessionFactory;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 import org.springframework.orm.hibernate3.SessionFactoryUtils;
+
+import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Account;
+import com.soffid.iam.api.Password;
+import com.soffid.iam.api.PasswordPolicy;
+import com.soffid.iam.api.RoleGrant;
+import com.soffid.iam.api.Server;
+import com.soffid.iam.api.User;
+import com.soffid.iam.api.sso.Secret;
+import com.soffid.iam.model.AccountAccessEntity;
+import com.soffid.iam.model.AccountAttributeEntity;
+import com.soffid.iam.model.AccountEntity;
+import com.soffid.iam.model.GroupEntity;
+import com.soffid.iam.model.PasswordDomainEntity;
+import com.soffid.iam.model.RoleEntity;
+import com.soffid.iam.model.RoleEntityDao;
+import com.soffid.iam.model.SecretEntity;
+import com.soffid.iam.model.UserAccountEntity;
+import com.soffid.iam.model.UserEntity;
+import com.soffid.iam.model.UserGroupEntity;
+import com.soffid.iam.model.criteria.CriteriaSearchConfiguration;
+import com.soffid.iam.service.impl.SshKeyGenerator;
+import com.soffid.iam.utils.ConfigurationCache;
+
+import es.caib.seycon.ng.comu.AccountType;
+import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.util.Base64;
 
 public class SecretStoreServiceImpl extends SecretStoreServiceBase {
     Logger log = Log.getLogger("SecretStore");
@@ -702,12 +696,23 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		for (int i=0; i < p.length; i++)
 			p[i] = '\0';
 		acc.setSecrets(b.toString());
-		if (acc.getCredentialType() == CredentialTypeEnum.CT_SSHKEY) {
+		if (isSshKey(acc)) {
 			SshKeyGenerator g = new SshKeyGenerator();
 			g.loadKey(privateKey.getPassword());
 			acc.setSshPublicKey(g.getPublicKeyString(acc.getLoginName()+"@"+acc.getSystem())); //$NON-NLS-1$
 		}
 		getAccountEntityDao().update(acc, "x");
+	}
+
+	private boolean isSshKey(AccountEntity acc) {
+		Object o;
+		try {
+			o = acc.getClass().getMethod("getCredentialType")
+					.invoke(acc);
+			return o == null || "SSH".equals(o.toString()) || "PASS".equals(o.toString());
+		} catch (Exception e) {
+			return true; // Older console version
+		}
 	}
 }
 
