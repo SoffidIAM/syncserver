@@ -1106,10 +1106,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		if (agent instanceof ServiceMgr) {
 			ServiceMgr mgr = (ServiceMgr) agent;
            	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
-           	for (Host host: ServiceLocator.instance().getNetworkDiscoveryService().findSystemHosts(getSystem())) {
-           		for (HostService service: accountService.findAccountServices(acc)) {
-           			if (service.getHostName().equals(host.getName()))	
-           				mgr.setServicePassword(service.getService(), acc, t.getPassword());
+           	if (acc != null) {
+           		for (Host host: ServiceLocator.instance().getNetworkDiscoveryService().findSystemHosts(getSystem())) {
+           			for (HostService service: accountService.findAccountServices(acc)) {
+           				if (service.getHostName().equals(host.getName()))	
+           					mgr.setServicePassword(service.getService(), acc, t.getPassword());
+           			}
            		}
            	}
 		}
