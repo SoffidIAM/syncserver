@@ -150,7 +150,11 @@ public class DiscoveryThread extends Thread {
 		boolean any = false;
 		for (java.util.Iterator<ProcessTracker> it = tracker.iterator(); it.hasNext();) {
 			ProcessTracker t = it.next();
-			if (!t.process.isAlive())
+			if (t.start < System.currentTimeMillis() - 900_000) { // 15 minutes max
+				t.process.getInputStream().close();
+				t.process.destroy();
+			}
+			if (t.finished || !t.thread.isAlive())
 			{
 				processFinishedProcess(t);
 				any = true;
@@ -161,9 +165,9 @@ public class DiscoveryThread extends Thread {
 			sleep(5000);
 	}
 
-	private void processFinishedProcess(ProcessTracker t) throws IOException {
+	private void readResponse(ProcessTracker t) throws IOException {
 		Process process = t.process;
-		HostDiscoveryEvent hd = new HostDiscoveryEvent();
+		HostDiscoveryEvent hd = t.event = new HostDiscoveryEvent();
 		hd.setIp(t.address.getHostAddress());
 		hd.setName(t.address.getCanonicalHostName());
 		BufferedReader in = new BufferedReader(new InputStreamReader(process.getInputStream()));
@@ -213,21 +217,38 @@ public class DiscoveryThread extends Thread {
 				}
 			}
 		}
+	}
+	
+	private void processFinishedProcess(ProcessTracker t) throws IOException {
 		synchronized(events) {
-			if (status == 1)
+			HostDiscoveryEvent hd = t.event;
+			if (hd != null && !hd.getPorts().isEmpty())
 				events.add(hd);
 		}
 	}
 
 	private void createProcess(byte[] next) throws IOException {
 		InetAddress addr = InetAddress.getByAddress(next);
-		Process process = Runtime.getRuntime().exec(new String[] {"nmap", "-Pn", "-An", "-p", "1-1024,1500-1600,5432,3306,1433,3389,8080,8443", addr.getHostAddress()} );
+		Process process = Runtime.getRuntime().exec(new String[] {
+				"nmap", "-Pn", "-An", "-p", "1-1024,1500-1600,5432,3306,1433,3389,8080,8443", 
+				addr.getHostAddress()} );
 		log.info("Starting discovery for ip address "+addr.getHostAddress());
 		ProcessTracker t = new ProcessTracker();
 		process.getOutputStream().close();
 		t.address = addr;
 		t.process = process;
 		t.start = System.currentTimeMillis();
+		t.finished = false;
+		t.thread = new Thread( () -> { 
+			try {
+				readResponse(t);
+			} catch (Exception e) {
+				log.warn("Error reading nmap output", e);
+			} finally {
+				t.finished = true;
+			}
+		});
+		t.thread.start();
 		tracker.add(t);
 	}
 
