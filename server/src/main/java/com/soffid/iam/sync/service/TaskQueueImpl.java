@@ -1522,8 +1522,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 	protected Map processOBTask (TaskHandler task, boolean debug) throws Exception
 	{
-		Map<String, Exception> m = new HashMap<String, Exception>();
-		Map<String, DebugTaskResults> debugMap = new HashMap<String, DebugTaskResults>();
+		Map<String, Exception> m = new Hashtable<String, Exception>();
+		Map<String, DebugTaskResults> debugMap = new Hashtable<String, DebugTaskResults>();
 
 		if (task.getTask().getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD))
 		{
@@ -1579,37 +1579,40 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				return m;
 			}
 		}
-		
+
+		LinkedList<Thread> threads = new LinkedList<>();
 		for (DispatcherHandler dispatcher: getTaskGenerator().getDispatchers())
 		{
 			String dispatcherName = dispatcher.getSystem().getName();
 			if (task.getTask().getSystemName() == null || 
 					dispatcherName.equals (task.getTask().getSystemName()))
 			{
-				DebugTaskResults  r = new DebugTaskResults();
+				final DebugTaskResults  r = new DebugTaskResults();
 				if (dispatcher.isActive()  && (
 						dispatcher.isConnected() ||   // The agent is connected or
 						dispatcher.getSystem().getTimeStamp() != null &&
 						dispatcher.getSystem().getTimeStamp().getTime().getTime() > System.currentTimeMillis() - 60_000)) // The configuration changed recently
 				{
-					if (debug)
-					{
-						r = dispatcher.debugTask(task);
-					}
-					else
-					{
-	    				try {
-	    					dispatcher.processOBTask(task);
-	    				} catch (Exception e) {
-	    					if (isDebug())
-	    						log.warn("Error processing task" , e);
-	    					if (task.getTask().getSystemName() == null)
-	    						m.put(dispatcherName, dispatcher.getConnectException());
-	    					else
-	    						m.put(dispatcherName, e);
-	    					r.setException(e);
-	    				}
-					}
+					Thread th = new Thread( () -> {
+						try {
+							if (debug) {
+								DebugTaskResults rr = dispatcher.debugTask(task);
+								r.setException(rr.getException());
+								r.setLog(rr.getLog());
+								r.setStatus(rr.getStatus());
+							}
+							else {
+								dispatcher.processOBTask(task);
+							}
+						} catch (Exception e) {
+							if (isDebug())
+								log.warn("Error processing task" , e);
+							m.put(dispatcherName, e);
+							r.setException(e);
+						}
+					}, "OBTask "+task.toString()+" "+dispatcherName);
+					threads.add(th);
+					th.start();
 				}
 				else if (dispatcher.getConnectException() != null)
 				{
@@ -1623,6 +1626,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				}
 				debugMap.put(dispatcherName, r);
 			}
+		}
+		while (! threads.isEmpty()) {
+			Thread th = threads.pop();
+			th.join();
 		}
 		if (!m.isEmpty() && !debug)
 		{
