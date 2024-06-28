@@ -124,6 +124,7 @@ import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.Invoker;
+import com.soffid.iam.sync.service.impl.VoidWriter;
 import com.soffid.iam.sync.service.server.Compile;
 import com.soffid.iam.sync.service.server.Compile2;
 import com.soffid.iam.sync.service.server.Compile3;
@@ -2305,7 +2306,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 		if (handler == null || !handler.isActive())
 			return;
 
-		handler.doReconcile(account, new PrintWriter(new LogWriter()), false);		
+		handler.doReconcile(account, new VoidWriter(), false);		
 		
 	}
 
