@@ -806,8 +806,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 				return false; // System is paused
 			}
 		} catch (Exception e) {}
-		String reason = "";
-		boolean ok = false;
 		TaskHandler currentTask = taskqueue.getPendingTask(this);
 		if (currentTask == null)
 		{
@@ -816,6 +814,13 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			return false;
 
 		}
+		processAndLogTask(currentTask);
+		return true;
+	}
+
+	public boolean processAndLogTask(TaskHandler currentTask) throws InternalErrorException {
+		boolean ok = false;
+		String reason = "System is off-line";
 		Throwable throwable = null;
 		try
 		{
@@ -864,7 +869,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 		} finally {
 			taskqueue.notifyTaskStatus(currentTask, this, ok, reason, throwable);
 		}
-		return true;
+		return ok;
 	}
 
     /**
@@ -1055,7 +1060,7 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			else if (trans.equals(TaskHandler.INDEX_OBJECT))
 			{
 				indexObject(agent, t);
-      }
+			}
 			else if (trans.equals(TaskHandler.ASYNC_INVOKE))
 			{
 				invoke(agent, t);
@@ -1109,8 +1114,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
            	if (acc != null) {
            		for (Host host: ServiceLocator.instance().getNetworkDiscoveryService().findSystemHosts(getSystem())) {
            			for (HostService service: accountService.findAccountServices(acc)) {
-           				if (service.getHostName().equals(host.getName()))	
+           				if (service.getHostName().equals(host.getName())) {
+           					log.info("Changing password for service "+service.getService()+
+           							". Account "+acc.getLoginName());
            					mgr.setServicePassword(service.getService(), acc, t.getPassword());
+           				}
            			}
            		}
            	}
@@ -2891,57 +2899,8 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	public void processPamTask (TaskHandler currentTask) throws InternalErrorException
 	{
-		boolean ok = false;
-		String reason = null;
-		Throwable throwable = null;
-		try
-		{
-			runLoopStart();
-			if (applies(null, currentTask) && getCurrentAgent() != null)
-			{
-				if (applies(getCurrentAgent(), currentTask))
-				{
-					try {
-						processTask(getCurrentAgent(), currentTask);
-						ok = true;
-						statsService.register("tasks-success", getName(), 1);
-						if (debugEnabled)
-							log.debug("Task {} DONE", currentTask.toString(), null);
-					} catch (RemoteException e) {
-						handleRMIError(e);
-						ok = false;
-						reason = "Cannot connect to " + getSystem().getUrl();
-						throwable = e;
-						// abort = true ;
-					} catch (Throwable e) {
-						if (debugEnabled)
-							log.info("Failed {} ", currentTask.toString(), null);
-						statsService.register("tasks-error", getName(), 1);
-						if ("local".equals(system.getUrl()))
-						{
-							// log.warn("Error interno", e);
-						} else {
-							String error = SoffidStackTrace.getStackTrace(e)
-									.replaceAll("java.lang.OutOfMemoryError", "RemoteOutOfMemoryError");
-							// log.warn("Error interno: "+error);
-						}
-						ok = false;
-						Throwable e2 = e;
-						while (e2.getCause() != null && e2.getCause() != e2)
-						{
-							e2 = e2.getCause();
-						}
-						if (e2.getClass() == InternalErrorException.class)
-							reason = e2.getMessage();
-						else
-							reason = e2.toString();
-						throwable = e;
-					}
-				}
-			}
-		} finally {
-			taskqueue.notifyTaskStatus(currentTask, this, ok, reason, throwable);
-		}
+		runLoopStart();
+		processAndLogTask(currentTask);
 	}
 
 	@Override

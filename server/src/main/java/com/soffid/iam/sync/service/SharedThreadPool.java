@@ -2,14 +2,20 @@ package com.soffid.iam.sync.service;
 
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
 import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Account;
+import com.soffid.iam.api.Host;
+import com.soffid.iam.api.HostService;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.service.AccountService;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
 import com.soffid.iam.sync.engine.TaskHandler;
@@ -17,6 +23,7 @@ import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
+import es.caib.seycon.ng.exception.SoffidStackTrace;
 
 public class SharedThreadPool implements Runnable {
 
@@ -157,13 +164,26 @@ public class SharedThreadPool implements Runnable {
     	Security.nestedLogin(tenant, Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
     	try {
 			try {
-				for (DispatcherHandler d: taskGenerator.getDispatchers()) {
-					com.soffid.iam.api.System s = d.getSystem();
-					if (s.getTenant().equals(tenant) && s.getName().equals(system)) {
-						boolean paused = isPaused(s);
-						if (!paused)
-							((DispatcherHandlerImpl)d).processPamTask(pamTask);
-						break;
+				if (pamTask.getTask().getTransaction().equals(TaskHandler.UPDATE_SERVICE_PASSWORD)) {
+		           	final AccountService accountService = ServiceLocator.instance().getAccountService();
+					Account acc = accountService
+		           			.findAccount(pamTask.getTask().getUser(), pamTask.getTask().getDatabase());
+		           	if (acc != null) {
+		           		processUpdateServicePassword(pamTask, acc, accountService.findAccountServices(acc));
+		           	}
+					
+				}
+				else
+				{
+					for (DispatcherHandler d: taskGenerator.getDispatchers()) {
+						com.soffid.iam.api.System s = d.getSystem();
+						if (s.getTenant().equals(tenant) && 
+								s.getName().equals(system)) {
+							boolean paused = isPaused(s);
+							if (!paused)
+								((DispatcherHandlerImpl)d).processPamTask(pamTask);
+							break;
+						}
 					}
 				}
 			} catch (Exception e) {
@@ -172,6 +192,40 @@ public class SharedThreadPool implements Runnable {
     	} finally {
     		Security.nestedLogoff();
     	}
+	}
+
+	private void processUpdateServicePassword(TaskHandler pamTask, Account acc, Collection<HostService> collection) throws InternalErrorException {
+		log.info("Processing services depeding on {} @ {}", acc.getName(), acc.getSystem());
+		log.info("Host services: {}", collection, null);
+		for (DispatcherHandler d: taskGenerator.getDispatchers()) {
+			DispatcherHandlerImpl dImpl = (DispatcherHandlerImpl) d;
+			com.soffid.iam.api.System s = d.getSystem();
+			boolean found = false;
+			log.info("Systems for {}: {}", s.getName(), collection);
+       		final List<Host> systemHosts = ServiceLocator.instance().getNetworkDiscoveryService()
+       				.findSystemHosts(s);
+			mainLoop: 
+       		for (Host host: systemHosts) {
+       			for (HostService hs: collection) {
+       				if (hs.getHostName().equals(host.getName()) || hs.getHostId().equals(host.getId())) {
+       					log.info("Matche on host: {}", host.getName(), null);
+       					found = true;
+       					break mainLoop;
+       				}
+       			}
+       		}
+       		if (found) {
+				boolean paused = isPaused(s);
+				if (!paused) {
+					log.info("> Applying on {}", d.getSystem().getName(), null);
+					dImpl.processPamTask(pamTask);
+				}
+       		} else {
+       			log.info("> Ignoring on {}", d.getSystem().getName(), null);
+       			ServiceLocator.instance().getTaskQueue()
+       				.notifyTaskStatus(pamTask, d, true, null, null);
+       		}
+		}
 	}
 
 	private boolean isPaused(com.soffid.iam.api.System s) {

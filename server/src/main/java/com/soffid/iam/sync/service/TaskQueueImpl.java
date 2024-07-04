@@ -648,9 +648,9 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				pam = "PAM".equals(sys.getUsage()); 
 			}
 		}
-		if (pam) 
+		if (pam || tasqueEntity.getTransaction().equals(TaskHandler.UPDATE_SERVICE_PASSWORD)) 
 		{
-			newTask.setPamTask(pam);
+			newTask.setPamTask(! tasqueEntity.getTransaction().equals(TaskHandler.UPDATE_SERVICE_PASSWORD));
 			int priority = newTask.getPriority();
 			if (priority >= MAX_PRIORITY)
 				priority = MAX_PRIORITY - 1;
@@ -1190,7 +1190,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				Hashtable<String, TaskHandler> currentTasks = getCurrentTasks();
 	
 				if (isDebug())
-					log.info("Cancelling fiinshed task {}", task.toString(), null);
+					log.info("Canceling fiinshed task {}", task.toString(), null);
 	
 				task.cancel();
 				handlePushTaskToPersist(task);
@@ -1264,7 +1264,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				int nextPriority = task.getPriority() + thl.getNumber();
 				if (nextPriority >= MAX_PRIORITY)
 					nextPriority = MAX_PRIORITY - 1;
-				PrioritiesList prioQueue = getPrioritiesList(taskDispatcher);
+				
+				PrioritiesList prioQueue = task.getTask().getTransaction().equals(TaskHandler.UPDATE_SERVICE_PASSWORD) ?
+						pamTaskList:
+						getPrioritiesList(taskDispatcher);
 				TasksQueue queue = prioQueue.get(nextPriority);
 				synchronized (queue)
 				{
@@ -1593,7 +1596,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 						dispatcher.getSystem().getTimeStamp() != null &&
 						dispatcher.getSystem().getTimeStamp().getTime().getTime() > System.currentTimeMillis() - 60_000)) // The configuration changed recently
 				{
-					Thread th = new Thread( () -> {
+					Runnable runnable = () -> {
 						try {
 							if (debug) {
 								DebugTaskResults rr = dispatcher.debugTask(task);
@@ -1610,9 +1613,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 							m.put(dispatcherName, e);
 							r.setException(e);
 						}
-					}, "OBTask "+task.toString()+" "+dispatcherName);
-					threads.add(th);
-					th.start();
+					};
+					if (dispatcherName != null)
+						runnable.run();
+					else {
+						Thread th = new Thread(runnable, "OBTask "+task.toString()+" "+dispatcherName);
+						threads.add(th);
+						th.start();
+					}
 				}
 				else if (dispatcher.getConnectException() != null)
 				{
