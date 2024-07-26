@@ -12,7 +12,7 @@
 	<properties>
 		<maven.compile.source>11</maven.compile.source>
 		<maven.compile.target>11</maven.compile.target>
-		<iam.version>3.5.11</iam.version>
+		<iam.version>3.5.53</iam.version>
 	</properties>
 	<scm>
 		<connection>scm:git:ssh://git@github.com:/SoffidIAM/syncserver.git</connection>
@@ -921,6 +921,11 @@
 			<groupId>org.json</groupId>
 			<artifactId>json</artifactId>
 			<version>20190722</version>
+		</dependency>
+		<dependency>
+			<groupId>com.soffid.iam.console</groupId>
+			<artifactId>install</artifactId>
+			<version>3.5.52-SNAPSHOT</version>
 		</dependency>
 	</dependencies>
 	<reporting>
