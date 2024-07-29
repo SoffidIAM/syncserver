@@ -5,6 +5,7 @@ import java.util.HashMap;
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.CustomObject;
 import com.soffid.iam.api.Group;
+import com.soffid.iam.api.MailList;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.SoffidObjectType;
 import com.soffid.iam.api.User;
@@ -13,6 +14,7 @@ import com.soffid.iam.sync.service.ServerService;
 
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownGroupException;
+import es.caib.seycon.ng.exception.UnknownMailListException;
 import es.caib.seycon.ng.exception.UnknownRoleException;
 import es.caib.seycon.ng.exception.UnknownUserException;
 
@@ -99,6 +101,21 @@ public class ExtensibleObjectFatory {
 				eo.setObjectType(SoffidObjectType.OBJECT_USER.getValue());
 				eo.setAttribute("accountName", object1);
 				eo.setAttribute("userName", object1);
+				eo.setAttribute("attributes", new HashMap<String, Object>());
+				return eo;
+			}
+		}
+		else if (type == SoffidObjectType.OBJECT_MAIL_LIST)
+		{
+			MailList user;
+			try {
+				user = server.getMailList(object1, object2);
+				return new MailListExtensibleObject(user, server);
+			} catch (UnknownMailListException e) {
+				ExtensibleObject eo = new ExtensibleObject();
+				eo.setObjectType(SoffidObjectType.OBJECT_MAIL_LIST.getValue());
+				eo.setAttribute("name", object1);
+				eo.setAttribute("domainName", object2);
 				eo.setAttribute("attributes", new HashMap<String, Object>());
 				return eo;
 			}
