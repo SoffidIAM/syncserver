@@ -168,7 +168,7 @@ public abstract class Agent implements AgentInterface {
 		com.soffid.iam.sync.intf.ExtensibleObject eo = eof.getExtensibleObject(
 				SoffidObjectType.fromString(type.getValue()), 
 				object1, object2);
-		return ExtensibleObject.toExtensibleObject(eo);
+		return eo == null ? null: ExtensibleObject.toExtensibleObject(eo);
 	}
 
 	public boolean supportsRename ()
