@@ -105,7 +105,7 @@ public class SharedThreadPool implements Runnable {
 			try {
 				TaskHandler pamTask = queue.getPendingTask(DispatcherHandlerImpl.DUMMY_PAM_DISPATCHER);
 				if (pamTask != null)
-					processPamTask(pamTask);
+					processPamTask(pamTask, originalName);
 				synchronized (currentHandlers)
 				{
 					h = currentHandlers.pollFirst();
@@ -157,7 +157,7 @@ public class SharedThreadPool implements Runnable {
 		}
 	}
 	
-	private void processPamTask(TaskHandler pamTask) throws InternalErrorException, FileNotFoundException, IOException {
+	private void processPamTask(TaskHandler pamTask, String originalName) throws InternalErrorException, FileNotFoundException, IOException {
 		String system = pamTask.getTask().getSystemName();
 		if (system == null) system = pamTask.getTask().getDatabase();
 		String tenant = pamTask.getTenant();
@@ -169,12 +169,15 @@ public class SharedThreadPool implements Runnable {
 					Account acc = accountService
 		           			.findAccount(pamTask.getTask().getUser(), pamTask.getTask().getDatabase());
 		           	if (acc != null) {
-		           		processUpdateServicePassword(pamTask, acc, accountService.findAccountServices(acc));
+		           		processUpdateServicePassword(pamTask, acc, accountService.findAccountServices(acc),
+		           				originalName);
 		           	}
 					
 				}
 				else
 				{
+					Thread.currentThread().setName (
+							originalName+ " ["+tenant+"\\"+system+"]");
 					for (DispatcherHandler d: taskGenerator.getDispatchers()) {
 						com.soffid.iam.api.System s = d.getSystem();
 						if (s.getTenant().equals(tenant) && 
@@ -194,12 +197,14 @@ public class SharedThreadPool implements Runnable {
     	}
 	}
 
-	private void processUpdateServicePassword(TaskHandler pamTask, Account acc, Collection<HostService> collection) throws InternalErrorException {
+	private void processUpdateServicePassword(TaskHandler pamTask, Account acc, Collection<HostService> collection, String originalName) throws InternalErrorException {
 		log.info("Processing services depeding on {} @ {}", acc.getName(), acc.getSystem());
 		log.info("Host services: {}", collection, null);
 		for (DispatcherHandler d: taskGenerator.getDispatchers()) {
-			DispatcherHandlerImpl dImpl = (DispatcherHandlerImpl) d;
 			com.soffid.iam.api.System s = d.getSystem();
+			Thread.currentThread().setName (
+					originalName+ " ["+s.getTenant()+"\\"+s.getName()+"]");
+			DispatcherHandlerImpl dImpl = (DispatcherHandlerImpl) d;
 			boolean found = false;
 			log.info("Systems for {}: {}", s.getName(), collection);
        		final List<Host> systemHosts = ServiceLocator.instance().getNetworkDiscoveryService()
@@ -208,7 +213,7 @@ public class SharedThreadPool implements Runnable {
        		for (Host host: systemHosts) {
        			for (HostService hs: collection) {
        				if (hs.getHostName().equals(host.getName()) || hs.getHostId().equals(host.getId())) {
-       					log.info("Matche on host: {}", host.getName(), null);
+       					log.info("Match on host: {}", host.getName(), null);
        					found = true;
        					break mainLoop;
        				}

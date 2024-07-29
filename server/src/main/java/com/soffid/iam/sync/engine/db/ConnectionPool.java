@@ -208,6 +208,7 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 		if (debug) {
 			log.info(msg);
 		}
+		
 	}
 
 }

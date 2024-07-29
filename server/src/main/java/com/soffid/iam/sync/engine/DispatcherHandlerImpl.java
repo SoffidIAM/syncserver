@@ -253,7 +253,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
         boolean readOnly = getSystem().isReadOnly();
         // Verificar el nom del dipatcher
 //        log.info("Applies "+t.toString()+" mirroredAgents = "+mirroredAgent+" rolesBroadcast = "+ this.rolesBroadcast);
-        if (t.getTask().getSystemName() != null &&
+        if (trans.equals(TaskHandler.UPDATE_SERVICE_PASSWORD))
+		{
+			return !readOnly && implemented(agent, ServiceMgr.class);
+		}
+        else if (t.getTask().getSystemName() != null &&
         		( mirroredAgent != null && 
         				! mirroredAgent.equals(t.getTask().getSystemName()) &&
         				! getSystem().getName().equals(t.getTask().getSystemName()) &&
@@ -413,10 +417,6 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 					implemented(agent, es.caib.seycon.ng.sync.intf.ReconcileMgr2.class)||
             		implemented(agent,com.soffid.iam.sync.intf.ReconcileMgr2.class);
 	        ///////////////////////////////////////////////////////////////////////
-		}
-		else if (trans.equals(TaskHandler.UPDATE_SERVICE_PASSWORD))
-		{
-			return implemented(agent, ServiceMgr.class);
 		}
 		else if (trans.equals(TaskHandler.UPDATE_ACESS_CONTROL))
 		{
@@ -934,10 +934,12 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
      */
     public void processTask(Object agent, TaskHandler t) throws RemoteException, InternalErrorException {
         if (!applies(agent, t)) {
-            log.debug("Task ignored: {}", t, null);
+        	if (debugEnabled)
+        		log.info("Task ignored: {}", t, null);
             return;
         }
-        log.debug ("Processing task {}", t);
+        if (debugEnabled)
+        	log.info ("Processing task {}", t);
         if (agent == null) {
             if (connectException == null)
                 throw new RemoteException("Agente no conectado");
@@ -1064,9 +1066,9 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 			else if (trans.equals(TaskHandler.ASYNC_INVOKE))
 			{
 				invoke(agent, t);
-      } else {
-        processCustomTask(agent, t);
-      }
+		      } else {
+		        processCustomTask(agent, t);
+		      }
         } finally {
         	UserGrantsCache.clearGrantsCache();
         }
@@ -1108,9 +1110,11 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	}
 
 	private void updateServicePassword(Object agent, TaskHandler t) throws InternalErrorException, RemoteException {
+		log.info("Updating service password");
 		if (agent instanceof ServiceMgr) {
 			ServiceMgr mgr = (ServiceMgr) agent;
-           	Account acc = accountService.findAccount(t.getTask().getUser(), mirroredAgent);
+           	Account acc = accountService.findAccount(t.getTask().getUser(), t.getTask().getDatabase());
+           	log.info("Update service password account : "+acc);
            	if (acc != null) {
            		for (Host host: ServiceLocator.instance().getNetworkDiscoveryService().findSystemHosts(getSystem())) {
            			for (HostService service: accountService.findAccountServices(acc)) {
@@ -2899,8 +2903,18 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
 	public void processPamTask (TaskHandler currentTask) throws InternalErrorException
 	{
+		if (! Boolean.TRUE.equals(system.getSharedDispatcher()))
+			clearCurrentAgent();
 		runLoopStart();
 		processAndLogTask(currentTask);
+		if (! Boolean.TRUE.equals(system.getSharedDispatcher())) {
+			Object agent = getCurrentAgent();
+			if (agent != null)
+			{
+				closeAgent(agent);
+				clearCurrentAgent();
+			}
+		}
 	}
 
 	@Override
