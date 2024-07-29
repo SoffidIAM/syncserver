@@ -48,6 +48,7 @@ import com.soffid.iam.model.AccountEntityDao;
 import com.soffid.iam.model.AccountPasswordEntity;
 import com.soffid.iam.model.PasswordDomainEntity;
 import com.soffid.iam.model.PasswordEntity;
+import com.soffid.iam.model.SystemEntity;
 import com.soffid.iam.model.TaskEntity;
 import com.soffid.iam.model.UserAccountEntity;
 import com.soffid.iam.model.UserEntity;
@@ -82,6 +83,7 @@ import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.engine.pool.AbstractPool;
 import com.soffid.iam.sync.intf.ExtensibleObject;
 import com.soffid.iam.sync.jetty.JettyServer;
+import com.soffid.iam.sync.service.impl.TemporaryPermissions;
 import com.soffid.iam.utils.ConfigurationCache;
 
 import es.caib.seycon.ng.ServiceLocator;
@@ -1137,6 +1139,43 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 			return new KerberosManager().getDomainsToSystemMap();
 		} catch (InternalErrorException | IOException e) {
 			throw new InternalErrorException("Error guessing active directory domains", e);
+		}
+	}
+
+	protected java.util.List<java.lang.String> handleAssignTemporaryPermissions(java.lang.String host, 
+			java.lang.String accountName, java.lang.String accountSystem, 
+			java.util.List<java.lang.String> permissions) throws Exception {
+		SystemEntity d = getSystemEntityDao().findByName(accountSystem);
+		if (d != null ) {
+			String agentClass = d.getClassName();
+			if (agentClass.contains("WindowsAgent") ||
+					agentClass.contains("ActiveDirectory") ||
+					agentClass.equals("com.soffid.iam.sync.agent.SimpleSSHAgent")) {
+				return new TemporaryPermissions().assignWindows(host, accountName, accountSystem,
+						permissions);
+			}
+			else {
+				return new TemporaryPermissions().assignClassic(host, accountName, accountSystem,
+						permissions);
+			}
+		}
+		return null;
+	}
+
+	protected void handleRemoveTemporaryPermissions(java.lang.String host, java.lang.String accountName, 
+			java.lang.String accountSystem, java.util.List<java.lang.String> permissions) throws Exception {
+		SystemEntity d = getSystemEntityDao().findByName(accountSystem);
+		if (d != null ) {
+			String agentClass = d.getClassName();
+			if (agentClass.contains("WindowsAgent") ||
+					agentClass.contains("ActiveDirectory") ||
+					agentClass.equals("com.soffid.iam.sync.agent.SimpleSSHAgent")) {
+				new TemporaryPermissions().removeWindows(host, accountName, accountSystem,
+						permissions);
+			} else {
+				new TemporaryPermissions().removeClassic(host, accountName, accountSystem,
+						permissions);
+			}
 		}
 	}
 

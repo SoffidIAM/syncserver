@@ -77,8 +77,9 @@ public class LogoffThread extends Object implements Runnable {
         log.info("Started logoff thread", null, null);
         boolean salir = false;
         Session s = null;
-        long sessionTimeout = 1200000; // 20 minutes
-        long pamSessionTimeout = 60000; // 1 minute
+        long sessionTimeout = 1_200_000; // 20 minutes
+        long pamSessionTimeout = 60_000; // 1 minute
+        long consoleSessionTimeout = 300_000; // 5 minutes
         try {
         	sessionTimeout = Long.decode(ConfigurationCache.getMasterProperty("soffid.esso.session.timeout")) * 1000;
         } catch (Exception e) {}
@@ -102,9 +103,11 @@ public class LogoffThread extends Object implements Runnable {
                 	Long lastPing = s.getKeepAliveDate() == null ? 
                 						s.getStartDate().getTimeInMillis():
                 						s.getKeepAliveDate().getTimeInMillis();
-                	long t = s.getType() == TipusSessio.PAM ||  s.getType() == TipusSessio.PAM.PAMRDP ||  s.getType() == TipusSessio.PAMSSH  
-                			? pamSessionTimeout
-                			: sessionTimeout;
+                	long t = s.getType() == TipusSessio.PAM ||  
+                			s.getType() == TipusSessio.PAM.PAMRDP ||  
+                			s.getType() == TipusSessio.PAMSSH ? pamSessionTimeout :
+                			s.getType().getValue().equals("C") ? consoleSessionTimeout:
+                			sessionTimeout;
                 	if ( System.currentTimeMillis() - lastPing > t)
                 	{
                 		Security.nestedLogin(s.getTenantName(), Config.getConfig().getHostName(), Security.ALL_PERMISSIONS);
