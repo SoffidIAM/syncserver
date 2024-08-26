@@ -161,6 +161,14 @@ public class QueryServiceImpl extends QueryServiceBase {
                 stmt.setLong(4, Security.getCurrentTenantId());
                 stmt.setString(5, (String) v.elementAt(1));
                 stmt.setLong(6, Security.getCurrentTenantId());
+            } else if (v.elementAt(0).equals("user") && v.size() == 3
+                    && v.elementAt(2).equals("otp")) {
+                stmt = conn
+                        .prepareStatement("SELECT distinct 1 "
+                        		+ "from SCO_DEVICE, SC_USUARI \n"
+                        		+ "WHERE USU_ID=OTP_USU_ID AND OTP_STATUS='V' and USU_CODI=? AND USU_TEN_ID=?");
+                stmt.setString(1, (String) v.elementAt(1));
+                stmt.setLong(2, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("user") && v.size() == 3) {
                 stmt = conn
                         .prepareStatement("SELECT DUS_VALOR FROM SC_TIPDAD, SC_DADUSU, SC_USUARI "
