@@ -242,7 +242,7 @@ public class TemporaryPermissions {
 				}
 			}
 		} catch (Exception e) {
-			log.warn("Error assigning permissions to "+accountName+" on "+host, e);
+			log.warn("Error assigning permissions to "+accountName+" on "+accountSystem, e);
 		}
 		return assignedPermissions;
 	}
