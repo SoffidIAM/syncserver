@@ -7,6 +7,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.rmi.RemoteException;
 import java.security.PrivilegedAction;
+import java.sql.Timestamp;
 
 import javax.security.auth.Subject;
 import javax.servlet.ServletException;
@@ -76,6 +77,8 @@ public class PasswordLoginServlet extends HttpServlet {
                 writer.write(doSecretsAction(req, resp));
             else if ("createSession".equals(action))
                 writer.write(doCreateSessionAction(req, resp));
+            else if ("joinSession".equals(action))
+                writer.write(doJoinSessionAction(req, resp));
             else
                 throw new Exception("Invalid action " + action);
         } catch (Exception e) {
@@ -149,6 +152,37 @@ public class PasswordLoginServlet extends HttpServlet {
         }
     }
 
+    private String doJoinSessionAction(HttpServletRequest req, HttpServletResponse resp)
+            throws InternalErrorException {
+        try {
+            String sessionId = req.getParameter("sessionId");
+            String sessionKey = req.getParameter("sessionKey");
+            String port = req.getParameter("port");
+
+            Session s = sessioService.joinEssoSession(Long.decode(sessionId), sessionKey, Integer.decode(port));
+            if (s != null) {
+            	User u = serverService.getUserInfo(s.getUserName(), null); 
+            	
+            	Host maquinaAcces = serverService.getHostInfoByIP(com.soffid.iam.utils.Security.getClientIp());
+            	boolean canAdmin = serverService.hasSupportAccessHost(maquinaAcces.getId(), u.getId());
+            	
+            	// Store temporary challenge
+            	Challenge challenge = new Challenge();
+            	challenge.setUser(u);
+            	challenge.setCentinelPort(Integer.decode(port));
+            	challenge.setChallengeId(sessionKey);
+            	challenge.setTimeStamp(new Timestamp(java.lang.System.currentTimeMillis()));
+            	challengeStore.store(challenge);
+            	return "OK|" + sessionKey + "|" + Long.toString(s.getId())
+            	+ "|" + canAdmin;
+            } else {
+            	return "ERROR|Wrong challenge id";
+            }
+        } catch (Exception e) {
+            return e.getClass().getName() + "|" + e.getMessage() + "\n";
+        }
+    }
+
     private String doSecretsAction(HttpServletRequest req, HttpServletResponse resp)
             throws InternalErrorException, UnsupportedEncodingException {
     	boolean encode = "true".equals( req.getParameter("encode") );
@@ -156,35 +190,40 @@ public class PasswordLoginServlet extends HttpServlet {
         if (challenge == null)
             return "ERROR|Unknown ticket";
         else {
-            StringBuffer result = new StringBuffer("OK");
-            
-            for (Secret secret: secretStoreService.getAllSecrets(challenge.getUser())) {
-            	if (secret.getName() != null && secret.getName().length() > 0 &&
-            			secret.getValue() != null &&
-            			secret.getValue().getPassword() != null &&
-            			secret.getValue().getPassword().length() > 0 )
-            	{
-	                result.append('|');
-	                if (encode)
-	                	result.append( encodeSecret(secret.getName()));
-	                else
-	                	result.append(secret.getName());
-	                result.append('|');
-	                if (encode)
-		                result.append( encodeSecret(secret.getValue().getPassword()));
-	                else
-	                	result.append(secret.getValue().getPassword());
-            	}
-            }
-            result.append ("|sessionKey|").append(challenge.getChallengeId());
-            if (encode)
-            	result.append ("|fullName|").append(encodeSecret(challenge.getUser().getFullName()));
-            else
-            	result.append ("|fullName|").append(challenge.getUser().getFullName());
-            challengeStore.removeChallenge(challenge);
-            return result.toString();
+        	challengeStore.removeChallenge(challenge);
+            return dumpSecrets(encode, challenge.getChallengeId(), challenge.getUser());
         }
     }
+
+	protected String dumpSecrets(boolean encode, String sessionKey, final User user)
+			throws InternalErrorException, UnsupportedEncodingException {
+		StringBuffer result = new StringBuffer("OK");
+		
+		for (Secret secret: secretStoreService.getAllSecrets(user)) {
+			if (secret.getName() != null && secret.getName().length() > 0 &&
+					secret.getValue() != null &&
+					secret.getValue().getPassword() != null &&
+					secret.getValue().getPassword().length() > 0 )
+			{
+		        result.append('|');
+		        if (encode)
+		        	result.append( encodeSecret(secret.getName()));
+		        else
+		        	result.append(secret.getName());
+		        result.append('|');
+		        if (encode)
+		            result.append( encodeSecret(secret.getValue().getPassword()));
+		        else
+		        	result.append(secret.getValue().getPassword());
+			}
+		}
+		result.append ("|sessionKey|").append(sessionKey);
+		if (encode)
+			result.append ("|fullName|").append(encodeSecret(user.getFullName()));
+		else
+			result.append ("|fullName|").append(user.getFullName());
+		return result.toString();
+	}
 
 	private String encodeSecret(String secret)
 			throws UnsupportedEncodingException {

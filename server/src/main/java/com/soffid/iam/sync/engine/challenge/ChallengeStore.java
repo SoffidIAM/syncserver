@@ -102,4 +102,8 @@ public class ChallengeStore {
         }
         return ch;
     }
+    
+    public void store(Challenge challenge) {
+    	challenges.put(challenge.getChallengeId(), challenge);
+    }
 }
