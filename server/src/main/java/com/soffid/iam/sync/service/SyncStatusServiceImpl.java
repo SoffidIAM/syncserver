@@ -1148,9 +1148,9 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		SystemEntity d = getSystemEntityDao().findByName(accountSystem);
 		if (d != null ) {
 			String agentClass = d.getClassName();
-			if (host != null && agentClass.contains("WindowsAgent") ||
+			if (host != null && (agentClass.contains("WindowsAgent") ||
 					agentClass.contains("ActiveDirectory") ||
-					agentClass.equals("com.soffid.iam.sync.agent.SimpleSSHAgent")) {
+					agentClass.equals("com.soffid.iam.sync.agent.SimpleSSHAgent"))) {
 				return new TemporaryPermissions().assignWindows(host, accountName, accountSystem,
 						permissions);
 			}
