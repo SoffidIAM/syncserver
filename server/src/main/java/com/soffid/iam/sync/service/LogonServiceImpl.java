@@ -329,21 +329,18 @@ public class LogonServiceImpl extends LogonServiceBase {
             }
 
             Session sessio = null;
-            if (ch.getCentinelPort() <= 0)
-                ch.setCentinelPort(challenge.getCentinelPort());
-            if (ch.getCentinelPort() > 0) {
-            	sessio = SessionManager.getSessionManager().addSession(
-            					ch.getHost(),
-            					ch.getCentinelPort(),
-            					ch.getUser().getUserName(),
-            					ch.getPassword(),
-            					ch.getClientHost() ,
-            					ch.getChallengeId(),
-            					ch.isCloseOldSessions(), ch.isSilent(),
-            					ch.getType() == Challenge.TYPE_KERBEROS ? "K" :
-            						ch.getType() == Challenge.TYPE_CERT ? "C" :
-            							"P");
-            }
+            ch.setCentinelPort(challenge.getCentinelPort());
+        	sessio = SessionManager.getSessionManager().addSession(
+        					ch.getHost(),
+        					ch.getCentinelPort(),
+        					ch.getUser().getUserName(),
+        					ch.getPassword(),
+        					ch.getClientHost() ,
+        					ch.getChallengeId(),
+        					ch.isCloseOldSessions(), ch.isSilent(),
+        					ch.getType() == Challenge.TYPE_KERBEROS ? "K" :
+        						ch.getType() == Challenge.TYPE_CERT ? "C" :
+        							"P");
             if (ch.getPassword() != null)
                 propagatePassword(ch.getUserKey(), ch.getDomain(), ch.getPassword().getPassword());
             if (ch.getType() != Challenge.TYPE_KERBEROS && ch.getType() != Challenge.TYPE_PASSWORD)
@@ -445,7 +442,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 		final int cardSupport, int version) throws LogonDeniedException,
 		InternalErrorException, UnknownUserException, UnknownHostException
 	{
-		if (type == Challenge.TYPE_KERBEROS && domain == null && user.contains("@"))
+		if (type == Challenge.TYPE_KERBEROS && user.contains("@"))
 		{
 			KerberosManager km;
 			try {
