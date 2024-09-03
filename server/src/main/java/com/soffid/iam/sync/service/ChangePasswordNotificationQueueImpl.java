@@ -7,6 +7,8 @@ import com.soffid.iam.sync.engine.challenge.ChallengeStore;
 import com.soffid.iam.sync.engine.cpn.ChangePasswordNotificationThread;
 import com.soffid.iam.sync.service.ChangePasswordNotificationQueueBase;
 
+import es.caib.seycon.ng.comu.TipusSessio;
+
 import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStream;
@@ -171,14 +173,17 @@ public class ChangePasswordNotificationQueueImpl extends
             SessionEntity sessio = getSessionEntityDao().load(n.getSessionId());
             if (sessio == null || sessio.getKey() == null)
                 return;
+            if (! sessio.getType().toString().equals("W") &&
+            	! sessio.getType().toString().equals("E")) // Only for WEB and ESSO
+            	return;
             // Generar la nova clau
             String newKey = ChallengeStore.getInstance().generateSessionKey();
             String dif = computeDiferences(sessio.getKey(), newKey);
             sessio.setNewKey(newKey);
             getSessionEntityDao().update(sessio);
-            if (n.getUrl() == null)
+            if (sessio.getType() == TipusSessio.ESSO && sessio.getPort() > 0)
             	sendKeySocketMessage(n, dif);
-            else
+            else if (sessio.getType() == TipusSessio.WSSO && sessio.getMonitorUrl() != null && n.getUrl() != null)
             	sendKeyPostMessage(n, dif);
             log.info("User {} notified to change passwords", n.getUser(), null);
         } catch (IOException e) {
