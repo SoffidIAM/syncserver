@@ -747,8 +747,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 	private void cancelRemoteTask(TaskEntity task) throws Exception {
 		
 		if (task != null && task.getServer() != null && 
-				(!task.getServer().equals(hostname)) ||
-            	 task.getServer().equals(hostname) && instanceName != null && !instanceName.equals(task.getServerInstance()))
+				(!task.getServer().equals(hostname) ||
+            	 task.getServer().equals(hostname) && instanceName != null && !instanceName.equals(task.getServerInstance())))
         {
 			TaskHandler th = new TaskHandler ();
 			th.setTask(getTaskEntityDao().toTask(task));
@@ -1598,6 +1598,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				{
 					Runnable runnable = () -> {
 						try {
+							m.put(dispatcherName, new InternalErrorException("Timeout processing transaction"));
 							if (debug) {
 								DebugTaskResults rr = dispatcher.debugTask(task);
 								r.setException(rr.getException());
@@ -1607,6 +1608,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 							else {
 								dispatcher.processOBTask(task);
 							}
+							m.remove(dispatcherName);
 						} catch (Exception e) {
 							if (isDebug())
 								log.warn("Error processing task" , e);
@@ -1635,10 +1637,15 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				debugMap.put(dispatcherName, r);
 			}
 		}
+		
 		while (! threads.isEmpty()) {
 			Thread th = threads.pop();
-			th.join();
+			try {
+				th.join(10_000);
+			} catch (Exception e) {
+			}
 		}
+
 		if (!m.isEmpty() && !debug)
 		{
 			Task tasca = task.getTask();
