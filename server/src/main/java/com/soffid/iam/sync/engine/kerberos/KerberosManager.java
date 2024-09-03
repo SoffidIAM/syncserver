@@ -399,7 +399,8 @@ public class KerberosManager {
                 	{
                 		result.put(krb.getRealmName().toLowerCase(), handler.getSystem().getName());
                 		for (String domainName: krb.getDomainNames()) {
-                			result.put(domainName.toUpperCase(), handler.getSystem().getName());
+                			if (domainName != null)
+                				result.put(domainName.toUpperCase(), handler.getSystem().getName());
                 		}
                 	}
                 } catch (InternalErrorException e) {
