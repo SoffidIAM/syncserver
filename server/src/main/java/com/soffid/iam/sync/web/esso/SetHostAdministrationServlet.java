@@ -101,7 +101,7 @@ public class SetHostAdministrationServlet extends HttpServlet {
             }
             // Si la comprovació de ip-nomhost ha anat bé, fem
             // l'actualització del usuari-passwd
-            xarxaService.setAdministratorPassword(maq.getName(), adminUser, adminPass);
+            xarxaService.setAdministratorPassword(maq.getSerialNumber(), adminUser, adminPass);
 
         } else {
             throw new InternalErrorException("Host not found " + hostname);
