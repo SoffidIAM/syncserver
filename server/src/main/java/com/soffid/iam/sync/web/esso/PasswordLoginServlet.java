@@ -159,7 +159,7 @@ public class PasswordLoginServlet extends HttpServlet {
             String sessionKey = req.getParameter("sessionKey");
             String port = req.getParameter("port");
 
-            Session s = sessioService.joinEssoSession(Long.decode(sessionId), sessionKey, Integer.decode(port));
+            Session s = null; //sessioService.joinEssoSession(Long.decode(sessionId), sessionKey, Integer.decode(port));
             if (s != null) {
             	User u = serverService.getUserInfo(s.getUserName(), null); 
             	
