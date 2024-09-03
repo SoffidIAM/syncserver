@@ -200,8 +200,8 @@ public class KerberosLoginServlet extends HttpServlet {
         
         final Challenge challenge = 
         		logonService.requestChallenge(Challenge.TYPE_KERBEROS, 
-        				dispatcher == null ? principal: user,
-        				dispatcher==null ? null: dispatcher.getName(), 
+        				principal,
+        				null, 
         				hostSerial == null ? hostIP: hostSerial, clientIP,
         				Integer.decode(cardSupport));
 
