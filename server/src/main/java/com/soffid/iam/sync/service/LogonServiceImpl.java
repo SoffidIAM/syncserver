@@ -274,15 +274,7 @@ public class LogonServiceImpl extends LogonServiceBase {
     @Override
     protected Challenge handleRequestChallenge(int type, String user, String domain, String host,
             String clientHost, int cardSupport) throws Exception {
-    	
-        Challenge ch;
-        
-        ch = requestChallengeInternal(type, user, domain, host, clientHost, cardSupport,
-                    cardSupport);
-        if (! getNetworkService().canLogin(ch.getUser().getUserName(), ch.getHost().getName())) {
-        	throw new LogonDeniedException("Not authorized");
-        }
-        return ch;
+    	return handleRequestIdpChallenge(type, user, domain, host, clientHost, cardSupport, null);
     }
 
     @Override
@@ -439,7 +431,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 
 	public Challenge requestChallengeInternal (int type, String user,
 		String domain, final String hostIp, final String clientIp,
-		final int cardSupport, int version) throws LogonDeniedException,
+		final int cardSupport, int version, String identityProvider) throws LogonDeniedException,
 		InternalErrorException, UnknownUserException, UnknownHostException
 	{
 		if (type == Challenge.TYPE_KERBEROS && user.contains("@"))
@@ -450,6 +442,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 			} catch (IOException e) {
 				throw new UnknownUserException("Unknown realm for "+user);
 			}
+			log.info("Searching form user {} in keberos", user, null);
 			Account account = km.findAccountForPrincipal(user);
 			if (account != null)
 			{
@@ -490,6 +483,7 @@ public class LogonServiceImpl extends LogonServiceBase {
         ch.setDomain(domain);
         ch.setUserKey(user);
         ch.setType(type);
+        ch.setIdentityProvider(identityProvider);
 
         Host clientMaquina = null;
 
@@ -668,6 +662,19 @@ public class LogonServiceImpl extends LogonServiceBase {
 			throw new InternalErrorException("Challenge collision, please try again");
 		ChallengeEntity che = getChallengeEntityDao().challengeToEntity(challenge);
 		getChallengeEntityDao().create(che);
+	}
+
+	@Override
+	protected Challenge handleRequestIdpChallenge(int type, String user, String domain, String host, String clientHost,
+			int cardSupport, String identityProvider) throws Exception {
+        Challenge ch;
+        
+        ch = requestChallengeInternal(type, user, domain, host, clientHost, cardSupport,
+                    cardSupport, identityProvider);
+        if (! getNetworkService().canLogin(ch.getUser().getUserName(), ch.getHost().getName())) {
+        	throw new LogonDeniedException("Not authorized");
+        }
+        return ch;
 	}
 }
 

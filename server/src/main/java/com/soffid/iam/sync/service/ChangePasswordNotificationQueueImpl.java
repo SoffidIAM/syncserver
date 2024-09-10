@@ -181,7 +181,7 @@ public class ChangePasswordNotificationQueueImpl extends
             String dif = computeDiferences(sessio.getKey(), newKey);
             sessio.setNewKey(newKey);
             getSessionEntityDao().update(sessio);
-            if (sessio.getType() == TipusSessio.ESSO && sessio.getPort() > 0)
+            if (sessio.getType() == TipusSessio.ESSO && sessio.getPort() != null && sessio.getPort() > 0)
             	sendKeySocketMessage(n, dif);
             else if (sessio.getType() == TipusSessio.WSSO && sessio.getMonitorUrl() != null && n.getUrl() != null)
             	sendKeyPostMessage(n, dif);

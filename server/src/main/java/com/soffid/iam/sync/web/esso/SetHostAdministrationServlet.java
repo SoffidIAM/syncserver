@@ -40,7 +40,7 @@ public class SetHostAdministrationServlet extends HttpServlet {
         xarxaService = ServerServiceLocator.instance().getNetworkService();
     }
 
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException,
             IOException {
 
         String hostIP = com.soffid.iam.utils.Security.getClientIp();

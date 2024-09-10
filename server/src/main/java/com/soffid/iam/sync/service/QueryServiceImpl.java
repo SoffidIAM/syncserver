@@ -33,6 +33,13 @@ public class QueryServiceImpl extends QueryServiceBase {
 
     @Override
     protected void handleQuery(String path, String contentType, Writer writer) throws Exception {
+        Invoker invoker = Invoker.getInvoker();
+        handleQuery(path, contentType, invoker.getAddr().getHostAddress(), writer);
+        
+    }
+    
+    @Override
+    protected void handleQuery(String path, String contentType, String ipAddress, Writer writer) throws Exception {
         SessionFactory sf = (SessionFactory) ServerServiceLocator.instance().getService(
                 "sessionFactory");
         Session sessio = sf.getCurrentSession();
@@ -317,8 +324,7 @@ public class QueryServiceImpl extends QueryServiceBase {
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
                 stmt.setString(3, (String) v.elementAt(1));
-                Invoker invoker = Invoker.getInvoker();
-                stmt.setString(4, invoker.getAddr().getHostAddress());
+                stmt.setString(4, ipAddress);
                 stmt.setLong(5, Security.getCurrentTenantId());
 
                 ResultSet rset = stmt.executeQuery();
