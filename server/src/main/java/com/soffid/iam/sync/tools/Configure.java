@@ -67,6 +67,7 @@ import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.service.TenantService;
 import com.soffid.iam.ssl.ConnectionFactory;
 import com.soffid.iam.ssl.SeyconKeyStore;
+import com.soffid.iam.ssl.SeyconTrustManager;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.engine.log.LogConfigurator;
@@ -471,6 +472,7 @@ public class Configure {
 			UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, NoSuchProviderException,
 			CertificateException, IllegalStateException, SignatureException, InternalErrorException,
 			UnknownUserException, KeyManagementException, CertificateEnrollWaitingForAproval, CertificateEnrollDenied, JSONException {
+		SeyconTrustManager.setInsecure(true);
 		Config config = Config.getConfig();
 		boolean force = false;
 		String adminTenant = "master";
