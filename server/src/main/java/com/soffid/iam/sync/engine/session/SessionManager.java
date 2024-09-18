@@ -243,7 +243,7 @@ public class SessionManager extends Thread {
                 sessio.getServerHostName(), sessio.getPort(), sessio.getId());
 
         if (sessio.getPort() == null)
-            return true;
+            return false;
 
         Socket s = null;
         try {
