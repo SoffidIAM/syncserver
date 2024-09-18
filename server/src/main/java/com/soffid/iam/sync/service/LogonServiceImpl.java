@@ -658,10 +658,14 @@ public class LogonServiceImpl extends LogonServiceBase {
 
 	@Override
 	protected void handleRegisterChallenge(Challenge challenge) throws Exception {
-		if (getChallengeEntityDao().findByChallengeId(challenge.getChallengeId()) != null) 
-			throw new InternalErrorException("Challenge collision, please try again");
-		ChallengeEntity che = getChallengeEntityDao().challengeToEntity(challenge);
-		getChallengeEntityDao().create(che);
+		final ChallengeEntity previous = getChallengeEntityDao().findByChallengeId(challenge.getChallengeId());
+		if (previous != null) {
+			getChallengeEntityDao().challengeToEntity(challenge, previous, true);
+			getChallengeEntityDao().update(previous);
+		} else {
+			ChallengeEntity che = getChallengeEntityDao().challengeToEntity(challenge);
+			getChallengeEntityDao().create(che);
+		}
 	}
 
 	@Override
