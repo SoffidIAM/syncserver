@@ -126,6 +126,7 @@ public class UpdateCertsTask implements Runnable {
 				}
 			}
 			cfg.setCustomProperty("migrated-certs", "true");
+			cfg.setRole(cfg.getRole());
 			new KubernetesConfig().save();
     	}
 	}
