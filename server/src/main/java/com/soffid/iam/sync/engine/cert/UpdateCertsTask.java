@@ -1,11 +1,21 @@
 package com.soffid.iam.sync.engine.cert;
 
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.security.KeyManagementException;
 import java.security.KeyPair;
 import java.security.KeyStore;
+import java.security.KeyStoreException;
+import java.security.NoSuchAlgorithmException;
 import java.security.PrivateKey;
 import java.security.PublicKey;
+import java.security.UnrecoverableKeyException;
+import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
+import java.util.Collection;
 import java.util.Date;
+import java.util.Enumeration;
 import java.util.Random;
 
 import org.apache.commons.logging.Log;
@@ -13,13 +23,18 @@ import org.apache.commons.logging.LogFactory;
 import org.bouncycastle.asn1.x500.RDN;
 import org.bouncycastle.asn1.x500.X500Name;
 import org.bouncycastle.asn1.x500.style.RFC4519Style;
+import org.eclipse.jetty.security.UserPrincipal;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.api.Password;
+import com.soffid.iam.api.Server;
 import com.soffid.iam.config.Config;
+import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.ssl.SeyconKeyStore;
 import com.soffid.iam.sync.tools.KubernetesConfig;
 import com.soffid.iam.utils.Security;
 
+import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.remote.RemoteServiceLocator;
 
 public class UpdateCertsTask implements Runnable {
@@ -28,6 +43,11 @@ public class UpdateCertsTask implements Runnable {
 	static Long restartOn = null;
 	@Override
 	public void run() {
+        try {
+        	doInitialUpload();
+		} catch (Exception e) {
+			log.warn("Error uploading current certificate", e);
+		}
 		do {
 	        try {
 	        	try {
@@ -87,6 +107,47 @@ public class UpdateCertsTask implements Runnable {
 				}
 			}
 		} while (true);
+	}
+
+	private void doInitialUpload() throws KeyManagementException, UnrecoverableKeyException, FileNotFoundException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException, InternalErrorException {
+    	new KubernetesConfig().load();
+    	Config cfg = Config.getConfig();
+    	if (cfg.isServer() && ! "true".equals(cfg.getCustomProperty("migrated-certs"))) {
+    		DispatcherService dispatcherService = ServiceLocator.instance().getDispatcherService();
+    		Collection<Server> servers = dispatcherService.findAllServers();
+			KeyStore ks = SeyconKeyStore.loadKeyStore(SeyconKeyStore.getKeyStoreFile());
+			for (Enumeration<String> e = ks.aliases(); e.hasMoreElements();) {
+				String alias = e.nextElement();
+				if (alias.startsWith("trusted") || alias.equals(SeyconKeyStore.MY_KEY)) {
+					X509Certificate cert = (X509Certificate) ks.getCertificate(alias);
+					Server server = findServer(servers, cert);
+					if (server != null)
+						dispatcherService.addCertificate(server, cert);
+				}
+			}
+			cfg.setCustomProperty("migrated-certs", "true");
+			new KubernetesConfig().save();
+    	}
+	}
+
+	private Server findServer(Collection<Server> servers, X509Certificate cert) throws FileNotFoundException, IOException {
+		X500Name name = new X500Name (cert.getSubjectDN().getName());
+		String n = null;
+		for ( RDN rdn: name.getRDNs())
+		{
+			if (rdn.getFirst() != null &&
+					rdn.getFirst().getType().equals( RFC4519Style.cn))
+				n = rdn.getFirst().getValue().toString();
+		}
+		for (Server server: servers ) {
+			if (server.getName().equals(n))
+				return server;
+		}
+		for (Server server: servers ) {
+			if (server.getName().equals(Config.getConfig().getHostName()))
+				return server;
+		}
+		return servers.iterator().next();
 	}
 
 	private String getCertificateOU (X509Certificate cert) {

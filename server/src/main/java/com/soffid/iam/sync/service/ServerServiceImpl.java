@@ -2392,7 +2392,15 @@ public class ServerServiceImpl extends ServerServiceBase {
 		String account = Security.getCurrentAccount();
 		ServerEntity server = getServerEntityDao().findByName(account);
 		if (server != null) {
-			getDispatcherService().addCertificate(getServerEntityDao().toServer(server), cert);
+			List<ServerCertificateEntity> l = getServerCertificateEntityDao().query(
+					  "select cert "
+					+ "from com.soffid.iam.model.ServerCertificateEntity as cert "
+					+ "where cert.server.id=:serverId and cert.since=:since",
+					new Parameter[] {
+						new Parameter("serverId", server.getId()),
+						new Parameter("since", cert.getNotBefore())});
+			if (l.isEmpty())
+				getDispatcherService().addCertificate(getServerEntityDao().toServer(server), cert);
 		}
 	}
 	

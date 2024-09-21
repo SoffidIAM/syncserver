@@ -207,12 +207,15 @@ public class Configure {
 
 	private static void configurationWizard() throws Exception {
 		System.out.println("Soffid Sync server configuration wizard.");
+		SeyconTrustManager.setInsecure(true);
 		Console c = java.lang.System.console();
 		if (c == null) {
 			System.exit(0);
 		}
 		
 		Config config = Config.getConfig();
+		
+		
 		
 		CertificateServer cs = new CertificateServer();
 		if (cs.hasServerKey()) {
