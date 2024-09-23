@@ -32,7 +32,6 @@ import com.soffid.iam.service.SessionService;
 import com.soffid.iam.service.UserService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.db.ConnectionPool;
-import com.soffid.iam.sync.engine.session.SessionManager;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
