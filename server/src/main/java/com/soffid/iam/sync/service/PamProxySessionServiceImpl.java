@@ -55,29 +55,30 @@ public class PamProxySessionServiceImpl extends PamProxySessionServiceBase {
 		return getOTPValidationService().validatePin(ch, value);
 	}
 
-	SoffidPrincipal getUserPrincipal(String user) throws InternalErrorException {
+	SoffidPrincipal getUserPrincipal(String account) throws InternalErrorException {
 		com.soffid.iam.api.System system = getDispatcherService().findSoffidDispatcher(); 
-		Account acc = getAccountService().findAccount(user, system.getName());
+		Account acc = getAccountService().findAccount(account, system.getName());
 		if (acc == null)
 			return null;
 		if (acc.getType() == AccountType.SHARED)
-			return new SoffidPrincipalImpl(user, null, null, null, Collections.singletonList(Security.AUTO_AUTHORIZATION_ALL), 
+			return new SoffidPrincipalImpl(account, null, null, null, Collections.singletonList(Security.AUTO_AUTHORIZATION_ALL), 
 					null, null);
 		else {
 			String userName = acc.getOwnerUsers().iterator().next();
 			User u = getUserService().findUserByUserName(userName);
-			return new SoffidPrincipalImpl(user, u.getUserName(), u.getFullName(), null, Collections.singletonList(Security.AUTO_AUTHORIZATION_ALL), 
+			return new SoffidPrincipalImpl(account, u.getUserName(), u.getFullName(), null, 
+					Collections.singletonList(Security.AUTO_AUTHORIZATION_ALL), 
 					null, null);
 		}
 	}
 	
 	@Override
-	protected NewPamSession handleOpenSession(String userName, Account account,
+	protected NewPamSession handleOpenSession(String accountName, Account account,
 			String sourceIp,
 			TipusSessio type,
 			String info,
 			Map<String, Map<String, String>> obligations) throws Exception {
-		SoffidPrincipal p = getUserPrincipal(userName);
+		SoffidPrincipal p = getUserPrincipal(accountName);
 		Security.nestedLogin(p);
 		try {
 			for (String obligation: obligations.keySet()) {
@@ -158,8 +159,16 @@ public class PamProxySessionServiceImpl extends PamProxySessionServiceBase {
 	private boolean canUse(AccountEntity t, String userName) throws InternalErrorException {
 		if (t.getSecrets() == null || t.getSecrets().isEmpty())
 			return false; // no password available
-		AccountAccessLevelEnum al = getAccountEntityDao().getAccessLevel(t, userName);
-		return al == AccountAccessLevelEnum.ACCESS_OWNER || al == AccountAccessLevelEnum.ACCESS_MANAGER || al == AccountAccessLevelEnum.ACCESS_USER;
+		System d = getDispatcherService().findSoffidDispatcher();
+		Account acc = getAccountService().findAccount(userName, d.getName());
+		if (acc == null || acc.isDisabled())
+			return false;
+		if (acc.getType() == AccountType.USER) {
+			AccountAccessLevelEnum al = getAccountEntityDao().getAccessLevel(t, acc.getOwnerUsers().iterator().next());
+			return al == AccountAccessLevelEnum.ACCESS_OWNER || al == AccountAccessLevelEnum.ACCESS_MANAGER || al == AccountAccessLevelEnum.ACCESS_USER;
+		}
+		else
+			return false;
 	}
 
 	@Override
