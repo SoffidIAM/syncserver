@@ -362,13 +362,7 @@ public class LogonServiceImpl extends LogonServiceBase {
    		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), false, true);
         if (v == PasswordValidation.PASSWORD_WRONG)
         {
-        	boolean checkTrusted = "true".equals(ConfigurationCache.getProperty("soffid.auth.trustedLogin"));
-        	if (checkTrusted)
-            	if (r.getUserEntity() == null)
-            		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), true, true);
-            	else
-                	v = getInternalPasswordService().checkPassword(r.getUserEntity(),
-                        r.getDominiContrasenyaEntity(), new Password(password), true, true);
+       		v = getInternalPasswordService().checkAccountPassword(r.getAccountEntity(), new Password(password), true, true);
             if (v == PasswordValidation.PASSWORD_WRONG) {
             	log.warn("Wrong login attempt by {} / {}", user, passwordDomain);
             }
