@@ -4,8 +4,11 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.LinkedList;
 
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
@@ -20,9 +23,14 @@ import javax.transaction.SystemException;
 import org.mortbay.log.Log;
 import org.mortbay.log.Logger;
 
+import com.soffid.iam.ServiceLocator;
+import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Audit;
 import com.soffid.iam.api.Host;
 import com.soffid.iam.api.PasswordValidation;
+import com.soffid.iam.api.User;
+import com.soffid.iam.common.security.SoffidPrincipal;
+import com.soffid.iam.security.SoffidPrincipalImpl;
 import com.soffid.iam.service.AuditService;
 import com.soffid.iam.service.AuthorizationService;
 import com.soffid.iam.service.NetworkService;
@@ -34,6 +42,7 @@ import com.soffid.iam.sync.web.Messages;
 import com.soffid.iam.utils.ConfigurationCache;
 import com.soffid.iam.utils.Security;
 
+import es.caib.seycon.ng.comu.AccountType;
 import es.caib.seycon.ng.exception.InternalErrorException;
 import es.caib.seycon.ng.exception.UnknownHostException;
 
@@ -139,7 +148,15 @@ public class GetHostAdministrationServlet extends HttpServlet
             throw ex;
         }
 
-        Security.nestedLogin(usuariPeticio, auths);
+        Account acc = ServiceLocator.instance().getAccountService().findAccount(usuariPeticio, ServiceLocator.instance().getServerService().getDefaultDispatcher());
+        if (acc == null || acc.getType() != AccountType.USER)
+            throw new InternalErrorException(Messages.getString("GetHostAdministrationServlet.UnauthorizedUser")); //$NON-NLS-1$
+        User user = ServiceLocator.instance().getUserService().findUserByUserName(acc.getOwnerUsers().iterator().next());
+        
+		SoffidPrincipal p = new SoffidPrincipalImpl(usuariPeticio, 
+				user.getUserName(), user.getFullName(), null,
+				Arrays.asList(auths), null,  null);
+        Security.nestedLogin(p);
         try
         {
             boolean authorized = false;
