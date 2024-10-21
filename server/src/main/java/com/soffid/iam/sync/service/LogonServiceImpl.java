@@ -660,6 +660,8 @@ public class LogonServiceImpl extends LogonServiceBase {
 			ChallengeEntity che = getChallengeEntityDao().challengeToEntity(challenge);
 			getChallengeEntityDao().create(che);
 		}
+        ChallengeStore store = ChallengeStore.getInstance();
+        store.store(challenge);
 	}
 
 	@Override
