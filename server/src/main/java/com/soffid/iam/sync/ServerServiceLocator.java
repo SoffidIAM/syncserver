@@ -36,7 +36,7 @@ public class ServerServiceLocator
             baseServiceLocator = com.soffid.iam.ServiceLocator.instance();
             baseServiceLocator.init("localBeanRefFactory.xml", "beanRefFactory");
             try {
-				if (Config.getConfig().isServer()) {
+				if ("server".equals(Config.getConfig().getRole())) {
 				    RemoteServiceLocator.serviceLocatorProxy = (String name) -> { return baseServiceLocator.getService(name); };
 				    es.caib.seycon.ng.remote.RemoteServiceLocator.serviceLocatorProxy = (String name) -> { return baseServiceLocator.getService(name); };
 				}
