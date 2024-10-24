@@ -327,11 +327,7 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
     }
 
     private String getSSOThreadStatus() {
-        Thread SSOServer = SoffidApplication.getSso();
-        if (threadRunning(SSOServer)) {
-            return Messages.getString("SyncStatusServiceImpl.SSORunning"); //$NON-NLS-1$
-        }
-        return Messages.getString("SyncStatusServiceImpl.SSOFailed"); //$NON-NLS-1$
+        return "";
     }
 
     private String getJettyThreadStatus() {
