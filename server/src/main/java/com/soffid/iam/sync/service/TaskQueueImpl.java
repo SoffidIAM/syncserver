@@ -966,6 +966,17 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 					{
 						task = iterator.next();
 						TaskHandlerLog tl = task.getPamLog();
+						List<TaskHandlerLog> logs = task.getLogs();
+						if (tl == null && logs != null) {
+							for (TaskHandlerLog log: logs) {
+								if (log != null) {
+									if (tl == null)
+										tl = log;
+									else if (tl.isComplete() && ! log.isComplete())
+										tl = log;
+								}
+							}
+						}
 		    			if (task.isExpired())
 			    		{
 							if (priorities.debug)
