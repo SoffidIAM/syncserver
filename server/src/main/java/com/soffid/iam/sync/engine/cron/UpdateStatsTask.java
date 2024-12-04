@@ -21,7 +21,7 @@ import es.caib.seycon.ng.exception.InternalErrorException;
 public class UpdateStatsTask implements TaskHandler
 {
 	
-	
+	static int lastPurge = 0;
 	private ScheduledTask task;
 
 	/* (non-Javadoc)
@@ -30,6 +30,8 @@ public class UpdateStatsTask implements TaskHandler
 	public void run (PrintWriter out) throws SQLException, InternalErrorException
 	{
 		ServiceLocator.instance().getStatsService().updateStats();
+		if (System.currentTimeMillis() - lastPurge > 4 * 3_600_000) // 4 hour
+			ServiceLocator.instance().getStatsService().purge();
 	}
 
 	/* (non-Javadoc)
