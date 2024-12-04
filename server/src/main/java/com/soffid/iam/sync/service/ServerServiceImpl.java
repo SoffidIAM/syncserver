@@ -120,6 +120,7 @@ import com.soffid.iam.sync.engine.extobj.GroupExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ObjectTranslator;
 import com.soffid.iam.sync.engine.extobj.UserExtensibleObject;
 import com.soffid.iam.sync.engine.extobj.ValueObjectMapper;
+import com.soffid.iam.sync.engine.kerberos.KerberosManager;
 import com.soffid.iam.sync.intf.AuthoritativeChange;
 import com.soffid.iam.sync.intf.AuthoritativeChangeIdentifier;
 import com.soffid.iam.sync.intf.ExtensibleObject;
@@ -2406,6 +2407,14 @@ public class ServerServiceImpl extends ServerServiceBase {
 	
 	protected Issue handleRegisterIssue(Issue e) throws Exception {
 		return getIssueService().createInternalIssue(e);
+	}
+
+	public Map<String,String> handleFindActiveDirectoryDomains() throws InternalErrorException {
+		try {
+			return new KerberosManager().getDomainsToSystemMap();
+		} catch (InternalErrorException | IOException e) {
+			throw new InternalErrorException("Error guessing active directory domains", e);
+		}
 	}
 
 }
