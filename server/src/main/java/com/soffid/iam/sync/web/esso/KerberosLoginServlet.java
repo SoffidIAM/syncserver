@@ -26,6 +26,7 @@ import com.soffid.iam.api.Challenge;
 import com.soffid.iam.api.Session;
 import com.soffid.iam.api.System;
 import com.soffid.iam.api.sso.Secret;
+import com.soffid.iam.service.DispatcherService;
 import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.challenge.ChallengeStore;
@@ -45,10 +46,12 @@ import es.caib.seycon.util.Base64;
 public class KerberosLoginServlet extends HttpServlet {
     private LogonService logonService;
 	private SecretStoreService secretStoreService;
+	private DispatcherService dispatcherService;
 
     public KerberosLoginServlet() {
         logonService = ServerServiceLocator.instance().getLogonService();
         secretStoreService = ServerServiceLocator.instance().getSecretStoreService();
+        dispatcherService = ServerServiceLocator.instance().getDispatcherService();
     }
 
     /**
@@ -187,17 +190,9 @@ public class KerberosLoginServlet extends HttpServlet {
         int split = principal.indexOf('@');
         if (split < 0)
             throw new LogonDeniedException("Bad principal name " + principal);
-        String user = principal.substring(0, split);
+
         String domain = principal.substring(split + 1).toUpperCase();
 
-        LogonService logonService = ServerServiceLocator.instance().getLogonService();
-
-        final System dispatcher = km.getSystemForRealm(domain); 
-        if (dispatcher == null)
-        {
-        	log.warn("Cannot guess agent for principal "+principal+" (domain "+domain+")");
-        }
-        
         final Challenge challenge = 
         		logonService.requestChallenge(Challenge.TYPE_KERBEROS, 
         				principal,
@@ -209,11 +204,12 @@ public class KerberosLoginServlet extends HttpServlet {
 
         // Check some credentials are stored
         if ( secretStoreService.getAllSecrets(challenge.getUser()).isEmpty()) {
-        	throw new LogonDeniedException("No secrets available for "+user+" yet");
+        	throw new LogonDeniedException("No secrets available for "+challenge.getUser()+" yet");
         }
 
-
-        Subject serverSubject = km.getServerSubject(dispatcher);
+        System s = dispatcherService.findDispatcherByName(challenge.getDomain());
+        		
+        Subject serverSubject = km.getServerSubject(s);
 
         // Crear el context de servidor
         Object result = Subject.doAs(serverSubject, new PrivilegedAction<Object>() {
@@ -221,7 +217,7 @@ public class KerberosLoginServlet extends HttpServlet {
                 try {
                     GSSManager manager = GSSManager.getInstance();
                     GSSName serverName = manager.createName(
-                            km.getServerPrincipal(dispatcher), null);
+                            km.getServerPrincipal(s), null);
                     Oid desiredMechs = new Oid("1.2.840.113554.1.2.2"); // Kerberos
                                                                         // V5
                     // Oid desiredMechs = new Oid("1.3.6.1.5.5.2"); // SPNEGO
