@@ -75,7 +75,7 @@ public class Engine extends Thread {
             
             taskGenerator = ServerServiceLocator.instance().getTaskGenerator();
             taskQueue = ServerServiceLocator.instance().getTaskQueue();
-            taskScheduler = new TaskScheduler();
+            taskScheduler = TaskScheduler.getScheduler();
             
             taskGenerator.updateAgents();
             setStatus("Waking up threads");

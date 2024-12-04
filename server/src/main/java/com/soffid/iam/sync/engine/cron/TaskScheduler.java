@@ -7,6 +7,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Calendar;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -21,6 +22,7 @@ import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import com.soffid.iam.api.Issue;
 import com.soffid.iam.api.ScheduledTask;
 import com.soffid.iam.api.ScheduledTaskHandler;
+import com.soffid.iam.api.Server;
 import com.soffid.iam.config.Config;
 import com.soffid.iam.doc.api.CRLFPrintWriter;
 import com.soffid.iam.doc.api.DocumentOutputStream;
@@ -44,7 +46,7 @@ import it.sauronsoftware.cron4j.Scheduler;
  */
 public class TaskScheduler
 {
-	 Set<Long> runningTasks = new HashSet<Long>();
+	static Set<Long> runningTasks = new HashSet<Long>();
 
 	private final class ScheduledTaskRunnable implements Runnable
 	{
@@ -106,15 +108,13 @@ public class TaskScheduler
 						try
 						{
 							ServiceLocator.instance().getTaskGenerator().startVirtualSourceTransaction();
+							ScheduledTask t = findTask(task.getId());
 							synchronized (runningTasks) {
-								if (runningTasks.contains(task.getId()))
+								if (isActiveTask(t) || runningTasks.contains(task.getId())) 
 									ignore = true;
 								else
 									runningTasks.add(task.getId());
 							}
-							ScheduledTask t = findTask(task.getId());
-							if (t.isActive())
-								ignore = true;
 							if (!ignore) {
 								log.info("Executing task " + task.getName());
 								taskSvc.registerStartTask(task);
@@ -193,6 +193,14 @@ public class TaskScheduler
 					} finally {
 						Security.nestedLogoff();
 					}
+				}
+
+				private boolean isActiveTask(ScheduledTask t) throws InternalErrorException {
+					if (!t.isActive()) return true;
+					String server = t.getServerName();
+					if (server == null || "*".equals(server))
+						return false;
+					return false;
 				}
 			};
 			if (spawnThread)
