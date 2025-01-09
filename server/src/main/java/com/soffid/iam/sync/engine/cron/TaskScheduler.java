@@ -196,11 +196,10 @@ public class TaskScheduler
 				}
 
 				private boolean isActiveTask(ScheduledTask t) throws InternalErrorException {
-					if (t.isActive()) return true;
 					String server = t.getServerName();
 					if (server == null || "*".equals(server))
 						return false;
-					return false;
+					return t.isActive();
 				}
 			};
 			if (spawnThread)
