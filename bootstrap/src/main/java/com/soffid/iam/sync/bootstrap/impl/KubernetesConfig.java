@@ -77,6 +77,7 @@ public class KubernetesConfig {
 	public String readURL(URL url) throws RemoteException, IOException {
 		int i;
 		HttpsURLConnection conn = connectionFactory.getConnection(url);
+		conn.setHostnameVerifier(new IgnoreHostNameVerifier());
 		conn.addRequestProperty("Authorization", "Bearer "+token);
 		InputStream in = conn.getInputStream();
 		InputStreamReader reader = new InputStreamReader(in);
@@ -92,6 +93,7 @@ public class KubernetesConfig {
 	public String send(String method, URL url, String data) throws RemoteException, IOException {
 		int i;
 		HttpsURLConnection conn = connectionFactory.getConnection(url);
+		conn.setHostnameVerifier(new IgnoreHostNameVerifier());
 		conn.addRequestProperty("Authorization", "Bearer "+token);
 		conn.addRequestProperty("Content-Type", "application/json");
 		conn.setDoInput(true);

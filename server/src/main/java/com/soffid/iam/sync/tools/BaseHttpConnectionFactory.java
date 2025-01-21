@@ -58,7 +58,7 @@ public class BaseHttpConnectionFactory {
     private TrustManager[] getTrustManagers(KeyStore ks)
             throws KeyStoreException, NoSuchAlgorithmException,
             CertificateException, FileNotFoundException, IOException {
-        return new TrustManager[] { new SeyconTrustManager(ks) };
+        return new TrustManager[] { new KubernetesTrustManager(ks) };
     }
     
     public SSLSocketFactory getSocketFactory() throws KeyManagementException, UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, FileNotFoundException, IOException {

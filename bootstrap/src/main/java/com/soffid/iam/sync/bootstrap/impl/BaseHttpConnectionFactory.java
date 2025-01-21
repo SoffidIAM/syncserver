@@ -50,7 +50,6 @@ public class BaseHttpConnectionFactory {
         ctx.init(getKeyManagers(ks), getTrustManagers(ks), null);
 
         sslFactory = ctx.getSocketFactory();
-
     }
 
     private TrustManager[] getTrustManagers(KeyStore ks)

@@ -35,7 +35,7 @@ public class HubServlet extends HttpServlet {
 			if (user.contains("\\"))
 				user = user.substring(user.indexOf("\\")+1);
 			
-			user = new URLDecoder().decode(user, "UTF-8");
+			user = URLDecoder.decode(user, "UTF-8");
 			
 			String active = req.getParameter("active");
 			if (active != null) {
@@ -73,7 +73,7 @@ public class HubServlet extends HttpServlet {
 			if (user.contains("\\"))
 				user = user.substring(user.indexOf("\\")+1);
 			
-			user = new URLDecoder().decode(user, "UTF-8");
+			user = URLDecoder.decode(user, "UTF-8");
 	
 			ObjectInputStream oin = new ObjectInputStream(req.getInputStream());
 	        
