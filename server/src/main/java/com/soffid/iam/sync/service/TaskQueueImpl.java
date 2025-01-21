@@ -1910,7 +1910,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		    			Collection<TaskLogEntity> daoEntities = new LinkedList<>( tasque.getLogs() );
 		    			if (newTask.getLogs() != null)
 		    			{
-		        			for (TaskHandlerLog tasklog : newTask.getLogs()) {
+		        			for (TaskHandlerLog tasklog : new LinkedList<>(newTask.getLogs())) {
 		        				if (tasklog != null)
 		        				{
 		                            boolean found = false;
