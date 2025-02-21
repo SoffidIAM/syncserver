@@ -186,6 +186,70 @@ public abstract class ReconcileEngine
 		}
 	}
 
+	public void reconcileAccount (Account acc, List<RoleAccount> grants) throws Exception
+	{
+		log.println("Reconciling account "+acc.getName());
+		triggers = dispatcherService.findReconcileTriggersByDispatcher(dispatcher.getId());
+		objectTranslator = new ObjectTranslator (dispatcher);
+		//Collection<RoleGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getSystem());
+		vom = new ValueObjectMapper();
+
+		String virtualTransactionId = taskGenerator.startVirtualSourceTransaction(!dispatcher.isGenerateTasksOnLoad());
+		try {
+
+			preDeleteGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.PRE_DELETE);
+			preInsertGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.PRE_INSERT);
+			postInsertGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.POST_INSERT);
+			postDeleteGrant = findTriggers(SoffidObjectType.OBJECT_GRANT, SoffidObjectTrigger.POST_DELETE);
+			accountService.updateAccount2(acc);
+			if (grants != null) {
+				List<RoleAccount> l = new LinkedList<RoleAccount>( grants );
+				List<RoleAccount> current = new LinkedList<RoleAccount>(appService.findRoleAccountByAccount(acc.getId()) );
+				for (Iterator<RoleAccount> iterator = l.iterator(); iterator.hasNext();) {
+					RoleAccount ra = iterator.next();
+					boolean found = false;
+					for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
+						RoleAccount ra2 = iterator2.next();
+						if (ra2.getRoleName().equals(ra.getRoleName())) {
+							if (ra2.getDomainValue() == null ||
+									ra2.getDomainValue().getValue() == null ||
+									ra.getDomainValue() != null && ra2.getDomainValue().getValue().equals(ra.getDomainValue().getValue())) {
+								found = true;
+								iterator2.remove();
+								iterator.remove();
+								break;
+							}
+						}
+					}
+					if (!found) {
+						RoleGrant grant = new RoleGrant();
+						grant.setSystem(ra.getSystem());
+						grant.setRoleName(ra.getRoleName());
+						if (ra.getDomainValue()!=null)grant.setDomainValue(ra.getDomainValue().getValue());
+						loadGrant(acc, grant, null);
+					}
+				}
+
+				for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
+					
+					RoleAccount ra2 = iterator2.next();
+					RoleGrant grant = new RoleGrant();
+					grant.setSystem(ra2.getSystem());
+					grant.setRoleName(ra2.getRoleName());
+					grant.setId(ra2.getId());
+					if (ra2.getDomainValue() != null)
+					{
+						grant.setDomainValue(ra2.getDomainValue().getValue());
+					}
+					
+					unloadGrant(acc, grant);
+				}
+			}
+
+		} finally {
+			taskGenerator.finishVirtualSourceTransaction(virtualTransactionId);
+		}
+	}
 	private void removeRoles() throws InternalErrorException, Exception {
 		HashSet<String> existingRoleNames = new HashSet<String> (
 				appService.findRoleNames(dispatcher.getName()));
