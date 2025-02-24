@@ -169,7 +169,7 @@ public class SessionManager extends Thread {
     			sessio.getType() == TipusSessio.PAMSSH)
     		return checkPamSession(sessio);
     	else if (sessio.getType().getValue().equals("C")) // TipusSessio.CONSOLE
-    		return false;
+    		return true;
     	else if (sessio.getUrl() != null)
     		return checkUrlSession(sessio);
     	else
