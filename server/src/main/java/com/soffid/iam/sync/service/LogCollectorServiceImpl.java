@@ -88,6 +88,14 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
         }
         if (maq == null)
         {
+			for (HostEntity maq2: dao.findByIP(single , server))
+        	{
+        		maq = maq2;
+        		break;
+        	}
+        }
+        if (maq == null)
+        {
         	try
 			{
 				InetAddress address = InetAddress.getByName(server);
@@ -169,29 +177,22 @@ public class LogCollectorServiceImpl extends LogCollectorServiceBase {
 	    		clientIp = client.substring(client.indexOf(" ")+1);
 	    		client = client.substring(0, client.indexOf(" "));
 	    	}
-	    	HostEntity host = findMaquina(client);
+	    	HostEntity host = null;
+	    	if (client != null && !client.trim().isEmpty())
+	    		host = getHostEntityDao().findByName(client);
 			if (host == null) {
 				rac.setClient(null);
 				rac.setClientHostName(client);
+				rac.setClientAddress(clientIp);
 			} else {
-				rac.setClient(findMaquina(client));
-				rac.setClientHostName(rac.getClient().getName());
-				rac.setClientAddress(host.getHostIP());
+				rac.setClient(host);
+				rac.setClientHostName(client);
+				rac.setClientAddress(clientIp);
 			}
-        	try
-        	{
-        		if (InetAddressUtils.isIPv4Address(client) ||
-        				InetAddressUtils.isIPv6Address(client))
-        			rac.setClientAddress(client);
-        		if (clientIp != null)
-        			rac.setClientAddress(clientIp);
-        		else {
-        			InetAddress addr = InetAddress.getByName(rac.getClientHostName());
-        			rac.setClientAddress(addr.getHostAddress());
-        		}
-        	} catch (Exception e )
-        	{
-        	}
+    		if (clientIp == null && 
+    				(InetAddressUtils.isIPv4Address(client) ||
+    				InetAddressUtils.isIPv6Address(client)))
+   				rac.setClientAddress(client);
         }
 	}
 
