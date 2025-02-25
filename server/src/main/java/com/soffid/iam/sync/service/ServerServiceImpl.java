@@ -2350,44 +2350,10 @@ public class ServerServiceImpl extends ServerServiceBase {
 
 	@Override
 	protected void handleReconcileAccount(Account account, List<RoleAccount> grants) throws Exception {
-		TaskEntityDao tae = (TaskEntityDao) ServiceLocator.instance().getService("taskEntityDao");
-		String t = tae.startVirtualSourceTransaction(true);
-		try {
-			getAccountService().updateAccount2(account);
-			if (grants != null) {
-				List<RoleAccount> l = new LinkedList<RoleAccount>( grants );
-				List<RoleAccount> current = new LinkedList<RoleAccount>( getApplicationService().findRoleAccountByAccount(account.getId()) );
-				for (Iterator<RoleAccount> iterator = l.iterator(); iterator.hasNext();) {
-					RoleAccount ra = iterator.next();
-					boolean found = false;
-					for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
-						RoleAccount ra2 = iterator2.next();
-						if (ra2.getRoleName().equals(ra.getRoleName())) {
-							if (ra2.getDomainValue() == null ||
-									ra2.getDomainValue().getValue() == null ||
-									ra.getDomainValue() != null && ra2.getDomainValue().getValue().equals(ra.getDomainValue().getValue())) {
-								found = true;
-								iterator2.remove();
-								iterator.remove();
-								break;
-							}
-						}
-					}
-					if (!found) {
-						getApplicationService().create(ra);
-					}
-				}
-				
-				for (Iterator<RoleAccount> iterator2 = current.iterator(); iterator2.hasNext();) {
-					RoleAccount ra2 = iterator2.next();
-					getApplicationService().delete(ra2);
-				}
-			}
-		} finally {
-			tae.finishVirtualSourceTransaction(t);
-		}
+		com.soffid.iam.api.System sys =  getSystem(account.getSystem());
+		new com.soffid.iam.sync.engine.ReconcileEngine2(sys,null,null,new VoidWriter()).reconcileAccount(account, grants);
 	}
-
+	
 	@Override
 	protected void handleAddCertificate(X509Certificate cert) throws Exception {
 		String account = Security.getCurrentAccount();
