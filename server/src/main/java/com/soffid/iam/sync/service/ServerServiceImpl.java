@@ -2353,11 +2353,6 @@ public class ServerServiceImpl extends ServerServiceBase {
 		com.soffid.iam.api.System sys =  getSystem(account.getSystem());
 		new com.soffid.iam.sync.engine.ReconcileEngine2(sys,null,null,new VoidWriter()).reconcileAccount(account, grants);
 	}
-	@Override
-	protected void handleReconcileAccount(String dispatcherName, Account account, List<RoleAccount> grants) throws Exception {
-		com.soffid.iam.api.System sys =  getSystem(dispatcherName);
-		new com.soffid.iam.sync.engine.ReconcileEngine2(sys,null,null,new VoidWriter()).reconcileAccount(account, grants);
-	}
 	
 	@Override
 	protected void handleAddCertificate(X509Certificate cert) throws Exception {
