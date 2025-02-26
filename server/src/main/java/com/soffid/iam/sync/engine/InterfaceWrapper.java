@@ -924,8 +924,8 @@ public class InterfaceWrapper {
 				public void reconcileAccount(String system, String account) throws InternalErrorException {
 					agent.reconcileAccount(system, account);
 				}
-				public void reconcileAccount(String dispatcherName, Account account, List<RoleAccount> grants ) throws InternalErrorException {
-					agent.reconcileAccount( dispatcherName, es.caib.seycon.ng.comu.Account.toAccount(account), RolAccount.toRolAccountList(grants));
+				public void reconcileAccount(Account account, List<RoleAccount> grants ) throws InternalErrorException {
+					agent.reconcileAccount(es.caib.seycon.ng.comu.Account.toAccount(account), RolAccount.toRolAccountList(grants));
 				}
 				public Collection<System> getServices() throws InternalErrorException {
 					Collection<Dispatcher> d = agent.getServices();
@@ -936,10 +936,6 @@ public class InterfaceWrapper {
 						throws InternalErrorException, InternalErrorException, InternalErrorException,
 						UnknownUserException {
 					return GroupUser.toGroupUserList( agent.getUserMemberships(accountName, dispatcherId));
-				}
-				@Override
-				public void reconcileAccount(Account account, List<RoleAccount> grants) throws InternalErrorException {
-					agent.reconcileAccount(es.caib.seycon.ng.comu.Account.toAccount(account), RolAccount.toRolAccountList(grants));
 				}
 				@Override
 				public void addCertificate(X509Certificate cert) throws InternalErrorException {
