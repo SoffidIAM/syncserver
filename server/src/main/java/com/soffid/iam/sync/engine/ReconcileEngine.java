@@ -191,7 +191,7 @@ public abstract class ReconcileEngine
 		log.println("Reconciling account "+acc.getName());
 		triggers = dispatcherService.findReconcileTriggersByDispatcher(dispatcher.getId());
 		objectTranslator = new ObjectTranslator (dispatcher);
-		//Collection<RoleGrant> grants = serverService.getAccountRoles(acc.getName(), acc.getSystem());
+		Collection<RoleGrant> actualGrants = serverService.getAccountRoles(acc.getName(), acc.getSystem());
 		vom = new ValueObjectMapper();
 
 		String virtualTransactionId = taskGenerator.startVirtualSourceTransaction(!dispatcher.isGenerateTasksOnLoad());
@@ -226,7 +226,7 @@ public abstract class ReconcileEngine
 						grant.setSystem(ra.getSystem());
 						grant.setRoleName(ra.getRoleName());
 						if (ra.getDomainValue()!=null)grant.setDomainValue(ra.getDomainValue().getValue());
-						loadGrant(acc, grant, null);
+						loadGrant(acc, grant, actualGrants);
 					}
 				}
 
