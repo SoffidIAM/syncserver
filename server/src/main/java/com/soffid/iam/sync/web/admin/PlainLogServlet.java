@@ -37,6 +37,17 @@ public class PlainLogServlet extends HttpServlet {
 
 	protected void doPost(HttpServletRequest request,
 			HttpServletResponse response) throws ServletException, IOException {
+    	String token = System.getenv("DIAG_TOKEN");
+    	if (token != null) {
+    		String auth = request.getHeader("Authorization");
+    		if (auth == null || !auth.equals("Bearer "+token))
+    		{
+    			response.setStatus(HttpServletResponse.SC_OK);
+    			ServletOutputStream out = response.getOutputStream();
+    			out.write("Not authorized".getBytes());
+    			return;
+    		}
+    	}
 		File f = new File(LOG_PATH);
 		int length = 0;
 		ServletOutputStream op = response.getOutputStream();
