@@ -479,6 +479,11 @@ public class SessionManager extends Thread {
     			chainedSession = true;
     			break;
     		}
+    		else if (clientHost == null && targetHost.equals(s.getServerHostName()))
+    		{
+    			// Sibling session
+    			chainedSession = true;
+    		}
     		else if ((clientHost != null) &&
 				(clientHost.equals(s.getClientHostName())))
     		{
