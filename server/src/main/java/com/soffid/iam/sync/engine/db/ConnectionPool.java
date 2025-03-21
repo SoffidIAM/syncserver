@@ -133,10 +133,15 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 		// You can put a database name after the @ sign in the connection URL.
 		if (debug)
 			log.fine("Connecting to "+config.getDB());
+		String url = config.getDB();
+    	if (url != null &&
+    			url.startsWith("jdbc:sqlserver") &&
+    			!url.contains("trustServerCertificate"))
+    		url = url + ";trustServerCertificate=true";
 		WrappedConnection c = new WrappedConnection( 
 				ConnectionPool.this,
 				DriverManager.getConnection(
-						config.getDB(), 
+						url, 
 						config.getDbUser(),
 						config.getPassword().getPassword()) );
 		if (debug)

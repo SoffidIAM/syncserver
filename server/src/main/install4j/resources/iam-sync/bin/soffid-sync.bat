@@ -68,7 +68,7 @@ call "%SYNC_BIN%\env.bat"
 if "%CLASSPATH%" == "" goto emptyClasspath
 set "CLASSPATH=%CLASSPATH%;"
 :emptyClasspath
-set "CLASSPATH=%CLASSPATH%%SYNC_BIN%\bootstrap.jar;%SYNC_HOME%\lib\mariadb-java-client-1.8.0.jar;%SYNC_HOME%\lib\ojdbc10-19.20.0.0.jar;%SYNC_HOME%\lib\postgresql-42.2.5.jre7.jar;%SYNC_HOME%\lib\sqljdbc4-3.0.jar"
+set "CLASSPATH=%CLASSPATH%%SYNC_BIN%\bootstrap.jar;%SYNC_HOME%\lib\mariadb-java-client-1.8.0.jar;%SYNC_HOME%\lib\ojdbc10-19.20.0.0.jar;%SYNC_HOME%\lib\postgresql-42.2.5.jre7.jar;%SYNC_HOME%\lib\mssql-jdbc-12.10.0.jre11.jar"
 
 rem ----- Execute The Requested Command ---------------------------------------
 
