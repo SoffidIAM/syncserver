@@ -230,8 +230,18 @@ public class QueryServiceImpl extends QueryServiceBase {
                                                                          // (veure
                                                                          // seguent)
                 stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, "
-                        + "MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC " + "FROM SC_MAQUIN, SC_XARXES "
-                        + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_TEN_ID=? AND MAQ_ADRIP IS NOT NULL");
+                        + "MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC " 
+                		+ "FROM SC_MAQUIN, SC_XARXES "
+                        + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_TEN_ID=? AND MAQ_ADRIP IS NOT NULL "
+                        + "AND MAQ_ID NOT IN"
+    					+ "(SELECT M.MAQ_ID "
+    					+ "FROM SC_MAQUIN M, SC_HOSATT A1, SC_HOSATT A2, SC_HOSATT A3, SC_HOSATT A4 "
+    					+ "WHERE A1.HAT_MAQ_ID=M.MAQ_ID AND A1.HAT_TDA_ID=(SELECT TDA_ID FROM SC_TIPDAD, SC_CUOBTY WHERE TDA_COT_ID=COT_ID AND COT_NAME like '%.Host' AND TDA_CODI='detectedOs' AND COT_TEN_ID=MAQ_TEN_ID) "
+    					+ "AND A2.HAT_MAQ_ID=M.MAQ_ID AND A2.HAT_TDA_ID=(SELECT TDA_ID FROM SC_TIPDAD, SC_CUOBTY WHERE TDA_COT_ID=COT_ID AND COT_NAME like '%.Host' AND TDA_CODI='device' AND COT_TEN_ID=MAQ_TEN_ID) "
+    					+ "AND A3.HAT_MAQ_ID=M.MAQ_ID AND A3.HAT_TDA_ID=(SELECT TDA_ID FROM SC_TIPDAD, SC_CUOBTY WHERE TDA_COT_ID=COT_ID AND COT_NAME like '%.Host' AND TDA_CODI='browser' AND COT_TEN_ID=MAQ_TEN_ID) "
+    					+ "AND A4.HAT_MAQ_ID=M.MAQ_ID AND A4.HAT_TDA_ID=(SELECT TDA_ID FROM SC_TIPDAD, SC_CUOBTY WHERE TDA_COT_ID=COT_ID AND COT_NAME like '%.Host' AND TDA_CODI='cpu' AND COT_TEN_ID=MAQ_TEN_ID) "
+    					+ "AND M.MAQ_SERIAL IS NOT NULL AND M.MAQ_USUADM IS NULL AND M.MAQ_DESCRI LIKE 'Autocreated %' AND M.MAQ_ADRIP IS NOT NULL "
+    					+ ")");
                 stmt.setLong(1, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("hosts") // Obtenim els ÀLIES dels
                                                       // hosts
