@@ -481,7 +481,7 @@ public class LogonServiceImpl extends LogonServiceBase {
 		final int cardSupport, int version) throws LogonDeniedException,
 		InternalErrorException, UnknownUserException, UnknownHostException
 	{
-		if (type == Challenge.TYPE_KERBEROS && domain == null && user.contains("@"))
+		if (type == Challenge.TYPE_KERBEROS && user.contains("@"))
 		{
 			KerberosManager km;
 			try {
