@@ -393,9 +393,10 @@ public class SessionManager extends Thread {
     	if (!usuari.getMultiSession().booleanValue())
     	{
     		StringBuffer hosts = new StringBuffer();
-    		clientName = (client == null ? "" : ":" + client); //$NON-NLS-1$ //$NON-NLS-2$
+    		clientName = (client == null ? "" : ":" + client.getName()); //$NON-NLS-1$ //$NON-NLS-2$
     		if (warnMultipleSession(user, servidor.getName(),
 					(client == null ? null : client.getName()),
+					client == null ? servidor.getIp(): client.getIp(),
 					servidor.getName() + "(" + servidor.getIp() + ")" + //$NON-NLS-1$ //$NON-NLS-2$
 						clientName, hosts, closeOldSessions, silent))
     			throw new TooManySessionsException(hosts.toString());
@@ -458,7 +459,8 @@ public class SessionManager extends Thread {
      * sesiones duplicadas
      */
     public boolean warnMultipleSession(String user, String targetHost,
-		String clientHost, String host, StringBuffer hosts,
+		String clientHost, String clientIp,
+		String host, StringBuffer hosts,
 		boolean closeOldSessions, boolean silent)
 		throws InternalErrorException
 	{
@@ -467,15 +469,24 @@ public class SessionManager extends Thread {
     	// //////////////////////////////////////////////////////////////////////////
     	// Obtener las sesione que pueda tener abiertas el usuario
     	User usuari = usuariService.findUserByUserName(user);
-
+    	
     	boolean chainedSession = false;
     	for (Iterator<Session> it = sessioService.getActiveSessions(usuari.getId()).iterator();
 				it.hasNext();)
     	{
     		Session s = it.next();
+    		Host h = xarxaService.findHostByName(s.getClientHostName() == null ?
+    				s.getServerHostName(): 
+    				s.getClientHostName());
     		if (s.getServerHostName().equals(clientHost))
     		{
     			// Parent session
+    			chainedSession = true;
+    			break;
+    		}
+    		else if (h != null && clientIp.equals(h.getIp()))
+    		{
+    			// Session from same IP address
     			chainedSession = true;
     			break;
     		}
