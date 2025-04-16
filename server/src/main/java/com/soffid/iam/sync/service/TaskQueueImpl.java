@@ -289,7 +289,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				DispatcherHandler dispatcher =
 					getTaskGenerator().getDispatcher(
 						newTask.getTask().getSystemName());
-				if (dispatcher != null && dispatcher.isActive()) 
+				if (dispatcher != null && dispatcher.isActive() && 
+						!dispatcher.getSystem().isReadOnly() ) 
 				{
 					addAndNotifyDispatchers(newTask, entity);
 				}
@@ -1580,7 +1581,8 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 
 				// Update for virtual dispatchers
 				DispatcherHandler dispatcher = getTaskGenerator().getDispatcher(task.getTask().getSystemName());
-				if (dispatcher == null || ! dispatcher.isActive()) 
+				if (dispatcher == null || ! dispatcher.isActive() || 
+						dispatcher.getSystem().isReadOnly()) 
 				{
 					log.info("Cannot find dispatcher for {} {}", task.getTask().getUser(), task.getTask().getSystemName());
 					storeAccountPassword(task, account);
