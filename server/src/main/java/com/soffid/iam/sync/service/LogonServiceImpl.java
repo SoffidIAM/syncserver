@@ -292,13 +292,20 @@ public class LogonServiceImpl extends LogonServiceBase {
 								challenge.getChallengeId()));
             }
 
+            
+            long tsDiff = ch.getTimeStamp().getTime() - challenge.getTimeStamp().getTime();
             if (!ch.getUser().getId().equals(challenge.getUser().getId())
                     || !ch.getUser().getUserName().equals(challenge.getUser().getUserName())
-                    || !ch.getTimeStamp().equals(challenge.getTimeStamp())
+                    || tsDiff > 1000 || tsDiff < -1000
                     || !ch.getCardNumber().equals(challenge.getCardNumber())
                     || !ch.getCell().equals(challenge.getCell())) {
                 log.debug("Wrong Challenge {} for user {}", challenge.getChallengeId(), //$NON-NLS-1$
                         challenge.getUser());
+                log.info("User     : {} {}", ch.getUser().getId(), challenge.getUser().getId());
+                log.info("User name: {} {}", ch.getUser().getUserName(), challenge.getUser().getUserName());
+                log.info("Card     : {} {}", ch.getCardNumber(), challenge.getCardNumber());
+                log.info("Cell     : {} {}", ch.getCell(), challenge.getCell());
+                log.info("Timestamp diff: {}", tsDiff, null);
                 throw new InternalErrorException(String.format(Messages.getString("LogonServiceImpl.WrongChallengeMsg"), //$NON-NLS-1$
                 				challenge.getChallengeId()));
             }
