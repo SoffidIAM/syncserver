@@ -3,6 +3,10 @@
  */
 package com.soffid.iam.sync.engine.extobj;
 
+import java.lang.reflect.InvocationTargetException;
+
+import org.apache.commons.beanutils.PropertyUtils;
+
 import com.soffid.iam.api.Account;
 import com.soffid.iam.api.Role;
 import com.soffid.iam.api.RoleGrant;
@@ -103,6 +107,14 @@ public class GrantExtensibleObject extends ExtensibleObject
 				throw new RuntimeException(e);
 			} catch (UnknownRoleException e) {
 				obj = null;
+			}
+		}
+		else if ("attributes".equals(attribute))
+		{
+			try {
+				obj = PropertyUtils.getProperty(grant, "attributes");
+			} catch (IllegalAccessException | InvocationTargetException | NoSuchMethodException e) {
+				throw new RuntimeException("Error fetching grant attributes", e);
 			}
 		}
 		else
