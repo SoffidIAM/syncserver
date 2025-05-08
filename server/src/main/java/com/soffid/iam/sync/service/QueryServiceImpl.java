@@ -236,8 +236,8 @@ public class QueryServiceImpl extends QueryServiceBase {
                         + "AND MAQ_ADRIP IS NOT NULL "
                         + "AND (MAQ_DELETED IS NULL OR MAQ_DELETED=0) "
                         + "AND (MAQ_USUADM IS NOT NULL OR "
-                        + "    (MAQ_DESCRI NOT LIKE 'Autocre%' AND MAQ_DESCRI NOT LIKE '%automàtica%'"
-                        + "     AND MAQ_DESCRI NOT LIKE '%automática%')) ");
+                        + "    (MAQ_DESCRI IS NULL OR "
+                        + "     MAQ_DESCRI NOT LIKE 'Autocre%' AND MAQ_DESCRI NOT LIKE '%autom_tica%')) ");
                 stmt.setLong(1, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("hosts") // Obtenim els ÀLIES dels
                                                       // hosts
