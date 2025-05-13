@@ -189,7 +189,8 @@ public class QueryServiceImpl extends QueryServiceBase {
                 stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, "
                         + "MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC " 
                 		+ "FROM SC_MAQUIN, SC_XARXES "
-                        + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_NOM=? AND MAQ_TEN_ID=? ");
+                        + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_NOM=? AND MAQ_TEN_ID=? "
+                        + "DORDER BY MAQ_ID");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("host") // ÀLIES del host
@@ -237,7 +238,8 @@ public class QueryServiceImpl extends QueryServiceBase {
                         + "AND (MAQ_DELETED IS NULL OR MAQ_DELETED=0) "
                         + "AND (MAQ_USUADM IS NOT NULL OR "
                         + "    (MAQ_DESCRI IS NULL OR "
-                        + "     MAQ_DESCRI NOT LIKE 'Autocre%' AND MAQ_DESCRI NOT LIKE '%autom_tica%')) ");
+                        + "     MAQ_DESCRI NOT LIKE 'Autocre%' AND MAQ_DESCRI NOT LIKE '%autom_tica%')) "
+                        + "ORER BY MAQ_ID");
                 stmt.setLong(1, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("hosts") // Obtenim els ÀLIES dels
                                                       // hosts
