@@ -239,7 +239,7 @@ public class QueryServiceImpl extends QueryServiceBase {
                         + "AND (MAQ_USUADM IS NOT NULL OR "
                         + "    (MAQ_DESCRI IS NULL OR "
                         + "     MAQ_DESCRI NOT LIKE 'Autocre%' AND MAQ_DESCRI NOT LIKE '%autom_tica%')) "
-                        + "ORER BY MAQ_ID");
+                        + "ORDER BY MAQ_ID");
                 stmt.setLong(1, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("hosts") // Obtenim els ÀLIES dels
                                                       // hosts
