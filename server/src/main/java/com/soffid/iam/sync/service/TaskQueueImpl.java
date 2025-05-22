@@ -1794,7 +1794,10 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 				return; // Do not store initial successful logs
 			
 			entity = getTaskLogEntityDao().newTaskLogEntity();
-			entity.setSystem(getSystemEntityDao().load(thl.getDispatcher().getSystem().getId()));
+			SystemEntity systemEntity = getSystemEntityDao().load(thl.getDispatcher().getSystem().getId());
+			if (systemEntity == null)
+				return;
+			entity.setSystem(systemEntity);
 			entity.setTask(tasqueEntity);
 			entity.setCreationDate(new Date());
 		}
