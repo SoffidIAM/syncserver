@@ -154,6 +154,8 @@ public class ProcessRequestThread extends Thread{
 			conn.setDoInput(true);
 			conn.setDoOutput(true);
 			conn.setRequestMethod("POST");
+			conn.setConnectTimeout(5000); // 5 Seconds to connect
+			conn.setReadTimeout(20000); // 20 seconds to get response
 			conn.connect();
 			OutputStream out = conn.getOutputStream();
 			ObjectOutputStream oout = new ObjectOutputStream(out);
