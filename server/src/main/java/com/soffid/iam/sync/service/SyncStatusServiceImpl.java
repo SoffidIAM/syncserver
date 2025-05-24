@@ -1042,6 +1042,7 @@ public abstract class SyncStatusServiceImpl extends SyncStatusServiceBase {
 		DispatcherHandler handler = getTaskGenerator().getDispatcher(dispatcher);
 		if (handler == null)
 			throw new InternalErrorException ("System "+dispatcher+" is not enabled yet");
+		handler.sanityCheck();
 		if (! handler.isConnected())
 		{
 			handler.connect(true, false);

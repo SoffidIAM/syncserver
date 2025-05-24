@@ -2148,6 +2148,16 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 
     @Override
     public void sanityCheck() {
+    	try {
+    		if (lastAgent != null) {
+    			if (lastAgent != null && lastAgent instanceof AgentInterface) 
+    				((AgentInterface)lastAgent).checkConnectivity();
+    			if (lastAgent != null && lastAgent instanceof es.caib.seycon.ng.sync.agent.AgentInterface) 
+    				((es.caib.seycon.ng.sync.agent.AgentInterface)lastAgent).checkConnectivity();
+    		}
+		} catch (Exception e) {
+			handleRMIError(e);
+		}
     }
 
     @Override
