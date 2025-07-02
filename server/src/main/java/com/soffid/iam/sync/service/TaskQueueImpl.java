@@ -177,10 +177,14 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		TaskGenerator tg = getTaskGenerator();
 		if (entity == null ||
 			newTask.getTask().getServer() == null && !tg.isEnabled() ||
-			newTask.getTask().getServer() != null &&
-			!newTask.getTask().getServer().equals(hostname))
+			newTask.getTask().getServer() != null && !newTask.getTask().getServer().equals(hostname) ||
+			isOldTask(entity))
 		{
 			// Ignorar la transaccion
+			if (entity != null)
+			{
+				getTaskEntityDao().delete(entity);
+			}
 		}
 		else if (newTask.getTask()
 				.getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD) &&
@@ -398,6 +402,20 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		{
 			addAndNotifyDispatchers(newTask, entity);
 		}
+	}
+
+	private boolean isOldTask(TaskEntity entity) {
+		if (entity.getTransaction().equals(TaskHandler.UPDATE_ACCOUNT_PASSWORD) ||
+				entity.getTransaction().equals(TaskHandler.UPDATE_USER_PASSWORD) ||
+				entity.getTransaction().equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD) ||
+				entity.getTransaction().equals(TaskHandler.UPDATE_PROPAGATED_PASSWORD_SINCRONO)
+				)
+		{
+			if (System.currentTimeMillis() - entity.getDate().getTime() > 48 * 60 * 60_000) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	private boolean autoCloseUserTask(TaskHandler newTask, TaskEntity entity) throws Exception {
