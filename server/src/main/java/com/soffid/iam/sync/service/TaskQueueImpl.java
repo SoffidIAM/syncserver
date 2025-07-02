@@ -183,7 +183,7 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 			// Ignorar la transaccion
 			if (entity != null)
 			{
-				getTaskEntityDao().delete(entity);
+				getTaskEntityDao().remove(entity);
 			}
 		}
 		else if (newTask.getTask()
