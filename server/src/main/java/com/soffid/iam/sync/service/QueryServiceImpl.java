@@ -187,7 +187,7 @@ public class QueryServiceImpl extends QueryServiceBase {
             } else if (v.elementAt(0).equals("host") && v.size() == 2) {
                 // Eliminem àlies: emprar /host/NOMHOST/alias
                 stmt = conn.prepareStatement("SELECT MAQ_NOM, MAQ_ADRIP, MAQ_DESCRI, MAQ_PARDHC, "
-                        + "MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC " 
+                        + "MAQ_SISOPE, XAR_CODI, MAQ_ADRMAC, MAQ_SERIAL " 
                 		+ "FROM SC_MAQUIN, SC_XARXES "
                         + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_NOM=? AND MAQ_TEN_ID=? "
                         + "ORDER BY MAQ_ID");
