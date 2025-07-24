@@ -3132,13 +3132,21 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
 	}
 
 	public String getPrincipalAccount (String principalName) throws Exception {
-		if (isConnected() && kerberosAgent != null)
+		if (isConnected())
 		{
-			KerberosAgent krbAgent = InterfaceWrapper.getKerberosAgent(kerberosAgent);
+			Object agent = getCurrentAgent();
+			boolean close = false;
+			if (agent == null) {
+				agent = connect(false, false);
+				close = true;
+			}
+			KerberosAgent krbAgent = InterfaceWrapper.getKerberosAgent(agent);
 			if (krbAgent != null)
 			{
 				return krbAgent.findPrincipalAccount(principalName);
 			}
+			if (close && agent != null)
+				closeAgent(agent);
 		}
 		return null;
 				
