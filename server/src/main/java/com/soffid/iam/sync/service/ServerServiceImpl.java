@@ -113,6 +113,7 @@ import com.soffid.iam.sync.ServerServiceLocator;
 import com.soffid.iam.sync.agent.Plugin;
 import com.soffid.iam.sync.engine.DispatcherHandler;
 import com.soffid.iam.sync.engine.DispatcherHandlerImpl;
+import com.soffid.iam.sync.engine.InterfaceWrapper;
 import com.soffid.iam.sync.engine.LogWriter;
 import com.soffid.iam.sync.engine.TaskHandler;
 import com.soffid.iam.sync.engine.extobj.CustomExtensibleObject;
@@ -2280,25 +2281,46 @@ public class ServerServiceImpl extends ServerServiceBase {
 			return null;
 
 		log.info("Principal name = "+principal+". Translating to account");
+		final Account[] accountHolder = new Account[] {null};
+		final SoffidPrincipal p = Security.getSoffidPrincipal();
+		final String principalName = principal;
 		for ( DispatcherHandler dispatcherHandler: getTaskGenerator().getDispatchers())
 		{
-			try {
-				String account = ((DispatcherHandlerImpl) dispatcherHandler).getPrincipalAccount(principal);
-				if (account != null)
-				{
-					log.info("System : "+dispatcherHandler.getSystem().getName());
-					log.info("Account: "+account);
-					Account acc = handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
-					if (acc != null)
-						return acc;
-					else
-						log.info("Cannot find account "+account+" @ "+dispatcherHandler.getSystem().getName()+" not found in Soffid database");
-				}
-			} catch (Exception e) {
-				log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName(), e);
+			Object a = dispatcherHandler.getRemoteAgent();
+			if (a != null && InterfaceWrapper.getKerberosAgent(a) != null) {
+				new Thread( () -> {
+					try {
+						Security.nestedLogin(p);
+						String account = ((DispatcherHandlerImpl) dispatcherHandler).getPrincipalAccount(principalName);
+						if (account != null)
+						{
+							log.info("System : "+dispatcherHandler.getSystem().getName());
+							log.info("Account: "+account);
+							Account acc = handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
+							if (acc != null) {
+								synchronized(accountHolder) {
+									if (accountHolder == null) {
+										accountHolder[0] = acc;
+										accountHolder.notifyAll();
+									}
+								}
+							}
+							else
+								log.info("Cannot find account "+account+" @ "+dispatcherHandler.getSystem().getName()+" not found in Soffid database");
+						}
+					} catch (Exception e) {
+						log.warn("Error checking kerberos domain "+domain+" on agent "+dispatcherHandler.getSystem().getName(), e);
+					}
+				}).start();
+				Thread.sleep(50);
 			}
 		}
-		return null;
+		synchronized (accountHolder) {
+			if (accountHolder[0] == null) {
+				accountHolder.wait(60000); // Wait for a minute
+			}
+		}
+		return accountHolder[0];
 	}
 
 	@Override
