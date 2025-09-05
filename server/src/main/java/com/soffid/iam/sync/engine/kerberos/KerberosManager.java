@@ -235,6 +235,7 @@ public class KerberosManager {
 		if (new KubernetesConfig().isKubernetes())
 			writer.println("udp_preference_limit=1");
 		writer.println("allow_weak_crypto=true");
+		writer.println("allow_rc4=true");
 		writer.println();
 		writer.println("[realms]");
 		writer.println(realms.toString());
