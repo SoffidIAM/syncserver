@@ -2299,7 +2299,7 @@ public class ServerServiceImpl extends ServerServiceBase {
 							Account acc = handleGetAccountInfo(account, dispatcherHandler.getSystem().getName());
 							if (acc != null) {
 								synchronized(accountHolder) {
-									if (accountHolder == null) {
+									if (accountHolder[0] == null) {
 										accountHolder[0] = acc;
 										accountHolder.notifyAll();
 									}
