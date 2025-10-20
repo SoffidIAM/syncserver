@@ -1,5 +1,6 @@
 package com.soffid.iam.sync.service;
 
+import com.soffid.iam.ServiceLocator;
 import com.soffid.iam.model.SessionEntity;
 import com.soffid.iam.ssl.AlwaysTrustConnectionFactory;
 import com.soffid.iam.sync.engine.ChangePasswordNotification;
@@ -177,10 +178,18 @@ public class ChangePasswordNotificationQueueImpl extends
             	! sessio.getType().toString().equals("E")) // Only for WEB and ESSO
             	return;
             // Generar la nova clau
-            String newKey = ChallengeStore.getInstance().generateSessionKey();
+            String newKey = sessio.getNewKey();
+            if (newKey == null) {
+            	newKey = ChallengeStore.getInstance().generateSessionKey();
+            	final String s = newKey;
+            	ServiceLocator.instance().getAsyncRunnerService().runNewTransaction(
+            			() -> {
+            				sessio.setNewKey(s);
+            				getSessionEntityDao().update(sessio);
+            				return null;
+            			});
+            }
             String dif = computeDiferences(sessio.getKey(), newKey);
-            sessio.setNewKey(newKey);
-            getSessionEntityDao().update(sessio);
             if (sessio.getType() == TipusSessio.ESSO && sessio.getPort() != null && sessio.getPort() > 0)
             	sendKeySocketMessage(n, dif);
             else if (sessio.getType() == TipusSessio.WSSO && sessio.getMonitorUrl() != null && n.getUrl() != null)
