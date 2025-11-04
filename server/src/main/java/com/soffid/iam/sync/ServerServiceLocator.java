@@ -11,6 +11,7 @@ import java.io.IOException;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 
 import com.soffid.iam.config.Config;
+import com.soffid.iam.remote.RemoteServiceLocator;
 
 /**
  * Locates and provides all available application services.
@@ -34,6 +35,13 @@ public class ServerServiceLocator
         if (baseServiceLocator == null) {
             baseServiceLocator = com.soffid.iam.ServiceLocator.instance();
             baseServiceLocator.init("localBeanRefFactory.xml", "beanRefFactory");
+            try {
+				if ("server".equals(Config.getConfig().getRole())) {
+				    RemoteServiceLocator.serviceLocatorProxy = (String name) -> { return baseServiceLocator.getService(name); };
+				    es.caib.seycon.ng.remote.RemoteServiceLocator.serviceLocatorProxy = (String name) -> { return baseServiceLocator.getService(name); };
+				}
+			} catch (IOException e) {
+			}
         }
         return baseServiceLocator;
     }
