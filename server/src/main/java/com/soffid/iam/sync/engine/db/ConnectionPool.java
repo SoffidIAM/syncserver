@@ -75,7 +75,6 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	{
         String type = driver.substring(driver.indexOf(":")+1); //$NON-NLS-1$
         type = type.substring(0, type.indexOf(":")); //$NON-NLS-1$
-        if (type.equals("mariadb")) type = "mysql";
         return type;
 	}
 
@@ -86,7 +85,7 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 	 */
 	public String getDummyQuery (String type)
 	{
-        if ("mysql".equals(type) || "postgresql".equals(type))  //$NON-NLS-1$
+        if ("mysql".equals(type) || "postgresql".equals(type) || "mariadb".equals(type))  //$NON-NLS-1$
         {
         	return ("SELECT 1");
         } else if ("oracle".equals (type)) { //$NON-NLS-1$
@@ -109,7 +108,7 @@ public class ConnectionPool extends AbstractPool<WrappedConnection> {
 				log.log(Level.WARNING, "Error registering driver: " + e.getMessage(), e);
 			}
 			try {
-				Class c = Class.forName("com.mysql.jdbc.Driver");
+				Class c = Class.forName("com.mysql.cj.jdbc.Driver");
 				DriverManager.registerDriver((java.sql.Driver) c.newInstance());
 			} catch (Exception e) {
 //				log.log(Level.WARNING, "Error registering driver: " + e.getMessage(), e);

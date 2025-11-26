@@ -23,7 +23,7 @@ public class SQLConnectionFactory {
                 System.out.println("WARNING: Cannot register Oracle driver");
             }
             try {
-                Class c = Class.forName("com.mysql.jdbc.Driver");
+                Class c = Class.forName("com.mysql.cj.jdbc.Driver");
                 DriverManager.registerDriver((java.sql.Driver) c.newInstance());
             } catch (Exception e) {
                 System.out.println("WARNING: Cannot register MYSQL driver");

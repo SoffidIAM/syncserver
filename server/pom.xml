@@ -145,7 +145,7 @@
 								${project.build.directory}/dist/opt/soffid/iam-sync/lib
 							</outputDirectory>
 							<includeGroupIds>
-								com.oracle.database.jdbc,org.mariadb.jdbc,org.postgresql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,
+								com.oracle.database.jdbc,org.mariadb.jdbc,org.postgresql,com.microsoft.sqlserver,com.soffid.iam.console,org.jbpm.jbpm3,org.springframework,mysql,
 								org.hibernate,net.sf.ehcache,asm,cglib,es.caib.signatura.api,
 								es.caib.signatura.valcert,antlr,org.apache.lucene,commons-beanutils,it.sauronsoftware.cron4j,
 								jakarta.xml.bind,org.bouncycastle,					
@@ -641,6 +641,12 @@
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<version>42.2.5.jre7</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>8.0.16</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
