@@ -177,14 +177,15 @@ public class TaskQueueImpl extends TaskQueueBase implements ApplicationContextAw
 		TaskGenerator tg = getTaskGenerator();
 		if (entity == null ||
 			newTask.getTask().getServer() == null && !tg.isEnabled() ||
-			newTask.getTask().getServer() != null && !newTask.getTask().getServer().equals(hostname) ||
-			isOldTask(entity))
+			newTask.getTask().getServer() != null && !newTask.getTask().getServer().equals(hostname))
 		{
 			// Ignorar la transaccion
 		}
 		else if (isOldTask(entity)) {
 			if (entity != null)
 			{
+				if (entity.getLogs() != null)
+					getTaskLogEntityDao().remove(entity.getLogs());
 				getTaskEntityDao().remove(entity);
 			}
 		}
