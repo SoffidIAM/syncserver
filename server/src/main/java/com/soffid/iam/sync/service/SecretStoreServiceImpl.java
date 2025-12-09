@@ -48,6 +48,7 @@ import com.soffid.iam.model.AccountAttributeEntity;
 import com.soffid.iam.model.AccountEntity;
 import com.soffid.iam.model.GroupEntity;
 import com.soffid.iam.model.PasswordDomainEntity;
+import com.soffid.iam.model.PasswordPolicyEntity;
 import com.soffid.iam.model.RoleEntity;
 import com.soffid.iam.model.RoleEntityDao;
 import com.soffid.iam.model.SecretEntity;
@@ -305,33 +306,39 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 		AccountEntity acc = getAccountEntityDao().load(accountId);
 		if (acc == null)
 			throw new InternalErrorException(String.format("Invalid account id %d", accountId));
+		
+		PasswordPolicyEntity pp = getPasswordPolicyEntityDao().findByAccount(acc.getId());
 
-		StringBuffer b = new StringBuffer();
-
-		if (acc.getSecrets() != null && ! acc.getSecrets().trim().isEmpty()) {
-			for (String part: acc.getSecrets().split(","))
-			{
-				if (part.startsWith("ssh.")) {
-					if (b.length() > 0) b.append(",");
-					b.append(part);
+		if (pp == null || pp.getStoreUserPasswords() == null ||
+			pp.getStoreUserPasswords().equals(Boolean.TRUE)) {
+		
+			StringBuffer b = new StringBuffer();
+	
+			if (acc.getSecrets() != null && ! acc.getSecrets().trim().isEmpty()) {
+				for (String part: acc.getSecrets().split(","))
+				{
+					if (part.startsWith("ssh.")) {
+						if (b.length() > 0) b.append(",");
+						b.append(part);
+					}
 				}
 			}
+			
+			byte p [] = value.getPassword().getBytes("UTF-8");
+			for (Server server: getSecretConfigurationService().getAllServers())
+			{
+				if (b.length() > 0)
+					b.append(',');
+				b.append(server.getId());
+				b.append('=');
+				byte encoded[] = encrypt(server, p);
+				b.append (Base64.encodeBytes(encoded, Base64.DONT_BREAK_LINES));
+			}
+			for (int i=0; i < p.length; i++)
+				p[i] = '\0';
+			acc.setSecrets(b.toString());
+			getAccountEntityDao().update(acc, "x");
 		}
-		
-		byte p [] = value.getPassword().getBytes("UTF-8");
-		for (Server server: getSecretConfigurationService().getAllServers())
-		{
-			if (b.length() > 0)
-				b.append(',');
-			b.append(server.getId());
-			b.append('=');
-			byte encoded[] = encrypt(server, p);
-			b.append (Base64.encodeBytes(encoded, Base64.DONT_BREAK_LINES));
-		}
-		for (int i=0; i < p.length; i++)
-			p[i] = '\0';
-		acc.setSecrets(b.toString());
-		getAccountEntityDao().update(acc, "x");
 	}
 
 	@Override
@@ -527,7 +534,13 @@ public class SecretStoreServiceImpl extends SecretStoreServiceBase {
 					throws Exception
 	{
 		PasswordDomainEntity domini = getPasswordDomainEntityDao().findByName(passwordDomain);
-		if (domini != null)
+		PasswordPolicyEntity pp = getPasswordPolicyEntityDao().findByPasswordDomainAndUserType(
+				passwordDomain, user.getUserType());
+
+		if (domini != null && 
+				(pp == null ||
+				pp.getStoreUserPasswords() == null ||
+				pp.getStoreUserPasswords().equals(Boolean.TRUE)))
 			handlePutSecret(user, "dompass/"+domini.getId(), p);
 	}
 
