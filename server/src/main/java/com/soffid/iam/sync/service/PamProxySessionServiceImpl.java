@@ -155,20 +155,34 @@ public class PamProxySessionServiceImpl extends PamProxySessionServiceBase {
 		
 		
 	}
+	
+	@Override
+	public Account handleFindAccount(String userName, String accountName, String system) throws InternalErrorException {
+		AccountEntity ae = getAccountEntityDao().findByNameAndSystem(accountName, system);
+		if (ae == null || !canUse(ae, userName))
+			return null;
+		else
+			return getAccountEntityDao().toAccount(ae);
+	}
+
 
 	private boolean canUse(AccountEntity t, String userName) throws InternalErrorException {
-		if (t.getSecrets() == null || t.getSecrets().isEmpty())
-			return false; // no password available
+		
 		System d = getDispatcherService().findSoffidDispatcher();
 		Account acc = getAccountService().findAccount(userName, d.getName());
 		if (acc == null || acc.isDisabled())
 			return false;
 		if (acc.getType() == AccountType.USER) {
 			AccountAccessLevelEnum al = getAccountEntityDao().getAccessLevel(t, acc.getOwnerUsers().iterator().next());
-			return al == AccountAccessLevelEnum.ACCESS_OWNER || al == AccountAccessLevelEnum.ACCESS_MANAGER || al == AccountAccessLevelEnum.ACCESS_USER;
+			if (al == AccountAccessLevelEnum.ACCESS_OWNER || al == AccountAccessLevelEnum.ACCESS_MANAGER || al == AccountAccessLevelEnum.ACCESS_USER) {
+				if (t.getType() == AccountType.USER ||
+					(t.getSecrets() != null && !t.getSecrets().isEmpty()))
+						return true;
+				// no password available
+			}
 		}
-		else
-			return false;
+
+		return false;
 	}
 
 	@Override
@@ -296,6 +310,38 @@ public class PamProxySessionServiceImpl extends PamProxySessionServiceBase {
 						subject, 
 						body);
 			}
+		}
+	}
+
+	public boolean handleIsPasswordAvailable (Account account)
+	{	
+		AccountEntity entity = getAccountEntityDao().load(account.getId());
+		return entity.getSecrets() != null && ! entity.getSecrets().isEmpty();
+	}
+
+	public NewPamSession handleOpenSession (String userName, Account account,
+		String sourceIp,
+		TipusSessio type, String info,  Map<String,Map<String,String>> obligations,
+		Password password) throws InternalErrorException 
+	{
+		SoffidPrincipal p = getUserPrincipal(userName);
+		Security.nestedLogin(p);
+		try {
+			for (String obligation: obligations.keySet()) {
+				p.setObligation(obligation.toString(), obligations.get(obligation), java.lang.System.currentTimeMillis() + 3600000L);
+			}
+
+			getPamSecurityHandlerService().checkPermission(getAccountEntityDao().load(account.getId()), "launch"); 
+
+			NewPamSession session = getPamSessionService().createCustomJumpServerSession(
+					account, sourceIp,
+					type,
+					info, 
+					account.getLoginName() == null ? account.getName(): account.getLoginName(),
+					password);
+			return session;
+		} finally {
+			Security.nestedLogoff();
 		}
 	}
 
