@@ -239,7 +239,7 @@ public class CertificateEnrollServiceImpl extends CertificateEnrollServiceBase {
 	        	{
 	        		if (s.getName().equals(subject))
 	        		{
-	        			getDispatcherService().delete(server);
+	        			getDispatcherService().delete(s);
 	        		}
 	        	}
 	        	if (server == null)
