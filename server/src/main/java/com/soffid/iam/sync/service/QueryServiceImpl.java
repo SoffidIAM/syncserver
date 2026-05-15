@@ -197,7 +197,8 @@ public class QueryServiceImpl extends QueryServiceBase {
                     && v.size() == 3 && v.elementAt(2).equals("alias")) {
                 stmt = conn.prepareStatement("SELECT MAQ_NOM, MAL_ALIAS "
                         + "FROM SC_MAQUIN, SC_XARXES, SC_MAQUINALIAS "
-                        + "WHERE XAR_ID=MAQ_IDXAR AND MAL_MAQID=MAQ_ID AND MAQ_NOM=? AND MAQ_TEN_ID=? ");
+                        + "WHERE XAR_ID=MAQ_IDXAR AND MAL_MAQID=MAQ_ID AND MAQ_NOM=? AND MAQ_TEN_ID=? "
+                        + "ORDER BY MAQ_ID");
                 stmt.setString(1, (String) v.elementAt(1));
                 stmt.setLong(2, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("host") // Cerca de hosts per attribute
@@ -246,7 +247,8 @@ public class QueryServiceImpl extends QueryServiceBase {
                     && v.size() == 2 && v.elementAt(1).equals("alias")) {
                 stmt = conn.prepareStatement("SELECT MAQ_NOM, MAL_ALIAS "
                         + "FROM SC_MAQUIN, SC_XARXES, SC_MAQUINALIAS "
-                        + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_ADRIP IS NOT NULL AND MAQ_ID=MAL_MAQID AND MAQ_TEN_ID=?");
+                        + "WHERE XAR_ID=MAQ_IDXAR AND MAQ_ADRIP IS NOT NULL AND MAQ_ID=MAL_MAQID AND MAQ_TEN_ID=? "
+                        + "ORDER BY MAQ_ID");
                 stmt.setLong(1, Security.getCurrentTenantId());
             } else if (v.elementAt(0).equals("host") // IPs del host
             		&& v.size() == 3) {
