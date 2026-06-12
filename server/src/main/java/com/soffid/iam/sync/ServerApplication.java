@@ -139,13 +139,13 @@ public class ServerApplication extends SoffidApplication {
         Thread.sleep(15000);
 
         // Iniciar la parte activa
-        if (config.isActiveServer()) {
+//        if (config.isActiveServer()) {
             // Daemon de logoff
             Thread.sleep(1000);
             ssoDaemon = new SessionManager();
             ssoDaemon.start();
             Thread.sleep(1000);
-        }
+//        }
         log.info("Seycon Server started", null, null);
         tryToResetAgents();
         agentManager = ServerServiceLocator.instance().getAgentManager();
