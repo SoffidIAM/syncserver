@@ -1199,11 +1199,15 @@ public class DispatcherHandlerImpl extends DispatcherHandler implements Runnable
            	{
 	        	if ( acc.getOldName() != null && supportsRename)
 	        	{
-	        		userMgr.removeUser(t.getTask().getUser());           		
+	        		userMgr.removeUser(acc.getOldName());           		
 	        	}
 	        	else if (acc.getOldName() != null)
 	        	{
 	        		userMgr.removeUser(acc.getOldName());
+	        		userMgr.removeUser(t.getTask().getUser());           		
+	        	}
+	        	else
+	        	{
 	        		userMgr.removeUser(t.getTask().getUser());           		
 	        	}
            		accountService.updateAccountLastUpdate(acc);
