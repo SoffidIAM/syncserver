@@ -225,7 +225,8 @@ public class SoffidApplication extends Object {
             	} catch (Exception e ) {
             		log.info("Error parsing port "+config.getPort());
             	}
-            	if (config.isBroadcastListen())
+            	if (config.isBroadcastListen() || 
+	            		new KubernetesConfig().isKubernetes())
             	{
             		jetty = new JettyServer(null, port);
             	} else {
