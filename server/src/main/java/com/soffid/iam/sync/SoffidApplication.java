@@ -28,6 +28,7 @@ import com.soffid.iam.remote.URLManager;
 import com.soffid.iam.ssl.ConnectionFactory;
 import com.soffid.iam.sync.agent.AgentManager;
 import com.soffid.iam.sync.agent.AgentManagerImpl;
+import com.soffid.iam.sync.bootstrap.KubernetesLoader;
 import com.soffid.iam.sync.engine.Engine;
 import com.soffid.iam.sync.engine.cert.CertificateServer;
 import com.soffid.iam.sync.engine.cert.SyncServerTrustedCertificateLoader;
@@ -178,7 +179,8 @@ public class SoffidApplication extends Object {
             if ("gateway".equals(config.getRole()))
             {
 	            URLManager url = config.getURL();
-	            if (config.isBroadcastListen())
+	            if (config.isBroadcastListen() || 
+	            		new KubernetesConfig().isKubernetes())
 	            {
 	               	jetty = new JettyServer(null, Integer.parseInt(config.getPort()));
 	            } else {
@@ -210,7 +212,8 @@ public class SoffidApplication extends Object {
             	Configuration.setConfiguration(new ChainConfiguration());
 
             	// enableIPTables(config);
-            	if ("server".equals (config.getRole())) {
+            	if ("server".equals (config.getRole()) ||
+            			"gateway".equals(config.getRole())) {
             		ServerApplication.configure ();
             	}
 
