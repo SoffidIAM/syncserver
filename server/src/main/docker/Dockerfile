@@ -1,5 +1,7 @@
 FROM ubuntu:22.04
 
+RUN echo Update JVM
+
 RUN apt-get update && apt-get dist-upgrade -y && apt-get install -y openjdk-11-jre-headless
 
 RUN apt-get install -y nmap
